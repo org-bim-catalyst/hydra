@@ -16,10 +16,21 @@ public sealed class ConsoleEmailSender(ILogger<ConsoleEmailSender> logger) : IEm
         ConsoleEmailSenderLog.EmailNotSent(logger, toEmail, subject, htmlBody, textBody);
         return Task.CompletedTask;
     }
+
+    /// <summary>The hub's send: logged, never delivered. The <c>Message-ID</c> is logged so a delivery can be followed in development.</summary>
+    public Task SendAsync(EmailMessage message, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(message);
+        ConsoleEmailSenderLog.HubEmailNotSent(logger, message.To, message.Subject, message.MessageId, message.HtmlBody, message.TextBody);
+        return Task.CompletedTask;
+    }
 }
 
 internal static partial class ConsoleEmailSenderLog
 {
     [LoggerMessage(Level = LogLevel.Information, Message = "[DEV] Email not actually sent. To: {ToEmail}, Subject: {Subject}\nHTML:\n{HtmlBody}\nText:\n{TextBody}")]
     public static partial void EmailNotSent(ILogger logger, string toEmail, string subject, string htmlBody, string textBody);
+
+    [LoggerMessage(Level = LogLevel.Information, Message = "[DEV] Email not actually sent. To: {ToEmail}, Subject: {Subject}, Message-ID: {MessageId}\nHTML:\n{HtmlBody}\nText:\n{TextBody}")]
+    public static partial void HubEmailNotSent(ILogger logger, string toEmail, string subject, string messageId, string htmlBody, string textBody);
 }

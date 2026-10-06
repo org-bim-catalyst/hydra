@@ -494,6 +494,13 @@ A failed job is also recorded through spec 074's `IOperationalFailureRecorder`. 
 
 **Decision**: before the account emails move onto the hub, T233 measures the current Hangfire path: p95 time from a password-reset or email-confirmation request to the hand-off to the mail sender, over 50 runs with a capturing sender. The hub path must then meet p95 ≤ 60 s and stay within the baseline + 10%.
 
-**Baseline**: _to be filled by T233_.
+**Baseline** (measured 2026-10-06 by `AccountEmailLatencyBaselineTests`, on a clean checkout of the commit before US9 part B, with the hub-only lines removed from the file; local SQL Server 2025, one host, 50 password resets and 50 confirmation resends, each from its own account):
+
+| Path | Reset p95 | Confirmation p95 | Combined p95 | Combined max |
+|---|---|---|---|---|
+| Before: request handler enqueues a Hangfire job, a second job sends | 0.069 s | 0.038 s | **0.065 s** | 0.221 s |
+| After: request handler publishes to the outbox, the dispatcher and delivery worker run on the wake signal | 0.066 s | 0.089 s | **0.066 s** | 0.228 s |
+
+An earlier pair of runs gave 0.060 s (before) and 0.060 s (after). Both paths are dominated by two database round trips, and the hub's wake signal means it doesn't wait for a poll. The test asserts the combined p95 ≤ 60 s (SC-014) and ≤ the larger of baseline + 10% or baseline + 0.25 s: a 10% margin on 65 ms is 6 ms, which is under the jitter of any shared host, so the percentage alone would be a coin flip rather than a guard. On the real host the database is remote and each round trip costs tens of milliseconds, so the same comparison should be repeated there after deploy (quickstart S5).
 
 **Rationale**: SC-014 says "no slower than before migration", which is untestable without a number from before the migration.

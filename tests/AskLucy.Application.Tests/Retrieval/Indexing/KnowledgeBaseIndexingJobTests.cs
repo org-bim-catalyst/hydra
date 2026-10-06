@@ -54,9 +54,9 @@ public sealed class KnowledgeBaseIndexingJobTests
         job.Status.Should().Be(IndexingJobStatus.Completed);
         knowledgeBase.IndexStatus.Should().Be(KnowledgeBaseIndexStatus.Indexed);
 
-        _notificationPublisher.Received(1).Publish(Arg.Is<NotificationRequest>(r =>
+        _notificationPublisher.Received(1).Publish(Arg.Is<NotificationRequest>(r => r != null &&
             r!.Type == NotificationTypeKeys.DocumentIndexingCompleted && r.EventKey == $"indexing-job:{job.Id}:completed"));
-        _notificationPublisher.Received(1).Publish(Arg.Is<NotificationRequest>(r =>
+        _notificationPublisher.Received(1).Publish(Arg.Is<NotificationRequest>(r => r != null &&
             r!.Type == NotificationTypeKeys.KnowledgeBaseIndexingCompleted && r.RelatedItem!.Type == "KnowledgeBase" && r.RelatedItem.Id == knowledgeBase.Id.ToString()));
         await _retrievalIndexingNotifier.Received(1).NotifyIndexStatusChangedAsync(knowledgeBase.OwnerId, knowledgeBase.Id, "Indexed", Arg.Any<CancellationToken>());
     }
@@ -84,8 +84,8 @@ public sealed class KnowledgeBaseIndexingJobTests
         job.Status.Should().Be(IndexingJobStatus.Failed);
         knowledgeBase.IndexStatus.Should().Be(KnowledgeBaseIndexStatus.Failed);
 
-        _notificationPublisher.Received(1).Publish(Arg.Is<NotificationRequest>(r => r!.Type == NotificationTypeKeys.DocumentIndexingFailed));
-        _notificationPublisher.Received(1).Publish(Arg.Is<NotificationRequest>(r => r!.Type == NotificationTypeKeys.KnowledgeBaseIndexingFailed));
+        _notificationPublisher.Received(1).Publish(Arg.Is<NotificationRequest>(r => r != null && r!.Type == NotificationTypeKeys.DocumentIndexingFailed));
+        _notificationPublisher.Received(1).Publish(Arg.Is<NotificationRequest>(r => r != null && r!.Type == NotificationTypeKeys.KnowledgeBaseIndexingFailed));
         _operationalFailureRecorder.Received(1).Record(Arg.Any<OperationalFailureReport>());
     }
 
@@ -112,7 +112,7 @@ public sealed class KnowledgeBaseIndexingJobTests
 
         job.Status.Should().Be(IndexingJobStatus.Completed);
         knowledgeBase.IndexStatus.Should().Be(KnowledgeBaseIndexStatus.NotIndexed);
-        _notificationPublisher.DidNotReceive().Publish(Arg.Is<NotificationRequest>(r => r!.Type == NotificationTypeKeys.KnowledgeBaseIndexingCompleted));
+        _notificationPublisher.DidNotReceive().Publish(Arg.Is<NotificationRequest>(r => r != null && r!.Type == NotificationTypeKeys.KnowledgeBaseIndexingCompleted));
     }
 
     [Fact]

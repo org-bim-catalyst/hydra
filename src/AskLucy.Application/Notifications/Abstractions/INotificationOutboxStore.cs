@@ -20,4 +20,14 @@ public interface INotificationOutboxStore
 
     /// <summary>Returns every event still leased to <paramref name="workerId"/> to pending, for shutdown. Returns how many were released.</summary>
     Task<int> ReleaseClaimsAsync(string workerId, CancellationToken cancellationToken);
+
+    /// <summary>The event, untracked, whatever its status; null once it has been purged. The delivery worker reads the declared variables from it at send time.</summary>
+    Task<NotificationOutboxEvent?> FindAsync(Guid id, CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Returns events still <c>Processing</c> past their lease to pending, so a crashed dispatcher's work
+    /// shows as waiting rather than stuck. Dispatchers reclaim such events on their own; this keeps the
+    /// statuses honest. Returns how many were reset.
+    /// </summary>
+    Task<int> SweepExpiredLeasesAsync(DateTime now, CancellationToken cancellationToken);
 }

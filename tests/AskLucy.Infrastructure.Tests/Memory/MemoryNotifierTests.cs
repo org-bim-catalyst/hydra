@@ -23,7 +23,7 @@ public sealed class MemoryNotifierTests
 
         await sut.NotifyAsync("user-1", memoryId, eventType, "A new memory was recorded.", TestContext.Current.CancellationToken);
 
-        _publisher.Received(1).Publish(Arg.Is<NotificationRequest>(r =>
+        _publisher.Received(1).Publish(Arg.Is<NotificationRequest>(r => r != null &&
             r!.Type == expectedType &&
             ((NotificationRecipient.User)r.Recipient).UserId == "user-1" &&
             r.Variables["memorySummary"] == "A new memory was recorded." &&
@@ -38,7 +38,7 @@ public sealed class MemoryNotifierTests
 
         await sut.NotifyAsync("user-2", null, MemoryNotificationEventType.AutoCreated, "Summary.", TestContext.Current.CancellationToken);
 
-        _publisher.Received(1).Publish(Arg.Is<NotificationRequest>(r =>
+        _publisher.Received(1).Publish(Arg.Is<NotificationRequest>(r => r != null &&
             r!.RelatedItem == null && r.EventKey == $"memory:none:{MemoryNotificationEventType.AutoCreated}"));
     }
 }

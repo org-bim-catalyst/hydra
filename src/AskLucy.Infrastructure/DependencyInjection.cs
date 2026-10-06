@@ -7,6 +7,7 @@ using AskLucy.Application.Notifications.Abstractions;
 using AskLucy.Application.OperationalFailures.Abstractions;
 using AskLucy.Application.Options;
 using AskLucy.Application.SiteBoundaries;
+using AskLucy.Domain.Notifications;
 using AskLucy.Infrastructure.Agents;
 using AskLucy.Infrastructure.Ai;
 using AskLucy.Infrastructure.Ai.LocalWhisper;
@@ -33,6 +34,8 @@ using AskLucy.Infrastructure.KnowledgeBases;
 using AskLucy.Infrastructure.Mcp;
 using AskLucy.Infrastructure.Memory;
 using AskLucy.Infrastructure.Notifications;
+using AskLucy.Infrastructure.Notifications.Email;
+using AskLucy.Infrastructure.Notifications.Jobs;
 using AskLucy.Infrastructure.Notifications.Templates;
 using AskLucy.Infrastructure.Notifications.Workers;
 using AskLucy.Infrastructure.OperationalFailures;
@@ -532,6 +535,17 @@ public static class DependencyInjection
         services.AddSingleton<INotificationMetrics>(sp => sp.GetRequiredService<NotificationMetrics>());
         services.AddSingleton<NotificationWorkerHeartbeats>();
         services.AddSingleton<INotificationChannelRegistry, NotificationChannelRegistry>();
+
+        // Email channel (US3): the scoped sender, the process-wide send limiter and the failure
+        // classifier's callers. The registered-channel marker is what lets the singleton registry
+        // list the channel without resolving the scoped sender.
+        services.AddScoped<INotificationChannelSender, EmailChannelSender>();
+        services.AddSingleton(new RegisteredChannelSender(NotificationChannel.Email));
+        services.AddSingleton<EmailSendRateLimiter>();
+        services.AddSingleton<ISupportMailboxResolver, SmtpSupportMailboxResolver>();
+        services.AddScoped<IAccountLinkIssuer, AccountLinkIssuer>();
+        services.AddScoped<NotificationLeaseSweepJob>();
+        services.AddSingleton<SmtpConnectionHolder>();
         services.AddSingleton<IEffectiveLanguageResolver, EffectiveLanguageResolver>();
         services.AddSingleton<INotificationLinkBuilder, NotificationLinkBuilder>();
         services.AddScoped<INotificationTemplateRenderer, LogicFreeTemplateRenderer>();
@@ -668,8 +682,11 @@ public static class DependencyInjection
         // Password recovery/management emails (specs/058-password-recovery). Registered against
         // the interface so Hangfire resolves the job through the container.
         services.AddSingleton<IPasswordTokenProtector, PasswordTokenProtector>();
+        // specs/067 US9-B: one-release forwarding shims, kept so jobs enqueued before the deploy still run.
+#pragma warning disable CS0618
         services.AddScoped<IPasswordEmailJob, PasswordEmailJob>();
         services.AddScoped<IAccountEmailJob, AccountEmailJob>();
+#pragma warning restore CS0618
         services.AddScoped<PasswordResetTokenCleanupJob>();
 
         // specs/062-external-login-profile-sync: shared content validation (also used by

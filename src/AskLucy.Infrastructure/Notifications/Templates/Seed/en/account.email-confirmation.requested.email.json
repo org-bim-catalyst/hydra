@@ -1,0 +1,12 @@
+{
+  "name": "Confirm your account",
+  "subject": "Confirm your Ask Lucy account",
+  "preheader": "Confirm your email to finish setting up your Ask Lucy account.",
+  "greeting": "Hi {{ recipientDisplayName }},",
+  "heading": "Confirm your account",
+  "bodyParagraphs": [
+    "Please confirm your Ask Lucy account by clicking the button below."
+  ],
+  "safetyNote": "If you didn't create an Ask Lucy account, you can safely ignore this email.",
+  "actionLabel": "Confirm my email"
+}

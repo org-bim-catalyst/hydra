@@ -1,0 +1,12 @@
+{
+  "name": "Workflow run failed",
+  "subject": "{{ workflowName }} failed",
+  "preheader": "{{ workflowName }} couldn't finish.",
+  "greeting": "Hi {{ recipientDisplayName }},",
+  "heading": "Your workflow failed",
+  "bodyParagraphs": [
+    "{{ workflowName }} couldn't finish: {{ failureSummary }}"
+  ],
+  "safetyNote": "You're receiving this because email notifications are turned on for Workflow updates. You can change this in Settings → Notifications.",
+  "actionLabel": "View run"
+}

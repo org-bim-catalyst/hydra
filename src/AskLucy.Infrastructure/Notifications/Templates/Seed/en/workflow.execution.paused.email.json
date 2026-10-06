@@ -1,0 +1,12 @@
+{
+  "name": "Workflow run paused",
+  "subject": "{{ workflowName }} was paused",
+  "preheader": "{{ workflowName }} was paused.",
+  "greeting": "Hi {{ recipientDisplayName }},",
+  "heading": "Your workflow was paused",
+  "bodyParagraphs": [
+    "{{ workflowName }} was paused and is waiting."
+  ],
+  "safetyNote": "You're receiving this because email notifications are turned on for Workflow updates. You can change this in Settings → Notifications.",
+  "actionLabel": "View run"
+}

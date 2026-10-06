@@ -1,7 +1,11 @@
 using AskLucy.Application.Abstractions;
-using Hangfire;
+using AskLucy.Application.Notifications;
+using AskLucy.Application.Notifications.Abstractions;
+using AskLucy.Domain.Notifications;
 using MediatR;
 using Microsoft.Extensions.Logging;
+// MediatR has its own INotificationPublisher; the hub's is the one meant here.
+using INotificationPublisher = AskLucy.Application.Notifications.Abstractions.INotificationPublisher;
 
 namespace AskLucy.Application.Authentication.Commands.ResetPassword;
 
@@ -20,7 +24,7 @@ public sealed partial class ResetPasswordCommandHandler(
     IIdentityService identityService,
     ITokenService tokenService,
     ISessionRevocationCache sessionRevocationCache,
-    IBackgroundJobClient backgroundJobClient,
+    INotificationPublisher publisher,
     IUnitOfWork unitOfWork,
     ILogger<ResetPasswordCommandHandler> logger) : IRequestHandler<ResetPasswordCommand, PasswordResetResult>
 {
@@ -85,6 +89,14 @@ public sealed partial class ResetPasswordCommandHandler(
             session.Revoke();
         }
 
+        // specs/067 US9-B: the password-changed notice is published before the handler's own save, so it commits
+        // with the change it reports, and it can't be lost between the two.
+        var changedAtUtc = DateTime.UtcNow;
+        publisher.Publish(new NotificationRequest(
+            NotificationTypeKeys.SecurityPasswordChanged,
+            new NotificationRecipient.User(token.UserId),
+            new Dictionary<string, string?> { ["changedAt"] = $"{changedAtUtc:yyyy-MM-dd HH:mm} UTC" }));
+
         await unitOfWork.SaveChangesAsync(cancellationToken);
 
         // The access tokens those sessions already hold stay valid on their own signature until
@@ -93,12 +105,6 @@ public sealed partial class ResetPasswordCommandHandler(
         {
             sessionRevocationCache.Evict(familyId);
         }
-
-        var email = eligibility.Email;
-        var changedAtUtc = DateTime.UtcNow;
-
-        backgroundJobClient.Enqueue<IPasswordEmailJob>(
-            j => j.SendPasswordChangedNoticeAsync(email, changedAtUtc, CancellationToken.None));
 
         LogResetCompleted(logger, token.UserId, activeSessions.Count, changedAtUtc);
 

@@ -1,0 +1,13 @@
+{
+  "name": "Account access request",
+  "subject": "Account access request",
+  "preheader": "A signed-out user asked for help getting back into their account.",
+  "heading": "Account access request",
+  "bodyParagraphs": [
+    "A signed-out user asked for help getting back into their account.",
+    "Account: {{ requesterEmail }}",
+    "Received: {{ occurredAt }}",
+    "Message: {{ messageBody }}"
+  ],
+  "safetyNote": "This message was relayed automatically from the sign-in page. Reply to the user directly to help them."
+}

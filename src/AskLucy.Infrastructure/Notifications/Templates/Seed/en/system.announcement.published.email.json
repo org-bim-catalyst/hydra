@@ -1,0 +1,12 @@
+{
+  "name": "System announcement",
+  "subject": "{{ announcementTitle }}",
+  "preheader": "{{ announcementTitle }}",
+  "greeting": "Hi {{ recipientDisplayName }},",
+  "heading": "{{ announcementTitle }}",
+  "bodyParagraphs": [
+    "{{ announcementMessage }}"
+  ],
+  "safetyNote": "You're receiving this because it's an important announcement for everyone using Ask Lucy.",
+  "actionLabel": "Read more"
+}

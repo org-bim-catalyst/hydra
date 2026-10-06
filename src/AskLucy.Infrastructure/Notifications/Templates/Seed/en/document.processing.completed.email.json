@@ -1,0 +1,12 @@
+{
+  "name": "Document processed",
+  "subject": "{{ documentName }} is ready",
+  "preheader": "{{ documentName }} is ready.",
+  "greeting": "Hi {{ recipientDisplayName }},",
+  "heading": "Your document is ready",
+  "bodyParagraphs": [
+    "{{ documentName }} finished processing and is ready to use."
+  ],
+  "safetyNote": "You're receiving this because email notifications are turned on for Document updates. You can change this in Settings → Notifications.",
+  "actionLabel": "Open document"
+}

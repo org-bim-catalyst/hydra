@@ -1,0 +1,12 @@
+{
+  "name": "Two-factor authentication enabled",
+  "subject": "Two-factor authentication was turned on",
+  "preheader": "Two-factor authentication was turned on.",
+  "greeting": "Hi {{ recipientDisplayName }},",
+  "heading": "Two-factor authentication was turned on",
+  "bodyParagraphs": [
+    "Two-factor authentication was turned on for your Ask Lucy account on {{ changedAt }}."
+  ],
+  "safetyNote": "You can't turn security emails off. If this wasn't you, secure your account now.",
+  "actionLabel": "Review security"
+}

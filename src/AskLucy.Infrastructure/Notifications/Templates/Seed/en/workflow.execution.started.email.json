@@ -1,0 +1,12 @@
+{
+  "name": "Workflow run started",
+  "subject": "{{ workflowName }} started",
+  "preheader": "{{ workflowName }} started running.",
+  "greeting": "Hi {{ recipientDisplayName }},",
+  "heading": "Your workflow started",
+  "bodyParagraphs": [
+    "{{ workflowName }} started running."
+  ],
+  "safetyNote": "You're receiving this because email notifications are turned on for Workflow updates. You can change this in Settings → Notifications.",
+  "actionLabel": "View run"
+}

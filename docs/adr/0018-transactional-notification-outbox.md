@@ -55,12 +55,21 @@ status *where* the row is still pending and unleased (or its lease has expired).
 means the claim won. Two workers can never both win, so the design is safe to scale out without
 a distributed lock. The lease is 2 minutes, above the 60 s SMTP timeout.
 
+The delivery worker claims **one delivery at a time**, just before it sends it, rather than leasing a
+whole batch up front. A batch lease starts every clock at once, so a delivery waiting behind slow sends
+could outlive its lease without ever being sent, and the sweeper would then record it as ambiguous when
+nothing had left the process. Found by the 1,000-delivery fault-injection run (T108). The outbox
+dispatcher keeps batch claims: its events are processed in milliseconds and a lost lease only means a retry.
+
 ### 4. At-most-once email
 
 The claim commits `Sending` and increments the attempt count before the SMTP call. A delivery
 still `Sending` when its lease expires crashed mid-send, so its outcome is unknown. The lease
 sweeper marks it `Failed` with `AmbiguousOutcome` and does **not** resend it; an administrator can
-retry it deliberately. Every email carries `Message-ID: <{deliveryId}@{domain}>`, so a receiving
+retry it deliberately. The channel sender reports `SendProgress.MarkTransmissionStarted()` immediately
+before the message can leave the process, so a shutdown that arrives while the delivery is still being
+rendered gives the claim back unspent (the attempt is returned too); only a shutdown after that point leaves
+the delivery for the sweeper. Every email carries `Message-ID: <{deliveryId}@{domain}>`, so a receiving
 system can collapse a duplicate after such a retry. The in-app channel has no ambiguity: its
 delivery is created `Delivered` in the same commit as the notification.
 

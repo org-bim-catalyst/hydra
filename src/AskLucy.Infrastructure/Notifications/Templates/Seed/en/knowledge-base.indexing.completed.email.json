@@ -1,0 +1,12 @@
+{
+  "name": "Knowledge base indexing completed",
+  "subject": "{{ knowledgeBaseName }} is ready",
+  "preheader": "{{ knowledgeBaseName }} is ready.",
+  "greeting": "Hi {{ recipientDisplayName }},",
+  "heading": "Your knowledge base is ready",
+  "bodyParagraphs": [
+    "{{ knowledgeBaseName }} finished indexing and is ready to search."
+  ],
+  "safetyNote": "You're receiving this because email notifications are turned on for Knowledge base updates. You can change this in Settings → Notifications.",
+  "actionLabel": "Open knowledge base"
+}

@@ -1,7 +1,11 @@
 using AskLucy.Application.Abstractions;
-using Hangfire;
+using AskLucy.Application.Notifications;
+using AskLucy.Application.Notifications.Abstractions;
+using AskLucy.Domain.Notifications;
 using MediatR;
 using Microsoft.Extensions.Logging;
+// MediatR has its own INotificationPublisher; the hub's is the one meant here.
+using INotificationPublisher = AskLucy.Application.Notifications.Abstractions.INotificationPublisher;
 
 namespace AskLucy.Application.Authentication.Commands.ChangePassword;
 
@@ -16,7 +20,7 @@ public sealed partial class ChangePasswordCommandHandler(
     IPasswordResetTokenRepository resetTokenRepository,
     ITokenService tokenService,
     ISessionRevocationCache sessionRevocationCache,
-    IBackgroundJobClient backgroundJobClient,
+    INotificationPublisher publisher,
     IUnitOfWork unitOfWork,
     ILogger<ChangePasswordCommandHandler> logger) : IRequestHandler<ChangePasswordCommand, ChangePasswordResult>
 {
@@ -81,6 +85,13 @@ public sealed partial class ChangePasswordCommandHandler(
             revoked++;
         }
 
+        // specs/067 US9-B: published before the handler's own save, so the notice commits with the change it reports.
+        var changedAtUtc = DateTime.UtcNow;
+        publisher.Publish(new NotificationRequest(
+            NotificationTypeKeys.SecurityPasswordChanged,
+            new NotificationRecipient.User(request.UserId),
+            new Dictionary<string, string?> { ["changedAt"] = $"{changedAtUtc:yyyy-MM-dd HH:mm} UTC" }));
+
         await unitOfWork.SaveChangesAsync(cancellationToken);
 
         // Only now the revocation is durable. Until this, the other device's access token stayed
@@ -91,12 +102,6 @@ public sealed partial class ChangePasswordCommandHandler(
         {
             sessionRevocationCache.Evict(familyId);
         }
-
-        var email = eligibility.Email;
-        var changedAtUtc = DateTime.UtcNow;
-
-        backgroundJobClient.Enqueue<IPasswordEmailJob>(
-            j => j.SendPasswordChangedNoticeAsync(email, changedAtUtc, CancellationToken.None));
 
         LogPasswordChanged(logger, request.UserId, revoked, changedAtUtc);
 

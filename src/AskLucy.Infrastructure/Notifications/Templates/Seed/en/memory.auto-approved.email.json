@@ -1,0 +1,12 @@
+{
+  "name": "Memory approved",
+  "subject": "A memory was approved",
+  "preheader": "A memory was approved.",
+  "greeting": "Hi {{ recipientDisplayName }},",
+  "heading": "A memory was approved",
+  "bodyParagraphs": [
+    "Ask Lucy approved a memory: {{ memorySummary }}"
+  ],
+  "safetyNote": "You're receiving this because email notifications are turned on for Memory updates. You can change this in Settings → Notifications.",
+  "actionLabel": "Review memory"
+}

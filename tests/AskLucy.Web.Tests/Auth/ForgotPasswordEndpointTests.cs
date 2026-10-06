@@ -1,43 +1,20 @@
 using System.Diagnostics;
 using System.Net;
 using System.Net.Http.Json;
-using AskLucy.Application.Abstractions;
 using AskLucy.Persistence.Identity;
 using FluentAssertions;
-using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.DependencyInjection.Extensions;
 using Xunit;
 
 namespace AskLucy.Web.Tests.Auth;
 
 /// <summary>
-/// Boots the host with the email job stubbed out, so exercising the endpoint neither talks to SMTP
-/// nor leaves failing jobs in the shared Hangfire store.
+/// Boots the host for the forgot-password endpoint. Since specs/067 US9-B the request publishes to the
+/// notification hub instead of enqueuing a Hangfire job, and every host here sends through the shared fake
+/// SMTP server, so exercising the endpoint neither talks to SMTP nor leaves failing jobs behind.
 /// </summary>
-public sealed class ForgotPasswordWebApplicationFactory : CustomWebApplicationFactory
-{
-    protected override void ConfigureWebHost(IWebHostBuilder builder)
-    {
-        base.ConfigureWebHost(builder);
-
-        builder.ConfigureServices(services =>
-        {
-            services.RemoveAll<IPasswordEmailJob>();
-            services.AddScoped<IPasswordEmailJob, NoOpPasswordEmailJob>();
-        });
-    }
-
-    private sealed class NoOpPasswordEmailJob : IPasswordEmailJob
-    {
-        public Task SendResetLinkAsync(string userId, string email, string protectedToken, CancellationToken cancellationToken = default) =>
-            Task.CompletedTask;
-
-        public Task SendPasswordChangedNoticeAsync(string email, DateTime changedAtUtc, CancellationToken cancellationToken = default) =>
-            Task.CompletedTask;
-    }
-}
+public sealed class ForgotPasswordWebApplicationFactory : CustomWebApplicationFactory;
 
 /// <summary>
 /// specs/058-password-recovery T014. Asserts the property the whole enumeration defence rests on:
@@ -146,7 +123,7 @@ public sealed class ForgotPasswordEndpointTests(ForgotPasswordWebApplicationFact
     [Fact]
     public async Task ForgotPassword_ShouldNotDivergeInLatency_BetweenAnExistingAndAnUnknownAddress()
     {
-        // The handler enqueues the email rather than awaiting SMTP precisely so this holds; if a
+        // The handler publishes to the hub rather than awaiting SMTP precisely so this holds; if a
         // future change puts a send back on the request path, this test is what catches it.
         await PostAsync(_confirmedEmail); // Warm the pipeline so first-request JIT cost lands nowhere.
 

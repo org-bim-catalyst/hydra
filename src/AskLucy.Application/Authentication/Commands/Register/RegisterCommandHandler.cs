@@ -1,22 +1,23 @@
-using System.Net;
 using AskLucy.Application.Abstractions;
-using AskLucy.Application.Options;
+using AskLucy.Application.Notifications;
+using AskLucy.Application.Notifications.Abstractions;
+using AskLucy.Domain.Notifications;
 using MediatR;
-using Microsoft.Extensions.Options;
+// MediatR has its own INotificationPublisher; the hub's is the one meant here.
+using INotificationPublisher = AskLucy.Application.Notifications.Abstractions.INotificationPublisher;
 
 namespace AskLucy.Application.Authentication.Commands.Register;
 
 /// <summary>
-/// Renders the confirmation email in-memory, per request — unlike the legacy
-/// implementation, which mutated a shared template file on disk for every registration
-/// (a race condition, and permanent template corruption after the first send). See
-/// spec.md § Gap Analysis.
+/// Registers the account and asks the notification hub for its confirmation email (specs/067 US9-B). The
+/// hub renders the branded email from the <c>account.email-confirmation.requested</c> template and mints
+/// the one-time link when it sends, so no token or link is built, stored or logged here. The address counts as
+/// routable although it is unverified: confirming it is what the email is for (FR-009c).
 /// </summary>
 public sealed class RegisterCommandHandler(
     IIdentityService identityService,
-    IEmailTemplateRenderer templateRenderer,
-    IEmailSender emailSender,
-    IOptions<AppOptions> appOptions) : IRequestHandler<RegisterCommand, AuthResult>
+    INotificationPublisher publisher,
+    IUnitOfWork unitOfWork) : IRequestHandler<RegisterCommand, AuthResult>
 {
     public async Task<AuthResult> Handle(RegisterCommand request, CancellationToken cancellationToken)
     {
@@ -28,26 +29,12 @@ public sealed class RegisterCommandHandler(
             return new AuthResult(AuthOutcome.Failed, Errors: result.Errors);
         }
 
-        var token = await identityService.GenerateEmailConfirmationTokenAsync(result.UserId, cancellationToken);
-        var confirmationLink =
-            $"{appOptions.Value.FrontendBaseUrl}/confirm-email?userId={Uri.EscapeDataString(result.UserId)}&token={Uri.EscapeDataString(token)}";
-
-        var displayName = string.IsNullOrWhiteSpace(request.FirstName) ? request.Email : request.FirstName;
-        const string subject = "Confirm your Ask Lucy account";
-        var content = new AccountEmailContent(
-            Subject: subject,
-            PreheaderText: "Confirm your email to finish setting up your Ask Lucy account.",
-            Heading: "Confirm your account",
-            BodyParagraphs:
-            [
-                $"Hi {WebUtility.HtmlEncode(displayName)},",
-                "Please confirm your Ask Lucy account by clicking the button below."
-            ],
-            SafetyNote: "If you didn't create an Ask Lucy account, you can safely ignore this email.",
-            PrimaryAction: new EmailAction("Confirm my email", confirmationLink));
-
-        var (htmlBody, textBody) = templateRenderer.Render(content);
-        await emailSender.SendAsync(request.Email, subject, htmlBody, textBody, cancellationToken);
+        publisher.Publish(new NotificationRequest(
+            NotificationTypeKeys.AccountEmailConfirmationRequested,
+            new NotificationRecipient.AddressForUser(result.UserId, request.Email),
+            new Dictionary<string, string?>(),
+            EventKey: $"account.email-confirmation:{result.UserId}:registration"));
+        await unitOfWork.SaveChangesAsync(cancellationToken);
 
         return new AuthResult(AuthOutcome.Success, result.UserId);
     }

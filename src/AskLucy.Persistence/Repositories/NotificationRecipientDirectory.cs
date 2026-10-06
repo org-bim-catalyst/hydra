@@ -34,6 +34,25 @@ public sealed class NotificationRecipientDirectory(AskLucyDbContext dbContext) :
             StringComparer.Ordinal);
     }
 
+    public async Task<NotificationRecipientInfo?> FindByEmailAsync(string email, CancellationToken cancellationToken)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(email);
+
+        // Identity stores the upper-cased address in NormalizedEmail (its default normalizer); the lookup
+        // matches how sign-in finds the account. An account that isn't deleted wins over one that is.
+        var normalized = email.Trim().ToUpperInvariant();
+        var user = await dbContext.Users
+            .AsNoTracking()
+            .Where(u => u.NormalizedEmail == normalized)
+            .OrderBy(u => u.IsDeleted)
+            .Select(u => new { u.Id, u.FirstName, u.LastName, u.Email, u.EmailConfirmed, u.IsDeleted })
+            .FirstOrDefaultAsync(cancellationToken);
+
+        return user is null
+            ? null
+            : new NotificationRecipientInfo(user.Id, DisplayName(user.FirstName, user.LastName), user.Email, user.EmailConfirmed, IsActive: !user.IsDeleted);
+    }
+
     private static string? DisplayName(string? firstName, string? lastName)
     {
         var name = $"{firstName} {lastName}".Trim();

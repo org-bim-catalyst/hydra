@@ -1,0 +1,12 @@
+{
+  "name": "Document indexing completed",
+  "subject": "{{ documentName }} is searchable",
+  "preheader": "{{ documentName }} is searchable.",
+  "greeting": "Hi {{ recipientDisplayName }},",
+  "heading": "Your document is searchable",
+  "bodyParagraphs": [
+    "{{ documentName }} was indexed and can now be searched."
+  ],
+  "safetyNote": "You're receiving this because email notifications are turned on for Document updates. You can change this in Settings → Notifications.",
+  "actionLabel": "Open document"
+}

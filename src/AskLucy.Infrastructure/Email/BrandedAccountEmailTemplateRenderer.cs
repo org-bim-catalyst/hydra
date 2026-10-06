@@ -35,15 +35,20 @@ public sealed class BrandedAccountEmailTemplateRenderer(IOptions<AppOptions> app
     private const string DarkBody = "#D4D4D8";
     private const string DarkBorder = "#27272A";
 
-    public (string HtmlBody, string TextBody) Render(AccountEmailContent content) =>
-        (RenderHtml(content), RenderText(content));
+    public (string HtmlBody, string TextBody) Render(AccountEmailContent content, string language = "en", string direction = "ltr") =>
+        (RenderHtml(content, language, direction), RenderText(content));
 
-    private string RenderHtml(AccountEmailContent content)
+    private string RenderHtml(AccountEmailContent content, string language, string direction)
     {
         var sb = new StringBuilder();
 
         sb.Append("<!DOCTYPE html>\n");
-        sb.Append("<html lang=\"en\">\n<head>\n");
+
+        // The default (en, ltr) keeps the original <html lang="en"> byte for byte (T113).
+        var isDefaultLocale = string.Equals(language, "en", StringComparison.Ordinal) && !string.Equals(direction, "rtl", StringComparison.Ordinal);
+        sb.Append(isDefaultLocale
+            ? "<html lang=\"en\">\n<head>\n"
+            : string.Create(CultureInfo.InvariantCulture, $"<html lang=\"{Encode(language)}\" dir=\"{(direction == "rtl" ? "rtl" : "ltr")}\">\n<head>\n"));
         sb.Append("<meta charset=\"utf-8\">\n");
         sb.Append("<meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">\n");
         sb.Append("<meta name=\"color-scheme\" content=\"light dark\">\n");

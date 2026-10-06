@@ -1,0 +1,12 @@
+{
+  "name": "Memory needs confirmation",
+  "subject": "A memory needs your confirmation",
+  "preheader": "A memory needs your confirmation.",
+  "greeting": "Hi {{ recipientDisplayName }},",
+  "heading": "A memory needs your confirmation",
+  "bodyParagraphs": [
+    "Ask Lucy found a memory that conflicts with an earlier one and needs your confirmation: {{ memorySummary }}"
+  ],
+  "safetyNote": "You're receiving this because email notifications are turned on for Memory updates. You can change this in Settings → Notifications.",
+  "actionLabel": "Review memory"
+}

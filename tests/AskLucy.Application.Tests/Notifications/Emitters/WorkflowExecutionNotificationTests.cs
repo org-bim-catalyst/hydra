@@ -64,12 +64,12 @@ public sealed class WorkflowExecutionNotificationTests
 
         await CreateOrchestrator(RegistryWithTransform(_expressionEvaluator)).RunAsync(execution.Id, TestContext.Current.CancellationToken);
 
-        _notificationPublisher.Received(1).Publish(Arg.Is<NotificationRequest>(r =>
+        _notificationPublisher.Received(1).Publish(Arg.Is<NotificationRequest>(r => r != null &&
             r!.Type == NotificationTypeKeys.WorkflowExecutionStarted &&
             ((NotificationRecipient.User)r.Recipient).UserId == OwnerId &&
             r.RelatedItem == new RelatedItem("WorkflowExecution", execution.Id.ToString(), workflow.Id.ToString()) &&
             r.EventKey == $"workflow-execution:{execution.Id}:started"));
-        _notificationPublisher.Received(1).Publish(Arg.Is<NotificationRequest>(r =>
+        _notificationPublisher.Received(1).Publish(Arg.Is<NotificationRequest>(r => r != null &&
             r!.Type == NotificationTypeKeys.WorkflowExecutionCompleted &&
             r.EventKey == $"workflow-execution:{execution.Id}:completed"));
     }
@@ -89,7 +89,7 @@ public sealed class WorkflowExecutionNotificationTests
 
         await CreateOrchestrator(new WorkflowNodeExecutorRegistry([])).RunAsync(execution.Id, TestContext.Current.CancellationToken);
 
-        _notificationPublisher.Received(1).Publish(Arg.Is<NotificationRequest>(r =>
+        _notificationPublisher.Received(1).Publish(Arg.Is<NotificationRequest>(r => r != null &&
             r!.Type == NotificationTypeKeys.WorkflowExecutionFailed &&
             r.EventKey == $"workflow-execution:{execution.Id}:failed"));
     }
@@ -107,7 +107,7 @@ public sealed class WorkflowExecutionNotificationTests
 
         await sut.Handle(new PauseWorkflowExecutionCommand(execution.Id), TestContext.Current.CancellationToken);
 
-        _notificationPublisher.Received(1).Publish(Arg.Is<NotificationRequest>(r =>
+        _notificationPublisher.Received(1).Publish(Arg.Is<NotificationRequest>(r => r != null &&
             r!.Type == NotificationTypeKeys.WorkflowExecutionPaused &&
             r.RelatedItem == new RelatedItem("WorkflowExecution", execution.Id.ToString(), workflow.Id.ToString()) &&
             r.EventKey == $"workflow-execution:{execution.Id}:paused"));

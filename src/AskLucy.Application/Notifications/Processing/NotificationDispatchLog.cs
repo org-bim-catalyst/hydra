@@ -23,6 +23,10 @@ internal static partial class NotificationDispatchLog
     public static partial void UnknownRecipient(ILogger logger, string type, string? eventKey, string correlationId, string userId);
 
     [LoggerMessage(Level = LogLevel.Information,
+        Message = "Notification {Type} (EventKey {EventKey}, CorrelationId {CorrelationId}) names an address with no active account (address hash {AddressHash}); nothing was created.")]
+    public static partial void AddressNotFound(ILogger logger, string type, string? eventKey, string correlationId, string addressHash);
+
+    [LoggerMessage(Level = LogLevel.Information,
         Message = "Notification {Type} (EventKey {EventKey}, CorrelationId {CorrelationId}) not created: recipient {UserId} can no longer access the related {RelatedItemType}.")]
     public static partial void AccessDenied(ILogger logger, string type, string? eventKey, string correlationId, string userId, string? relatedItemType);
 
@@ -61,4 +65,71 @@ internal static partial class NotificationDispatchLog
     [LoggerMessage(Level = LogLevel.Warning,
         Message = "Realtime unreadCountChanged push failed for user {UserId}; the client catches up on reconnect.")]
     public static partial void UnreadCountPushFailed(ILogger logger, Exception exception, string userId);
+}
+
+internal static partial class DeliveryLog
+{
+    [LoggerMessage(Level = LogLevel.Information,
+        Message = "Notification delivery {DeliveryId} is no longer leased to worker {WorkerId}; skipping it.")]
+    public static partial void LeaseLost(ILogger logger, Guid deliveryId, string workerId);
+
+    [LoggerMessage(Level = LogLevel.Error,
+        Message = "Notification {Type} (DeliveryId {DeliveryId}, CorrelationId {CorrelationId}) has a type that is no longer catalogued; its delivery failed.")]
+    public static partial void UnknownType(ILogger logger, string type, Guid deliveryId, string correlationId);
+
+    [LoggerMessage(Level = LogLevel.Information,
+        Message = "Notification {Type} delivery {DeliveryId} (CorrelationId {CorrelationId}) expired before it was sent.")]
+    public static partial void Expired(ILogger logger, string type, Guid deliveryId, string correlationId);
+
+    [LoggerMessage(Level = LogLevel.Warning,
+        Message = "The outbox event for {Type} delivery {DeliveryId} (CorrelationId {CorrelationId}) is gone; rendering from each variable's fallback.")]
+    public static partial void EventUnavailable(ILogger logger, string type, Guid deliveryId, string correlationId);
+
+    [LoggerMessage(Level = LogLevel.Information,
+        Message = "Notification {Type} delivery {DeliveryId} (CorrelationId {CorrelationId}) was cancelled: its one-time link was not issued.")]
+    public static partial void LinkRefused(ILogger logger, string type, Guid deliveryId, string correlationId);
+
+    [LoggerMessage(Level = LogLevel.Error,
+        Message = "No sender is registered for the {Channel} channel (DeliveryId {DeliveryId}, CorrelationId {CorrelationId}).")]
+    public static partial void NoSender(ILogger logger, NotificationChannel channel, Guid deliveryId, string correlationId);
+
+    [LoggerMessage(Level = LogLevel.Error,
+        Message = "The {Channel} channel sender threw instead of returning a result (DeliveryId {DeliveryId}, CorrelationId {CorrelationId}); retrying on schedule.")]
+    public static partial void SenderThrew(ILogger logger, Exception exception, NotificationChannel channel, Guid deliveryId, string correlationId);
+
+    [LoggerMessage(Level = LogLevel.Error,
+        Message = "Notification {Type} delivery {DeliveryId} (CorrelationId {CorrelationId}) failed permanently: {FailureKind}.")]
+    public static partial void FailedPermanently(ILogger logger, string type, Guid deliveryId, string correlationId, DeliveryFailureKind failureKind);
+
+    [LoggerMessage(Level = LogLevel.Warning,
+        Message = "Notification {Type} delivery {DeliveryId} (CorrelationId {CorrelationId}) failed on attempt {Attempt}; retrying at {NextAttemptAtUtc:O}.")]
+    public static partial void RetryScheduled(ILogger logger, string type, Guid deliveryId, string correlationId, int attempt, DateTime nextAttemptAtUtc);
+
+    [LoggerMessage(Level = LogLevel.Error,
+        Message = "Notification {Type} delivery {DeliveryId} (CorrelationId {CorrelationId}) was dead-lettered after {Attempts} attempts.")]
+    public static partial void DeadLettered(ILogger logger, string type, Guid deliveryId, string correlationId, int attempts);
+
+    [LoggerMessage(Level = LogLevel.Error,
+        Message = "The {Channel} channel needs operator attention: its credentials were rejected (DeliveryId {DeliveryId}, CorrelationId {CorrelationId}).")]
+    public static partial void ChannelNeedsAttention(ILogger logger, NotificationChannel channel, Guid deliveryId, string correlationId);
+
+    [LoggerMessage(Level = LogLevel.Information,
+        Message = "Notification {Type} delivery {DeliveryId} (CorrelationId {CorrelationId}) is now {Status} after {Attempts} attempt(s).")]
+    public static partial void Processed(ILogger logger, string type, Guid deliveryId, string correlationId, DeliveryStatus status, int attempts);
+
+    [LoggerMessage(Level = LogLevel.Error,
+        Message = "Processing delivery {DeliveryId} failed (SendStarted {SendStarted}); {Action}.")]
+    public static partial void ProcessFailed(ILogger logger, Exception exception, Guid deliveryId, bool sendStarted, string action);
+
+    [LoggerMessage(Level = LogLevel.Information,
+        Message = "Released {Count} claimed notification deliver(ies) held by {WorkerId} unsent.")]
+    public static partial void Released(ILogger logger, int count, string workerId);
+
+    [LoggerMessage(Level = LogLevel.Error,
+        Message = "Could not release {Count} claimed notification deliver(ies) held by {WorkerId}; they are recorded as ambiguous when their leases expire.")]
+    public static partial void ReleaseFailed(ILogger logger, Exception exception, int count, string workerId);
+
+    [LoggerMessage(Level = LogLevel.Information,
+        Message = "Lease sweep: {Deliveries} delivery(ies) left ambiguous, {Events} outbox event(s) returned to pending.")]
+    public static partial void Swept(ILogger logger, int deliveries, int events);
 }
