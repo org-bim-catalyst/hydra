@@ -129,6 +129,29 @@ describe('useAvoidReservedCorner', () => {
     })
   })
 
+  // Found live (2026-10-06): with the browser's side panel open, window.innerWidth still reports the whole
+  // window (2560) while the page is laid out 1995 wide, so the right-hand chrome looked far from the right edge
+  // and the toolbar fell back to the top corner, behind the account button.
+  it('measures the right edge from the width the page is laid out in, not the whole window', async () => {
+    const innerWidth = Object.getOwnPropertyDescriptor(window, 'innerWidth')
+    const clientWidth = Object.getOwnPropertyDescriptor(document.documentElement, 'clientWidth')
+    Object.defineProperty(window, 'innerWidth', { configurable: true, value: 2560 })
+    Object.defineProperty(document.documentElement, 'clientWidth', { configurable: true, value: 1995 })
+    try {
+      const stack = document.createElement('div')
+      stack.setAttribute(RESERVED_ATTRIBUTE, '')
+      document.body.appendChild(stack)
+      stubRect(stack, { left: 1931, top: 84, width: 40, height: 352 })
+
+      const { result } = renderHook(() => useAvoidReservedCorner({ current: null }))
+      await waitFor(() => expect(result.current).toBe(444)) // 436 (bottom) + 8 (MARGIN)
+    } finally {
+      if (innerWidth) Object.defineProperty(window, 'innerWidth', innerWidth)
+      if (clientWidth) Object.defineProperty(document.documentElement, 'clientWidth', clientWidth)
+      else delete (document.documentElement as unknown as Record<string, unknown>).clientWidth
+    }
+  })
+
   it('only considers elements near the requested side', async () => {
     const leftChrome = document.createElement('div')
     leftChrome.setAttribute(RESERVED_ATTRIBUTE, '')

@@ -15,6 +15,14 @@ const CORNER_WIDTH = 320
  * studio's top-left HUD row, which is what it's actually meant to clear. */
 const CORNER_HEIGHT = 320
 
+/**
+ * The width the page is laid out in. Not `window.innerWidth`: with a browser side panel open (Chrome's, Edge's
+ * Copilot) that still reports the whole window, 2560 px where the page was 1995 (measured live, 2026-10-06), so
+ * the right-hand chrome looked 565 px away from "the right edge", nothing counted as sharing the corner, and the
+ * toolbar fell back to the top, behind the account button.
+ */
+const layoutWidth = () => document.documentElement.clientWidth || window.innerWidth
+
 /** `ExtensionToolbar` and `CameraAttitudeWidget` both carry this, in addition to
  * `RESERVED_ATTRIBUTE` — it marks them as siblings in the same corner measurement, so a widget
  * never avoids another widget sharing its own corner (which would race against effect-ordering,
@@ -65,7 +73,7 @@ export function useAvoidReservedCorner(selfRef: RefObject<HTMLElement | null>, s
         if (element.hasAttribute(CORNER_CHROME_ATTRIBUTE)) return // a sibling corner widget, not page chrome
         const rect = element.getBoundingClientRect()
         if (rect.width <= 0 || rect.height <= 0) return
-        const nearThisEdge = side === 'right' ? rect.right >= window.innerWidth - CORNER_WIDTH : rect.left <= CORNER_WIDTH
+        const nearThisEdge = side === 'right' ? rect.right >= layoutWidth() - CORNER_WIDTH : rect.left <= CORNER_WIDTH
         const nearTop = rect.top <= CORNER_HEIGHT
         if (!nearThisEdge || !nearTop) return
         if (rect.bottom > maxBottom) maxBottom = rect.bottom

@@ -324,7 +324,7 @@ export function useSiteBoundaryEditMode() {
           store().setNotice("This outline has a very large number of corners and couldn't be simplified without changing its shape. Use the Select tool to delete several at once.")
         }
         // A small window has no room for the floating bar over the top cards; every action is in the Outline menu.
-        if (window.innerWidth < SMALL_SCREEN_PX) store().setToolbarHidden(true)
+        if ((document.documentElement.clientWidth || window.innerWidth) < SMALL_SCREEN_PX) store().setToolbarHidden(true)
       } catch (error) {
         // Entry failed part-way: whatever was hidden or moved is put back before saying so.
         handle.setOutlineVisible(true)
