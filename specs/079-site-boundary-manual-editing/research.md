@@ -75,6 +75,15 @@ is dragged or only when it is dropped. The ring itself redraws continuously eith
   corner is dropped. A crossing drop snaps the corner back, as US2 AS4 already allows.
 - **If it fires continuously**: they update live.
 
+**Spike result (2026-10-05)**: measured on a real `google.maps.Polygon` with `editable: true` in
+headless Chromium (raster map, the editor's own since the flat-map change), and confirmed on
+production. `set_at` fires **only on drop**, never during the drag; `mousedown` carries
+`PolyMouseEvent.vertex`; the handles are 11 px DOM elements that Google moves by their own style
+while dragging. `contextmenu` on a corner carries `vertex` (the corner menu has worked on production
+since 2026-09-30, including long-press on an iPad Pro). Tilt and heading no longer matter: the editor
+always opens on a flat, north-up map. Amendment A below therefore applies, and was applied (spec.md
+Clarifications, US1).
+
 **Spec amendment A** (only if the spike shows drop-time events): US1 AS3 changes from "the shown
 area updates while dragging" to "…updates when the corner is dropped". FR-011 ("updated with
 every change") holds either way.

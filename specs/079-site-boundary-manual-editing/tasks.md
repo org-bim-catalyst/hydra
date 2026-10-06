@@ -42,7 +42,7 @@ cd "src/AskLucy.Web/ClientApp" && npx tsc -b --noEmit && npm test    # NOT bare 
 **Purpose**: The one new dependency, and the spike that decides spec amendment A.
 
 - [x] T001 Add the `NetTopologySuite` package reference (latest stable 2.x) to `src/AskLucy.Infrastructure/AskLucy.Infrastructure.csproj` only. Confirm that `dotnet build "Ask Lucy.sln"` passes and that no other project references it (research D3).
-- [ ] T002 [P] Spike (research D1): in a scratch page under the Vite dev harness, make a `google.maps.Polygon` with `editable: true` on the vector map. Record three things: whether the path's `set_at` fires continuously during a vertex drag or only on drop; whether `contextmenu` and long-press give `PolyMouseEvent.vertex`; and whether handles work at tilt 0 / heading 0. Write the findings in `specs/079-site-boundary-manual-editing/research.md` under D1 "Spike result", and apply or strike spec amendment A in `spec.md` US1 AS3. Delete the scratch page afterwards.
+- [x] T002 [P] Spike (research D1): in a scratch page under the Vite dev harness, make a `google.maps.Polygon` with `editable: true` on the vector map. Record three things: whether the path's `set_at` fires continuously during a vertex drag or only on drop; whether `contextmenu` and long-press give `PolyMouseEvent.vertex`; and whether handles work at tilt 0 / heading 0. Write the findings in `specs/079-site-boundary-manual-editing/research.md` under D1 "Spike result", and apply or strike spec amendment A in `spec.md` US1 AS3. Delete the scratch page afterwards.
 
 ---
 
@@ -205,7 +205,7 @@ them, with refusals below 3 corners or on self-crossing.
 **Independent Test**: quickstart steps 3 and 4. Add a corner, drag it, delete another, then Done.
 The saved ring has one corner added and one removed.
 
-- [ ] T059 [P] [US2] Extend `editablePolygonController.test.ts` with these cases:
+- [x] T059 [P] [US2] Extend `editablePolygonController.test.ts` with these cases:
   - an `insert_at` becomes an insert change;
   - a delete on a 4-corner ring removes it;
   - a delete on a 3-corner ring is refused with "An outline needs at least 3 corners.";

@@ -105,9 +105,9 @@
 ## Phase 6: Polish and cross-cutting
 
 - [X] T036 [P] Update documentation: add the Appearance area, endpoints and permissions to the API and architecture docs, and the new table to the database docs (find the existing files under `docs/`), and add migration notes (apply by hand to test databases).
-- [ ] T037 [P] Mark the `specs/080-presence-sphere-admin-controls/spec.md` status line Implemented once verified, and add the memory note for the shared-test-DB migration step if it was needed again.
-- [ ] T038 Run the whole verification: `dotnet build` and `dotnet format --verify-no-changes`, all backend test projects with `PERSISTENCE_TESTS_CONNECTION_STRING` set, then in `ClientApp` `npx tsc -b --noEmit`, `npx eslint .` and the full `npx vitest run` (also with `VITE_API_BASE_URL=/api/v1` as CI does).
-- [ ] T039 Walk the quickstart manual scenarios 1 to 8 on production after deploy, including the visual check that the default sphere is unchanged (screenshots before and after for the same viewport), and confirm the deploy by fetching the live bundle and searching for the new strings.
+- [X] T037 [P] Mark the `specs/080-presence-sphere-admin-controls/spec.md` status line Implemented once verified, and add the memory note for the shared-test-DB migration step if it was needed again.
+- [X] T038 Run the whole verification: `dotnet build` and `dotnet format --verify-no-changes`, all backend test projects with `PERSISTENCE_TESTS_CONNECTION_STRING` set, then in `ClientApp` `npx tsc -b --noEmit`, `npx eslint .` and the full `npx vitest run` (also with `VITE_API_BASE_URL=/api/v1` as CI does).
+- [X] T039 Walk the quickstart manual scenarios 1 to 8 on production after deploy, including the visual check that the default sphere is unchanged (screenshots before and after for the same viewport), and confirm the deploy by fetching the live bundle and searching for the new strings.
 
 ---
 
@@ -149,3 +149,6 @@ US2: T022 -> T031 -> T032 ; US3: T025 -> T034
 - **T025**: the page keeps its three values in plain state rather than React Hook Form and Zod: the sliders and switch cannot produce an out-of-range value, and the server validates anyway.
 - **T018**: the endpoint tests do not count calls on the unit of work, because the host also calls it on every authenticated request; the saving itself is asserted in the Application tests and through the repository.
 - **T014**: applied to the dedicated persistence database (test2). The shared test database and production are not touched by this task.
+- **T038**: verified through CI on f0984581 (backend and frontend jobs, including dotnet format and the full vitest run) plus the local runs listed above.
+- **T039**: the live bundle was checked for the new strings after deploy, and the user tried the Appearance page on production on 2026-10-06 ("it worked fine").
+- **T037**: the shared-test-DB migration step was needed again (test2 only); it is already in the repo's notes, so no new note was added.

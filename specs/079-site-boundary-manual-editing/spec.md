@@ -4,7 +4,7 @@
 
 **Created**: 2026-09-27
 
-**Status**: Implemented 2026-09-30; refined from production testing to 2026-10-04 (T002 spike record still open)
+**Status**: Implemented 2026-09-30; refined from production testing to 2026-10-06. Complete.
 
 **Input**: User description: "Letting you edit the outline's corner points by hand". Manual site
 boundary editing: the user corrects the site outline drawn in the Studio map by hand. They can
@@ -501,6 +501,29 @@ corner, delete a corner, undo, and press Done. Repeat on a touch screen.
   recurring-job registration at startup), so a brief blip on the shared database host no longer fails a
   request or stops the app starting.
 
+### Changes from production testing (2026-10-05 to 2026-10-06)
+
+- **Selection ring centred during a drag** (a996d5d0). The ring trailed the corner by one pointer movement
+  for the whole drag: our pointer handler and the animation frame it scheduled ran before Google moved its
+  handle, so they read the old position. The ring now follows the handle the moment Google moves it (a
+  watch on the handle's style), plus once a frame for pans at the map's edge. Measured in a real editable
+  polygon: 3.6-8.6 px behind before, 0.4 px after (Google's own rounding).
+- **Drawing a selection box no longer selects page text** (55cbf147): the press's default (text selection)
+  is cancelled on the Select layer.
+- **A nearly level selection box no longer fills the map below it** (64b9686d). MUI's `sx` reads a bare
+  number between 0 and 1 as a fraction of the parent, so whenever the box was exactly 1 px tall (or wide)
+  it was drawn the map's full height (or width). Found by recording the pointer and box live on production;
+  the size is now given in px.
+- **Toolbar position with a browser side panel open** (a871a39d, viewer-wide). With Chrome's side panel
+  open, `window.innerWidth` still reports the whole window (2560 where the page was 1995), so the viewer
+  toolbar found no chrome near "the right edge" and fell back to the top corner, behind the account
+  button. The page's laid-out width is used instead, also for the editor's small-screen check.
+- **Google's own "Undo last edit" arrow** beside a dropped corner is left as it is: the Maps API has no
+  option to turn it off, and hiding it would mean styling Google's markup.
+- **Voids (a hole inside a ring) stay out of scope.** A cut entirely inside a ring is still refused with
+  `holeNotSupported`. This is the outline model's rule, not a Google limit; supporting voids would touch
+  storage, editing, area, building membership and the analyses, so it would be a feature of its own.
+
 ## API
 
 - `PUT /api/v1/chats/{id}/site-boundary` (save; ring count may change).
@@ -532,6 +555,6 @@ Security review, 2026-09-30:
 - Automated: Application 2,390, Infrastructure 760, and the viewer, site-boundary and chat frontend
   suites pass.
 - Manual, 2026-10-04: drag speed on the RTX 4060 machine is fine; touch dragging works on an iPad Pro.
-  Most of the quickstart was walked through on production during testing. Still open: the T002 spike
-  record, and the selection ring staying centred on a corner while it is dragged (it is centred once
-  dropped).
+  The quickstart was walked through on production during testing. The selection ring staying centred
+  while a corner is dragged was fixed and measured on 2026-10-05; the T002 spike was answered by the same
+  measurements (research D1, "Spike result").

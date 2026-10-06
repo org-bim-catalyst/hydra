@@ -4,7 +4,7 @@
 
 **Created**: 2026-10-05
 
-**Status**: Draft
+**Status**: Implemented 2026-10-05; verified on production 2026-10-06
 
 **Input**: User description: "Admin controls for the presence sphere (the AI presence card's particle sphere shown in the chat): let an administrator tune, from the Admin panel, (1) the particle (dot) size, (2) whether users can zoom the sphere with the mouse wheel / pinch (enable/disable), and (3) how much of its card the sphere fills (sphere-to-card size). Settings apply to every user's sphere, take effect without a redeploy, default to today's look (75% fill, zoom off, current dot size), are readable by every signed-in user and changeable only by administrators, and the admin page shows a live preview while adjusting, with a reset to defaults."
 
