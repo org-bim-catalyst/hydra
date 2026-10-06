@@ -145,6 +145,24 @@ public static class NotificationTypeCatalog
             && d.Channels.TryGetValue(channel, out var state)
             && state != ChannelDefault.Mandatory);
 
+    /// <summary>True when at least one emitted type in the category uses the channel at all.</summary>
+    public static bool IsUsed(NotificationCategory category, NotificationChannel channel) =>
+        All.Any(d => d.IsEmitted && d.Category == category && d.Supports(channel));
+
+    /// <summary>
+    /// What a user with no saved override gets for a configurable pair: on when any optional emitted type
+    /// in the category has the channel on by default. A saved override replaces it for every optional type (R28).
+    /// </summary>
+    public static bool DefaultEnabled(NotificationCategory category, NotificationChannel channel) =>
+        All.Any(d => d.IsEmitted
+            && d.Category == category
+            && d.Channels.TryGetValue(channel, out var state)
+            && state == ChannelDefault.On);
+
+    /// <summary>The categories that have at least one emitted type, in declaration order. Categories nothing emits yet are left out.</summary>
+    public static IReadOnlyList<NotificationCategory> EmittedCategories() =>
+        [.. Enum.GetValues<NotificationCategory>().Where(c => All.Any(d => d.IsEmitted && d.Category == c))];
+
     /// <summary>True when every emitted type in the category that uses the channel makes it mandatory (FR-032).</summary>
     public static bool IsLocked(NotificationCategory category, NotificationChannel channel)
     {

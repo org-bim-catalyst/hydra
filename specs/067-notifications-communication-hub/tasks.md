@@ -759,26 +759,33 @@ These apply to every task below, and each one assumes them:
 
 ### Tests for User Story 4
 
-- [ ] T135 [P] [US4] `NotificationPreferencesHandlerTests` in `tests/AskLucy.Application.Tests/Notifications/NotificationPreferencesHandlerTests.cs`:
+- [X] T135 [P] [US4] `NotificationPreferencesHandlerTests` in `tests/AskLucy.Application.Tests/Notifications/NotificationPreferencesHandlerTests.cs`:
   - the effective merge of defaults and overrides;
   - `Billing` and `Conversation` are omitted;
   - a change back to the default deletes the override (sparse storage);
   - disabling a mandatory pair returns 422 with `errors["changes[i]"]` and applies nothing;
   - 1–40 changes are accepted;
   - only `Immediate` is accepted as the frequency.
-- [ ] T136 [P] [US4] `NotificationPreferencesEndpointsTests` in `tests/AskLucy.Web.Tests/Notifications/NotificationPreferencesEndpointsTests.cs`. Test `GET` and `PUT`, with 401, 422 and 429. After a user turns off Workflow email, a `workflow.execution.failed` event gives email `Skipped(PreferenceDisabled)` and in-app `Delivered`.
-- [ ] T137 [P] [US4] `NotificationPreferencesTab.test.tsx` and `.a11y.test.tsx` in `ClientApp/src/features/settings/components/`:
+  - Note: the handler tests use an in-memory preference repository. A mandatory-pair refusal is a NotificationPreferenceRejectedException (422), not a FluentValidation failure (400), so the 400 and 422 cases stay distinct.
+- [X] T136 [P] [US4] `NotificationPreferencesEndpointsTests` in `tests/AskLucy.Web.Tests/Notifications/NotificationPreferencesEndpointsTests.cs`. Test `GET` and `PUT`, with 401, 422 and 429. After a user turns off Workflow email, a `workflow.execution.failed` event gives email `Skipped(PreferenceDisabled)` and in-app `Delivered`.
+  - Deviation: the routing test uses document.storage.limit-reached (Document / Email) instead of workflow.execution.failed. Workflow types need a real execution row for the item-access check; the routing path under test is the same. 429 is tested with a user of its own (the limiter is per user), so it does not disturb other tests. Runs against the real DB.
+- [X] T137 [P] [US4] `NotificationPreferencesTab.test.tsx` and `.a11y.test.tsx` in `ClientApp/src/features/settings/components/`:
   - locked switches are disabled, with an explanation that screen readers announce;
   - a failed save shows an error toast and reverts the switch;
   - jest-axe passes.
+  - Note: MUI renders these switches with role=switch, so the tests query that role. The 422 toast shows the detail the server sent.
 
 ### Implementation for User Story 4
 
-- [ ] T138 [US4] Add upsert and delete to `NotificationPreferenceRepository`, then add the query `GetNotificationPreferences` in `src/AskLucy.Application/Notifications/Queries/GetNotificationPreferences/` and the command `UpdateNotificationPreferences` with its validator in `src/AskLucy.Application/Notifications/Commands/UpdateNotificationPreferences/`. The validator reads `NotificationTypeCatalog` to find the mandatory pairs.
-- [ ] T139 [US4] Add `NotificationPreferencesController` in `src/AskLucy.Web/Controllers/v1/NotificationPreferencesController.cs`, serving `GET` and `PUT /api/v1/users/me/notification-preferences` under `notifications-endpoints`.
-- [ ] T140 [P] [US4] Add the preferences API and hooks in `ClientApp/src/features/notifications/api/notificationPreferencesApi.ts` and `ClientApp/src/features/notifications/hooks/useNotificationPreferences.ts`.
-- [ ] T141 [US4] Add `NotificationPreferencesTab.tsx` in `ClientApp/src/features/settings/components/`. It shows a table of categories by channel with switches, locks the mandatory pairs with a tooltip, and shows the frequency as "Immediate" only. Register it as a new **appended** tab index in `ClientApp/src/features/settings/settingsTabs.ts` (never renumber the existing tabs), and add it to `SettingsPage.tsx` and the `?tab=notifications` deep link.
-- [ ] T142 [US4] Run the full backend and frontend suites.
+- [X] T138 [US4] Add upsert and delete to `NotificationPreferenceRepository`, then add the query `GetNotificationPreferences` in `src/AskLucy.Application/Notifications/Queries/GetNotificationPreferences/` and the command `UpdateNotificationPreferences` with its validator in `src/AskLucy.Application/Notifications/Commands/UpdateNotificationPreferences/`. The validator reads `NotificationTypeCatalog` to find the mandatory pairs.
+  - Deviation: the mandatory check is in the handler, not the validator. The validator only checks the shape: 1-40 changes, known enums, Immediate only, no repeated pair. Disabling a locked or unused pair returns 422 with errors[changes[i]]; enabling one is accepted and stores nothing. Overrides are removed with a real delete (ExecuteDeleteAsync): the audit interceptor would turn Remove into a soft delete, which would still be read as an override and would block re-creating the pair (unique index). Two concurrent first saves of a pair are handled by one re-read after a unique-index conflict. Catalogue helpers IsUsed, DefaultEnabled and EmittedCategories() were added. The categories shown are those with an emitted type, so Billing and Conversation appear on their own once something emits them.
+- [X] T139 [US4] Add `NotificationPreferencesController` in `src/AskLucy.Web/Controllers/v1/NotificationPreferencesController.cs`, serving `GET` and `PUT /api/v1/users/me/notification-preferences` under `notifications-endpoints`.
+  - Note: a request body with an unknown enum value is a 400 (model binding).
+- [X] T140 [P] [US4] Add the preferences API and hooks in `ClientApp/src/features/notifications/api/notificationPreferencesApi.ts` and `ClientApp/src/features/notifications/hooks/useNotificationPreferences.ts`.
+- [X] T141 [US4] Add `NotificationPreferencesTab.tsx` in `ClientApp/src/features/settings/components/`. It shows a table of categories by channel with switches, locks the mandatory pairs with a tooltip, and shows the frequency as "Immediate" only. Register it as a new **appended** tab index in `ClientApp/src/features/settings/settingsTabs.ts` (never renumber the existing tabs), and add it to `SettingsPage.tsx` and the `?tab=notifications` deep link.
+  - Note: the new tab is index 10 (Notifications), appended; ?tab=notifications opens it. A channel a category does not use shows an em dash with a screen-reader sentence. Switches are disabled while a save is in flight.
+- [X] T142 [US4] Run the full backend and frontend suites.
+  - Result: Domain 723, Application 2537 and Web 856 (1 gated skip) pass. Infrastructure 887 pass, 4 fail: the same full-text-search tests as the Slice 2 gate (environmental). Persistence was not run (this change adds no migration and no query the Persistence tests cover; they need a full-text-search SQL Server). Frontend: tsc and eslint clean, vitest 2492 pass.
 
 **Checkpoint**: The preferences affect routing. Slice 3 also needs US5.
 

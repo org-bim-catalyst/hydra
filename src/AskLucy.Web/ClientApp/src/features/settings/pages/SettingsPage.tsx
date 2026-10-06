@@ -51,6 +51,7 @@ import { CookiePreferencesPanel } from '../../consent/components/CookiePreferenc
 import { AI_VOICE_DISCLOSURE } from '../../chat/voice/aiVoiceDisclosure'
 import { useVoicePreferencesQuery } from '../../chat/voice/useVoicePreferencesQuery'
 import { useVoicePreferencesStore } from '../../chat/voice/voicePreferencesStore'
+import { NotificationPreferencesTab } from '../components/NotificationPreferencesTab'
 import { SETTINGS_TAB_INDEX } from '../settingsTabs'
 import { TwoFactorQrCode } from '../components/TwoFactorQrCode'
 
@@ -78,6 +79,7 @@ const SETTINGS_TAB_NAME_INDEX: Record<string, number> = {
   data: SETTINGS_TAB_INDEX.Data,
   cookies: SETTINGS_TAB_INDEX.Cookies,
   profile: SETTINGS_TAB_INDEX.Profile,
+  notifications: SETTINGS_TAB_INDEX.Notifications,
 }
 
 function TabPanel({
@@ -875,6 +877,7 @@ export function SettingsPage() {
           <Tab label="Account" value={SETTINGS_TAB_INDEX.Account} />
           <Tab label="Data" value={SETTINGS_TAB_INDEX.Data} />
           <Tab label="Cookies" value={SETTINGS_TAB_INDEX.Cookies} />
+          <Tab label="Notifications" value={SETTINGS_TAB_INDEX.Notifications} />
         </Tabs>
         <Box sx={{ flex: 1, minHeight: 0, overflow: 'auto', p: 3 }}>
           {deepLinkTabUnavailable && (
@@ -910,6 +913,13 @@ export function SettingsPage() {
             <TabContentContainer>
               <Paper variant="outlined" sx={{ p: 3 }}>
                 <CookiePreferencesPanel />
+              </Paper>
+            </TabContentContainer>
+          </TabPanel>
+          <TabPanel value={tab} index={SETTINGS_TAB_INDEX.Notifications}>
+            <TabContentContainer>
+              <Paper variant="outlined" sx={{ p: 3 }}>
+                <NotificationPreferencesTab />
               </Paper>
             </TabContentContainer>
           </TabPanel>

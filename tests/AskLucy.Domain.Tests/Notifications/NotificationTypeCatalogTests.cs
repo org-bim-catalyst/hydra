@@ -134,4 +134,35 @@ public sealed partial class NotificationTypeCatalogTests
         NotificationTypeCatalog.IsConfigurable(NotificationCategory.Billing, NotificationChannel.InApp).Should().BeFalse();
         NotificationTypeCatalog.IsConfigurable(NotificationCategory.Conversation, NotificationChannel.InApp).Should().BeFalse();
     }
+
+    [Fact]
+    public void EmittedCategories_LeaveOutTheDeferredOnes()
+    {
+        var categories = NotificationTypeCatalog.EmittedCategories();
+
+        categories.Should().NotContain([NotificationCategory.Billing, NotificationCategory.Conversation]);
+        categories.Should().Contain([NotificationCategory.Security, NotificationCategory.Workflow, NotificationCategory.System]);
+    }
+
+    [Theory]
+    [InlineData(NotificationCategory.Workflow, NotificationChannel.Email, true)]
+    [InlineData(NotificationCategory.Billing, NotificationChannel.Email, false)]
+    public void IsUsed_IsTrueOnlyWhenAnEmittedTypeUsesTheChannel(NotificationCategory category, NotificationChannel channel, bool used)
+    {
+        NotificationTypeCatalog.IsUsed(category, channel).Should().Be(used);
+    }
+
+    [Fact]
+    public void DefaultEnabled_FollowsTheOptionalTypesDefaults_ForEveryConfigurablePair()
+    {
+        foreach (var category in NotificationTypeCatalog.EmittedCategories())
+        {
+            foreach (var channel in Enum.GetValues<NotificationChannel>().Where(c => NotificationTypeCatalog.IsConfigurable(category, c)))
+            {
+                var expected = NotificationTypeCatalog.All.Any(d => d.IsEmitted && d.Category == category
+                    && d.Channels.TryGetValue(channel, out var state) && state == ChannelDefault.On);
+                NotificationTypeCatalog.DefaultEnabled(category, channel).Should().Be(expected, $"{category}/{channel}");
+            }
+        }
+    }
 }

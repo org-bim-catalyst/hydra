@@ -25,4 +25,6 @@ export const SETTINGS_TAB_INDEX = {
   // than reused, for the same drift-avoidance reason the gaps above exist.
   /** Profile page merged into Settings — appended for the same reason as the gaps above. */
   Profile: 9,
+  /** specs/067 notification preferences — appended, never renumbering the tabs above. */
+  Notifications: 10,
 } as const

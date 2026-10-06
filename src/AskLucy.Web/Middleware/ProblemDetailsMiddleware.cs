@@ -122,6 +122,11 @@ public sealed class ProblemDetailsMiddleware(
             problemDetails.Extensions["newerIncidentId"] = newerIncidentId;
         }
 
+        if (exception is AskLucy.Application.Notifications.NotificationPreferenceRejectedException preferenceRejected)
+        {
+            problemDetails.Extensions["errors"] = preferenceRejected.Errors;
+        }
+
         if (exception is ValidationException validationException)
         {
             problemDetails.Extensions["errors"] = validationException.Errors
@@ -221,6 +226,13 @@ public sealed class ProblemDetailsMiddleware(
 
     private static (int StatusCode, string Type, string Title, string Detail) Map(Exception exception) => exception switch
     {
+        // specs/067 FR-032: a preference update tried to switch off a mandatory notification. Atomic: nothing was applied.
+        AskLucy.Application.Notifications.NotificationPreferenceRejectedException preferenceEx => (
+            StatusCodes.Status422UnprocessableEntity,
+            "https://hydra.bimcatalyst.com/problems/notification-preference-locked",
+            "Notification preference locked",
+            preferenceEx.Message),
+
         ValidationException => (
             StatusCodes.Status400BadRequest,
             "https://hydra.bimcatalyst.com/problems/validation-failed",
