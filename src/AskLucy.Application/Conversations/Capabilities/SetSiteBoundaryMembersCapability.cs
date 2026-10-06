@@ -162,7 +162,7 @@ public sealed class SetSiteBoundaryMembersCapability(
             : null;
         if (correction is not null)
         {
-            var edited = handEditedComposer.Apply(correction.EditedRings, correction.Members, members);
+            var edited = handEditedComposer.Apply(correction.EditedRings, correction.EditedVoids, correction.Members, members);
             if (!edited.Succeeded)
             {
                 return AgentToolResult.Failure(edited.Failure!);
@@ -171,13 +171,15 @@ public sealed class SetSiteBoundaryMembersCapability(
             var snapshot = new FoundSiteBoundarySnapshot(
                 redrawn.Polygon, redrawn.AdditionalPolygons, redrawn.CorePolygon, redrawn.AreaSquareMeters,
                 redrawn.Confidence, redrawn.ConfidenceLevel, redrawn.Source, redrawn.SourceDetail, members);
-            correction.ApplyMembership(edited.Rings, ringGeometry.UnionArea(edited.Rings), members, snapshot, context.UserId);
+            correction.ApplyMembership(
+                edited.Rings, ringGeometry.UnionArea(edited.Rings, edited.Voids), members, snapshot, context.UserId, edited.Voids);
             await unitOfWork.SaveChangesAsync(cancellationToken);
 
             redrawn = redrawn with
             {
                 Polygon = edited.Rings[0],
                 AdditionalPolygons = [.. edited.Rings.Skip(1)],
+                Voids = edited.Voids,
                 AreaSquareMeters = correction.AreaSquareMeters,
                 Source = SiteBoundarySource.UserCorrected,
                 SourceDetail = "Hand-edited by the user",

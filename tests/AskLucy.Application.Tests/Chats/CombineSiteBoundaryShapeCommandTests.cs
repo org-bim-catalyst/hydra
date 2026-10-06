@@ -31,7 +31,9 @@ public sealed class CombineSiteBoundaryShapeCommandTests
     {
         _currentUser.UserId.Returns(Owner);
         _geometry.Validate(Arg.Any<IReadOnlyList<GeoPoint>>()).Returns(RingValidationResult.Ok);
-        _geometry.Combine(Arg.Any<IReadOnlyList<IReadOnlyList<GeoPoint>>>(), Arg.Any<IReadOnlyList<GeoPoint>>(), Arg.Any<CombineOperation>())
+        _geometry.ValidateVoids(Arg.Any<IReadOnlyList<GeoPoint>>(), Arg.Any<IReadOnlyList<IReadOnlyList<GeoPoint>>>())
+            .Returns(new VoidValidation(RingValidationResult.Ok, -1));
+        _geometry.Combine(Arg.Any<IReadOnlyList<IReadOnlyList<GeoPoint>>>(), Arg.Any<IReadOnlyList<IReadOnlyList<IReadOnlyList<GeoPoint>>>>(), Arg.Any<IReadOnlyList<GeoPoint>>(), Arg.Any<CombineOperation>())
             .Returns(new CombineResult(CombineFailure.None, [Ring]));
     }
 
@@ -91,6 +93,96 @@ public sealed class CombineSiteBoundaryShapeCommandTests
     public void Validator_RejectsAnOperationThatIsNotAddOrCut() =>
         Validator.Validate(CommandFor(Guid.NewGuid()) with { Operation = (CombineOperation)9 }).IsValid.Should().BeFalse();
 
+    // ---- specs/081: polygon shapes and voids -----------------------------
+
+    private static readonly IReadOnlyList<GeoPoint> Rectangle =
+        [new(25.1556, 55.2213), new(25.1556, 55.2217), new(25.1554, 55.2217), new(25.1554, 55.2213)];
+
+    private static readonly IReadOnlyList<GeoPoint> Void =
+        [new(25.1558, 55.2214), new(25.1558, 55.2216), new(25.1556, 55.2216)];
+
+    private static CombineSiteBoundaryShapeCommand ShapeCommand(Guid chatId) =>
+        new(chatId, [Ring], CombineOperation.Cut, null, 0) { Shape = Rectangle };
+
+    [Fact]
+    public void Validator_AcceptsADrawnShapeInsteadOfACircle() =>
+        Validator.Validate(ShapeCommand(Guid.NewGuid())).IsValid.Should().BeTrue();
+
+    [Fact]
+    public void Validator_RequiresExactlyOneOfCircleOrShape()
+    {
+        Validator.Validate(ShapeCommand(Guid.NewGuid()) with { Centre = Centre, RadiusMeters = 30 }).IsValid.Should().BeFalse();
+        Validator.Validate(ShapeCommand(Guid.NewGuid()) with { Shape = null }).IsValid.Should().BeFalse();
+    }
+
+    [Fact]
+    public void Validator_BoundsTheShapeCorners()
+    {
+        Validator.Validate(ShapeCommand(Guid.NewGuid()) with { Shape = [Rectangle[0], Rectangle[1]] }).IsValid.Should().BeFalse();
+        Validator.Validate(ShapeCommand(Guid.NewGuid()) with { Shape = [.. Enumerable.Range(0, 2_002).Select(i => new GeoPoint(25 + (i * 1e-6), 55))] })
+            .IsValid.Should().BeFalse();
+        Validator.Validate(ShapeCommand(Guid.NewGuid()) with { Shape = [new(95, 55), Rectangle[1], Rectangle[2]] }).IsValid.Should().BeFalse();
+    }
+
+    [Fact]
+    public void Validator_AcceptsVoids_AndBoundsThem()
+    {
+        var withVoid = ShapeCommand(Guid.NewGuid()) with { Voids = [[Void]] };
+        Validator.Validate(withVoid).IsValid.Should().BeTrue();
+
+        Validator.Validate(withVoid with { Voids = [[Void], [Void]] }).IsValid.Should().BeFalse();
+        Validator.Validate(withVoid with { Voids = [[[Void[0], Void[1]]]] }).IsValid.Should().BeFalse();
+        Validator.Validate(withVoid with { Voids = [[.. Enumerable.Range(0, 51).Select(_ => Void)]] }).IsValid.Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task Handle_CombinesADrawnShape_AsItIs_AndPassesTheVoidsThrough()
+    {
+        var chat = ChatWithOutline();
+        IReadOnlyList<GeoPoint>? shape = null;
+        _geometry.When(g => g.Combine(Arg.Any<IReadOnlyList<IReadOnlyList<GeoPoint>>>(), Arg.Any<IReadOnlyList<IReadOnlyList<IReadOnlyList<GeoPoint>>>>(), Arg.Any<IReadOnlyList<GeoPoint>>(), Arg.Any<CombineOperation>()))
+            .Do(call => shape = call.ArgAt<IReadOnlyList<GeoPoint>>(2));
+        _geometry.Combine(Arg.Any<IReadOnlyList<IReadOnlyList<GeoPoint>>>(), Arg.Any<IReadOnlyList<IReadOnlyList<IReadOnlyList<GeoPoint>>>>(), Arg.Any<IReadOnlyList<GeoPoint>>(), Arg.Any<CombineOperation>())
+            .Returns(new CombineResult(CombineFailure.None, [Ring]) { Voids = [[Void]] });
+
+        var result = await Create().Handle(ShapeCommand(chat.Id) with { Voids = [[Void]] }, TestContext.Current.CancellationToken);
+
+        shape.Should().Equal(Rectangle);
+        result.Voids.Should().HaveCount(1);
+        result.Voids[0].Should().ContainSingle();
+        _geometry.Received(1).ValidateVoids(Ring, Arg.Is<IReadOnlyList<IReadOnlyList<GeoPoint>>>(v => v!.Count == 1));
+    }
+
+    [Fact]
+    public async Task Handle_RefusesADrawnShapeThatCrossesItself()
+    {
+        var chat = ChatWithOutline();
+        _geometry.Validate(Rectangle).Returns(RingValidationResult.SelfCrossing);
+
+        var act = () => Create().Handle(ShapeCommand(chat.Id), TestContext.Current.CancellationToken);
+
+        var thrown = await act.Should().ThrowAsync<SiteBoundaryGeometryRejectedException>();
+        thrown.Which.Reason.Should().Be("selfCrossing");
+    }
+
+    [Theory]
+    [InlineData(RingValidationResult.VoidOutsidePart, "voidOutsidePart")]
+    [InlineData(RingValidationResult.VoidsTouch, "voidsTouch")]
+    [InlineData(RingValidationResult.SelfCrossing, "selfCrossing")]
+    public async Task Handle_RefusesAnInvalidVoid_WithItsRingAndVoidIndex(RingValidationResult result, string reason)
+    {
+        var chat = ChatWithOutline();
+        _geometry.ValidateVoids(Arg.Any<IReadOnlyList<GeoPoint>>(), Arg.Any<IReadOnlyList<IReadOnlyList<GeoPoint>>>())
+            .Returns(new VoidValidation(result, 1));
+
+        var act = () => Create().Handle(ShapeCommand(chat.Id) with { Voids = [[Void, Void]] }, TestContext.Current.CancellationToken);
+
+        var thrown = await act.Should().ThrowAsync<SiteBoundaryGeometryRejectedException>();
+        thrown.Which.Reason.Should().Be(reason);
+        thrown.Which.RingIndex.Should().Be(0);
+        thrown.Which.VoidIndex.Should().Be(1);
+    }
+
     // ---- handler ---------------------------------------------------------
 
     [Theory]
@@ -103,7 +195,7 @@ public sealed class CombineSiteBoundaryShapeCommandTests
         var result = await Create().Handle(CommandFor(chat.Id, operation), TestContext.Current.CancellationToken);
 
         result.Rings.Should().ContainSingle();
-        _geometry.Received(1).Combine(Arg.Any<IReadOnlyList<IReadOnlyList<GeoPoint>>>(), Arg.Any<IReadOnlyList<GeoPoint>>(), operation);
+        _geometry.Received(1).Combine(Arg.Any<IReadOnlyList<IReadOnlyList<GeoPoint>>>(), Arg.Any<IReadOnlyList<IReadOnlyList<IReadOnlyList<GeoPoint>>>>(), Arg.Any<IReadOnlyList<GeoPoint>>(), operation);
     }
 
     [Fact]
@@ -111,8 +203,8 @@ public sealed class CombineSiteBoundaryShapeCommandTests
     {
         var chat = ChatWithOutline();
         IReadOnlyList<GeoPoint>? shape = null;
-        _geometry.When(g => g.Combine(Arg.Any<IReadOnlyList<IReadOnlyList<GeoPoint>>>(), Arg.Any<IReadOnlyList<GeoPoint>>(), Arg.Any<CombineOperation>()))
-            .Do(call => shape = call.ArgAt<IReadOnlyList<GeoPoint>>(1));
+        _geometry.When(g => g.Combine(Arg.Any<IReadOnlyList<IReadOnlyList<GeoPoint>>>(), Arg.Any<IReadOnlyList<IReadOnlyList<IReadOnlyList<GeoPoint>>>>(), Arg.Any<IReadOnlyList<GeoPoint>>(), Arg.Any<CombineOperation>()))
+            .Do(call => shape = call.ArgAt<IReadOnlyList<GeoPoint>>(2));
 
         await Create().Handle(CommandFor(chat.Id), TestContext.Current.CancellationToken);
 
@@ -140,7 +232,7 @@ public sealed class CombineSiteBoundaryShapeCommandTests
 
         await act.Should().ThrowAsync<KeyNotFoundException>();
         _audit.Received(1).Add(Arg.Is<RoleAuditLog>(e => e!.Action == RoleAuditAction.AuthorizationDenied && e.ActorUserId == Owner));
-        _geometry.DidNotReceive().Combine(Arg.Any<IReadOnlyList<IReadOnlyList<GeoPoint>>>(), Arg.Any<IReadOnlyList<GeoPoint>>(), Arg.Any<CombineOperation>());
+        _geometry.DidNotReceive().Combine(Arg.Any<IReadOnlyList<IReadOnlyList<GeoPoint>>>(), Arg.Any<IReadOnlyList<IReadOnlyList<IReadOnlyList<GeoPoint>>>>(), Arg.Any<IReadOnlyList<GeoPoint>>(), Arg.Any<CombineOperation>());
     }
 
     [Fact]
@@ -168,12 +260,12 @@ public sealed class CombineSiteBoundaryShapeCommandTests
     }
 
     [Theory]
-    [InlineData(CombineFailure.HoleNotSupported, "holeNotSupported", "hole")]
     [InlineData(CombineFailure.NothingLeft, "nothingLeft", "whole outline")]
+    [InlineData(CombineFailure.NothingChanged, "nothingChanged", "already outside the site")]
     public async Task Handle_TurnsAnUnusableResultIntoARefusalTheUserCanAct_On(CombineFailure failure, string reason, string saysSo)
     {
         var chat = ChatWithOutline();
-        _geometry.Combine(Arg.Any<IReadOnlyList<IReadOnlyList<GeoPoint>>>(), Arg.Any<IReadOnlyList<GeoPoint>>(), Arg.Any<CombineOperation>())
+        _geometry.Combine(Arg.Any<IReadOnlyList<IReadOnlyList<GeoPoint>>>(), Arg.Any<IReadOnlyList<IReadOnlyList<IReadOnlyList<GeoPoint>>>>(), Arg.Any<IReadOnlyList<GeoPoint>>(), Arg.Any<CombineOperation>())
             .Returns(new CombineResult(failure, []));
 
         var act = () => Create().Handle(CommandFor(chat.Id, CombineOperation.Cut), TestContext.Current.CancellationToken);
@@ -187,7 +279,7 @@ public sealed class CombineSiteBoundaryShapeCommandTests
     public async Task Handle_RefusesAResultOfMoreThanTwentyRings()
     {
         var chat = ChatWithOutline();
-        _geometry.Combine(Arg.Any<IReadOnlyList<IReadOnlyList<GeoPoint>>>(), Arg.Any<IReadOnlyList<GeoPoint>>(), Arg.Any<CombineOperation>())
+        _geometry.Combine(Arg.Any<IReadOnlyList<IReadOnlyList<GeoPoint>>>(), Arg.Any<IReadOnlyList<IReadOnlyList<IReadOnlyList<GeoPoint>>>>(), Arg.Any<IReadOnlyList<GeoPoint>>(), Arg.Any<CombineOperation>())
             .Returns(new CombineResult(CombineFailure.None, [.. Enumerable.Range(0, 21).Select(_ => Ring)]));
 
         var act = () => Create().Handle(CommandFor(chat.Id), TestContext.Current.CancellationToken);

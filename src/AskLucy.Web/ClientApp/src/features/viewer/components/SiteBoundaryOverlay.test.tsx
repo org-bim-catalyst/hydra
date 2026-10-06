@@ -70,6 +70,7 @@ describe('SiteBoundaryOverlay', () => {
     expect(handle.setSiteBoundary).toHaveBeenCalledWith({
       exteriorRing: sampleBoundary.polygon,
       additionalRings: [],
+      voids: [],
       confidenceLevel: 'high',
     })
   })
@@ -101,6 +102,27 @@ describe('SiteBoundaryOverlay', () => {
     expect(handle.setSiteBoundary).toHaveBeenLastCalledWith({
       exteriorRing: sampleBoundary.polygon,
       additionalRings: [],
+      voids: [],
+      confidenceLevel: 'high',
+    })
+  })
+
+  it('passes the voids on, so the map draws them as holes (specs/081)', () => {
+    const handle = fakeHandle()
+    act(() => useGoogleMapsStore.getState().setHandle(handle))
+    render(<SiteBoundaryOverlay />)
+    const atrium = [
+      { latitude: 25.1558, longitude: 55.2214 },
+      { latitude: 25.1558, longitude: 55.2216 },
+      { latitude: 25.1556, longitude: 55.2216 },
+    ]
+
+    act(() => useActiveSiteBoundaryStore.getState().setBoundary({ ...sampleBoundary, voids: [[atrium]] }))
+
+    expect(handle.setSiteBoundary).toHaveBeenLastCalledWith({
+      exteriorRing: sampleBoundary.polygon,
+      additionalRings: [],
+      voids: [[atrium]],
       confidenceLevel: 'high',
     })
   })

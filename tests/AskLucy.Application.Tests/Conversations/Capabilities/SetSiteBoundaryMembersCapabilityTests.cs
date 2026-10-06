@@ -170,7 +170,7 @@ public sealed class SetSiteBoundaryMembersCapabilityTests
         _geometry.Intersects(Arg.Any<IReadOnlyList<IReadOnlyList<GeoPoint>>>(), Arg.Any<IReadOnlyList<IReadOnlyList<GeoPoint>>>(), Arg.Any<double>())
             .Returns(true);
         _geometry.Cut(Arg.Any<IReadOnlyList<GeoPoint>>(), Arg.Any<IReadOnlyList<GeoPoint>>()).Returns(Mall);
-        _geometry.UnionArea(Arg.Any<IReadOnlyList<IReadOnlyList<GeoPoint>>>()).Returns(9_999);
+        _geometry.UnionArea(Arg.Any<IReadOnlyList<IReadOnlyList<GeoPoint>>>(), Arg.Any<IReadOnlyList<IReadOnlyList<IReadOnlyList<GeoPoint>>>>()).Returns(9_999);
 
         // On screen: the mall with both connected buildings. Kept: the tower only, so the hotel is cut off.
         var result = await RunAsync("""{"memberIds":["osm_way_1"]}""");

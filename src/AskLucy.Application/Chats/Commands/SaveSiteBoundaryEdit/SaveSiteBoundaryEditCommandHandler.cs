@@ -53,9 +53,10 @@ public sealed class SaveSiteBoundaryEditCommandHandler(
         // that now overlap, or split one by cutting across it. The validator bounds the count (1-20), and
         // every ring must still overlap what Lucy found, below.
         var rings = request.Rings.Select(Closed).ToList();
-        EnsureAcceptable(rings, found);
+        var voids = request.Voids.Select(ringVoids => (IReadOnlyList<IReadOnlyList<GeoPoint>>)[.. ringVoids.Select(Closed)]).ToList();
+        EnsureAcceptable(rings, voids, found);
 
-        var area = geometry.UnionArea(rings);
+        var area = geometry.UnionArea(rings, voids);
         var correction = effective.CorrectionId is { } correctionId
             ? await correctionRepository.GetByIdAsync(correctionId, userId, cancellationToken)
             : null;
@@ -64,13 +65,13 @@ public sealed class SaveSiteBoundaryEditCommandHandler(
         {
             correction = SiteBoundaryCorrection.Create(
                 userId, found.SiteName, found.CentroidLatitude, found.CentroidLongitude,
-                SnapshotOf(found), rings, area, found.Members, userId);
+                SnapshotOf(found), rings, area, found.Members, userId, voids);
             correctionRepository.Add(correction);
             chat.LinkSiteBoundaryCorrection(correction.Id, userId);
         }
         else
         {
-            correction.ReplaceRings(rings, area, userId);
+            correction.ReplaceRings(rings, area, userId, voids);
         }
 
         var content = string.Create(
@@ -86,7 +87,8 @@ public sealed class SaveSiteBoundaryEditCommandHandler(
     }
 
     /// <summary>Validity per ring, then the drift rules against the outline Lucy found (research D11).</summary>
-    private void EnsureAcceptable(List<IReadOnlyList<GeoPoint>> rings, ActiveSiteBoundary found)
+    private void EnsureAcceptable(
+        List<IReadOnlyList<GeoPoint>> rings, List<IReadOnlyList<IReadOnlyList<GeoPoint>>> voids, ActiveSiteBoundary found)
     {
         for (var i = 0; i < rings.Count; i++)
         {
@@ -103,6 +105,18 @@ public sealed class SaveSiteBoundaryEditCommandHandler(
             }
         }
 
+        // specs/081: each void must be a valid ring lying inside its own ring and clear of the others.
+        for (var i = 0; i < voids.Count; i++)
+        {
+            var verdict = geometry.ValidateVoids(rings[i], voids[i]);
+            if (verdict.Result != RingValidationResult.Ok)
+            {
+                var voidReason = VoidReasonFor(verdict.Result);
+                throw new SiteBoundaryGeometryRejectedException(
+                    i, voidReason, VoidMessageFor(i, verdict.VoidIndex, voidReason), verdict.VoidIndex);
+            }
+        }
+
         IReadOnlyList<IReadOnlyList<GeoPoint>> foundRings = [found.Polygon, .. found.AdditionalPolygons];
         for (var i = 0; i < rings.Count; i++)
         {
@@ -113,12 +127,32 @@ public sealed class SaveSiteBoundaryEditCommandHandler(
             }
         }
 
-        if (geometry.UnionArea(rings) > MaxAreaGrowthFactor * found.AreaSquareMeters)
+        if (geometry.UnionArea(rings, voids) > MaxAreaGrowthFactor * found.AreaSquareMeters)
         {
             throw new SiteBoundaryGeometryRejectedException(
                 0, SiteBoundaryGeometryRejectedException.TooLarge, MessageFor(0, SiteBoundaryGeometryRejectedException.TooLarge));
         }
     }
+
+    private static string VoidReasonFor(RingValidationResult result) => result switch
+    {
+        RingValidationResult.VoidOutsidePart => SiteBoundaryGeometryRejectedException.VoidOutsidePart,
+        RingValidationResult.VoidsTouch => SiteBoundaryGeometryRejectedException.VoidsTouch,
+        RingValidationResult.SelfCrossing => SiteBoundaryGeometryRejectedException.SelfCrossing,
+        RingValidationResult.DuplicateCorner => SiteBoundaryGeometryRejectedException.DuplicateCorner,
+        _ => SiteBoundaryGeometryRejectedException.Degenerate,
+    };
+
+    private static string VoidMessageFor(int ringIndex, int voidIndex, string reason) => reason switch
+    {
+        SiteBoundaryGeometryRejectedException.VoidOutsidePart =>
+            $"Void {voidIndex + 1} of ring {ringIndex + 1} must lie inside the ring, clear of its edge.",
+        SiteBoundaryGeometryRejectedException.VoidsTouch =>
+            $"Void {voidIndex + 1} of ring {ringIndex + 1} touches another void.",
+        SiteBoundaryGeometryRejectedException.SelfCrossing => $"Void {voidIndex + 1} of ring {ringIndex + 1} crosses itself.",
+        SiteBoundaryGeometryRejectedException.DuplicateCorner => $"Void {voidIndex + 1} of ring {ringIndex + 1} has two corners in the same spot.",
+        _ => $"Void {voidIndex + 1} of ring {ringIndex + 1} is too small or flat.",
+    };
 
     private static string MessageFor(int ringIndex, string reason) => reason switch
     {

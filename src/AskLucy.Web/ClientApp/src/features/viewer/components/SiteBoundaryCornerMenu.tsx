@@ -1,5 +1,5 @@
 import { ListItemIcon, ListItemText, Menu, MenuItem } from '@mui/material'
-import { RiDeleteBinLine } from '@remixicon/react'
+import { RiDeleteBinLine, RiDonutChartLine } from '@remixicon/react'
 import { siteBoundaryEditActions } from '../../../viewer/siteBoundaryEdit/siteBoundaryEditActions'
 import { useCornerMenuStore } from '../../../viewer/siteBoundaryEdit/cornerMenuStore'
 import { useSiteBoundaryEditStore } from '../../../viewer/siteBoundaryEdit/siteBoundaryEditStore'
@@ -12,6 +12,7 @@ const MIN_CORNERS = 3
  */
 export function SiteBoundaryCornerMenu() {
   const anchor = useCornerMenuStore((s) => s.anchor)
+  const voidTarget = useCornerMenuStore((s) => s.voidTarget)
   const close = useCornerMenuStore((s) => s.close)
   const cornerCount = useSiteBoundaryEditStore((s) => {
     const session = s.session
@@ -27,6 +28,19 @@ export function SiteBoundaryCornerMenu() {
       anchorPosition={anchor ? { left: anchor.x, top: anchor.y } : undefined}
       slotProps={{ list: { dense: true } }}
     >
+      {voidTarget && (
+        <MenuItem
+          onClick={() => {
+            close()
+            siteBoundaryEditActions.removeVoid(voidTarget.ring, voidTarget.voidIndex)
+          }}
+        >
+          <ListItemIcon>
+            <RiDonutChartLine size={18} />
+          </ListItemIcon>
+          <ListItemText secondary="Fills the hole back in">Remove void</ListItemText>
+        </MenuItem>
+      )}
       <MenuItem
         disabled={tooFew}
         onClick={() => {

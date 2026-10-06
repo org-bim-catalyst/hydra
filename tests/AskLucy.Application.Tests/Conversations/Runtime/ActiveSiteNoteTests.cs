@@ -42,6 +42,21 @@ public sealed class ActiveSiteNoteTests
     }
 
     [Fact]
+    public void ForAHandEditedOutlineWithVoids_SaysHowManyAndThatTheAreaLeavesThemOut()
+    {
+        IReadOnlyList<GeoPoint> atrium = [new(25.1558, 55.2214), new(25.1558, 55.2216), new(25.1556, 55.2216)];
+
+        var note = ActiveSiteNote.Describe(ContextWith(HandEdited() with { Voids = [[atrium, atrium]] }));
+
+        note.Should().Contain("2 voids").And.Contain("leaves out");
+        ActiveSiteNote.Describe(ContextWith(HandEdited() with { Voids = [[atrium]] })).Should().Contain("1 void ");
+    }
+
+    [Fact]
+    public void WithoutVoids_TheNoteSaysNothingOfThem() =>
+        ActiveSiteNote.Describe(ContextWith(HandEdited())).Should().NotContain("void");
+
+    [Fact]
     public void WithoutAnOutline_ThereIsNoNote()
     {
         ActiveSiteNote.Describe(ContextWith(null)).Should().BeNull();

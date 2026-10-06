@@ -1,6 +1,7 @@
 import type { GeoPoint } from '../../store/activeSiteBoundaryStore'
 import type { EditablePath, EditablePolygonHost, EditableRing } from './editablePolygonController'
 import { createGooglePixelProjector } from './googlePixelProjector'
+import { isCounterClockwise } from './ringGeometry'
 
 /**
  * specs/079 research D1: the real map behind {@link EditablePolygonHost}. Each ring is a native
@@ -16,6 +17,14 @@ const DIMMED = { stroke: '#7C4DFF', strokeOpacity: 0.4, fillOpacity: 0.08, strok
 
 const toLatLng = (p: GeoPoint): google.maps.LatLngLiteral => ({ lat: p.latitude, lng: p.longitude })
 const fromLatLng = (p: google.maps.LatLng): GeoPoint => ({ latitude: p.lat(), longitude: p.lng() })
+
+/** specs/081: Google reports which path of the polygon an event is on; path 0 is the outer edge, the rest are voids. */
+const isVoidPath = (event: google.maps.PolyMouseEvent) => typeof event.path === 'number' && event.path > 0
+
+/** `hole` wound the opposite way round from `outer`, as Google needs for an inner path to be drawn as a hole. */
+function windAgainst(outer: readonly GeoPoint[], hole: readonly GeoPoint[]): GeoPoint[] {
+  return isCounterClockwise(hole) === isCounterClockwise(outer) ? [...hole].reverse() : [...hole]
+}
 
 function adaptPath(mvc: google.maps.MVCArray<google.maps.LatLng>): EditablePath {
   const listen = (eventName: string, handler: (...args: never[]) => void) => {
@@ -146,11 +155,13 @@ export function createGoogleEditablePolygonHost(map: google.maps.Map): EditableP
       const click = map.addListener('click', () => listener())
       return () => click.remove()
     },
-    createRing(corners, { editable }): EditableRing {
+    createRing(corners, { editable, voids = [] }): EditableRing {
       const style = editable ? ACTIVE : DIMMED
       const polygon = new google.maps.Polygon({
         map,
-        paths: corners.map(toLatLng),
+        // specs/081: a void is an inner path, which Google draws as a hole. It must run the other way round
+        // from the outer edge, so each void is wound against it.
+        paths: [corners.map(toLatLng), ...voids.map((v) => windAgainst(corners, v).map(toLatLng))],
         editable,
         draggable: false,
         clickable: true,
@@ -174,6 +185,7 @@ export function createGoogleEditablePolygonHost(map: google.maps.Map): EditableP
 
       return {
         path: adaptPath(polygon.getPath()),
+        voidPaths: Array.from({ length: voids.length }, (_, k) => adaptPath(polygon.getPaths().getAt(k + 1))),
 
         setEditable(nowEditable) {
           const next = nowEditable ? ACTIVE : DIMMED
@@ -197,7 +209,7 @@ export function createGoogleEditablePolygonHost(map: google.maps.Map): EditableP
         onVertexClick(listener) {
           // On an editable polygon Google sets `vertex` on a click that lands on a corner handle.
           const handle = polygon.addListener('click', (event: google.maps.PolyMouseEvent) => {
-            if (event.vertex === undefined || event.vertex === null) return
+            if (event.vertex === undefined || event.vertex === null || isVoidPath(event)) return
             const dom = event.domEvent as MouseEvent | undefined
             listener(event.vertex, Boolean(dom?.shiftKey || dom?.ctrlKey || dom?.metaKey))
           })
@@ -217,7 +229,7 @@ export function createGoogleEditablePolygonHost(map: google.maps.Map): EditableP
 
         onVertexPress(listener) {
           const handle = polygon.addListener('mousedown', (event: google.maps.PolyMouseEvent) => {
-            if (event.vertex !== undefined && event.vertex !== null) listener(event.vertex)
+            if (event.vertex !== undefined && event.vertex !== null && !isVoidPath(event)) listener(event.vertex)
           })
           return () => handle.remove()
         },
@@ -227,7 +239,7 @@ export function createGoogleEditablePolygonHost(map: google.maps.Map): EditableP
           // the drop, so the pointer is followed on the page until it is released.
           let stop: (() => void) | null = null
           const down = polygon.addListener('mousedown', (event: google.maps.PolyMouseEvent) => {
-            if (event.vertex === undefined || event.vertex === null) return
+            if (event.vertex === undefined || event.vertex === null || isVoidPath(event)) return
             const index = event.vertex
             stop?.()
             // The pointer seldom lands on the corner's exact centre, and Google keeps that offset while it drags
@@ -307,11 +319,21 @@ export function createGoogleEditablePolygonHost(map: google.maps.Map): EditableP
           }
         },
 
+        onVoidMenu(listener) {
+          // The same right-click or long-press, on a corner of an inner path: Google numbers the paths, 0 being the outer edge.
+          const handle = polygon.addListener('contextmenu', (event: google.maps.PolyMouseEvent) => {
+            if (event.vertex === undefined || event.vertex === null || !isVoidPath(event)) return
+            const dom = event.domEvent as MouseEvent | undefined
+            listener((event.path ?? 1) - 1, dom?.clientX ?? 0, dom?.clientY ?? 0)
+          })
+          return () => handle.remove()
+        },
+
         onVertexMenu(listener) {
           // Google reports `vertex` only for a polygon that is editable, and only when the pointer
           // is on a corner handle; a touch long-press arrives as the same 'contextmenu'.
           const handle = polygon.addListener('contextmenu', (event: google.maps.PolyMouseEvent) => {
-            if (event.vertex === undefined || event.vertex === null) return
+            if (event.vertex === undefined || event.vertex === null || isVoidPath(event)) return
             const dom = event.domEvent as MouseEvent | undefined
             listener(event.vertex, dom?.clientX ?? 0, dom?.clientY ?? 0)
           })

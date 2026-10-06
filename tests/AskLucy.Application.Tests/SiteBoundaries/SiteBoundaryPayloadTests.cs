@@ -32,6 +32,34 @@ public sealed class SiteBoundaryPayloadTests
     }
 
     [Fact]
+    public void Voids_RoundTrip_AndTheModelIsToldHowManyAndHowMuchTheyTakeOut()
+    {
+        IReadOnlyList<GeoPoint> atrium = [new(25.1558, 55.2214), new(25.1558, 55.2216), new(25.1556, 55.2216)];
+        var boundary = Boundary(Members) with { Voids = [[atrium]] };
+
+        using var written = SiteBoundaryPayload.Write(boundary);
+        var read = SiteBoundaryPayload.Read(written.RootElement);
+
+        read.Voids.Should().HaveCount(1);
+        read.Voids[0].Should().ContainSingle().Which.Should().Equal(atrium);
+        written.RootElement.GetProperty("voidCount").GetInt32().Should().Be(1);
+        written.RootElement.GetProperty("voidAreaSquareMeters").GetDouble().Should().BeGreaterThan(0);
+    }
+
+    [Fact]
+    public void WithoutVoids_TheModelIsToldThereAreNone_AndAnOldPayloadReadsAsHavingNone()
+    {
+        using var written = SiteBoundaryPayload.Write(Boundary(Members));
+        written.RootElement.GetProperty("voidCount").GetInt32().Should().Be(0);
+        SiteBoundaryPayload.Read(written.RootElement).Voids.Should().BeEmpty();
+
+        var withoutField = System.Text.Json.Nodes.JsonNode.Parse(written.RootElement.GetRawText())!.AsObject();
+        withoutField.Remove("voids");
+        using var old = System.Text.Json.JsonDocument.Parse(withoutField.ToJsonString());
+        SiteBoundaryPayload.Read(old.RootElement).Voids.Should().BeEmpty();
+    }
+
+    [Fact]
     public void Write_NamesWhatTheOutlineCoversAndWhatItLeavesOut_ForTheModelToSay()
     {
         using var written = SiteBoundaryPayload.Write(Boundary(Members));

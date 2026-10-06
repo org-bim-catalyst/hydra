@@ -2,7 +2,7 @@ import { useQueryClient } from '@tanstack/react-query'
 import { useEffect, useRef } from 'react'
 import { ApiError } from '../../api/httpClient'
 import { combineSiteBoundaryShape, getChatById, saveSiteBoundaryEdit, type ChatActiveBoundary } from '../../features/chat/api/chatsApi'
-import { useActiveSiteBoundaryStore, siteRingsOf, type GeoPoint, type SiteBoundarySource } from '../../store/activeSiteBoundaryStore'
+import { useActiveSiteBoundaryStore, siteRingsOf, siteVoidsOf, type GeoPoint, type SiteBoundarySource } from '../../store/activeSiteBoundaryStore'
 import { viewerEngine } from '../engine/viewerEngineInstance'
 import type { GoogleMapsGisLayerHandle } from '../layers/gis/GoogleMapsGisLayer'
 import { viewerSession } from '../session/viewerSession'
@@ -152,6 +152,11 @@ export function applyBoundaryToViewer(chatId: string, boundary: ChatActiveBounda
 
 const ringsOf = (boundary: ChatActiveBoundary): GeoPoint[][] => [boundary.polygon, ...(boundary.additionalPolygons ?? [])]
 
+/** specs/081: each ring's voids, by the same ring index as {@link ringsOf}. */
+const voidsOf = (boundary: ChatActiveBoundary): GeoPoint[][][] => boundary.voids ?? []
+
+const openVoids = (voids: readonly (readonly (readonly GeoPoint[])[])[]) => voids.map((ringVoids) => ringVoids.map((v) => openRing(v)))
+
 /**
  * specs/079: outline edit mode, end to end. Mounted once, inside the viewer (it needs the live map).
  * Registers the actions the Outline menu and the toolbar call, watches for Lucy's request to open
@@ -278,11 +283,13 @@ export function useSiteBoundaryEditMode() {
         let revision = shown.revision
         let siteName = shown.siteName
         let rings = siteRingsOf(shown)
+        let voids = siteVoidsOf(shown)
         if (!revision || (requestedRevision && requestedRevision !== revision)) {
           const fresh = await fetchOutline(chatId)
           revision = fresh.revision
           siteName = fresh.siteName
           rings = ringsOf(fresh)
+          voids = voidsOf(fresh)
         }
 
         if (store().session) return
@@ -314,7 +321,7 @@ export function useSiteBoundaryEditMode() {
 
         enterPlanForEditing(viewDeps(editingOn), rings)
         editingOn.setOutlineVisible(false)
-        store().enter({ chatId, siteName, revision, rings, viewState })
+        store().enter({ chatId, siteName, revision, rings, voids, viewState })
         if (after < before) {
           store().setNotice(
             `Simplified the outline from ${before} to ${after} corners so it's easier to edit (the shape moved by less than ${tolerance} m).` +
@@ -347,6 +354,7 @@ export function useSiteBoundaryEditMode() {
         const saved = await saveSiteBoundaryEdit(session.chatId, {
           expectedRevision: session.baseRevision,
           rings: session.rings.map((ring) => openRing(ring)),
+          voids: openVoids(session.voids),
         })
 
         // Polygons off first, so the outline that appears is the saved one, drawn with its animated border.
@@ -360,6 +368,7 @@ export function useSiteBoundaryEditMode() {
         if (error instanceof ApiError && error.status === 409) {
           store().conflict(error.currentRevision ?? '')
         } else {
+          // A refused void points at its ring too (specs/081).
           if (error instanceof ApiError && error.status === 422 && error.ringIndex !== undefined) {
             store().setActiveRing(error.ringIndex)
             controllerRef.current?.setActiveRing(error.ringIndex)
@@ -375,9 +384,9 @@ export function useSiteBoundaryEditMode() {
 
       try {
         const fresh = await fetchOutline(session.chatId)
-        store().rebase(fresh.revision, ringsOf(fresh))
+        store().rebase(fresh.revision, ringsOf(fresh), voidsOf(fresh))
         const rebased = store().session
-        if (rebased) controllerRef.current?.setRings(rebased.rings, rebased.activeRing)
+        if (rebased) controllerRef.current?.setRings(rebased.rings, rebased.activeRing, rebased.voids)
       } catch (error) {
         store().saveFailed(`Couldn't load the latest outline: ${messageOf(error, 'something went wrong.')}`)
       }
@@ -385,7 +394,7 @@ export function useSiteBoundaryEditMode() {
 
     const resync = () => {
       const session = store().session
-      if (session) controllerRef.current?.setRings(session.rings, session.activeRing)
+      if (session) controllerRef.current?.setRings(session.rings, session.activeRing, session.voids)
     }
 
     const runtime: SiteBoundaryEditRuntime = {
@@ -420,6 +429,9 @@ export function useSiteBoundaryEditMode() {
         }
         controllerRef.current?.moveCorners(session.activeRing, corners, eastMeters, northMeters)
       },
+      removeVoid(ring, voidIndex) {
+        if (!controllerRef.current?.removeVoid(ring, voidIndex)) store().refuse("That void isn't there any more.")
+      },
       deleteCorner() {
         const session = store().session
         if (!session) return
@@ -448,6 +460,7 @@ export function useSiteBoundaryEditMode() {
         try {
           const result = await combineSiteBoundaryShape(session.chatId, {
             rings: session.rings.map((ring) => openRing(ring)),
+            voids: openVoids(session.voids),
             operation: session.circleOperation === 'add' ? 'Add' : 'Cut',
             centre,
             radiusMeters,
@@ -455,7 +468,7 @@ export function useSiteBoundaryEditMode() {
 
           // The session may have ended (or moved to another site) while the server was working.
           if (store().session?.chatId !== session.chatId) return false
-          if (!controller.replaceAllRings(result.rings)) return false
+          if (!controller.replaceAllRings(result.rings, result.voids ?? [])) return false
 
           store().setTool('edit')
           return true
@@ -580,8 +593,9 @@ export function useSiteBoundaryEditMode() {
 
     const controller = createEditablePolygonController(createGoogleEditablePolygonHost(handle.map), {
       onVertexMenu: ({ clientX, clientY }) => useCornerMenuStore.getState().open(clientX, clientY),
+      onVoidMenu: ({ ring, voidIndex, clientX, clientY }) => useCornerMenuStore.getState().openVoid(clientX, clientY, ring, voidIndex),
     })
-    controller.mount(session.rings, session.activeRing)
+    controller.mount(session.rings, session.activeRing, session.voids)
     controllerRef.current = controller
 
     // The active ring changes when the user clicks another one.

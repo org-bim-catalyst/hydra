@@ -28,6 +28,12 @@ public static class SiteBoundaryPayload
             corePolygon = boundary.CorePolygon is { } core ? Points(core) : null,
             additionalPolygons = boundary.AdditionalPolygons.Select(Points),
 
+            // specs/081 - the voids (atriums, courtyards) of each ring by ring index, and what the model needs to
+            // say about them: how many, and how much ground they take out of the area it reports.
+            voids = boundary.Voids.Select(ringVoids => ringVoids.Select(Points)),
+            voidCount = boundary.Voids.Sum(ringVoids => ringVoids.Count),
+            voidAreaSquareMeters = Math.Round(boundary.Voids.Sum(ringVoids => ringVoids.Sum(GeometryMath.AreaSquareMeters)), 1),
+
             // What the narrating model reads to tell the user what the outline covers. The site
             // itself comes first: given only its included buildings, the model said "the outline
             // includes no buildings" of a mall it had just outlined, and "only Phase 2" once one
@@ -76,6 +82,9 @@ public static class SiteBoundaryPayload
                 : null,
             AdditionalPolygons = root.TryGetProperty("additionalPolygons", out var additional)
                 ? [.. additional.EnumerateArray().Select(ReadPoints)]
+                : [],
+            Voids = root.TryGetProperty("voids", out var voids) && voids.ValueKind == JsonValueKind.Array
+                ? [.. voids.EnumerateArray().Select(ringVoids => (IReadOnlyList<IReadOnlyList<GeoPoint>>)[.. ringVoids.EnumerateArray().Select(ReadPoints)])]
                 : [],
             CorrectionId = root.TryGetProperty("correctionId", out var correctionId) && correctionId.ValueKind == JsonValueKind.String
                 ? correctionId.GetGuid()

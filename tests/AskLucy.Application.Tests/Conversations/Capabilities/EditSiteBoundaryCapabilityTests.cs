@@ -79,6 +79,7 @@ public sealed class EditSiteBoundaryCapabilityTests
 
         result.Output!.RootElement.GetProperty("isHandEdited").GetBoolean().Should().BeTrue();
         result.Output.RootElement.GetProperty("revision").GetString().Should().Be(correction.Revision.ToString());
+        result.Output.RootElement.GetProperty("voidCount").GetInt32().Should().Be(0);
     }
 
     [Fact]

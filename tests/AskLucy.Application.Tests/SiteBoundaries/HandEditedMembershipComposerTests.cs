@@ -47,7 +47,7 @@ public sealed class HandEditedMembershipComposerTests
     [Fact]
     public void AddingASeparateMember_AddsItAsARing()
     {
-        _geometry.Combine(Arg.Any<IReadOnlyList<IReadOnlyList<GeoPoint>>>(), Arg.Any<IReadOnlyList<GeoPoint>>(), CombineOperation.Add)
+        _geometry.Combine(Arg.Any<IReadOnlyList<IReadOnlyList<GeoPoint>>>(), Arg.Any<IReadOnlyList<IReadOnlyList<IReadOnlyList<GeoPoint>>>>(), Arg.Any<IReadOnlyList<GeoPoint>>(), CombineOperation.Add)
             .Returns(new CombineResult(CombineFailure.None, [Edited, Rect(0, 126, 30, 156)]));
         var across = Member("a", SiteBoundaryMemberRelation.Nearby, Rect(0, 126, 30, 156), included: false);
 
@@ -73,7 +73,7 @@ public sealed class HandEditedMembershipComposerTests
     [Fact]
     public void RemovingASeparateMember_DropsItsRing()
     {
-        _geometry.Combine(Arg.Any<IReadOnlyList<IReadOnlyList<GeoPoint>>>(), Arg.Any<IReadOnlyList<GeoPoint>>(), CombineOperation.Cut)
+        _geometry.Combine(Arg.Any<IReadOnlyList<IReadOnlyList<GeoPoint>>>(), Arg.Any<IReadOnlyList<IReadOnlyList<IReadOnlyList<GeoPoint>>>>(), Arg.Any<IReadOnlyList<GeoPoint>>(), CombineOperation.Cut)
             .Returns(new CombineResult(CombineFailure.None, [Edited]));
         var across = Member("a", SiteBoundaryMemberRelation.Nearby, Rect(0, 126, 30, 156), included: true);
 
@@ -94,10 +94,74 @@ public sealed class HandEditedMembershipComposerTests
         _geometry.DidNotReceive().Cut(Arg.Any<IReadOnlyList<GeoPoint>>(), Arg.Any<IReadOnlyList<GeoPoint>>());
     }
 
+    // ---- specs/081: voids stay through a building choice ----------------
+
+    private static readonly IReadOnlyList<GeoPoint> Atrium = Rect(40, 40, 60, 60);
+
+    [Fact]
+    public void WithoutVoids_TheResultHasNone()
+    {
+        var across = Member("a", SiteBoundaryMemberRelation.Nearby, Rect(0, 126, 30, 156), included: false);
+        _geometry.Combine(Arg.Any<IReadOnlyList<IReadOnlyList<GeoPoint>>>(), Arg.Any<IReadOnlyList<IReadOnlyList<IReadOnlyList<GeoPoint>>>>(), Arg.Any<IReadOnlyList<GeoPoint>>(), CombineOperation.Add)
+            .Returns(new CombineResult(CombineFailure.None, [Edited, across.Ring]));
+
+        var result = _composer.Apply([Edited], [across], [across with { Included = true }]);
+
+        result.Voids.Should().HaveCount(2);
+        result.Voids.Should().OnlyContain(ringVoids => ringVoids.Count == 0);
+    }
+
+    [Fact]
+    public void JoiningABuilding_KeepsTheVoidsOfTheRing_ThatStillLieInsideIt()
+    {
+        Touching();
+        _geometry.Join(Arg.Any<IReadOnlyList<GeoPoint>>(), Arg.Any<IReadOnlyList<GeoPoint>>()).Returns(Joined);
+        _geometry.Combine(Arg.Any<IReadOnlyList<IReadOnlyList<GeoPoint>>>(), Arg.Any<IReadOnlyList<IReadOnlyList<IReadOnlyList<GeoPoint>>>>(), Arg.Any<IReadOnlyList<GeoPoint>>(), CombineOperation.Add)
+            .Returns(new CombineResult(CombineFailure.None, [Joined]) { Voids = [[Atrium]] });
+        _geometry.ValidateVoids(Arg.Any<IReadOnlyList<GeoPoint>>(), Arg.Any<IReadOnlyList<IReadOnlyList<GeoPoint>>>())
+            .Returns(new VoidValidation(RingValidationResult.Ok, -1));
+        var tower = Member("t", SiteBoundaryMemberRelation.Connected, Rect(100, 0, 130, 30), included: false);
+
+        var result = _composer.Apply([Edited], [[Atrium]], [tower], [tower with { Included = true }]);
+
+        result.Succeeded.Should().BeTrue();
+        result.Voids.Should().HaveCount(1);
+        result.Voids[0].Should().ContainSingle();
+    }
+
+    [Fact]
+    public void CuttingABuildingOff_DropsAVoidTheNewEdgeNowReaches()
+    {
+        Touching();
+        _geometry.Cut(Arg.Any<IReadOnlyList<GeoPoint>>(), Arg.Any<IReadOnlyList<GeoPoint>>()).Returns(Edited);
+        _geometry.ValidateVoids(Arg.Any<IReadOnlyList<GeoPoint>>(), Arg.Any<IReadOnlyList<IReadOnlyList<GeoPoint>>>())
+            .Returns(new VoidValidation(RingValidationResult.VoidOutsidePart, 0));
+        var tower = Member("t", SiteBoundaryMemberRelation.Connected, Rect(100, 0, 130, 30), included: true);
+
+        var result = _composer.Apply([Joined], [[Atrium]], [tower], [tower with { Included = false }]);
+
+        result.Succeeded.Should().BeTrue();
+        result.Voids[0].Should().BeEmpty();
+    }
+
+    [Fact]
+    public void TakingOutABuildingStandingWhollyInAVoid_ChangesNothing_AndSucceeds()
+    {
+        _geometry.Combine(Arg.Any<IReadOnlyList<IReadOnlyList<GeoPoint>>>(), Arg.Any<IReadOnlyList<IReadOnlyList<IReadOnlyList<GeoPoint>>>>(), Arg.Any<IReadOnlyList<GeoPoint>>(), CombineOperation.Cut)
+            .Returns(new CombineResult(CombineFailure.NothingChanged, []));
+        var inside = Member("i", SiteBoundaryMemberRelation.Nearby, Rect(45, 45, 55, 55), included: true);
+
+        var result = _composer.Apply([Edited], [[Atrium]], [inside], [inside with { Included = false }]);
+
+        result.Succeeded.Should().BeTrue();
+        result.Rings.Should().HaveCount(1);
+        result.Voids[0].Should().ContainSingle();
+    }
+
     [Fact]
     public void SaysSoPlainly_WhenTakingTheMemberOutWouldLeaveNothing()
     {
-        _geometry.Combine(Arg.Any<IReadOnlyList<IReadOnlyList<GeoPoint>>>(), Arg.Any<IReadOnlyList<GeoPoint>>(), CombineOperation.Cut)
+        _geometry.Combine(Arg.Any<IReadOnlyList<IReadOnlyList<GeoPoint>>>(), Arg.Any<IReadOnlyList<IReadOnlyList<IReadOnlyList<GeoPoint>>>>(), Arg.Any<IReadOnlyList<GeoPoint>>(), CombineOperation.Cut)
             .Returns(new CombineResult(CombineFailure.NothingLeft, []));
         var across = Member("a", SiteBoundaryMemberRelation.Nearby, Edited, included: true);
 

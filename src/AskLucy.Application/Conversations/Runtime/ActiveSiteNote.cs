@@ -27,8 +27,15 @@ public static class ActiveSiteNote
 
         if (boundary.IsHandEdited)
         {
+            // specs/081 - the area already leaves the voids out; say so, so the model can explain the figure.
+            var voidCount = boundary.Voids.Sum(ringVoids => ringVoids.Count);
+            var voids = voidCount == 0
+                ? string.Empty
+                : $" It has {voidCount} {(voidCount == 1 ? "void" : "voids")} (open ground inside it, such as an atrium), " +
+                    $"{boundary.Voids.Sum(ringVoids => ringVoids.Sum(GeometryMath.AreaSquareMeters)).ToString("N0", CultureInfo.InvariantCulture)} m² in all, which the area leaves out.";
+
             return $"An active site boundary is shown for '{boundary.SiteName}': the outline the USER hand-edited, " +
-                $"{area} m². This is the current outline. Any figure from before the edit is out of date. " +
+                $"{area} m².{voids} This is the current outline. Any figure from before the edit is out of date. " +
                 "If asked about its confidence or source, say the user shaped it themselves. " +
                 "They can reset it to the outline you found.";
         }

@@ -14,7 +14,13 @@ const MINIMUM_AREA_SQUARE_METERS = 1
 const DUPLICATE_CORNER_METERS = 0.05
 const CROSSING_EPSILON = 1e-9
 
-export type RefusalReason = 'tooFewCorners' | 'selfCrossing' | 'tooSmall' | 'duplicateCorner'
+export type RefusalReason =
+  | 'tooFewCorners'
+  | 'selfCrossing'
+  | 'tooSmall'
+  | 'duplicateCorner'
+  | 'voidOutsidePart'
+  | 'voidsTouch'
 
 export interface Refusal {
   reason: RefusalReason
@@ -27,6 +33,8 @@ const REFUSALS: Record<RefusalReason, Refusal> = {
   selfCrossing: { reason: 'selfCrossing', message: 'That would make the outline cross itself.' },
   tooSmall: { reason: 'tooSmall', message: 'That would make the outline too small.' },
   duplicateCorner: { reason: 'duplicateCorner', message: "Two corners can't be in the same spot." },
+  voidOutsidePart: { reason: 'voidOutsidePart', message: 'A void must stay inside its outline, clear of the edge.' },
+  voidsTouch: { reason: 'voidsTouch', message: "Two voids can't touch or overlap." },
 }
 
 interface Point {
@@ -291,4 +299,68 @@ export function validateRing(ring: readonly GeoPoint[]): Refusal | null {
   }
   if (Math.abs(signedArea(points)) < MINIMUM_AREA_SQUARE_METERS) return REFUSALS.tooSmall
   return null
+}
+
+// ---- specs/081: voids ----
+
+/** Is `point` strictly inside `ring` (even-odd rule)? A point on the edge may read either way; callers also test edges. */
+export function pointInRing(point: GeoPoint, ring: readonly GeoPoint[]): boolean {
+  const open = openRing(ring)
+  const [target, ...corners] = project([point, ...open], open[0])
+  let inside = false
+  for (let i = 0, j = corners.length - 1; i < corners.length; j = i++) {
+    const a = corners[i]
+    const b = corners[j]
+    if (a.y > target.y !== b.y > target.y && target.x < ((b.x - a.x) * (target.y - a.y)) / (b.y - a.y) + a.x) {
+      inside = !inside
+    }
+  }
+  return inside
+}
+
+/** Does any edge of `a` cross or touch any edge of `b`? */
+function edgesTouch(a: readonly Point[], b: readonly Point[]): boolean {
+  for (let i = 0; i < a.length; i++) {
+    const a1 = a[i]
+    const a2 = a[(i + 1) % a.length]
+    for (let j = 0; j < b.length; j++) {
+      if (segmentsIntersect(a1, a2, b[j], b[(j + 1) % b.length])) return true
+    }
+  }
+  return false
+}
+
+/** True when two rings touch, cross or overlap: their edges meet, or one lies inside the other. */
+export function ringsTouch(a: readonly GeoPoint[], b: readonly GeoPoint[]): boolean {
+  const openA = openRing(a)
+  const openB = openRing(b)
+  if (openA.length < 3 || openB.length < 3) return false
+  const reference = openA[0]
+  if (edgesTouch(project(openA, reference), project(openB, reference))) return true
+  return pointInRing(openA[0], openB) || pointInRing(openB[0], openA)
+}
+
+/**
+ * Checks void `index` of `voids` against its ring `outer`: a valid ring of its own, lying wholly inside
+ * `outer` and clear of its edge, and clear of every other void. Mirrors the server's `ValidateVoids`.
+ */
+export function validateVoid(outer: readonly GeoPoint[], voids: readonly (readonly GeoPoint[])[], index: number): Refusal | null {
+  const own = validateRing(voids[index])
+  if (own) return own
+
+  const open = openRing(voids[index])
+  const reference = openRing(outer)[0]
+  const outerPoints = project(openRing(outer), reference)
+  if (!pointInRing(open[0], outer) || edgesTouch(project(open, reference), outerPoints)) return REFUSALS.voidOutsidePart
+
+  for (let i = 0; i < voids.length; i++) {
+    if (i !== index && ringsTouch(voids[i], open)) return REFUSALS.voidsTouch
+  }
+
+  return null
+}
+
+/** Area of a ring minus its voids, in square metres. */
+export function netAreaSquareMeters(ring: readonly GeoPoint[], voids: readonly (readonly GeoPoint[])[] = []): number {
+  return ringAreaSquareMeters(ring) - voids.reduce((sum, v) => sum + ringAreaSquareMeters(v), 0)
 }

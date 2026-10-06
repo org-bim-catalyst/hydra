@@ -85,6 +85,7 @@ public sealed class EditSiteBoundaryCapability(
         {
             siteName = outline.SiteName,
             areaSquareMeters = outline.AreaSquareMeters,
+            voidCount = outline.Voids.Sum(ringVoids => ringVoids.Count),
             isHandEdited = outline.IsHandEdited,
             chatId = chatId.ToString(),
             revision = outline.Revision.ToString(),

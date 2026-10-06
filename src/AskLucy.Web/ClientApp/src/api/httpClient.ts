@@ -39,6 +39,8 @@ export class ApiError extends Error {
   /** specs/079 — on a refused-shape 422, which ring was refused and why (`selfCrossing`, `degenerate`, ...). */
   ringIndex?: number
   reason?: string
+  /** specs/081 — which void of that ring, when the refusal is about a void. */
+  voidIndex?: number
 
   constructor(
     status: number,
@@ -47,7 +49,7 @@ export class ApiError extends Error {
     errors?: Record<string, string[]>,
     providerFailure?: ProviderFailure,
     newerIncidentId?: string,
-    outline?: { currentRevision?: string; ringIndex?: number; reason?: string },
+    outline?: { currentRevision?: string; ringIndex?: number; reason?: string; voidIndex?: number },
   ) {
     super(message)
     this.status = status
@@ -58,6 +60,7 @@ export class ApiError extends Error {
     this.currentRevision = outline?.currentRevision
     this.ringIndex = outline?.ringIndex
     this.reason = outline?.reason
+    this.voidIndex = outline?.voidIndex
   }
 }
 
@@ -80,7 +83,7 @@ async function parseResponse<T>(response: Response): Promise<T> {
       problem?.errors,
       problem?.providerFailure,
       problem?.newerIncidentId,
-      { currentRevision: problem?.currentRevision, ringIndex: problem?.ringIndex, reason: problem?.reason },
+      { currentRevision: problem?.currentRevision, ringIndex: problem?.ringIndex, reason: problem?.reason, voidIndex: problem?.voidIndex },
     )
   }
 

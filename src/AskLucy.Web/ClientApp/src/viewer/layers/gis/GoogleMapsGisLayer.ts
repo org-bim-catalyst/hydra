@@ -9,6 +9,7 @@ import { redrawScheduler } from '../../scene/RedrawScheduler'
 import { rendererState } from '../../scene/rendererState'
 import { BUILDING_FOOTPRINT_FILL_COLOR, BUILDING_FOOTPRINT_STROKE_COLOR } from './buildingFootprintColors'
 import { createSiteBoundaryRenderer } from './SiteBoundaryRenderer'
+import { siteBoundaryBorderRings, siteBoundaryPaths } from './siteBoundaryPaths'
 import type { BorderConfidenceLevel } from '../../effects/AnimatedBorderHighlight'
 
 export interface GoogleMapsGisLayerOptions {
@@ -98,6 +99,8 @@ export interface GoogleMapsGisLayerHandle {
     input: {
       exteriorRing: { latitude: number; longitude: number }[]
       additionalRings?: { latitude: number; longitude: number }[][]
+      /** specs/081: each ring's voids by ring index (0 is the exterior ring); drawn as holes. */
+      voids?: { latitude: number; longitude: number }[][][]
       confidenceLevel: BorderConfidenceLevel
     } | null,
   ): void
@@ -562,9 +565,7 @@ export async function createGoogleMapsGisLayer(
       const style = BOUNDARY_STYLE[input.confidenceLevel]
       // Separate outer rings of one google.maps.Polygon draw as separate shapes, not holes, as
       // long as they do not overlap — which the rings of a union never do.
-      const paths = [input.exteriorRing, ...(input.additionalRings ?? [])].map((ring) =>
-        ring.map((p) => ({ lat: p.latitude, lng: p.longitude })),
-      )
+      const paths = siteBoundaryPaths(input.exteriorRing, input.additionalRings, input.voids)
       if (!boundaryPolygon) {
         boundaryPolygon = new google.maps.Polygon({
           map,
@@ -600,7 +601,7 @@ export async function createGoogleMapsGisLayer(
         // never re-anchors it to this boundary's own centroid, which was the exact per-capability
         // reference-point violation this feature removes (see the `sceneAnchor.set()` call
         // above). `worldToLocal`'s 1-metre tolerance (SC-002) covers this boundary's own scale.
-        const localRings = [input.exteriorRing, ...(input.additionalRings ?? [])].map((ring) =>
+        const localRings = siteBoundaryBorderRings(input.exteriorRing, input.additionalRings, input.voids).map((ring) =>
           ring.map((p) => {
             const local = worldToLocal(p, 0)
             return { x: local.x, y: local.y }

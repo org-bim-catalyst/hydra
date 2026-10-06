@@ -99,7 +99,8 @@ public sealed class ChatsController(ISender mediator) : ControllerBase
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status422UnprocessableEntity)]
     public async Task<ActionResult<SaveSiteBoundaryEditResult>> SaveSiteBoundaryEdit(
         Guid id, SaveSiteBoundaryEditRequest request, CancellationToken cancellationToken) =>
-        Ok(await mediator.Send(new SaveSiteBoundaryEditCommand(id, request.ExpectedRevision, request.Rings), cancellationToken));
+        Ok(await mediator.Send(
+            new SaveSiteBoundaryEditCommand(id, request.ExpectedRevision, request.Rings) { Voids = request.Voids ?? [] }, cancellationToken));
 
     /// <summary>
     /// specs/079 - adds a circle to the outline being edited, or cuts one out of it. A calculation only:
@@ -114,7 +115,12 @@ public sealed class ChatsController(ISender mediator) : ControllerBase
     public async Task<ActionResult<CombineSiteBoundaryShapeResult>> CombineSiteBoundaryShape(
         Guid id, CombineSiteBoundaryShapeRequest request, CancellationToken cancellationToken) =>
         Ok(await mediator.Send(
-            new CombineSiteBoundaryShapeCommand(id, request.Rings, request.Operation, request.Centre, request.RadiusMeters), cancellationToken));
+            new CombineSiteBoundaryShapeCommand(id, request.Rings, request.Operation, request.Centre, request.RadiusMeters)
+            {
+                Voids = request.Voids ?? [],
+                Shape = request.Shape,
+            },
+            cancellationToken));
 
     /// <summary>
     /// specs/079 (FR-025 to FR-028) - gives up the hand edits, so the chat shows the outline Lucy found. 404 when

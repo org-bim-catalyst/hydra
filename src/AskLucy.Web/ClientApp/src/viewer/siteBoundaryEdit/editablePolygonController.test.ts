@@ -96,9 +96,11 @@ class FakeRing implements EditableRing {
   }
   highlights: number[] = []
   path: FakePath
+  voidPaths: FakePath[]
 
-  constructor(corners: GeoPoint[], editable: boolean) {
+  constructor(corners: GeoPoint[], editable: boolean, voids: GeoPoint[][] = []) {
     this.path = new FakePath(corners)
+    this.voidPaths = voids.map((v) => new FakePath(v))
     this.editable = editable
   }
 
@@ -139,8 +141,8 @@ class FakeHost implements EditablePolygonHost {
     return () => (this.emptyClickListeners = this.emptyClickListeners.filter((x) => x !== l))
   }
 
-  createRing(corners: GeoPoint[], options: { editable: boolean }) {
-    const ring = new FakeRing(corners, options.editable)
+  createRing(corners: GeoPoint[], options: { editable: boolean; voids?: GeoPoint[][] }) {
+    const ring = new FakeRing(corners, options.editable, options.voids)
     this.rings.push(ring)
     return ring
   }
@@ -153,11 +155,15 @@ const session = () => {
   return s
 }
 
-function setup(rings: GeoPoint[][] = [square()], options: Parameters<typeof createEditablePolygonController>[1] = {}) {
-  store().enter({ chatId: 'chat-1', siteName: 'Muscat Grand Mall', revision: 'rev-1', rings, viewState })
+function setup(
+  rings: GeoPoint[][] = [square()],
+  options: Parameters<typeof createEditablePolygonController>[1] = {},
+  voids: GeoPoint[][][] = [],
+) {
+  store().enter({ chatId: 'chat-1', siteName: 'Muscat Grand Mall', revision: 'rev-1', rings, voids, viewState })
   const host = new FakeHost()
   const controller = createEditablePolygonController(host, options)
-  controller.mount(rings, 0)
+  controller.mount(rings, 0, voids)
   return { host, controller }
 }
 
@@ -823,5 +829,138 @@ describe('a selected group', () => {
     host.rings[0].pressListeners.forEach((l) => l(2))
 
     expect(session().selectedCorners).toEqual([1, 2])
+  })
+})
+
+describe('voids (specs/081)', () => {
+  const atrium = (): GeoPoint[] => [P(40, 40), P(60, 40), P(60, 60), P(40, 60)]
+
+  it('draws a ring with its voids, and hands the map their paths', () => {
+    const { host } = setup([square()], {}, [[atrium()]])
+
+    expect(host.rings[0].voidPaths).toHaveLength(1)
+    expect(host.rings[0].voidPaths[0].getLength()).toBe(4)
+  })
+
+  it('records a valid void corner move on the void path, leaving the outer edge alone', () => {
+    const { host } = setup([square()], {}, [[atrium()]])
+
+    host.rings[0].voidPaths[0].setAt(2, P(70, 70))
+
+    expect(session().voids[0][0][2]).toEqual(P(70, 70))
+    expect(session().rings[0]).toEqual(square())
+    expect(session().undo[0]).toMatchObject({ op: 'move', ring: 0, path: 1, index: 2 })
+  })
+
+  it('puts a void corner back, and says why, when it would cross the outer edge', () => {
+    const { host } = setup([square()], {}, [[atrium()]])
+
+    host.rings[0].voidPaths[0].setAt(2, P(150, 70))
+
+    expect(host.rings[0].voidPaths[0].getAt(2)).toEqual(P(60, 60))
+    expect(session().voids[0][0][2]).toEqual(P(60, 60))
+    expect(session().undo).toHaveLength(0)
+    expect(session().refusal).toMatch(/inside its outline/i)
+  })
+
+  it('puts a void corner back when it would cross the void over itself', () => {
+    const { host } = setup([square()], {}, [[atrium()]])
+
+    host.rings[0].voidPaths[0].setAt(2, P(40, 60))
+
+    expect(session().voids[0][0]).toEqual(atrium())
+    expect(session().refusal).not.toBeNull()
+  })
+
+  it('refuses to move a void into another void', () => {
+    const other = [P(10, 10), P(20, 10), P(20, 20), P(10, 20)]
+    const { host } = setup([square()], {}, [[atrium(), other]])
+
+    host.rings[0].voidPaths[1].setAt(2, P(45, 45))
+
+    expect(session().voids[0][1]).toEqual(other)
+    expect(session().refusal).toMatch(/touch/i)
+  })
+
+  it('records an inserted and a deleted void corner', () => {
+    const { host } = setup([square()], {}, [[atrium()]])
+
+    host.rings[0].voidPaths[0].insertAt(1, P(50, 38))
+    expect(session().voids[0][0]).toHaveLength(5)
+    expect(session().undo.at(-1)).toMatchObject({ op: 'insert', ring: 0, path: 1, index: 1 })
+
+    host.rings[0].voidPaths[0].removeAt(1)
+    expect(session().voids[0][0]).toHaveLength(4)
+    expect(session().undo.at(-1)).toMatchObject({ op: 'delete', ring: 0, path: 1, index: 1 })
+  })
+
+  it('refuses to delete a void corner below 3, pointing at Remove void', () => {
+    const triangleVoid = [P(40, 40), P(60, 40), P(50, 60)]
+    const { host } = setup([square()], {}, [[triangleVoid]])
+
+    host.rings[0].voidPaths[0].removeAt(0)
+
+    expect(host.rings[0].voidPaths[0].getLength()).toBe(3)
+    expect(session().refusal).toMatch(/Remove void/)
+  })
+
+  it('refuses an outer-edge corner move that would cut through a void', () => {
+    const { host } = setup([square()], {}, [[atrium()]])
+
+    // Dragging the south-east corner far in puts the edge across the void.
+    host.rings[0].path.setAt(1, P(50, 50))
+
+    expect(session().rings[0]).toEqual(square())
+    expect(session().refusal).not.toBeNull()
+  })
+
+  it('removes a void as one undo step and redraws the ring without it', () => {
+    const { host, controller } = setup([square()], {}, [[atrium()]])
+
+    expect(controller.removeVoid(0, 0)).toBe(true)
+
+    expect(session().voids[0]).toEqual([])
+    expect(session().undo).toHaveLength(1)
+    expect(host.rings.at(-1)?.voidPaths).toHaveLength(0)
+
+    store().undo()
+    expect(session().voids[0]).toHaveLength(1)
+  })
+
+  it('refuses to remove a void that is not there', () => {
+    const { controller } = setup()
+
+    expect(controller.removeVoid(0, 0)).toBe(false)
+  })
+
+  it('replaceAllRings draws the voids it is given, as one undo step', () => {
+    const { host, controller } = setup()
+
+    expect(controller.replaceAllRings([square()], [[atrium()]])).toBe(true)
+
+    expect(session().voids[0]).toHaveLength(1)
+    expect(host.rings.at(-1)?.voidPaths).toHaveLength(1)
+    expect(session().undo).toHaveLength(1)
+
+    store().undo()
+    expect(session().voids[0]).toEqual([])
+  })
+
+  it('replaceAllRings refuses a void that is not inside its ring', () => {
+    const { controller } = setup()
+
+    expect(controller.replaceAllRings([square()], [[[P(150, 40), P(170, 40), P(170, 60)]]])).toBe(false)
+    expect(session().voids[0]).toEqual([])
+  })
+
+  it('rewrites void paths in place when the shape is unchanged (undo of a corner move)', () => {
+    const { host, controller } = setup([square()], {}, [[atrium()]])
+    host.rings[0].voidPaths[0].setAt(2, P(70, 70))
+    store().undo()
+
+    controller.setRings(session().rings, session().activeRing, session().voids)
+
+    expect(host.rings).toHaveLength(1)
+    expect(host.rings[0].voidPaths[0].getAt(2)).toEqual(P(60, 60))
   })
 })

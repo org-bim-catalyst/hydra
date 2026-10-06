@@ -268,7 +268,7 @@ describe('siteBoundaryEditStore', () => {
       enter()
       const before = session().rings
 
-      store().applyChange({ op: 'replaceAll', before, after: [square(), separate()] })
+      store().applyChange({ op: 'replaceAll', before, after: [square(), separate()], beforeVoids: [[]], afterVoids: [[], []] })
       expect(session().rings).toHaveLength(2)
       expect(store().isDirty()).toBe(true)
 
@@ -284,10 +284,104 @@ describe('siteBoundaryEditStore', () => {
       store().setActiveRing(1)
       store().selectCorners([0, 1])
 
-      store().applyChange({ op: 'replaceAll', before: session().rings, after: [square()] })
+      store().applyChange({ op: 'replaceAll', before: session().rings, after: [square()], beforeVoids: session().voids, afterVoids: [[]] })
 
       expect(session().activeRing).toBe(0)
       expect(session().selectedCorners).toEqual([])
+    })
+  })
+
+  describe('voids (specs/081)', () => {
+    const atrium = (): GeoPoint[] => [P(40, 40), P(60, 40), P(60, 60), P(40, 60)]
+    const second = (): GeoPoint[] => [P(10, 10), P(20, 10), P(20, 20), P(10, 20)]
+
+    it('starts with the voids of each ring, and no voids as a ring with none', () => {
+      store().enter({ chatId: 'c', siteName: 'S', revision: 'r', rings: [square(), [P(300, 0), P(320, 0), P(320, 20)]], voids: [[atrium()]], viewState })
+
+      expect(session().voids).toHaveLength(2)
+      expect(session().voids[0]).toHaveLength(1)
+      expect(session().voids[1]).toEqual([])
+      expect(session().startVoids).toEqual(session().voids)
+    })
+
+    it('subtracts the voids from the area', () => {
+      store().enter({ chatId: 'c', siteName: 'S', revision: 'r', rings: [square()], voids: [[atrium()]], viewState })
+
+      expect(session().approxAreaSquareMeters).toBeCloseTo(10_000 - 400, -1)
+    })
+
+    it('replaceAll carries voids, and undo and redo carry them back and forth', () => {
+      enter()
+      const before = session().rings
+
+      store().applyChange({ op: 'replaceAll', before, after: [square()], beforeVoids: [[]], afterVoids: [[atrium()]] })
+      expect(session().voids[0]).toHaveLength(1)
+      expect(session().approxAreaSquareMeters).toBeCloseTo(9_600, -1)
+      expect(store().isDirty()).toBe(true)
+
+      store().undo()
+      expect(session().voids[0]).toEqual([])
+      expect(session().approxAreaSquareMeters).toBeCloseTo(10_000, -1)
+      expect(store().isDirty()).toBe(false)
+
+      store().redo()
+      expect(session().voids[0]).toHaveLength(1)
+    })
+
+    it('changes a void corner by path, and undoes it', () => {
+      store().enter({ chatId: 'c', siteName: 'S', revision: 'r', rings: [square()], voids: [[atrium()]], viewState })
+
+      store().applyChange({ op: 'move', ring: 0, path: 1, index: 2, before: atrium()[2], after: P(70, 70) })
+      expect(session().voids[0][0][2]).toEqual(P(70, 70))
+      expect(session().rings[0]).toEqual(square())
+
+      store().undo()
+      expect(session().voids[0][0][2]).toEqual(atrium()[2])
+    })
+
+    it('inserts and deletes a void corner by path', () => {
+      store().enter({ chatId: 'c', siteName: 'S', revision: 'r', rings: [square()], voids: [[atrium()]], viewState })
+
+      store().applyChange({ op: 'insert', ring: 0, path: 1, index: 1, after: P(50, 38) })
+      expect(session().voids[0][0]).toHaveLength(5)
+      store().applyChange({ op: 'delete', ring: 0, path: 1, index: 1, before: P(50, 38) })
+      expect(session().voids[0][0]).toHaveLength(4)
+
+      store().undo()
+      expect(session().voids[0][0]).toHaveLength(5)
+      store().undo()
+      expect(session().voids[0][0]).toHaveLength(4)
+    })
+
+    it('does not merge moves of different paths into one undo step', () => {
+      store().enter({ chatId: 'c', siteName: 'S', revision: 'r', rings: [square()], voids: [[atrium()]], viewState })
+
+      store().applyChange({ op: 'move', ring: 0, index: 1, before: square()[1], after: P(101, 0) })
+      store().applyChange({ op: 'move', ring: 0, path: 1, index: 1, before: atrium()[1], after: P(61, 40) })
+
+      expect(session().undo).toHaveLength(2)
+    })
+
+    it('removes a void in one undo step, and undo puts it back in the same place', () => {
+      store().enter({ chatId: 'c', siteName: 'S', revision: 'r', rings: [square()], voids: [[atrium(), second()]], viewState })
+
+      store().applyChange({ op: 'removeVoid', ring: 0, voidIndex: 0, before: atrium() })
+      expect(session().voids[0]).toEqual([second()])
+      expect(session().approxAreaSquareMeters).toBeCloseTo(10_000 - 100, -1)
+
+      store().undo()
+      expect(session().voids[0]).toEqual([atrium(), second()])
+      expect(session().approxAreaSquareMeters).toBeCloseTo(10_000 - 500, -1)
+    })
+
+    it('rebases onto freshly loaded voids', () => {
+      enter()
+
+      store().rebase('rev-2', [square()], [[atrium()]])
+
+      expect(session().voids[0]).toHaveLength(1)
+      expect(session().startVoids).toEqual(session().voids)
+      expect(store().isDirty()).toBe(false)
     })
   })
 

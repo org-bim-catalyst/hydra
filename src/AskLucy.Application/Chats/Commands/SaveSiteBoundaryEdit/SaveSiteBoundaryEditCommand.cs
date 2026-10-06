@@ -12,7 +12,11 @@ namespace AskLucy.Application.Chats.Commands.SaveSiteBoundaryEdit;
 public sealed record SaveSiteBoundaryEditCommand(
     Guid ChatId,
     string ExpectedRevision,
-    IReadOnlyList<IReadOnlyList<GeoPoint>> Rings) : IRequest<SaveSiteBoundaryEditResult>;
+    IReadOnlyList<IReadOnlyList<GeoPoint>> Rings) : IRequest<SaveSiteBoundaryEditResult>
+{
+    /// <summary>specs/081 - each ring's voids by ring index (<c>Voids[i]</c> belong to <c>Rings[i]</c>); empty for none.</summary>
+    public IReadOnlyList<IReadOnlyList<IReadOnlyList<GeoPoint>>> Voids { get; init; } = [];
+}
 
 /// <summary>The outline now in force, and the chat line recording the edit (FR-017).</summary>
 public sealed record SaveSiteBoundaryEditResult(ChatActiveBoundaryDto ActiveBoundary, MessageDto Message);

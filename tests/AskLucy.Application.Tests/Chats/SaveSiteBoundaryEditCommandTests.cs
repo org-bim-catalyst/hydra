@@ -35,9 +35,11 @@ public sealed class SaveSiteBoundaryEditCommandTests
     {
         _currentUser.UserId.Returns(Owner);
         _geometry.Validate(Arg.Any<IReadOnlyList<GeoPoint>>()).Returns(RingValidationResult.Ok);
+        _geometry.ValidateVoids(Arg.Any<IReadOnlyList<GeoPoint>>(), Arg.Any<IReadOnlyList<IReadOnlyList<GeoPoint>>>())
+            .Returns(new VoidValidation(RingValidationResult.Ok, -1));
         _geometry.Intersects(Arg.Any<IReadOnlyList<IReadOnlyList<GeoPoint>>>(), Arg.Any<IReadOnlyList<IReadOnlyList<GeoPoint>>>(), Arg.Any<double>())
             .Returns(true);
-        _geometry.UnionArea(Arg.Any<IReadOnlyList<IReadOnlyList<GeoPoint>>>()).Returns(14_321.5);
+        _geometry.UnionArea(Arg.Any<IReadOnlyList<IReadOnlyList<GeoPoint>>>(), Arg.Any<IReadOnlyList<IReadOnlyList<IReadOnlyList<GeoPoint>>>>()).Returns(14_321.5);
     }
 
     private SaveSiteBoundaryEditCommandHandler CreateHandler() => new(
@@ -113,6 +115,86 @@ public sealed class SaveSiteBoundaryEditCommandTests
     {
         IReadOnlyList<GeoPoint> ring = [new(latitude, longitude), new(25, 55), new(26, 56)];
         Validator.Validate(Valid([ring])).IsValid.Should().BeFalse();
+    }
+
+    // ---- specs/081: voids ------------------------------------------------
+
+    private static readonly IReadOnlyList<GeoPoint> VoidRing =
+        [new(25.1558, 55.2214), new(25.1558, 55.2216), new(25.1556, 55.2216)];
+
+    [Fact]
+    public void Validator_ShouldAcceptVoids_AndBoundThem()
+    {
+        var valid = Valid() with { Voids = [[VoidRing]] };
+        Validator.Validate(valid).IsValid.Should().BeTrue();
+
+        Validator.Validate(valid with { Voids = [[VoidRing], [VoidRing]] }).IsValid.Should().BeFalse();
+        Validator.Validate(valid with { Voids = [[[VoidRing[0], VoidRing[1]]]] }).IsValid.Should().BeFalse();
+        Validator.Validate(valid with { Voids = [[.. Enumerable.Range(0, 51).Select(_ => VoidRing)]] }).IsValid.Should().BeFalse();
+        Validator.Validate(valid with { Voids = [[.. Enumerable.Range(0, 50).Select(_ => VoidRing)]] }).IsValid.Should().BeTrue();
+    }
+
+    [Fact]
+    public void Validator_ShouldCountVoidCornersTowardTheTotal()
+    {
+        var nearlyFull = Valid([.. Enumerable.Range(0, 2).Select(_ => Ring(2_000))]);
+        Validator.Validate(nearlyFull with { Voids = [[Ring(500)]] }).IsValid.Should().BeTrue();
+        Validator.Validate(nearlyFull with { Voids = [[Ring(1_100)]] }).IsValid.Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task Handle_ShouldSaveTheVoids_AndTheAreaFromTheRingsMinusThem()
+    {
+        var chat = ChatWithOutline();
+        _geometry.UnionArea(Arg.Any<IReadOnlyList<IReadOnlyList<GeoPoint>>>(), Arg.Is<IReadOnlyList<IReadOnlyList<IReadOnlyList<GeoPoint>>>>(v => v!.Count == 1))
+            .Returns(13_000);
+        SiteBoundaryCorrection? created = null;
+        _corrections.When(c => c.Add(Arg.Any<SiteBoundaryCorrection>())).Do(call => created = call.Arg<SiteBoundaryCorrection>());
+
+        var result = await CreateHandler().Handle(CommandFor(chat) with { Voids = [[VoidRing]] }, TestContext.Current.CancellationToken);
+
+        created.Should().NotBeNull();
+        created!.EditedVoids.Should().HaveCount(1);
+        created.EditedVoids[0].Should().ContainSingle();
+        created.EditedVoids[0][0][0].Should().Be(VoidRing[0]);
+        created.EditedVoids[0][0][^1].Should().Be(VoidRing[0], "a void is stored closed, like the rings");
+        created.AreaSquareMeters.Should().Be(13_000);
+        result.ActiveBoundary.Voids.Should().HaveCount(1);
+        result.ActiveBoundary.AreaSquareMeters.Should().Be(13_000);
+    }
+
+    [Fact]
+    public async Task Handle_WithoutVoids_ShouldSaveAsBefore()
+    {
+        var chat = ChatWithOutline();
+        SiteBoundaryCorrection? created = null;
+        _corrections.When(c => c.Add(Arg.Any<SiteBoundaryCorrection>())).Do(call => created = call.Arg<SiteBoundaryCorrection>());
+
+        await CreateHandler().Handle(CommandFor(chat), TestContext.Current.CancellationToken);
+
+        created!.EditedVoids.Should().BeEmpty();
+        created.AreaSquareMeters.Should().Be(14_321.5);
+    }
+
+    [Theory]
+    [InlineData(RingValidationResult.VoidOutsidePart, "voidOutsidePart")]
+    [InlineData(RingValidationResult.VoidsTouch, "voidsTouch")]
+    [InlineData(RingValidationResult.SelfCrossing, "selfCrossing")]
+    [InlineData(RingValidationResult.Degenerate, "degenerate")]
+    [InlineData(RingValidationResult.DuplicateCorner, "duplicateCorner")]
+    public async Task Handle_ShouldRefuseAnInvalidVoid_WithItsRingAndVoidIndex_AndSaveNothing(RingValidationResult result, string reason)
+    {
+        var chat = ChatWithOutline();
+        _geometry.ValidateVoids(Arg.Any<IReadOnlyList<GeoPoint>>(), Arg.Any<IReadOnlyList<IReadOnlyList<GeoPoint>>>())
+            .Returns(new VoidValidation(result, 1));
+
+        var act = () => CreateHandler().Handle(CommandFor(chat) with { Voids = [[VoidRing, VoidRing]] }, TestContext.Current.CancellationToken);
+
+        var thrown = await act.Should().ThrowAsync<SiteBoundaryGeometryRejectedException>();
+        thrown.Which.Reason.Should().Be(reason);
+        thrown.Which.RingIndex.Should().Be(0);
+        thrown.Which.VoidIndex.Should().Be(1);
+        await _unitOfWork.DidNotReceive().SaveChangesAsync(Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -276,7 +358,7 @@ public sealed class SaveSiteBoundaryEditCommandTests
     public async Task Handle_ShouldRejectAnOutlineMoreThanThreeTimesWhatLucyFound()
     {
         var chat = ChatWithOutline();
-        _geometry.UnionArea(Arg.Any<IReadOnlyList<IReadOnlyList<GeoPoint>>>()).Returns(45_001);
+        _geometry.UnionArea(Arg.Any<IReadOnlyList<IReadOnlyList<GeoPoint>>>(), Arg.Any<IReadOnlyList<IReadOnlyList<IReadOnlyList<GeoPoint>>>>()).Returns(45_001);
 
         var act = () => CreateHandler().Handle(CommandFor(chat), TestContext.Current.CancellationToken);
 

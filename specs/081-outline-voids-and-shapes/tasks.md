@@ -80,8 +80,8 @@
 
 ### Tests for US1
 
-- [ ] T013 [P] [US1] `tests/AskLucy.Application.Tests/Chats/CombineSiteBoundaryShapeCommandTests.cs`: voids pass in and out of the handler; `NothingChanged` maps to 422 `nothingChanged` with "That area is already outside the site."; the `holeNotSupported` mapping test is removed or updated.
-- [ ] T014 [P] [US1] `tests/AskLucy.Application.Tests/Chats/SaveSiteBoundaryEditCommandTests.cs`:
+- [X] T013 [P] [US1] `tests/AskLucy.Application.Tests/Chats/CombineSiteBoundaryShapeCommandTests.cs`: voids pass in and out of the handler; `NothingChanged` maps to 422 `nothingChanged` with "That area is already outside the site."; the `holeNotSupported` mapping test is removed or updated.
+- [X] T014 [P] [US1] `tests/AskLucy.Application.Tests/Chats/SaveSiteBoundaryEditCommandTests.cs`:
   - voids are saved;
   - the area equals the union minus the voids;
   - a void crossing its part is refused with 422 `voidOutsidePart`, `ringIndex` and `voidIndex`;
@@ -90,26 +90,26 @@
   - void corners count toward 5,000;
   - the drift and 3x checks still use outer edges only;
   - a save without voids is unchanged.
-- [ ] T015 [P] [US1] Client `C/viewer/siteBoundaryEdit/siteBoundaryEditStore.test.ts`: the session holds voids; `replaceAll` with voids is one undo step and undo restores them; `totalArea` subtracts voids.
+- [X] T015 [P] [US1] Client `C/viewer/siteBoundaryEdit/siteBoundaryEditStore.test.ts`: the session holds voids; `replaceAll` with voids is one undo step and undo restores them; `totalArea` subtracts voids.
 
 ### Implementation for US1
 
-- [ ] T016 [US1] Combine command: add `Voids` (optional) to `CombineSiteBoundaryShapeRequest` (`src/AskLucy.Web/Contracts/ChatContracts.cs`), to `CombineSiteBoundaryShapeCommand`, to its validator (each void has 3 to 2,000 corners; at most 50 per part; void corners count toward the total) and to the handler (validate each void with `Validate` and `ValidateVoids`; map `NothingChanged`; return voids). `ChatsController` passes them through. Depends on T010.
-- [ ] T017 [US1] Save command: add `Voids` to `SaveSiteBoundaryEditRequest`, `SaveSiteBoundaryEditCommand` and `SaveSiteBoundaryEditCommandValidator` (add `MaxVoidsPerPart = 50`). In the handler (`EnsureAcceptable`), run `ValidateVoids` per part, throwing `SiteBoundaryGeometryRejectedException` with `RingIndex` and `VoidIndex`. Compute the area with `UnionArea(rings, voids)`. Pass the voids to `Create` and `ReplaceRings`. Depends on T010, T011.
-- [ ] T018 [US1] Client geometry in `C/viewer/siteBoundaryEdit/ringGeometry.ts`: add `pointInRing`, `ringsTouch` (reusing the existing segment-crossing helpers) and `validateVoid(outer, voids, k)`, with reasons `voidOutsidePart` and `voidsTouch` and their messages. Tests go in `ringGeometry.test.ts`.
-- [ ] T019 [US1] Edit session in `C/viewer/siteBoundaryEdit/siteBoundaryEditStore.ts`:
+- [X] T016 [US1] Combine command: add `Voids` (optional) to `CombineSiteBoundaryShapeRequest` (`src/AskLucy.Web/Contracts/ChatContracts.cs`), to `CombineSiteBoundaryShapeCommand`, to its validator (each void has 3 to 2,000 corners; at most 50 per part; void corners count toward the total) and to the handler (validate each void with `Validate` and `ValidateVoids`; map `NothingChanged`; return voids). `ChatsController` passes them through. Depends on T010.
+- [X] T017 [US1] Save command: add `Voids` to `SaveSiteBoundaryEditRequest`, `SaveSiteBoundaryEditCommand` and `SaveSiteBoundaryEditCommandValidator` (add `MaxVoidsPerPart = 50`). In the handler (`EnsureAcceptable`), run `ValidateVoids` per part, throwing `SiteBoundaryGeometryRejectedException` with `RingIndex` and `VoidIndex`. Compute the area with `UnionArea(rings, voids)`. Pass the voids to `Create` and `ReplaceRings`. Depends on T010, T011.
+- [X] T018 [US1] Client geometry in `C/viewer/siteBoundaryEdit/ringGeometry.ts`: add `pointInRing`, `ringsTouch` (reusing the existing segment-crossing helpers) and `validateVoid(outer, voids, k)`, with reasons `voidOutsidePart` and `voidsTouch` and their messages. Tests go in `ringGeometry.test.ts`.
+- [X] T019 [US1] Edit session in `C/viewer/siteBoundaryEdit/siteBoundaryEditStore.ts`:
   - add `voids` and `startVoids` to the session (`enter` takes voids);
   - `replaceAll` carries `{ rings, voids }`;
   - `isDirty` and `rebase` include voids;
   - `totalArea` subtracts voids;
   - add `activePath` (0 is the outer edge), which `setActiveRing` resets.
-- [ ] T020 [US1] Editable host and controller, voids shown but not yet edited:
+- [X] T020 [US1] Editable host and controller, voids shown but not yet edited:
   - `C/viewer/siteBoundaryEdit/googleEditablePolygonHost.ts`: `createRing(corners, voids, { editable })` builds `paths: [outer, ...voids]`, each void reversed to the opposite winding with `isCounterClockwise`.
   - `C/viewer/siteBoundaryEdit/editablePolygonController.ts`: `mount`, `setRings` and `replaceAllRings` take and redraw voids.
 
   Update the fake host in `editablePolygonController.test.ts`. Depends on T019.
-- [ ] T021 [US1] Circle cut sends and receives voids. In `C/viewer/siteBoundaryEdit/useSiteBoundaryEditMode.ts` (`applyCircle`), send `voids` and apply `result.voids` through `replaceAllRings`. Save sends `voids`; a 422 with `voidIndex` makes that part active and shows the message. In `C/features/chat/api/chatsApi.ts`, add `voids` to the combine and save requests and responses. Depends on T016, T017, T020.
-- [ ] T022 [US1] Normal display:
+- [X] T021 [US1] Circle cut sends and receives voids. In `C/viewer/siteBoundaryEdit/useSiteBoundaryEditMode.ts` (`applyCircle`), send `voids` and apply `result.voids` through `replaceAllRings`. Save sends `voids`; a 422 with `voidIndex` makes that part active and shows the message. In `C/features/chat/api/chatsApi.ts`, add `voids` to the combine and save requests and responses. Depends on T016, T017, T020.
+- [X] T022 [US1] Normal display:
   - `C/viewer/layers/gis/GoogleMapsGisLayer.ts` `setSiteBoundary`: accept `voids`, so each part's native polygon has `paths: [outer, ...reversed voids]`.
   - `C/viewer/layers/gis/SiteBoundaryRenderer.ts`: also draw void borders.
   - `C/features/viewer/components/SiteBoundaryOverlay.tsx`: pass `siteVoidsOf(state)`.
@@ -128,7 +128,7 @@
 
 ### Tests for US2
 
-- [ ] T023 [P] [US2] `CombineSiteBoundaryShapeCommandTests.cs`: a `shape` polygon combines; exactly one of circle or shape is required (400 for neither and for both); a shape with fewer than 3 or more than 2,000 corners, or one that crosses itself, is refused.
+- [X] T023 [P] [US2] `CombineSiteBoundaryShapeCommandTests.cs`: a `shape` polygon combines; exactly one of circle or shape is required (400 for neither and for both); a shape with fewer than 3 or more than 2,000 corners, or one that crosses itself, is refused.
 - [ ] T024 [P] [US2] Client `C/features/viewer/components/SiteBoundaryShapeDraw.test.tsx` (moved from `SiteBoundaryCircleDraw.test.tsx` and extended):
   - circle behaviour unchanged;
   - rectangle preview corners follow the drag;
@@ -146,7 +146,7 @@
 
 ### Implementation for US2
 
-- [ ] T026 [US2] Server: `CombineSiteBoundaryShapeRequest` and the command gain an optional `Shape` (`IReadOnlyList<GeoPoint>`). The validator requires exactly one of (`Centre` and `RadiusMeters`) or `Shape`. The handler uses `Shape` as the combine shape after `Validate`. Update the OpenAPI expectations in `tests/AskLucy.Web.Tests/Chats/SiteBoundaryEditEndpointTests.cs` if needed. Depends on T016.
+- [X] T026 [US2] Server: `CombineSiteBoundaryShapeRequest` and the command gain an optional `Shape` (`IReadOnlyList<GeoPoint>`). The validator requires exactly one of (`Centre` and `RadiusMeters`) or `Shape`. The handler uses `Shape` as the combine shape after `Validate`. Update the OpenAPI expectations in `tests/AskLucy.Web.Tests/Chats/SiteBoundaryEditEndpointTests.cs` if needed. Depends on T016.
 - [ ] T027 [US2] Store and actions:
   - In `C/viewer/siteBoundaryEdit/siteBoundaryEditStore.ts`, replace the `circle` tool and `circleOperation` with the `shape` tool plus `shapeKind: 'circle' | 'rectangle' | 'square'` and `shapeOperation: 'add' | 'cut'`.
   - Add a `polygon` tool with `polygonOperation` and `polygonCorners`.
@@ -182,8 +182,8 @@
   - `siteBoundaryEditStore.test.ts`: path-addressed changes; `removeVoid` and its undo.
   - `SiteBoundaryCornerNavigator.test.tsx`: Shift+[ and Shift+] cycle the outer edge and the voids, with the "void k of n" announcement.
   - `SiteBoundaryCornerMenu.test.tsx`: Remove void appears only for void corners.
-- [ ] T034 [US3] Store: `RingChange` move, moveMany, insert, delete and replace gain `path` (default 0); `applyForward` and `applyBackward` address `voids[ring][path-1]` when `path > 0`; add `setActivePath`, `removeVoid(ring, k)` and its `addVoid` undo. File: `C/viewer/siteBoundaryEdit/siteBoundaryEditStore.ts`. Depends on T019.
-- [ ] T035 [US3] Host and controller:
+- [X] T034 [US3] Store: `RingChange` move, moveMany, insert, delete and replace gain `path` (default 0); `applyForward` and `applyBackward` address `voids[ring][path-1]` when `path > 0`; add `setActivePath`, `removeVoid(ring, k)` and its `addVoid` undo. File: `C/viewer/siteBoundaryEdit/siteBoundaryEditStore.ts`. Depends on T019.
+- [X] T035 [US3] Host and controller:
   - The host adapts every path with `polygon.getPaths().getAt(k)`. Vertex events (click, press, drag-move, menu) report `PolyMouseEvent.path` and `vertex`, and the corner rings overlay is per path.
   - The controller's `Mounted.known` becomes per path. `set_at`, `insert_at` and `remove_at` on a void run `validateChange` plus `validateVoid`; on the outer edge they also check that every void is still inside.
   - `insertCornerAfter`, `moveCorner(s)` and `deleteCorner(s)` take a path. A click on a void corner sets `activePath`.
@@ -218,9 +218,9 @@
 
 **Independent test**: quickstart scenario 9.
 
-- [ ] T038 [P] [US5] Tests: `tests/AskLucy.Application.Tests/SiteBoundaries/SiteBoundaryPayloadTests.cs` (writes and reads `voids`, `voidCount` and `voidAreaSquareMeters`); `tests/AskLucy.Application.Tests/Conversations/Runtime/ActiveSiteNoteTests.cs` (the note mentions voids only when there are some); `EditSiteBoundaryCapabilityTests.cs` (`voidCount`).
-- [ ] T039 [US5] Implement in `src/AskLucy.Application/SiteBoundaries/SiteBoundaryPayload.cs`, `src/AskLucy.Application/Conversations/Runtime/ActiveSiteNote.cs` ("with N void(s), X m² excluded") and `src/AskLucy.Application/Conversations/Capabilities/EditSiteBoundaryCapability.cs`. The void area is computed with `UnionArea` of the voids alone (a small helper on the geometry port, or `GeometryMath.AreaSquareMeters` summed). Depends on T004.
-- [ ] T040 [US5] Membership keeps voids (research D7). Tests first in `tests/AskLucy.Application.Tests/SiteBoundaries/HandEditedMembershipComposerTests.cs`:
+- [X] T038 [P] [US5] Tests: `tests/AskLucy.Application.Tests/SiteBoundaries/SiteBoundaryPayloadTests.cs` (writes and reads `voids`, `voidCount` and `voidAreaSquareMeters`); `tests/AskLucy.Application.Tests/Conversations/Runtime/ActiveSiteNoteTests.cs` (the note mentions voids only when there are some); `EditSiteBoundaryCapabilityTests.cs` (`voidCount`).
+- [X] T039 [US5] Implement in `src/AskLucy.Application/SiteBoundaries/SiteBoundaryPayload.cs`, `src/AskLucy.Application/Conversations/Runtime/ActiveSiteNote.cs` ("with N void(s), X m² excluded") and `src/AskLucy.Application/Conversations/Capabilities/EditSiteBoundaryCapability.cs`. The void area is computed with `UnionArea` of the voids alone (a small helper on the geometry port, or `GeometryMath.AreaSquareMeters` summed). Depends on T004.
+- [X] T040 [US5] Membership keeps voids (research D7). Tests first in `tests/AskLucy.Application.Tests/SiteBoundaries/HandEditedMembershipComposerTests.cs`:
   - adding or removing a building keeps the part's voids;
   - a building added over a void fills that part of it;
   - adding a U-shaped building makes a courtyard void instead of failing;

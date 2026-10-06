@@ -25,11 +25,16 @@ public sealed record InsertPromptMessageRequest(Guid PromptId, IReadOnlyDictiona
 public sealed record CombineSiteBoundaryShapeRequest(
     IReadOnlyList<IReadOnlyList<AskLucy.Domain.SiteBoundaries.GeoPoint>> Rings,
     AskLucy.Application.SiteBoundaries.CombineOperation Operation,
-    AskLucy.Domain.SiteBoundaries.GeoPoint Centre,
-    double RadiusMeters);
+    AskLucy.Domain.SiteBoundaries.GeoPoint? Centre = null,
+    double RadiusMeters = 0,
+    IReadOnlyList<IReadOnlyList<IReadOnlyList<AskLucy.Domain.SiteBoundaries.GeoPoint>>>? Voids = null,
+    IReadOnlyList<AskLucy.Domain.SiteBoundaries.GeoPoint>? Shape = null);
 
 /// <summary>specs/079 contracts/site-boundary-edit-api.md `PUT /api/v1/chats/{chatId}/site-boundary` - the rings the user edited, and the revision they started from.</summary>
-public sealed record SaveSiteBoundaryEditRequest(string ExpectedRevision, IReadOnlyList<IReadOnlyList<AskLucy.Domain.SiteBoundaries.GeoPoint>> Rings);
+public sealed record SaveSiteBoundaryEditRequest(
+    string ExpectedRevision,
+    IReadOnlyList<IReadOnlyList<AskLucy.Domain.SiteBoundaries.GeoPoint>> Rings,
+    IReadOnlyList<IReadOnlyList<IReadOnlyList<AskLucy.Domain.SiteBoundaries.GeoPoint>>>? Voids = null);
 
 /// <summary>specs/079 - the revision the user was looking at when they chose to reset.</summary>
 public sealed record ResetSiteBoundaryRequest(string ExpectedRevision);

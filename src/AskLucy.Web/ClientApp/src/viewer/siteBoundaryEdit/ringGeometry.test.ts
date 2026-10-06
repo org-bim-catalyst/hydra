@@ -4,12 +4,16 @@ import {
   DENSE_RING_CORNERS,
   SIMPLIFY_TOLERANCE_METERS,
   closeRing,
+  netAreaSquareMeters,
   openRing,
+  pointInRing,
   ringAreaSquareMeters,
+  ringsTouch,
   simplifyDenseRing,
   simplifyRing,
   validateChange,
   validateRing,
+  validateVoid,
 } from './ringGeometry'
 
 // Muscat. Same frame as the backend's NtsSiteRingGeometryTests, so the two agree.
@@ -335,5 +339,48 @@ describe('a 500-corner ring (SC-005)', () => {
     const perChange = (performance.now() - started) / 20
 
     expect(perChange).toBeLessThan(4)
+  })
+})
+
+describe('voids (specs/081)', () => {
+  const outer = rectangle(0, 0, 100, 100)
+
+  it('pointInRing tells inside from outside', () => {
+    expect(pointInRing(point(50, 50), outer)).toBe(true)
+    expect(pointInRing(point(150, 50), outer)).toBe(false)
+    expect(pointInRing(point(50, -5), outer)).toBe(false)
+  })
+
+  it('ringsTouch is true for crossing, touching, nested and false for apart', () => {
+    expect(ringsTouch(rectangle(0, 0, 20, 20), rectangle(10, 10, 20, 20))).toBe(true)
+    expect(ringsTouch(rectangle(0, 0, 20, 20), rectangle(20, 0, 20, 20))).toBe(true)
+    expect(ringsTouch(rectangle(0, 0, 100, 100), rectangle(40, 40, 10, 10))).toBe(true)
+    expect(ringsTouch(rectangle(0, 0, 20, 20), rectangle(50, 50, 20, 20))).toBe(false)
+  })
+
+  it('accepts a void well inside its ring, and two apart', () => {
+    expect(validateVoid(outer, [rectangle(10, 10, 20, 20)], 0)).toBeNull()
+    expect(validateVoid(outer, [rectangle(10, 10, 20, 20), rectangle(60, 60, 20, 20)], 1)).toBeNull()
+  })
+
+  it('refuses a void that crosses, touches or lies outside the outer edge', () => {
+    expect(validateVoid(outer, [rectangle(90, 40, 30, 20)], 0)?.reason).toBe('voidOutsidePart')
+    expect(validateVoid(outer, [rectangle(0, 40, 20, 20)], 0)?.reason).toBe('voidOutsidePart')
+    expect(validateVoid(outer, [rectangle(200, 200, 10, 10)], 0)?.reason).toBe('voidOutsidePart')
+  })
+
+  it('refuses two voids that touch or overlap', () => {
+    expect(validateVoid(outer, [rectangle(10, 10, 20, 20), rectangle(25, 15, 20, 20)], 1)?.reason).toBe('voidsTouch')
+    expect(validateVoid(outer, [rectangle(10, 10, 40, 40), rectangle(20, 20, 5, 5)], 1)?.reason).toBe('voidsTouch')
+  })
+
+  it('refuses a void that is not a valid ring', () => {
+    const bowTie = [point(10, 10), point(30, 30), point(30, 10), point(10, 30)]
+    expect(validateVoid(outer, [bowTie], 0)?.reason).toBe('selfCrossing')
+  })
+
+  it('netAreaSquareMeters subtracts the voids', () => {
+    expect(netAreaSquareMeters(outer, [rectangle(10, 10, 20, 10)])).toBeCloseTo(10_000 - 200, 0)
+    expect(netAreaSquareMeters(outer)).toBeCloseTo(10_000, 0)
   })
 })

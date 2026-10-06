@@ -237,13 +237,20 @@ export interface CombineSiteBoundaryShapeRequest {
   /** The rings as they stand in the editor, unsaved changes included. Open rings. */
   rings: { latitude: number; longitude: number }[][]
   operation: 'Add' | 'Cut'
-  centre: { latitude: number; longitude: number }
-  radiusMeters: number
+  /** specs/081 — each ring's voids by ring index, open. Omitted or empty for none. */
+  voids?: { latitude: number; longitude: number }[][][]
+  /** A circle... */
+  centre?: { latitude: number; longitude: number }
+  radiusMeters?: number
+  /** ...or a drawn polygon (rectangle, square or free shape), open. Exactly one of the two is sent. */
+  shape?: { latitude: number; longitude: number }[]
 }
 
 export interface CombineSiteBoundaryShapeResponse {
   /** The outline's rings after the circle was added or cut; open rings, the ring holding the site first. */
   rings: { latitude: number; longitude: number }[][]
+  /** specs/081 — each ring's voids by ring index, open; absent when there are none. */
+  voids?: { latitude: number; longitude: number }[][][]
 }
 
 /**

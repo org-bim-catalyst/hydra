@@ -17,6 +17,8 @@ export interface SiteBoundaryEditRuntime {
   addCorner(): void
   /** Deletes the selected corner, or every selected corner at once. */
   deleteCorner(): void
+  /** specs/081: fills a void back in, as one undo step. */
+  removeVoid(ring: number, voidIndex: number): void
   /** Moves the selected corner by this many metres east and north (the arrow keys). */
   nudgeCorner(eastMeters: number, northMeters: number): void
   /** Switches between moving corners (Google's handles) and drawing a box that selects them. */
@@ -71,6 +73,7 @@ export const siteBoundaryEditActions = {
   redo: () => call('redo'),
   addCorner: () => call('addCorner'),
   deleteCorner: () => call('deleteCorner'),
+  removeVoid: (ring: number, voidIndex: number) => call('removeVoid', ring, voidIndex),
   nudgeCorner: (eastMeters: number, northMeters: number) => call('nudgeCorner', eastMeters, northMeters),
   toggleSelectTool: () => call('toggleSelectTool'),
   openShapeDialog: (tool: ShapeTool) => call('openShapeDialog', tool),

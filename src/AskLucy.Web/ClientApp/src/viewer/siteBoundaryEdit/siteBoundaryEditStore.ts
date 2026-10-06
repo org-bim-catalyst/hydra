@@ -1,7 +1,7 @@
 import { create } from 'zustand'
 import type { GeoPoint } from '../../store/activeSiteBoundaryStore'
 import type { CameraViewMode } from '../api/commands'
-import { openRing, ringAreaSquareMeters } from './ringGeometry'
+import { netAreaSquareMeters, openRing } from './ringGeometry'
 
 /**
  * specs/079 data-model.md "siteBoundaryEditStore": one outline-edit session. Module-level, so the
@@ -20,16 +20,22 @@ export interface ViewState {
   tilt: number
 }
 
+/**
+ * Which path of a ring a corner change is on (specs/081): 0 or absent is the ring's outer edge, `k` is its
+ * void `k - 1`. Rings change by the same operations whichever path they happen on.
+ */
 export type RingChange =
-  | { op: 'move'; ring: number; index: number; before: GeoPoint; after: GeoPoint }
+  | { op: 'move'; ring: number; path?: number; index: number; before: GeoPoint; after: GeoPoint }
   /** Several selected corners moved together (one dragged, or the arrow keys): `indices[i]` went from `before[i]` to `after[i]`. */
-  | { op: 'moveMany'; ring: number; indices: number[]; before: GeoPoint[]; after: GeoPoint[] }
-  | { op: 'insert'; ring: number; index: number; after: GeoPoint }
-  | { op: 'delete'; ring: number; index: number; before: GeoPoint }
+  | { op: 'moveMany'; ring: number; path?: number; indices: number[]; before: GeoPoint[]; after: GeoPoint[] }
+  | { op: 'insert'; ring: number; path?: number; index: number; after: GeoPoint }
+  | { op: 'delete'; ring: number; path?: number; index: number; before: GeoPoint }
+  /** specs/081: a whole void taken away (Remove void); undo puts it back at `voidIndex`. */
+  | { op: 'removeVoid'; ring: number; voidIndex: number; before: GeoPoint[] }
   /** The whole ring swapped for another: deleting several corners at once, rounding a corner, curving an edge, a circle. One undo step. */
   | { op: 'replace'; ring: number; before: GeoPoint[]; after: GeoPoint[] }
   /** Every ring swapped at once, possibly a different number of them: a circle added as a ring of its own, rings merged, a ring split by a cut. */
-  | { op: 'replaceAll'; before: GeoPoint[][]; after: GeoPoint[][] }
+  | { op: 'replaceAll'; before: GeoPoint[][]; after: GeoPoint[][]; beforeVoids: GeoPoint[][][]; afterVoids: GeoPoint[][][] }
 
 /** The shape tools that ask for a number (a radius, a bulge) before they act. */
 export type ShapeTool = 'round' | 'curve' | 'circle'
@@ -59,6 +65,9 @@ export interface SiteBoundaryEditSession {
   /** Cancel's target (FR-013). Open rings — no repeated closing corner. */
   startRings: GeoPoint[][]
   rings: GeoPoint[][]
+  /** specs/081: each ring's voids by ring index; open rings. `startVoids` is Cancel's target. */
+  startVoids: GeoPoint[][][]
+  voids: GeoPoint[][][]
   undo: RingChange[]
   redo: RingChange[]
   activeRing: number
@@ -86,6 +95,8 @@ export interface EnterParams {
   revision: string
   /** The rings as the API carries them (closed or open). */
   rings: readonly (readonly GeoPoint[])[]
+  /** specs/081: each ring's voids by ring index, closed or open. */
+  voids?: readonly (readonly (readonly GeoPoint[])[])[]
   viewState: ViewState
 }
 
@@ -143,7 +154,7 @@ interface Actions {
   saveFailed(message: string): void
   conflict(currentRevision: string): void
   /** "Load latest": keep the session and view state, rebase on the freshly fetched outline. */
-  rebase(revision: string, rings: readonly (readonly GeoPoint[])[]): void
+  rebase(revision: string, rings: readonly (readonly GeoPoint[])[], voids?: readonly (readonly (readonly GeoPoint[])[])[]): void
   /** Whether the shape differs from what edit mode started with. */
   isDirty(): boolean
 }
@@ -151,38 +162,61 @@ interface Actions {
 const cloneRings = (rings: readonly (readonly GeoPoint[])[]): GeoPoint[][] =>
   rings.map((ring) => openRing(ring).map((p) => ({ ...p })))
 
-const totalArea = (rings: readonly (readonly GeoPoint[])[]): number =>
-  rings.reduce((sum, ring) => sum + ringAreaSquareMeters(ring), 0)
+/** Voids by ring index, one list per ring (padded, so `voids[i]` always exists for ring `i`). */
+const cloneVoids = (
+  voids: readonly (readonly (readonly GeoPoint[])[])[] | undefined,
+  ringCount: number,
+): GeoPoint[][][] => Array.from({ length: ringCount }, (_, i) => cloneRings(voids?.[i] ?? []))
 
-/** Applies one change to a copy of the rings, in the forward direction. */
-function applyForward(rings: GeoPoint[][], change: RingChange): GeoPoint[][] {
-  if (change.op === 'replaceAll') return change.after.map((ring) => ring.map((p) => ({ ...p })))
-  const next = rings.map((r) => [...r])
-  const ring = next[change.ring]
-  if (change.op === 'replace') next[change.ring] = change.after.map((p) => ({ ...p }))
-  else if (change.op === 'move') ring[change.index] = { ...change.after }
-  else if (change.op === 'moveMany') change.indices.forEach((index, i) => (ring[index] = { ...change.after[i] }))
-  else if (change.op === 'insert') ring.splice(change.index, 0, { ...change.after })
-  else ring.splice(change.index, 1)
-  return next
+const totalArea = (rings: readonly (readonly GeoPoint[])[], voids: readonly (readonly (readonly GeoPoint[])[])[]): number =>
+  rings.reduce((sum, ring, i) => sum + netAreaSquareMeters(ring, voids[i] ?? []), 0)
+
+interface Geometry {
+  rings: GeoPoint[][]
+  voids: GeoPoint[][][]
 }
 
-/** Applies one change to a copy of the rings, in the reverse direction. */
-function applyBackward(rings: GeoPoint[][], change: RingChange): GeoPoint[][] {
-  if (change.op === 'replaceAll') return change.before.map((ring) => ring.map((p) => ({ ...p })))
-  const next = rings.map((r) => [...r])
-  const ring = next[change.ring]
-  if (change.op === 'replace') next[change.ring] = change.before.map((p) => ({ ...p }))
-  else if (change.op === 'move') ring[change.index] = { ...change.before }
-  else if (change.op === 'moveMany') change.indices.forEach((index, i) => (ring[index] = { ...change.before[i] }))
-  else if (change.op === 'insert') ring.splice(change.index, 1)
-  else ring.splice(change.index, 0, { ...change.before })
-  return next
+const copyPoints = (points: readonly GeoPoint[]): GeoPoint[] => points.map((p) => ({ ...p }))
+
+/** Applies one change to a copy of the geometry, forward or backward. */
+function applyChange(geometry: Geometry, change: RingChange, forward: boolean): Geometry {
+  if (change.op === 'replaceAll') {
+    return forward
+      ? { rings: change.after.map(copyPoints), voids: change.afterVoids.map((v) => v.map(copyPoints)) }
+      : { rings: change.before.map(copyPoints), voids: change.beforeVoids.map((v) => v.map(copyPoints)) }
+  }
+
+  const rings = geometry.rings.map((r) => [...r])
+  const voids = geometry.voids.map((v) => v.map((r) => [...r]))
+
+  if (change.op === 'removeVoid') {
+    if (forward) voids[change.ring].splice(change.voidIndex, 1)
+    else voids[change.ring].splice(change.voidIndex, 0, copyPoints(change.before))
+    return { rings, voids }
+  }
+
+  if (change.op === 'replace') {
+    rings[change.ring] = copyPoints(forward ? change.after : change.before)
+    return { rings, voids }
+  }
+
+  const target = !change.path ? rings[change.ring] : voids[change.ring][change.path - 1]
+  if (change.op === 'move') target[change.index] = { ...(forward ? change.after : change.before) }
+  else if (change.op === 'moveMany') change.indices.forEach((index, i) => (target[index] = { ...(forward ? change.after : change.before)[i] }))
+  else if (change.op === 'insert') {
+    if (forward) target.splice(change.index, 0, { ...change.after })
+    else target.splice(change.index, 1)
+  } else if (forward) target.splice(change.index, 1)
+  else target.splice(change.index, 0, { ...change.before })
+  return { rings, voids }
 }
 
 const sameRings = (a: readonly (readonly GeoPoint[])[], b: readonly (readonly GeoPoint[])[]): boolean =>
   a.length === b.length &&
   a.every((ring, r) => ring.length === b[r].length && ring.every((p, i) => p.latitude === b[r][i].latitude && p.longitude === b[r][i].longitude))
+
+const sameVoids = (a: readonly (readonly (readonly GeoPoint[])[])[], b: readonly (readonly (readonly GeoPoint[])[])[]): boolean =>
+  a.length === b.length && a.every((ringVoids, r) => ringVoids.length === b[r].length && ringVoids.every((v, k) => sameRings([v], [b[r][k]])))
 
 /**
  * A drag reports many small moves of one corner; they are one undo step, not dozens. Moves of the
@@ -223,8 +257,9 @@ export const useSiteBoundaryEditStore = create<State & Actions>()((set, get) => 
       return pendingRequest
     },
 
-    enter({ chatId, siteName, revision, rings, viewState }) {
+    enter({ chatId, siteName, revision, rings, voids, viewState }) {
       const start = cloneRings(rings)
+      const startVoids = cloneVoids(voids, start.length)
       set({
         session: {
           chatId,
@@ -232,6 +267,8 @@ export const useSiteBoundaryEditStore = create<State & Actions>()((set, get) => 
           baseRevision: revision,
           startRings: start,
           rings: cloneRings(start),
+          startVoids,
+          voids: cloneVoids(startVoids, start.length),
           undo: [],
           redo: [],
           activeRing: 0,
@@ -241,7 +278,7 @@ export const useSiteBoundaryEditStore = create<State & Actions>()((set, get) => 
           arcAnchors: null,
           circleOperation: null,
           viewState,
-          approxAreaSquareMeters: totalArea(start),
+          approxAreaSquareMeters: totalArea(start, startVoids),
           status: { kind: 'editing' },
           refusal: null,
           toolbarHidden: false,
@@ -252,14 +289,15 @@ export const useSiteBoundaryEditStore = create<State & Actions>()((set, get) => 
     applyChange(change) {
       const now = Date.now()
       update((s) => {
-        const rings = applyForward(s.rings, change)
+        const { rings, voids } = applyChange({ rings: s.rings, voids: s.voids }, change, true)
         const last = s.undo.at(-1)
         const recent = now - lastChangeAt < COALESCE_MOVES_WITHIN_MS
         const continuesDrag =
-          change.op === 'move' && last?.op === 'move' && last.ring === change.ring && last.index === change.index && recent
+          change.op === 'move' && last?.op === 'move' && last.ring === change.ring && (last.path ?? 0) === (change.path ?? 0) &&
+          last.index === change.index && recent
         // A group being dragged reports a move per pointer step too; same corners, same ring: one undo step.
         const continuesGroupDrag =
-          change.op === 'moveMany' && last?.op === 'moveMany' && last.ring === change.ring &&
+          change.op === 'moveMany' && last?.op === 'moveMany' && last.ring === change.ring && (last.path ?? 0) === (change.path ?? 0) &&
           last.indices.join(',') === change.indices.join(',') && recent
         const undo =
           continuesDrag && change.op === 'move' && last?.op === 'move'
@@ -272,10 +310,10 @@ export const useSiteBoundaryEditStore = create<State & Actions>()((set, get) => 
         const selection =
           change.op === 'replaceAll'
             ? { selectedCorner: null, selectedCorners: [], activeRing: 0 }
-            : change.op === 'replace'
+            : change.op === 'replace' || change.op === 'removeVoid'
               ? { selectedCorner: null, selectedCorners: [] }
               : {}
-        return { rings, undo, redo: [], approxAreaSquareMeters: totalArea(rings), refusal: null, ...selection }
+        return { rings, voids, undo, redo: [], approxAreaSquareMeters: totalArea(rings, voids), refusal: null, ...selection }
       })
       lastChangeAt = now
     },
@@ -292,16 +330,17 @@ export const useSiteBoundaryEditStore = create<State & Actions>()((set, get) => 
       const { session } = get()
       const change = session?.undo.at(-1) ?? null
       if (!session || !change) return null
-      const rings = applyBackward(session.rings, change)
+      const { rings, voids } = applyChange({ rings: session.rings, voids: session.voids }, change, false)
       set({
         session: {
           ...session,
           rings,
+          voids,
           undo: session.undo.slice(0, -1),
           redo: [...session.redo, change],
-          approxAreaSquareMeters: totalArea(rings),
+          approxAreaSquareMeters: totalArea(rings, voids),
           refusal: null,
-          ...(change.op === 'replace' ? { selectedCorner: null, selectedCorners: [] } : {}),
+          ...(change.op === 'replace' || change.op === 'removeVoid' ? { selectedCorner: null, selectedCorners: [] } : {}),
           ...(change.op === 'replaceAll' ? { selectedCorner: null, selectedCorners: [], activeRing: 0 } : {}),
         },
       })
@@ -312,16 +351,17 @@ export const useSiteBoundaryEditStore = create<State & Actions>()((set, get) => 
       const { session } = get()
       const change = session?.redo.at(-1) ?? null
       if (!session || !change) return null
-      const rings = applyForward(session.rings, change)
+      const { rings, voids } = applyChange({ rings: session.rings, voids: session.voids }, change, true)
       set({
         session: {
           ...session,
           rings,
+          voids,
           undo: [...session.undo, change],
           redo: session.redo.slice(0, -1),
-          approxAreaSquareMeters: totalArea(rings),
+          approxAreaSquareMeters: totalArea(rings, voids),
           refusal: null,
-          ...(change.op === 'replace' ? { selectedCorner: null, selectedCorners: [] } : {}),
+          ...(change.op === 'replace' || change.op === 'removeVoid' ? { selectedCorner: null, selectedCorners: [] } : {}),
           ...(change.op === 'replaceAll' ? { selectedCorner: null, selectedCorners: [], activeRing: 0 } : {}),
         },
       })
@@ -383,19 +423,22 @@ export const useSiteBoundaryEditStore = create<State & Actions>()((set, get) => 
       update(() => ({ toolbarHidden: hidden }))
     },
 
-    rebase(revision, rings) {
+    rebase(revision, rings, voids) {
       update(() => {
         const start = cloneRings(rings)
+        const startVoids = cloneVoids(voids, start.length)
         return {
           baseRevision: revision,
           startRings: start,
           rings: cloneRings(start),
+          startVoids,
+          voids: cloneVoids(startVoids, start.length),
           undo: [],
           redo: [],
           activeRing: 0,
           selectedCorner: null,
           selectedCorners: [],
-          approxAreaSquareMeters: totalArea(start),
+          approxAreaSquareMeters: totalArea(start, startVoids),
           status: { kind: 'editing' },
           refusal: null,
         }
@@ -404,7 +447,7 @@ export const useSiteBoundaryEditStore = create<State & Actions>()((set, get) => 
 
     isDirty() {
       const { session } = get()
-      return session ? !sameRings(session.rings, session.startRings) : false
+      return session ? !sameRings(session.rings, session.startRings) || !sameVoids(session.voids, session.startVoids) : false
     },
   }
 })
