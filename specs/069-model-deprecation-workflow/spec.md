@@ -391,9 +391,13 @@ rejected with a clear reason and that the model's status is unchanged.
   Administrator and the Super User role is treated as an Administrator. The in-app copy
   of the summary MUST always be delivered to every recipient, Super Users included.
 - **FR-020a**: In-app delivery MUST work when this feature ships. Email delivery is provided
-  by spec 067's email channel (its User Story 3). Until that channel ships, the notices
-  MUST still be recorded with email requested, so emails go out when it ships with no
-  change to this feature.
+  by spec 067's email channel (its User Story 3). Notices MUST be published with email
+  requested, so deprecations confirmed after that channel ships send email with no change to
+  this feature. Deprecations confirmed before it ships are in-app only, and their email is
+  recorded as skipped. It is not sent later.
+- **FR-020c**: When an administrator changes a replacement (FR-011b), affected users MUST
+  receive the follow-up notice as its own notification type, separate from the original
+  deprecation notice.
 
 **Status lock and access**
 
@@ -452,8 +456,8 @@ rejected with a clear reason and that the model's status is unchanged.
 - **SC-005**: Every affected user receives exactly one notice per confirmation, and zero
   unaffected users are notified.
 - **SC-006**: Every administrator sees the deprecation summary in-app within 5 minutes of
-  confirmation. Once spec 067's email channel is live, the summary email also arrives
-  within the same 5 minutes.
+  confirmation. For deprecations confirmed once spec 067's email channel is live, the
+  summary email also arrives within the same 5 minutes.
 - **SC-010**: 100% of applied replacements are visible as awaiting validation until an
   administrator accepts or changes them. An administrator can do either in under one
   minute from the summary notice.
@@ -500,7 +504,8 @@ rejected with a clear reason and that the model's status is unchanged.
   this feature depends on it. Spec 067's email channel, notification preferences, and
   administrator delivery monitoring are still to be built. Email notices and the
   administrator view of failed deliveries (FR-019) arrive when those parts ship. Until
-  then, delivery failures are still recorded and logged (spec 067 FR-030).
+  then, delivery failures are still recorded and logged (spec 067 FR-030), and emails for
+  deprecations confirmed before the channel exists are not sent later.
 - The role-dependent lock in FR-020b goes beyond spec 067's mandatory rule (FR-032), which
   locks a notification type for everyone. Spec 067's preferences work (its User Story 4,
   not built yet) has to support a lock that depends on the user's role.
