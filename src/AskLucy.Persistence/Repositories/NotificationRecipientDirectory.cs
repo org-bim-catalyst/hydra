@@ -53,6 +53,34 @@ public sealed class NotificationRecipientDirectory(AskLucyDbContext dbContext) :
             : new NotificationRecipientInfo(user.Id, DisplayName(user.FirstName, user.LastName), user.Email, user.EmailConfirmed, IsActive: !user.IsDeleted);
     }
 
+    public async Task<IReadOnlyList<string>> GetActiveUserIdsAfterAsync(
+        IReadOnlyCollection<string>? roleIds, string? afterUserId, int take, CancellationToken cancellationToken)
+    {
+        var users = ActiveUsers(roleIds, verifiedEmailOnly: false);
+        if (afterUserId is not null)
+        {
+            users = users.Where(u => u.Id.CompareTo(afterUserId) > 0);
+        }
+
+        return await users.OrderBy(u => u.Id).Select(u => u.Id).Take(take).ToListAsync(cancellationToken);
+    }
+
+    public Task<int> CountActiveAsync(IReadOnlyCollection<string>? roleIds, bool verifiedEmailOnly, CancellationToken cancellationToken) =>
+        ActiveUsers(roleIds, verifiedEmailOnly).CountAsync(cancellationToken);
+
+    private IQueryable<AskLucy.Persistence.Identity.ApplicationUser> ActiveUsers(IReadOnlyCollection<string>? roleIds, bool verifiedEmailOnly)
+    {
+        var users = dbContext.Users.AsNoTracking().Where(u => !u.IsDeleted);
+        if (verifiedEmailOnly)
+        {
+            users = users.Where(u => u.EmailConfirmed && u.Email != null);
+        }
+
+        return roleIds is { Count: > 0 }
+            ? users.Where(u => dbContext.UserRoles.Any(ur => ur.UserId == u.Id && roleIds.Contains(ur.RoleId)))
+            : users;
+    }
+
     private static string? DisplayName(string? firstName, string? lastName)
     {
         var name = $"{firstName} {lastName}".Trim();

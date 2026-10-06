@@ -217,6 +217,7 @@ Request:
   - Text is plain: no HTML, no raw URLs.
 - **201**: `{ "id": "…", "estimatedRecipients": 1234, "emailEstimatedMinutes": 21 }`, where the minutes are computed from the send limiter.
 - The action is audited as `AnnouncementPublished`.
+- A bulk retry by filter that matches more than 1,000 deliveries returns **400** and retries nothing; `DeliveryRetryRefusedException` maps to **409** with a `reason` extension (`NotFailed`, `NotificationDeleted`, `NotificationExpired`, `RecipientDeleted`).
 - Announcements are immutable once published. There is no PUT or DELETE (FR-004a: never a marketing channel).
 
 ---

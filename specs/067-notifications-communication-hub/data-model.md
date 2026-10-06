@@ -283,6 +283,12 @@ It uses `RowVersion` for optimistic concurrency. A conflict returns 409, and the
 
 ---
 
+### Announcement variables and retention (implemented in Phase 10)
+
+The `system.announcement` type declares two variables beyond the title, message and kind: `endsAtUtc` (the expiry, ISO-8601) and `isCritical` (`"true"` / `"false"`). The materializer reads them from the event: email is queued only when `isCritical` is true, and both the in-app notification and the email delivery expire at `endsAtUtc`.
+
+`RetentionService` (daily Hangfire job `notification-retention`, 03:00) deletes in batches with `ExecuteDeleteAsync`: read notifications after 90 days, owner-deleted after 30 days, failed or dead-lettered deliveries 30 days after the last attempt, finished non-in-app deliveries after 90 days, and completed outbox events after 7 days. In-app deliveries are removed with their notification, and a notification that still has an active delivery is skipped. Audit rows are never deleted.
+
 ## Notification type catalogue
 
 The definitions below are code-owned in `NotificationTypeCatalog`. Routes were reconciled against `ClientApp/src/routes/router.tsx` (research R11 addendum): `{id}` is `RelatedItem.Id` and `{parentId}` is `RelatedItem.ParentId`.

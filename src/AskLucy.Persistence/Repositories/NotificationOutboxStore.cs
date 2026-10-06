@@ -76,6 +76,14 @@ public sealed class NotificationOutboxStore(AskLucyDbContext dbContext, TimeProv
     public Task<NotificationOutboxEvent?> FindAsync(Guid id, CancellationToken cancellationToken) =>
         dbContext.NotificationOutboxEvents.AsNoTracking().SingleOrDefaultAsync(e => e.Id == id, cancellationToken);
 
+    public async Task<DeliveryBacklog> GetDueBacklogAsync(DateTime now, CancellationToken cancellationToken)
+    {
+        var due = dbContext.NotificationOutboxEvents.AsNoTracking().Where(e => e.Status == OutboxEventStatus.Pending && e.NextAttemptAtUtc <= now);
+        var count = await due.CountAsync(cancellationToken);
+        var oldest = count == 0 ? null : await due.MinAsync(e => e.NextAttemptAtUtc, cancellationToken);
+        return new DeliveryBacklog(count, oldest);
+    }
+
     public Task<int> SweepExpiredLeasesAsync(DateTime now, CancellationToken cancellationToken) =>
         dbContext.NotificationOutboxEvents
             .Where(e => e.Status == OutboxEventStatus.Processing && e.LeaseExpiresAtUtc <= now)

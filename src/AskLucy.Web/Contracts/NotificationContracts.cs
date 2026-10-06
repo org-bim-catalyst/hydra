@@ -20,3 +20,25 @@ public sealed record NotificationPreferenceChangeRequest(
     NotificationChannel Channel,
     bool Enabled,
     DeliveryFrequency? Frequency = null);
+
+/// <summary>contracts/admin-notifications-api.md `POST /notifications/deliveries/actions/retry`: exactly one of the two.</summary>
+public sealed record BulkRetryDeliveriesRequest(IReadOnlyList<Guid>? DeliveryIds = null, BulkRetryDeliveriesFilterRequest? Filter = null);
+
+public sealed record BulkRetryDeliveriesFilterRequest(
+    IReadOnlyList<DeliveryStatus>? Status = null,
+    NotificationChannel? Channel = null,
+    DateTime? From = null,
+    DateTime? To = null);
+
+/// <summary>contracts/admin-notifications-api.md `POST /notifications/deliveries/{deliveryId}/actions/retry`.</summary>
+public sealed record RetryDeliveryResponse(Guid DeliveryId, DeliveryStatus Status);
+
+/// <summary>contracts/admin-notifications-api.md `POST /notifications/announcements`.</summary>
+public sealed record PublishAnnouncementRequest(
+    AnnouncementKind Kind,
+    string Title,
+    string Message,
+    AnnouncementAudience Audience,
+    IReadOnlyList<string>? TargetRoleIds,
+    bool IsCritical,
+    DateTime? EndsAtUtc);

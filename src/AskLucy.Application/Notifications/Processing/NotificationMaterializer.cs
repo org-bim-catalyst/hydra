@@ -58,9 +58,10 @@ public sealed class NotificationMaterializer(
             new RecipientRoutingState(target.HasVerifiedEmail),
             target.Overrides,
             channels.AvailableChannels,
-            isCritical: false);
+            isCritical: variables.TryGetValue("isCritical", out var critical) && string.Equals(critical, "true", StringComparison.Ordinal));
 
         var language = await languages.ResolveAsync(target.UserId, outboxEvent.ExplicitLanguage, cancellationToken);
+        var expiresAt = AnnouncementEnd(definition, variables);
 
         RenderedInApp? rendered = null;
         string? renderError = null;
@@ -94,12 +95,13 @@ public sealed class NotificationMaterializer(
             route,
             eventKey: outboxEvent.EventKey,
             sourceEventId: outboxEvent.Id,
+            expiresAtUtc: expiresAt,
             actionLabel: rendered?.ActionLabel,
             id: notificationId);
 
         foreach (var decision in decisions)
         {
-            notification.AddDelivery(DeliveryFor(decision, definition, target, priority, rendered, renderError, correlationId, now));
+            notification.AddDelivery(DeliveryFor(decision, definition, target, priority, rendered, renderError, correlationId, now, expiresAt));
         }
 
         return notification;
@@ -142,7 +144,8 @@ public sealed class NotificationMaterializer(
         RenderedInApp? rendered,
         string? renderError,
         string correlationId,
-        DateTime now)
+        DateTime now,
+        DateTime? expiresAt)
     {
         if (!decision.Deliver)
         {
@@ -167,10 +170,21 @@ public sealed class NotificationMaterializer(
             target.Kind,
             target.Kind == RecipientKind.Address ? target.Address : null,
             Math.Max(1, retry.MaxAttempts),
-            definition.RequestValidity is { } validity ? now + validity : null,
+            definition.RequestValidity is { } validity ? now + validity : expiresAt,
             correlationId,
             now);
     }
+
+    /// <summary>
+    /// An announcement stops being relevant when it ends: its in-app notification and its email expire then, so a queued email
+    /// never goes out after the maintenance window it announced (FR-004a).
+    /// </summary>
+    private static DateTime? AnnouncementEnd(NotificationTypeDefinition definition, IReadOnlyDictionary<string, string?> variables) =>
+        definition.Key == NotificationTypeKeys.SystemAnnouncementPublished
+        && variables.TryGetValue("endsAtUtc", out var raw)
+        && DateTime.TryParse(raw, System.Globalization.CultureInfo.InvariantCulture, System.Globalization.DateTimeStyles.AdjustToUniversal | System.Globalization.DateTimeStyles.AssumeUniversal, out var ends)
+            ? ends
+            : null;
 
     private static RelatedItem? RelatedItemOf(NotificationOutboxEvent outboxEvent) =>
         outboxEvent is { RelatedItemType: { } type, RelatedItemId: { } id }

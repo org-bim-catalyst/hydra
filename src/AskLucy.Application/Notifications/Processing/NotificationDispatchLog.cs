@@ -70,6 +70,10 @@ internal static partial class NotificationDispatchLog
 internal static partial class DeliveryLog
 {
     [LoggerMessage(Level = LogLevel.Information,
+        Message = "Notification retention removed {Read} read and {OwnerDeleted} deleted notifications, {Failed} failed and {Finished} finished deliveries, and {Outbox} completed outbox events.")]
+    public static partial void RetentionRan(ILogger logger, int read, int ownerDeleted, int failed, int finished, int outbox);
+
+    [LoggerMessage(Level = LogLevel.Information,
         Message = "Notification delivery {DeliveryId} is no longer leased to worker {WorkerId}; skipping it.")]
     public static partial void LeaseLost(ILogger logger, Guid deliveryId, string workerId);
 

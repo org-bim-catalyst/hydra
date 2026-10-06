@@ -641,6 +641,8 @@ builder.Services.AddCors(options =>
 builder.Services.AddControllers()
     .AddJsonOptions(options => options.JsonSerializerOptions.Converters.Add(new System.Text.Json.Serialization.JsonStringEnumConverter()));
 builder.Services.AddOpenApi();
+builder.Services.AddSingleton<AskLucy.Web.HealthChecks.NotificationSmtpHealthCheck>(); // keeps its own probe cache, so it must be one instance
+builder.Services.AddScoped<AskLucy.Application.Notifications.Abstractions.INotificationChannelHealthReader, AskLucy.Web.HealthChecks.NotificationChannelHealthReader>();
 builder.Services.AddHealthChecks()
     // specs/029-fix-chat-widget-bugs FR-012, research.md Decision 2 — a readiness signal
     // (tagged "ready", surfaced at /health/ready below, kept separate from the plain
@@ -649,7 +651,13 @@ builder.Services.AddHealthChecks()
     .AddCheck<PendingMigrationsHealthCheck>("pending-migrations", tags: ["ready"])
     // specs/045 T105 — degraded (not unhealthy) when the last system-agent provisioning pass was
     // deferred, so the gap is visible on /health/ready rather than silent.
-    .AddCheck<AskLucy.Web.HealthChecks.SystemAgentProvisioningHealthCheck>("system-agent-provisioning", tags: ["ready"]);
+    .AddCheck<AskLucy.Web.HealthChecks.SystemAgentProvisioningHealthCheck>("system-agent-provisioning", tags: ["ready"])
+    // specs/067 T166 (FR-057): the hub's workers are alive, nothing has waited too long, and the mail host answers. The
+    // mail probe is degraded, never unhealthy, so a mail outage doesn't take the site out of rotation.
+    .AddCheck<AskLucy.Web.HealthChecks.NotificationDispatcherHealthCheck>(AskLucy.Web.HealthChecks.NotificationDispatcherHealthCheck.Name, tags: ["ready"])
+    .AddCheck<AskLucy.Web.HealthChecks.NotificationDeliveryWorkerHealthCheck>(AskLucy.Web.HealthChecks.NotificationDeliveryWorkerHealthCheck.Name, tags: ["ready"])
+    .AddCheck<AskLucy.Web.HealthChecks.NotificationBacklogHealthCheck>(AskLucy.Web.HealthChecks.NotificationBacklogHealthCheck.Name, tags: ["ready"])
+    .AddCheck<AskLucy.Web.HealthChecks.NotificationSmtpHealthCheck>(AskLucy.Web.HealthChecks.NotificationSmtpHealthCheck.Name, tags: ["ready"]);
 builder.Services.AddSignalR();
 
 var app = builder.Build();
@@ -809,6 +817,11 @@ RegisterRecurringJob(() => RecurringJob.AddOrUpdate<PasswordResetTokenCleanupJob
 // pending. Idempotent — safe to call on every startup.
 RegisterRecurringJob(() => RecurringJob.AddOrUpdate<NotificationLeaseSweepJob>(
     "notification-lease-sweep", job => job.RunAsync(CancellationToken.None), Cron.Minutely));
+
+// specs/067 US6 (research R20, FR-059) — daily clean-up of read, deleted and finished notification data, in batches. Audit
+// rows are never deleted. Idempotent — safe to call on every startup.
+RegisterRecurringJob(() => RecurringJob.AddOrUpdate<NotificationRetentionJob>(
+    "notification-retention", job => job.RunAsync(CancellationToken.None), Cron.Daily(3)));
 
 // spec 021-mcp-integration User Story 6 (research.md Decision 10) — a 5-minute cadence matching
 // McpRuntimeOptions.HealthCheckIntervalMinutes's own default; each run only actually

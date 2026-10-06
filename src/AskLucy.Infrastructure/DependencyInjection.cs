@@ -534,6 +534,10 @@ public static class DependencyInjection
         services.AddSingleton<NotificationMetrics>();
         services.AddSingleton<INotificationMetrics>(sp => sp.GetRequiredService<NotificationMetrics>());
         services.AddSingleton<NotificationWorkerHeartbeats>();
+
+        // The mail probe behind the readiness check (FR-057); the checks themselves live in the Web project, which owns ASP.NET's health-check types.
+        services.AddSingleton<AskLucy.Infrastructure.Notifications.HealthChecks.ISmtpProbe, AskLucy.Infrastructure.Notifications.HealthChecks.MailKitSmtpProbe>();
+
         services.AddSingleton<INotificationChannelRegistry, NotificationChannelRegistry>();
 
         // Email channel (US3): the scoped sender, the process-wide send limiter and the failure
@@ -545,6 +549,7 @@ public static class DependencyInjection
         services.AddSingleton<ISupportMailboxResolver, SmtpSupportMailboxResolver>();
         services.AddScoped<IAccountLinkIssuer, AccountLinkIssuer>();
         services.AddScoped<NotificationLeaseSweepJob>();
+        services.AddScoped<NotificationRetentionJob>();
         services.AddSingleton<SmtpConnectionHolder>();
         services.AddSingleton<IEffectiveLanguageResolver, EffectiveLanguageResolver>();
         services.AddSingleton<INotificationLinkBuilder, NotificationLinkBuilder>();

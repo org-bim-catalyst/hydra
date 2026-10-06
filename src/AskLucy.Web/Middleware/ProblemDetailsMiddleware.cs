@@ -122,6 +122,11 @@ public sealed class ProblemDetailsMiddleware(
             problemDetails.Extensions["newerIncidentId"] = newerIncidentId;
         }
 
+        if (exception is AskLucy.Application.Notifications.Admin.DeliveryRetryRefusedException retryRefused)
+        {
+            problemDetails.Extensions["reason"] = retryRefused.Reason.ToString();
+        }
+
         if (exception is AskLucy.Application.Notifications.NotificationPreferenceRejectedException preferenceRejected)
         {
             problemDetails.Extensions["errors"] = preferenceRejected.Errors;
@@ -226,6 +231,13 @@ public sealed class ProblemDetailsMiddleware(
 
     private static (int StatusCode, string Type, string Title, string Detail) Map(Exception exception) => exception switch
     {
+        // specs/067 US6: an administrator retry of a delivery that can't be retried (spec edge case); the reason is machine-readable.
+        AskLucy.Application.Notifications.Admin.DeliveryRetryRefusedException retryRefusedEx => (
+            StatusCodes.Status409Conflict,
+            "https://hydra.bimcatalyst.com/problems/delivery-not-retryable",
+            "Delivery can't be retried",
+            retryRefusedEx.Message),
+
         // specs/067 FR-032: a preference update tried to switch off a mandatory notification. Atomic: nothing was applied.
         AskLucy.Application.Notifications.NotificationPreferenceRejectedException preferenceEx => (
             StatusCodes.Status422UnprocessableEntity,

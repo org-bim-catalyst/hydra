@@ -424,6 +424,7 @@ public static class DependencyInjection
         services.AddScoped<DeliveryProcessor>();
         services.AddSingleton<DeliveryProcessingService>();
         services.AddSingleton<LeaseSweepService>();
+        services.AddSingleton<RetentionService>();
 
         // T091 — one INotificationAccessCheck per related-item type module currently emits
         // (research R24); registered as IEnumerable<INotificationAccessCheck> and resolved by
