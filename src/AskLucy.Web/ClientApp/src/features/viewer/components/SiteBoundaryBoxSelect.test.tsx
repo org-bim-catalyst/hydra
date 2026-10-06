@@ -98,6 +98,21 @@ describe('SiteBoundaryBoxSelect', () => {
     expect(store().session?.selectedCorners).toEqual([1, 2])
   })
 
+  // Found live (2026-10-06): MUI reads a bare sx number between 0 and 1 as a fraction of the parent, so a box
+  // 1 px tall (a nearly level drag) filled the whole map below the start, and 1 px wide the whole width.
+  it('keeps a 1 px tall or wide box 1 px, instead of the whole map', () => {
+    enter()
+    render(<SiteBoundaryBoxSelect projector={projector} />)
+    pinLayer()
+
+    fireEvent.pointerDown(layer(), { clientX: 100, clientY: 200, button: 0, pointerId: 1 })
+    fireEvent.pointerMove(layer(), { clientX: 300, clientY: 201, pointerId: 1 })
+    expect(screen.getByTestId('corner-select-box')).toHaveStyle({ left: '100px', top: '200px', width: '200px', height: '1px' })
+
+    fireEvent.pointerMove(layer(), { clientX: 101, clientY: 260, pointerId: 1 })
+    expect(screen.getByTestId('corner-select-box')).toHaveStyle({ width: '1px', height: '60px' })
+  })
+
   it('stays in the Select tool after a box, for another one', () => {
     enter()
     render(<SiteBoundaryBoxSelect projector={projector} />)

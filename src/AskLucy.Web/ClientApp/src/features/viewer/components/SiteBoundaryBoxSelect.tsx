@@ -168,11 +168,13 @@ export function SiteBoundaryBoxSelect({ projector: injected }: Props) {
     map.setZoom((map.getZoom() ?? 17) + (event.deltaY < 0 ? 0.5 : -0.5))
   }
 
+  // In pixels, spelled out. MUI's sx reads a bare number between 0 and 1 as a fraction of the parent, so a box
+  // 1 px tall (a nearly level drag) was drawn the full height of the map, and 1 px wide the full width.
   const box = drag && {
-    left: Math.min(drag.startX, drag.x),
-    top: Math.min(drag.startY, drag.y),
-    width: Math.abs(drag.x - drag.startX),
-    height: Math.abs(drag.y - drag.startY),
+    left: `${Math.min(drag.startX, drag.x)}px`,
+    top: `${Math.min(drag.startY, drag.y)}px`,
+    width: `${Math.abs(drag.x - drag.startX)}px`,
+    height: `${Math.abs(drag.y - drag.startY)}px`,
   }
 
   return (
