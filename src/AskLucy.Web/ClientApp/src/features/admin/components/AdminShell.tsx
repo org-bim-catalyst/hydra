@@ -23,6 +23,8 @@ import { visuallyHidden } from '@mui/utils'
 import { Fragment, useState } from 'react'
 import { Link as RouterLink, useLocation } from 'react-router'
 import { AppShell } from '../../../components/AppShell'
+import { LocalizedSurface } from '../../../i18n/LocalizedSurface'
+import { useFormat, useT } from '../../../i18n/useT'
 import { AdminSectionActionsContext } from './adminSectionActionsContext'
 import { ADMIN_NAV } from '../adminNav'
 import { overlaySurface } from '../../../theme/tokens/overlaySurface'
@@ -41,13 +43,14 @@ const STORAGE_KEY = 'ask-lucy.admin-sidebar-collapsed'
  * dot, never a silent zero. The badge itself is aria-hidden; the visually hidden text says it.
  */
 function NavCountBadge({ count, isError, children }: { count: number; isError: boolean; children: ReactNode }) {
+  const t = useT('admin.shell')
   if (isError) {
     return (
-      <Tooltip title="Could not load the unacknowledged critical count" describeChild>
+      <Tooltip title={t('badges.criticalCountError')} describeChild>
         <Badge variant="dot" color="warning" slotProps={{ badge: { 'aria-hidden': true } }}>
           {children}
           <Box component="span" sx={visuallyHidden}>
-            (could not load the unacknowledged critical count)
+            {t('badges.criticalCountErrorHidden')}
           </Box>
         </Badge>
       </Tooltip>
@@ -59,7 +62,7 @@ function NavCountBadge({ count, isError, children }: { count: number; isError: b
       {children}
       {count > 0 && (
         <Box component="span" sx={visuallyHidden}>
-          ({count} unacknowledged critical)
+          {t('badges.criticalCount', { count })}
         </Box>
       )}
     </Badge>
@@ -68,12 +71,13 @@ function NavCountBadge({ count, isError, children }: { count: number; isError: b
 
 /** specs/078 FR-016 — a plain warning dot on Voice while dictation is Suspended; no count to show. */
 function NavSuspendedBadge({ suspended, children }: { suspended: boolean; children: ReactNode }) {
+  const t = useT('admin.shell')
   return (
     <Badge variant="dot" color="warning" invisible={!suspended} slotProps={{ badge: { 'aria-hidden': true } }}>
       {children}
       {suspended && (
         <Box component="span" sx={visuallyHidden}>
-          (dictation is suspended)
+          {t('badges.dictationSuspended')}
         </Box>
       )}
     </Badge>
@@ -100,11 +104,17 @@ interface AdminShellProps {
  * The `actions` slot deliberately stays for a section's *own* controls. It is not for links to
  * other sections; the sidebar is the only place those live now.
  */
-export function AdminShell({ title, subtitle, actions, children }: AdminShellProps) {
+function AdminShellFrame({ title, subtitle, actions, children }: AdminShellProps) {
+  const t = useT('admin.shell')
+  const { language } = useFormat()
+  const isRtl = language === 'ar'
   const { pathname } = useLocation()
   const isBuiltInAdmin = useIsAdmin()
   const permissions = usePermissions()
-  const hangfireDashboard = useOpenHangfireDashboard()
+  const hangfireDashboard = useOpenHangfireDashboard({
+    popupBlocked: t('jobs.popupBlocked'),
+    openFailed: t('jobs.openFailed'),
+  })
   const operationalFailureBadge = useOperationalFailureBadge()
   const dictationSuspendedBadge = useDictationSuspendedBadge()
   const navIcon = (item: (typeof ADMIN_NAV)[number]) => {
@@ -167,7 +177,7 @@ export function AdminShell({ title, subtitle, actions, children }: AdminShellPro
       <Box sx={{ display: 'flex', flex: 1, gap: 2, alignItems: 'stretch', minHeight: 0 }}>
         <Box
           component="nav"
-          aria-label="Admin sections"
+          aria-label={t('sidebar.navLabel')}
           sx={{
             width: collapsed ? COLLAPSED_WIDTH : EXPANDED_WIDTH,
             flexShrink: 0,
@@ -183,17 +193,22 @@ export function AdminShell({ title, subtitle, actions, children }: AdminShellPro
           <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: collapsed ? 'center' : 'space-between', px: collapsed ? 0 : 1.5, py: 1 }}>
             {!collapsed && (
               <Typography variant="overline" color="text.secondary" sx={{ letterSpacing: '0.08em' }}>
-                Admin
+                {t('sidebar.title')}
               </Typography>
             )}
-            <Tooltip title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}>
+            <Tooltip title={collapsed ? t('sidebar.expand') : t('sidebar.collapse')}>
               <IconButton
                 onClick={toggle}
                 size="small"
-                aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+                aria-label={collapsed ? t('sidebar.expand') : t('sidebar.collapse')}
                 aria-expanded={!collapsed}
               >
-                {collapsed ? <MenuIcon fontSize="small" /> : <MenuOpenIcon fontSize="small" />}
+                {collapsed ? (
+                  <MenuIcon fontSize="small" />
+                ) : (
+                  // The open-menu arrow points toward the sidebar's own edge, so it mirrors with the direction.
+                  <MenuOpenIcon fontSize="small" sx={{ transform: isRtl ? 'scaleX(-1)' : undefined }} />
+                )}
               </IconButton>
             </Tooltip>
           </Box>
@@ -221,7 +236,7 @@ export function AdminShell({ title, subtitle, actions, children }: AdminShellPro
                 // rule), so the <hr> must nest inside a plain <li> rather than replace one.
                 <Fragment key={item.id ?? item.path}>
                   <ListItem disablePadding sx={{ display: 'block' }}>
-                    <Tooltip title={collapsed ? item.label : ''} placement="right">
+                    <Tooltip title={collapsed ? t(item.labelKey) : ''} placement={isRtl ? 'left' : 'right'}>
                       {item.onSelect ? (
                         <ListItemButton onClick={item.onSelect} disabled={hangfireDashboard.isPending} sx={itemSx}>
                           <ListItemIcon sx={{ minWidth: 0, mr: collapsed ? 0 : 1.5, color: 'inherit' }}>
@@ -229,7 +244,7 @@ export function AdminShell({ title, subtitle, actions, children }: AdminShellPro
                           </ListItemIcon>
                           {!collapsed && (
                             <ListItemText
-                              primary={item.label}
+                              primary={t(item.labelKey)}
                               slotProps={{ primary: { sx: { fontSize: '0.875rem', fontWeight: 500 } } }}
                             />
                           )}
@@ -247,7 +262,7 @@ export function AdminShell({ title, subtitle, actions, children }: AdminShellPro
                           </ListItemIcon>
                           {!collapsed && (
                             <ListItemText
-                              primary={item.label}
+                              primary={t(item.labelKey)}
                               slotProps={{ primary: { sx: { fontSize: '0.875rem', fontWeight: 500 } } }}
                             />
                           )}
@@ -276,5 +291,18 @@ export function AdminShell({ title, subtitle, actions, children }: AdminShellPro
         </Alert>
       </Snackbar>
     </AppShell>
+  )
+}
+
+/**
+ * The admin panel's frame, in the caller's language and direction (specs/067 FR-046a): the surface sets `<html lang dir>` while the admin
+ * area is mounted and restores it on leaving, and mirrors the sidebar, header and every section inside. With localization off, or in
+ * English, the surface is a pass-through and this renders exactly as it always did.
+ */
+export function AdminShell(props: AdminShellProps) {
+  return (
+    <LocalizedSurface scope="page">
+      <AdminShellFrame {...props} />
+    </LocalizedSurface>
   )
 }

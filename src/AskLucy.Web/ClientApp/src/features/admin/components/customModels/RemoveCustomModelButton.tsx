@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Alert, IconButton, Snackbar, Tooltip } from '@mui/material'
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutlined'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
+import { useT } from '../../../../i18n/useT'
 import { ConfirmDialog } from '../../../../components/ConfirmDialog'
 import * as customModelsApi from '../../api/adminCustomModelsApi'
 import type { CustomModelSummary } from '../../api/adminCustomModelsApi'
@@ -13,14 +14,18 @@ import { errorMessage } from './errorMessage'
  * the deployment Local Whisper uses stays disabled until another model is selected.
  */
 export function RemoveCustomModelButton({ model }: { model: CustomModelSummary }) {
+  const t = useT('admin.aiProviders')
   const queryClient = useQueryClient()
   const [confirming, setConfirming] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
   const mutation = useMutation({
     mutationFn: () => customModelsApi.removeCustomModel(model.id),
-    onSuccess: () => void queryClient.invalidateQueries({ queryKey: customModelsApi.CUSTOM_MODELS_QUERY_KEYS.all }),
-    onError: (err: unknown) => setError(errorMessage(err)),
+    onSuccess: () =>
+      void queryClient.invalidateQueries({
+        queryKey: customModelsApi.CUSTOM_MODELS_QUERY_KEYS.all,
+      }),
+    onError: (err: unknown) => setError(errorMessage(err, t)),
   })
 
   const confirm = () => {
@@ -30,11 +35,13 @@ export function RemoveCustomModelButton({ model }: { model: CustomModelSummary }
 
   return (
     <>
-      <Tooltip title={model.selectedForLocalWhisper ? 'Select a different Local Whisper model first' : 'Remove'}>
+      <Tooltip
+        title={model.selectedForLocalWhisper ? t('remove.blockedWhisper') : t('remove.tooltip')}
+      >
         <span>
           <IconButton
             size="small"
-            aria-label={`Remove ${model.name}`}
+            aria-label={t('remove.removeFor', { name: model.name })}
             disabled={mutation.isPending || model.selectedForLocalWhisper}
             onClick={() => setConfirming(true)}
           >
@@ -44,9 +51,10 @@ export function RemoveCustomModelButton({ model }: { model: CustomModelSummary }
       </Tooltip>
       <ConfirmDialog
         open={confirming}
-        title={`Remove ${model.name}?`}
-        description="The record is removed and its name can be used again. Any files it already uploaded stay on the deployment target."
-        confirmLabel="Remove"
+        title={t('remove.confirmTitle', { name: model.name })}
+        description={t('remove.confirmBody')}
+        confirmLabel={t('remove.confirmLabel')}
+        cancelLabel={t('shared.cancel')}
         onConfirm={confirm}
         onCancel={() => setConfirming(false)}
       />

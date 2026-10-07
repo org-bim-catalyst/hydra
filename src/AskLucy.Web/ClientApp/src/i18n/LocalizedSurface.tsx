@@ -108,9 +108,9 @@ function ActiveSurface({ scope, language, direction, children }: ActiveSurfacePr
 export function LocalizedSurface({ scope, children }: LocalizedSurfaceProps) {
   const { language, direction, isLocalized } = useEffectiveLocalization()
   const outer = useContext(LanguageContext)
-  // A subtree nested in a surface for the same language (the bell wraps its popover) adds nothing.
-  if (!isLocalized || (scope === 'subtree' && outer.active && outer.language === language))
-    return <>{children}</>
+  // A surface nested in one for the same language (the bell wraps its popover; an admin page sits inside the route's page
+  // surface and its shell asks for another) adds nothing: the outer one already set the language, direction and theme.
+  if (!isLocalized || (outer.active && outer.language === language)) return <>{children}</>
   return (
     <ActiveSurface scope={scope} language={language} direction={direction}>
       {children}

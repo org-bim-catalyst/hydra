@@ -1,4 +1,6 @@
-import { Grid, Paper, Skeleton, Typography } from '@mui/material'
+import { Alert, Button, Grid, Paper, Skeleton, Typography } from '@mui/material'
+import { LocalizedSurface } from '../../../i18n/LocalizedSurface'
+import { useFormat, useT } from '../../../i18n/useT'
 import { AdminShell } from '../components/AdminShell'
 import { useAdminDashboard } from '../hooks/useAdminDashboard'
 import { NewUsersTrendChart } from '../charts/NewUsersTrendChart'
@@ -27,24 +29,48 @@ function StatTile({ label, value }: { label: string; value: string }) {
  * static card-tile grid.
  */
 export function AdminDashboardPage() {
-  const { data: summary, isLoading } = useAdminDashboard()
+  // The page body reads the language, so it must sit inside the surface; AdminShell's own surface wraps only its children.
+  return (
+    <LocalizedSurface scope="subtree">
+      <AdminDashboardPageContent />
+    </LocalizedSurface>
+  )
+}
+
+function AdminDashboardPageContent() {
+  const t = useT('admin.dashboard')
+  const format = useFormat()
+  const { data: summary, isLoading, isError, refetch } = useAdminDashboard()
 
   return (
-    <AdminShell
-      title="Admin Dashboard"
-      subtitle="Platform health and usage at a glance"
-
-    >
-      {isLoading || !summary ? (
+    <AdminShell title={t('title')} subtitle={t('subtitle')}>
+      {isError && !summary ? (
+        <Alert
+          severity="error"
+          action={
+            <Button
+              color="inherit"
+              size="small"
+              onClick={() => {
+                void refetch()
+              }}
+            >
+              {t('retry')}
+            </Button>
+          }
+        >
+          {t('loadFailed')}
+        </Alert>
+      ) : isLoading || !summary ? (
         <Skeleton variant="rounded" height={400} />
       ) : (
         <Grid container spacing={2}>
           <Grid size={{ xs: 6, sm: 3 }}>
-            <StatTile label="Total users" value={summary.totalUsers.toString()} />
+            <StatTile label={t('stats.totalUsers')} value={format.number(summary.totalUsers)} />
           </Grid>
           <Grid size={{ xs: 6, sm: 3 }}>
             <StatTile
-              label="2FA adoption"
+              label={t('stats.twoFactorAdoption')}
               value={
                 summary.totalUsers === 0
                   ? '—'
@@ -53,10 +79,10 @@ export function AdminDashboardPage() {
             />
           </Grid>
           <Grid size={{ xs: 6, sm: 3 }}>
-            <StatTile label="Active users" value={summary.activeUsers.toString()} />
+            <StatTile label={t('stats.activeUsers')} value={format.number(summary.activeUsers)} />
           </Grid>
           <Grid size={{ xs: 6, sm: 3 }}>
-            <StatTile label="Locked out" value={summary.lockedOutUsers.toString()} />
+            <StatTile label={t('stats.lockedOut')} value={format.number(summary.lockedOutUsers)} />
           </Grid>
 
           <Grid size={12}>
@@ -73,10 +99,10 @@ export function AdminDashboardPage() {
           <Grid size={{ xs: 12, md: 4 }}>
             <Paper elevation={1} sx={{ p: 2, height: '100%' }}>
               <StatusSplitChart
-                title="Active vs. locked out"
-                primaryLabel="Active"
+                title={t('split.activeVsLocked.title')}
+                primaryLabel={t('split.activeVsLocked.primary')}
                 primaryCount={summary.activeUsers}
-                secondaryLabel="Locked out"
+                secondaryLabel={t('split.activeVsLocked.secondary')}
                 secondaryCount={summary.lockedOutUsers}
               />
             </Paper>
@@ -84,10 +110,10 @@ export function AdminDashboardPage() {
           <Grid size={{ xs: 12, md: 4 }}>
             <Paper elevation={1} sx={{ p: 2, height: '100%' }}>
               <StatusSplitChart
-                title="Email confirmed vs. pending"
-                primaryLabel="Confirmed"
+                title={t('split.confirmedVsPending.title')}
+                primaryLabel={t('split.confirmedVsPending.primary')}
                 primaryCount={summary.emailConfirmedUsers}
-                secondaryLabel="Pending"
+                secondaryLabel={t('split.confirmedVsPending.secondary')}
                 secondaryCount={summary.emailPendingUsers}
               />
             </Paper>

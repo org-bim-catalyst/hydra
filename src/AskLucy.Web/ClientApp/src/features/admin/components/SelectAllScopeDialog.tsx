@@ -8,6 +8,7 @@ import {
   Radio,
   RadioGroup,
 } from '@mui/material'
+import { useT } from '../../../i18n/useT'
 
 export type SelectionScopeChoice = 'page' | 'all'
 
@@ -23,8 +24,17 @@ interface SelectAllScopeDialogProps {
 }
 
 /** Asks whether a header-checkbox click should apply to this page only or to every matching row, so a selection made once survives paging back and forth. */
-export function SelectAllScopeDialog({ open, onClose, verb, pageCount, totalCount, onChoose }: SelectAllScopeDialogProps) {
+export function SelectAllScopeDialog({
+  open,
+  onClose,
+  verb,
+  pageCount,
+  totalCount,
+  onChoose,
+}: SelectAllScopeDialogProps) {
   const [scope, setScope] = useState<SelectionScopeChoice>('page')
+  const t = useT('admin.users')
+  const isSelect = verb === 'Select'
 
   function handleClose() {
     setScope('page')
@@ -39,20 +49,31 @@ export function SelectAllScopeDialog({ open, onClose, verb, pageCount, totalCoun
   return (
     <Dialog open={open} onClose={handleClose} fullWidth maxWidth="xs">
       <DialogContent>
-        <RadioGroup value={scope} onChange={(e) => setScope(e.target.value as SelectionScopeChoice)}>
-          <FormControlLabel value="page" control={<Radio />} label={`${verb} the ${pageCount} item${pageCount === 1 ? '' : 's'} on this page only`} />
+        <RadioGroup
+          value={scope}
+          onChange={(e) => setScope(e.target.value as SelectionScopeChoice)}
+        >
+          <FormControlLabel
+            value="page"
+            control={<Radio />}
+            label={t(isSelect ? 'scope.selectPage' : 'scope.deselectPage', { count: pageCount })}
+          />
           <FormControlLabel
             value="all"
             control={<Radio />}
             disabled={totalCount === undefined}
-            label={totalCount === undefined ? 'Resolving total matching…' : `${verb} all ${totalCount} matching items`}
+            label={
+              totalCount === undefined
+                ? t('scope.resolving')
+                : t(isSelect ? 'scope.selectAll' : 'scope.deselectAll', { count: totalCount })
+            }
           />
         </RadioGroup>
       </DialogContent>
       <DialogActions>
-        <Button onClick={handleClose}>Cancel</Button>
+        <Button onClick={handleClose}>{t('scope.cancel')}</Button>
         <Button onClick={handleConfirm} variant="contained" autoFocus>
-          {verb}
+          {t(isSelect ? 'scope.select' : 'scope.deselect')}
         </Button>
       </DialogActions>
     </Dialog>

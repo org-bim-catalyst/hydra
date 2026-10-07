@@ -25,6 +25,7 @@ import { Controller, useFieldArray, useForm } from 'react-hook-form'
 import { Link as RouterLink, useParams } from 'react-router'
 import { z } from 'zod'
 import { ApiError } from '../../../api/httpClient'
+import { useFormat, useT } from '../../../i18n/useT'
 import type {
   NotificationTemplateDetail,
   TemplateVersion,
@@ -35,6 +36,14 @@ import { AdminShell } from '../components/AdminShell'
 import { templateTextProblem } from '../forms/templateText'
 import { zodResolver } from '../forms/zodResolver'
 import { useCanManageNotifications } from '../hooks/useAdminNotifications'
+import { useOuterT } from '../hooks/useOuterT'
+import {
+  channelLabel,
+  DATE_ONLY,
+  errorText,
+  PLAIN_NUMBER,
+  type NotificationAdminT,
+} from '../notificationAdminText'
 import {
   useArchiveTemplateVersion,
   useCreateTemplateDraft,
@@ -46,43 +55,45 @@ import {
   useUpdateTemplateDraft,
 } from '../hooks/useAdminNotificationTemplates'
 
-const errorMessage = (err: unknown) =>
-  err instanceof ApiError ? (err.detail ?? err.message) : 'Something went wrong. Please try again.'
-
 const STATUS_COLOR: Record<TemplateVersionStatus, 'default' | 'info' | 'success'> = {
   Draft: 'info',
   Published: 'success',
   Archived: 'default',
 }
 
-function text(maxLength: number, allowed: ReadonlySet<string>, required: boolean) {
+function text(
+  t: NotificationAdminT,
+  maxLength: number,
+  allowed: ReadonlySet<string>,
+  required: boolean,
+) {
   return z.string().superRefine((value, ctx) => {
     if (required && value.trim() === '') {
-      ctx.addIssue({ code: 'custom', message: 'This field is required.' })
+      ctx.addIssue({ code: 'custom', message: t('templateText.required') })
       return
     }
-    const problem = templateTextProblem(value, maxLength, allowed)
+    const problem = templateTextProblem(value, maxLength, allowed, t)
     if (problem) ctx.addIssue({ code: 'custom', message: problem })
   })
 }
 
-function buildSchema(channel: 'Email' | 'InApp', allowed: ReadonlySet<string>) {
+function buildSchema(t: NotificationAdminT, channel: 'Email' | 'InApp', allowed: ReadonlySet<string>) {
   const email = channel === 'Email'
   return z.object({
-    subject: email ? text(200, allowed, true) : z.string(),
-    preheader: email ? text(200, allowed, false) : z.string(),
-    greeting: email ? text(200, allowed, false) : z.string(),
-    heading: email ? text(200, allowed, true) : z.string(),
+    subject: email ? text(t, 200, allowed, true) : z.string(),
+    preheader: email ? text(t, 200, allowed, false) : z.string(),
+    greeting: email ? text(t, 200, allowed, false) : z.string(),
+    heading: email ? text(t, 200, allowed, true) : z.string(),
     paragraphs: z
-      .array(z.object({ text: email ? text(1000, allowed, true) : z.string() }))
+      .array(z.object({ text: email ? text(t, 1000, allowed, true) : z.string() }))
       .refine((p) => !email || (p.length >= 1 && p.length <= 10), {
-        message: 'An email needs between 1 and 10 paragraphs.',
+        message: t('templateText.paragraphsRange'),
       }),
-    safetyNote: email ? text(500, allowed, true) : z.string(),
-    footerNote: email ? text(500, allowed, false) : z.string(),
-    title: email ? z.string() : text(200, allowed, true),
-    message: email ? z.string() : text(1000, allowed, true),
-    actionLabel: text(60, allowed, false),
+    safetyNote: email ? text(t, 500, allowed, true) : z.string(),
+    footerNote: email ? text(t, 500, allowed, false) : z.string(),
+    title: email ? z.string() : text(t, 200, allowed, true),
+    message: email ? z.string() : text(t, 1000, allowed, true),
+    actionLabel: text(t, 60, allowed, false),
   })
 }
 
@@ -133,8 +144,12 @@ interface ActionFailure {
   conflict: boolean
 }
 
-const failureOf = (what: string, err: unknown): ActionFailure => ({
-  message: `${what} ${errorMessage(err)}`,
+const failureOf = (
+  t: NotificationAdminT,
+  key: 'saveDraft' | 'publish' | 'archive' | 'test',
+  err: unknown,
+): ActionFailure => ({
+  message: t(`editor.failures.${key}`, { detail: errorText(t, err) }),
   conflict: err instanceof ApiError && err.status === 409,
 })
 
@@ -149,24 +164,27 @@ function PreviewPanel({
   isPending: boolean
   error: unknown
 }) {
+  const t = useT('admin.notifications')
   return (
     <Paper variant="outlined" sx={{ p: 2, minHeight: 160 }}>
       <Typography variant="subtitle2" gutterBottom>
-        Preview with sample data
+        {t('editor.preview.title')}
       </Typography>
-      {isPending && <CircularProgress size={20} aria-label="Rendering the preview" />}
+      {isPending && <CircularProgress size={20} aria-label={t('editor.preview.rendering')} />}
       {error !== null && error !== undefined && (
-        <Alert severity="error">{`The preview couldn't be rendered. ${errorMessage(error)}`}</Alert>
+        <Alert severity="error">
+          {t('editor.preview.failed', { detail: errorText(t, error) })}
+        </Alert>
       )}
       {preview?.html != null && (
         <Stack spacing={1}>
           <Typography variant="body2">
-            <strong>Subject:</strong> {preview.subject}
+            <strong>{t('editor.preview.subject')}</strong> {preview.subject}
           </Typography>
           {/* The rendered email is shown in a frame with every sandbox permission off: no scripts, no navigation, no same-origin access. */}
           <Box
             component="iframe"
-            title="Email preview"
+            title={t('editor.preview.frameTitle')}
             sandbox=""
             srcDoc={preview.html}
             sx={{
@@ -203,6 +221,8 @@ interface VersionEditorProps {
 }
 
 function VersionEditor({ template, version, canManage, onReload }: VersionEditorProps) {
+  const t = useT('admin.notifications')
+  const format = useFormat()
   const channel = template.channel
   const isEmail = channel === 'Email'
   const editable = canManage && version.status === 'Draft'
@@ -210,7 +230,7 @@ function VersionEditor({ template, version, canManage, onReload }: VersionEditor
     () => new Set(template.declaredVariables.map((v) => v.name)),
     [template.declaredVariables],
   )
-  const schema = useMemo(() => buildSchema(channel, allowed), [channel, allowed])
+  const schema = useMemo(() => buildSchema(t, channel, allowed), [t, channel, allowed])
 
   const { control, handleSubmit, formState, getValues, setValue } = useForm<TemplateForm>({
     resolver: zodResolver(schema),
@@ -256,7 +276,7 @@ function VersionEditor({ template, version, canManage, onReload }: VersionEditor
     setFailure(null)
     update.mutate(
       { versionId: version.id, rowVersion: version.rowVersion, content: toInput(channel, values) },
-      { onError: (err) => setFailure(failureOf("The draft wasn't saved.", err)) },
+      { onError: (err) => setFailure(failureOf(t, 'saveDraft', err)) },
     )
   })
 
@@ -269,19 +289,14 @@ function VersionEditor({ template, version, canManage, onReload }: VersionEditor
         onSuccess: () => {
           setConfirm(null)
           setNotice(
-            kind === 'publish'
-              ? `Version ${version.versionNumber} is now live.`
-              : `Version ${version.versionNumber} was archived.`,
+            t(kind === 'publish' ? 'editor.notices.published' : 'editor.notices.archived', {
+              number: format.number(version.versionNumber, PLAIN_NUMBER),
+            }),
           )
         },
         onError: (err) => {
           setConfirm(null)
-          setFailure(
-            failureOf(
-              kind === 'publish' ? "The version wasn't published." : "The version wasn't archived.",
-              err,
-            ),
-          )
+          setFailure(failureOf(t, kind === 'publish' ? 'publish' : 'archive', err))
         },
       },
     )
@@ -290,8 +305,8 @@ function VersionEditor({ template, version, canManage, onReload }: VersionEditor
   const test = () => {
     setFailure(null)
     sendTest.mutate(version.id, {
-      onSuccess: (result) => setNotice(`A test email was sent to ${result.sentTo}.`),
-      onError: (err) => setFailure(failureOf("The test email wasn't sent.", err)),
+      onSuccess: (result) => setNotice(t('editor.notices.testSent', { address: result.sentTo })),
+      onError: (err) => setFailure(failureOf(t, 'test', err)),
     })
   }
 
@@ -315,7 +330,7 @@ function VersionEditor({ template, version, canManage, onReload }: VersionEditor
           minRows={opts.multiline ? 2 : undefined}
           error={!!fieldState.error}
           helperText={fieldState.error?.message ?? opts.helper}
-          slotProps={{ input: { readOnly: !editable } }}
+          slotProps={{ input: { readOnly: !editable }, htmlInput: { dir: 'auto' } }}
           onFocus={(e) => {
             focused.current = { name, element: e.target as HTMLInputElement | HTMLTextAreaElement }
           }}
@@ -332,7 +347,7 @@ function VersionEditor({ template, version, canManage, onReload }: VersionEditor
           action={
             failure.conflict ? (
               <Button color="inherit" size="small" onClick={onReload}>
-                Reload
+                {t('actions.reload')}
               </Button>
             ) : undefined
           }
@@ -343,25 +358,29 @@ function VersionEditor({ template, version, canManage, onReload }: VersionEditor
       {!editable && (
         <Alert severity="info">
           {version.status === 'Draft'
-            ? 'You can view this draft but not change it.'
-            : `A ${version.status.toLowerCase()} version can't be edited. Create a new version to change the wording.`}
+            ? t('editor.viewOnlyDraft')
+            : t(
+                version.status === 'Published'
+                  ? 'editor.notEditablePublished'
+                  : 'editor.notEditableArchived',
+              )}
         </Alert>
       )}
 
       {editable && (
         <Box>
           <Typography variant="caption" color="text.secondary" component="div" sx={{ mb: 0.5 }}>
-            Variables: click a field, then a variable to insert it.
+            {t('editor.variablesHint')}
           </Typography>
           <Stack direction="row" useFlexGap sx={{ flexWrap: 'wrap', gap: 0.75 }}>
             {template.declaredVariables.map((v) => (
-              <Tooltip key={v.name} title={`Sample: ${v.sample}`}>
+              <Tooltip key={v.name} title={t('editor.variableSample', { sample: v.sample })}>
                 <Chip
                   size="small"
                   variant={v.isStandard ? 'outlined' : 'filled'}
-                  label={v.name}
+                  label={<bdi dir="ltr">{v.name}</bdi>}
                   clickable
-                  aria-label={`Insert ${v.name}`}
+                  aria-label={t('editor.insertAria', { name: v.name })}
                   onMouseDown={(e) => e.preventDefault()}
                   onClick={() => insertVariable(v.name)}
                 />
@@ -376,26 +395,28 @@ function VersionEditor({ template, version, canManage, onReload }: VersionEditor
         component="form"
         noValidate
         onSubmit={(e) => void save(e)}
-        aria-label="Template version"
+        aria-label={t('editor.formAria')}
       >
         {isEmail ? (
           <>
-            {field('subject', 'Subject')}
-            {field('preheader', 'Preheader', {
-              helper: 'The short line shown after the subject in an inbox.',
+            {field('subject', t('editor.fields.subject'))}
+            {field('preheader', t('editor.fields.preheader'), {
+              helper: t('editor.fields.preheaderHelp'),
             })}
-            {field('greeting', 'Greeting')}
-            {field('heading', 'Heading')}
+            {field('greeting', t('editor.fields.greeting'))}
+            {field('heading', t('editor.fields.heading'))}
             {paragraphs.fields.map((p, index) => (
               <Stack key={p.id} direction="row" spacing={1} sx={{ alignItems: 'flex-start' }}>
-                {field(`paragraphs.${index}.text`, `Paragraph ${index + 1}`, { multiline: true })}
+                {field(`paragraphs.${index}.text`, t('editor.fields.paragraph', { number: index + 1 }), {
+                  multiline: true,
+                })}
                 {editable && paragraphs.fields.length > 1 && (
                   <Button
                     size="small"
                     onClick={() => paragraphs.remove(index)}
-                    aria-label={`Remove paragraph ${index + 1}`}
+                    aria-label={t('editor.fields.removeAria', { number: index + 1 })}
                   >
-                    Remove
+                    {t('editor.fields.remove')}
                   </Button>
                 )}
               </Stack>
@@ -403,25 +424,24 @@ function VersionEditor({ template, version, canManage, onReload }: VersionEditor
             {editable && paragraphs.fields.length < 10 && (
               <Box>
                 <Button size="small" onClick={() => paragraphs.append({ text: '' })}>
-                  Add paragraph
+                  {t('editor.fields.addParagraph')}
                 </Button>
               </Box>
             )}
             {formState.errors.paragraphs?.root?.message && (
               <Alert severity="error">{formState.errors.paragraphs.root.message}</Alert>
             )}
-            {field('actionLabel', 'Button label', {
-              helper:
-                'The button links to the notification; the link itself is added by the platform.',
+            {field('actionLabel', t('editor.fields.buttonLabel'), {
+              helper: t('editor.fields.buttonLabelHelp'),
             })}
-            {field('safetyNote', 'Safety note', { multiline: true })}
-            {field('footerNote', 'Footer note', { multiline: true })}
+            {field('safetyNote', t('editor.fields.safetyNote'), { multiline: true })}
+            {field('footerNote', t('editor.fields.footerNote'), { multiline: true })}
           </>
         ) : (
           <>
-            {field('title', 'Title')}
-            {field('message', 'Message', { multiline: true })}
-            {field('actionLabel', 'Action label')}
+            {field('title', t('editor.fields.title'))}
+            {field('message', t('editor.fields.message'), { multiline: true })}
+            {field('actionLabel', t('editor.fields.actionLabel'))}
           </>
         )}
       </Stack>
@@ -433,12 +453,12 @@ function VersionEditor({ template, version, canManage, onReload }: VersionEditor
             onClick={() => void save()}
             disabled={busy || !formState.isDirty}
           >
-            {update.isPending ? 'Saving…' : 'Save draft'}
+            {update.isPending ? t('editor.buttons.saving') : t('editor.buttons.saveDraft')}
           </Button>
         )}
         {canManage && isEmail && (
           <Button variant="outlined" onClick={test} disabled={sendTest.isPending}>
-            {sendTest.isPending ? 'Sending…' : 'Send test to me'}
+            {sendTest.isPending ? t('editor.buttons.sending') : t('editor.buttons.sendTest')}
           </Button>
         )}
         {editable && (
@@ -448,7 +468,7 @@ function VersionEditor({ template, version, canManage, onReload }: VersionEditor
             onClick={() => setConfirm('publish')}
             disabled={busy || formState.isDirty}
           >
-            Publish
+            {t('editor.buttons.publish')}
           </Button>
         )}
         {canManage && version.status !== 'Archived' && (
@@ -458,13 +478,13 @@ function VersionEditor({ template, version, canManage, onReload }: VersionEditor
             onClick={() => setConfirm('archive')}
             disabled={busy}
           >
-            Archive
+            {t('editor.buttons.archive')}
           </Button>
         )}
       </Stack>
       {editable && formState.isDirty && (
         <Typography variant="caption" color="text.secondary">
-          Save the draft to refresh the preview and to publish it.
+          {t('editor.saveHint')}
         </Typography>
       )}
 
@@ -476,22 +496,22 @@ function VersionEditor({ template, version, canManage, onReload }: VersionEditor
         aria-labelledby="template-confirm-title"
       >
         <DialogTitle id="template-confirm-title">
-          {confirm === 'publish'
-            ? `Publish version ${version.versionNumber}?`
-            : `Archive version ${version.versionNumber}?`}
+          {t(confirm === 'publish' ? 'editor.confirm.publishTitle' : 'editor.confirm.archiveTitle', {
+            number: format.number(version.versionNumber, PLAIN_NUMBER),
+          })}
         </DialogTitle>
         <DialogContent>
           <DialogContentText>
             {confirm === 'publish'
-              ? `New notifications use this wording straight away. The version it replaces is archived and kept${template.isShippedDefault ? '' : ''}. A published version can't be edited.`
+              ? t('editor.confirm.publishBody')
               : version.status === 'Published'
-                ? 'This is the live version. Archiving it leaves the template without one, and notifications of this type will fall back to English or fail to render.'
-                : 'An archived draft stays in the history but can no longer be published.'}
+                ? t('editor.confirm.archivePublishedBody')
+                : t('editor.confirm.archiveDraftBody')}
           </DialogContentText>
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setConfirm(null)} disabled={busy}>
-            Cancel
+            {t('editor.buttons.cancel')}
           </Button>
           <Button
             variant="contained"
@@ -499,7 +519,7 @@ function VersionEditor({ template, version, canManage, onReload }: VersionEditor
             onClick={() => confirm && act(confirm)}
             disabled={busy}
           >
-            {confirm === 'publish' ? 'Publish' : 'Archive'}
+            {confirm === 'publish' ? t('editor.buttons.publish') : t('editor.buttons.archive')}
           </Button>
         </DialogActions>
       </Dialog>
@@ -510,7 +530,12 @@ function VersionEditor({ template, version, canManage, onReload }: VersionEditor
         onClose={() => setNotice(null)}
         anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
       >
-        <Alert severity="success" variant="filled" onClose={() => setNotice(null)}>
+        <Alert
+          severity="success"
+          variant="filled"
+          closeText={t('actions.close')}
+          onClose={() => setNotice(null)}
+        >
           {notice}
         </Alert>
       </Snackbar>
@@ -518,13 +543,9 @@ function VersionEditor({ template, version, canManage, onReload }: VersionEditor
   )
 }
 
-/**
- * specs/067 US7 — one template: its versions, the draft editor, a sandboxed preview, a test send to yourself, and publish and archive
- * with confirmations. Every change sends the version's row version as `If-Match`, so a stale edit is a visible conflict, never an
- * overwrite.
- */
-export function AdminNotificationTemplateEditorPage() {
-  const { templateId = '' } = useParams()
+function TemplateEditorBody({ templateId }: { templateId: string }) {
+  const t = useT('admin.notifications')
+  const format = useFormat()
   const canManage = useCanManageNotifications()
   const template = useNotificationTemplate(templateId)
   const [chosen, setChosen] = useState<string | null>(null)
@@ -551,37 +572,26 @@ export function AdminNotificationTemplateEditorPage() {
     setCreateFailure(null)
     createDraft.mutate(versionId ? { copyFromVersionId: versionId } : {}, {
       onSuccess: (created) => setChosen(created.id),
-      onError: (err) => setCreateFailure(`The new version wasn't created. ${errorMessage(err)}`),
+      onError: (err) =>
+        setCreateFailure(t('editor.createFailed', { detail: errorText(t, err) })),
     })
   }
 
   return (
-    <AdminShell
-      title={detail?.name ?? 'Notification template'}
-      subtitle={
-        detail
-          ? `${detail.type} · ${detail.channel === 'Email' ? 'Email' : 'In-app'} · ${detail.language}`
-          : undefined
-      }
-      actions={
-        <Button component={RouterLink} to="/admin/notifications/templates" size="small">
-          All templates
-        </Button>
-      }
-    >
+    <>
       {template.isError && (
         <Alert
           severity="error"
           action={
             <Button color="inherit" size="small" onClick={() => void template.refetch()}>
-              Retry
+              {t('actions.retry')}
             </Button>
           }
         >
-          {`The template couldn't be loaded. ${errorMessage(template.error)}`}
+          {t('editor.loadFailed', { detail: errorText(t, template.error) })}
         </Alert>
       )}
-      {template.isLoading && <CircularProgress size={24} aria-label="Loading the template" />}
+      {template.isLoading && <CircularProgress size={24} aria-label={t('editor.loading')} />}
 
       {detail && (
         <Stack
@@ -591,20 +601,24 @@ export function AdminNotificationTemplateEditorPage() {
         >
           <Paper elevation={1} sx={{ p: 1, width: { xs: '100%', md: 260 }, flexShrink: 0 }}>
             <Typography variant="overline" sx={{ px: 1 }}>
-              Versions
+              {t('editor.versions')}
             </Typography>
-            <List dense aria-label="Versions">
+            <List dense aria-label={t('editor.versions')}>
               {detail.versions.map((v) => (
                 <ListItem key={v.id} disablePadding>
                   <ListItemButton selected={v.id === versionId} onClick={() => setChosen(v.id)}>
                     <ListItemText
                       primary={
                         <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
-                          <span>{`Version ${v.versionNumber}`}</span>
-                          <Chip size="small" color={STATUS_COLOR[v.status]} label={v.status} />
+                          <span>{t('editor.versionN', { number: format.number(v.versionNumber, PLAIN_NUMBER) })}</span>
+                          <Chip
+                            size="small"
+                            color={STATUS_COLOR[v.status]}
+                            label={t(`editor.versionStatuses.${v.status}`)}
+                          />
                         </Stack>
                       }
-                      secondary={`${new Date(v.createdAtUtc).toLocaleDateString()}${v.createdBy ? ` · ${v.createdBy}` : ''}`}
+                      secondary={`${format.date(v.createdAtUtc, DATE_ONLY)}${v.createdBy ? ` · ${v.createdBy}` : ''}`}
                     />
                   </ListItemButton>
                 </ListItem>
@@ -618,7 +632,7 @@ export function AdminNotificationTemplateEditorPage() {
                   onClick={newVersion}
                   disabled={createDraft.isPending}
                 >
-                  {createDraft.isPending ? 'Creating…' : 'New version'}
+                  {createDraft.isPending ? t('editor.creating') : t('editor.newVersion')}
                 </Button>
               </Box>
             )}
@@ -635,14 +649,14 @@ export function AdminNotificationTemplateEditorPage() {
                 severity="error"
                 action={
                   <Button color="inherit" size="small" onClick={() => void version.refetch()}>
-                    Retry
+                    {t('actions.retry')}
                   </Button>
                 }
               >
-                {`The version couldn't be loaded. ${errorMessage(version.error)}`}
+                {t('editor.versionLoadFailed', { detail: errorText(t, version.error) })}
               </Alert>
             )}
-            {version.isLoading && <CircularProgress size={24} aria-label="Loading the version" />}
+            {version.isLoading && <CircularProgress size={24} aria-label={t('editor.versionLoading')} />}
             {version.data && (
               <VersionEditor
                 key={`${version.data.id}:${version.data.rowVersion}`}
@@ -655,6 +669,39 @@ export function AdminNotificationTemplateEditorPage() {
           </Paper>
         </Stack>
       )}
+    </>
+  )
+}
+
+/**
+ * specs/067 US7 — one template: its versions, the draft editor, a sandboxed preview, a test send to yourself, and publish and archive
+ * with confirmations. Every change sends the version's row version as `If-Match`, so a stale edit is a visible conflict, never an
+ * overwrite.
+ */
+export function AdminNotificationTemplateEditorPage() {
+  const { templateId = '' } = useParams()
+  const t = useOuterT('admin.notifications')
+  const detail = useNotificationTemplate(templateId).data
+
+  return (
+    <AdminShell
+      title={detail?.name ?? t('editor.fallbackTitle')}
+      subtitle={
+        detail
+          ? t('editor.subtitle', {
+              type: detail.type,
+              channel: channelLabel(t, detail.channel),
+              language: detail.language,
+            })
+          : undefined
+      }
+      actions={
+        <Button component={RouterLink} to="/admin/notifications/templates" size="small">
+          {t('editor.allTemplates')}
+        </Button>
+      }
+    >
+      <TemplateEditorBody templateId={templateId} />
     </AdminShell>
   )
 }

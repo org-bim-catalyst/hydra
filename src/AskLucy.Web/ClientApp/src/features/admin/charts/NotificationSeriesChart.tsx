@@ -1,7 +1,9 @@
 import { useMemo } from 'react'
 import { Box, Stack, Typography, useTheme } from '@mui/material'
 import { max as d3Max, scaleBand, scaleLinear } from 'd3'
+import { useFormat, useT } from '../../../i18n/useT'
 import type { NotificationStatistics } from '../api/adminNotificationsApi'
+import { PLAIN_NUMBER } from '../notificationAdminText'
 
 interface NotificationSeriesChartProps {
   series: NotificationStatistics['series']
@@ -13,7 +15,6 @@ const WIDTH = 720
 const HEIGHT = 220
 const MARGIN = { top: 12, right: 12, bottom: 28, left: 32 }
 const SERIES = ['created', 'sent', 'failed'] as const
-const SERIES_LABEL: Record<(typeof SERIES)[number], string> = { created: 'Created', sent: 'Sent', failed: 'Failed' }
 
 /**
  * Created, sent and failed per time bucket (specs/067 FR-057), as grouped bars. d3 does only the scale
@@ -22,6 +23,8 @@ const SERIES_LABEL: Record<(typeof SERIES)[number], string> = { created: 'Create
  */
 export function NotificationSeriesChart({ series, hourly }: NotificationSeriesChartProps) {
   const theme = useTheme()
+  const t = useT('admin.notifications')
+  const format = useFormat()
   const color = { created: theme.palette.primary.main, sent: theme.palette.success.main, failed: theme.palette.error.main }
 
   const { groups, yTicks, bandwidth } = useMemo(() => {
@@ -40,7 +43,18 @@ export function NotificationSeriesChart({ series, hourly }: NotificationSeriesCh
     return { groups, yTicks: y.ticks(4).map((value) => ({ value, y: y(value) })), bandwidth: inner.bandwidth() }
   }, [series])
 
-  const totals = SERIES.map((name) => ({ name, total: series.reduce((sum, s) => sum + s[name], 0) }))
+  const totals = SERIES.map((name) => ({
+    name,
+    total: format.number(
+      series.reduce((sum, s) => sum + s[name], 0),
+      PLAIN_NUMBER,
+    ),
+  }))
+  const totalText = {
+    created: (total: string) => t('chart.totalCreated', { total }),
+    sent: (total: string) => t('chart.totalSent', { total }),
+    failed: (total: string) => t('chart.totalFailed', { total }),
+  }
   const label = (iso: string) => {
     const date = new Date(iso)
     return hourly ? `${String(date.getUTCHours()).padStart(2, '0')}:00` : `${date.getUTCMonth() + 1}/${date.getUTCDate()}`
@@ -50,19 +64,24 @@ export function NotificationSeriesChart({ series, hourly }: NotificationSeriesCh
   return (
     <Box>
       <Typography variant="subtitle2" sx={{ mb: 1 }}>
-        {hourly ? 'Per hour' : 'Per day'}
+        {hourly ? t('chart.perHour') : t('chart.perDay')}
       </Typography>
       {series.length === 0 ? (
         <Typography variant="body2" color="text.secondary">
-          Nothing was created or sent in this period.
+          {t('chart.empty')}
         </Typography>
       ) : (
+        // The picture keeps its left-to-right geometry (time runs left to right) in every language; its caption, legend and
+        // accessible name are what get translated.
         <svg
+          direction="ltr"
           viewBox={`0 0 ${WIDTH} ${HEIGHT}`}
           width="100%"
           height={HEIGHT}
           role="img"
-          aria-label={`Notifications ${hourly ? 'per hour' : 'per day'}: ${totals.map((t) => `${t.total} ${SERIES_LABEL[t.name].toLowerCase()}`).join(', ')}`}
+          aria-label={t(hourly ? 'chart.ariaHourly' : 'chart.ariaDaily', {
+            totals: totals.map((item) => totalText[item.name](item.total)).join(t('chart.totalsSeparator')),
+          })}
         >
           <g transform={`translate(${MARGIN.left}, ${MARGIN.top})`}>
             {yTicks.map((tick) => (
@@ -89,10 +108,10 @@ export function NotificationSeriesChart({ series, hourly }: NotificationSeriesCh
         </svg>
       )}
       <Stack direction="row" spacing={2} sx={{ mt: 1 }}>
-        {totals.map((t) => (
-          <Stack key={t.name} direction="row" spacing={0.75} sx={{ alignItems: 'center' }}>
-            <Box aria-hidden="true" sx={{ width: 10, height: 10, bgcolor: color[t.name], borderRadius: 0.5 }} />
-            <Typography variant="caption">{`${SERIES_LABEL[t.name]}: ${t.total}`}</Typography>
+        {totals.map((item) => (
+          <Stack key={item.name} direction="row" spacing={0.75} sx={{ alignItems: 'center' }}>
+            <Box aria-hidden="true" sx={{ width: 10, height: 10, bgcolor: color[item.name], borderRadius: 0.5 }} />
+            <Typography variant="caption">{t('chart.legend', { label: t(`chart.series.${item.name}`), total: item.total })}</Typography>
           </Stack>
         ))}
       </Stack>

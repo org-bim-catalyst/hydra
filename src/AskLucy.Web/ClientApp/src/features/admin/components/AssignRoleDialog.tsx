@@ -13,6 +13,7 @@ import {
 } from '@mui/material'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { ApiError } from '../../../api/httpClient'
+import { useT } from '../../../i18n/useT'
 import { useIsSuperUser } from '../../../hooks/useIsSuperUser'
 import { isSuperUserControlledRole } from '../adminPermissions'
 import * as adminRolesApi from '../api/adminRolesApi'
@@ -33,6 +34,8 @@ const ASSIGNMENTS_QUERY_KEY = ['admin', 'role-assignments']
  */
 export function AssignRoleDialog({ open, onClose, assignment }: AssignRoleDialogProps) {
   const queryClient = useQueryClient()
+  const t = useT('admin.roleAssignments')
+  const tc = useT('common')
   // The parent conditionally renders this dialog (`editingAssignment && <AssignRoleDialog .../>`)
   // rather than toggling `open`, so a fresh mount — not an effect — is what resets these on
   // every open/close cycle.
@@ -64,26 +67,26 @@ export function AssignRoleDialog({ open, onClose, assignment }: AssignRoleDialog
       onClose()
     },
     onError: (err: unknown) => {
-      setErrorMessage(err instanceof ApiError ? (err.detail ?? err.message) : 'Something went wrong. Please try again.')
+      setErrorMessage(err instanceof ApiError ? (err.detail ?? err.message) : tc('errors.generic'))
     },
   })
 
   return (
     <>
       <Dialog open={open} onClose={onClose} maxWidth="xs" fullWidth>
-        <DialogTitle>Change role for {assignment.email}</DialogTitle>
+        <DialogTitle>{t('dialog.title', { email: assignment.email })}</DialogTitle>
         <DialogContent>
           <DialogContentText sx={{ mb: 2 }}>
-            Assigning a role replaces this user's current role — a user holds at most one role.
+            {t('dialog.replaces')}
           </DialogContentText>
           {currentRoleLocked && (
             <Alert severity="info" sx={{ mb: 2 }}>
-              This user's role includes View user content. Only a Super User can change it.
+              {t('dialog.locked')}
             </Alert>
           )}
           <TextField
             select
-            label="Role"
+            label={t('dialog.role')}
             fullWidth
             value={selectedRoleId}
             disabled={currentRoleLocked}
@@ -91,17 +94,24 @@ export function AssignRoleDialog({ open, onClose, assignment }: AssignRoleDialog
           >
             {roles?.items.map((role) => (
               <MenuItem key={role.id} value={role.id} disabled={isLockedRole(role.id)}>
-                {role.name}
-                {role.isBuiltIn ? ' (built-in)' : ''}
-                {isLockedRole(role.id) ? ' (Super User only)' : ''}
+                {t(
+                  role.isBuiltIn
+                    ? isLockedRole(role.id)
+                      ? 'roleOption.builtInSuperUserOnly'
+                      : 'roleOption.builtIn'
+                    : isLockedRole(role.id)
+                      ? 'roleOption.superUserOnly'
+                      : 'roleOption.plain',
+                  { name: role.name },
+                )}
               </MenuItem>
             ))}
           </TextField>
         </DialogContent>
         <DialogActions>
-          <Button onClick={onClose}>Cancel</Button>
+          <Button onClick={onClose}>{t('dialog.cancel')}</Button>
           <Button onClick={() => assignMutation.mutate()} variant="contained" disabled={assignMutation.isPending || currentRoleLocked || !selectedRoleId}>
-            Save
+            {t('dialog.save')}
           </Button>
         </DialogActions>
       </Dialog>

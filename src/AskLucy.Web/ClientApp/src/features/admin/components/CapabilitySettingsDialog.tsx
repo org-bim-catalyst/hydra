@@ -12,6 +12,7 @@ import {
   Typography,
 } from '@mui/material'
 import { useMutation } from '@tanstack/react-query'
+import { useT } from '../../../i18n/useT'
 import { ApiError } from '../../../api/httpClient'
 import * as adminAiProvidersApi from '../api/adminAiProvidersApi'
 import type { AiCapabilitySettings } from '../api/adminAiProvidersApi'
@@ -24,14 +25,16 @@ interface CapabilitySettingsDialogProps {
   onSaved: () => void
 }
 
-const errorMessage = (err: unknown) =>
-  err instanceof ApiError ? err.detail ?? err.message : 'Something went wrong. Please try again.'
-
 /**
  * specs/077 — the settings one capability declares, opened from its gear on the AI Capabilities
  * page. Changes are held here until Save, so Cancel leaves the stored values untouched.
  */
-export function CapabilitySettingsDialog({ capabilitySettings, capabilityLabel, onClose, onSaved }: CapabilitySettingsDialogProps) {
+export function CapabilitySettingsDialog({
+  capabilitySettings,
+  capabilityLabel,
+  onClose,
+  onSaved,
+}: CapabilitySettingsDialogProps) {
   return (
     <Dialog open={capabilitySettings !== null} onClose={onClose} maxWidth="sm" fullWidth>
       {/*
@@ -57,20 +60,24 @@ function SettingsForm({
   onClose,
   onSaved,
 }: CapabilitySettingsDialogProps & { capabilitySettings: AiCapabilitySettings }) {
+  const t = useT('admin.aiCapabilities')
   const [values, setValues] = useState<Record<string, string>>(() =>
     Object.fromEntries(capabilitySettings.settings.map((setting) => [setting.key, setting.value])),
   )
 
   const saveMutation = useMutation({
-    mutationFn: () => adminAiProvidersApi.updateCapabilitySettings(capabilitySettings.capability, values),
+    mutationFn: () =>
+      adminAiProvidersApi.updateCapabilitySettings(capabilitySettings.capability, values),
     onSuccess: onSaved,
   })
 
-  const unchanged = capabilitySettings.settings.every((setting) => values[setting.key] === setting.value)
+  const unchanged = capabilitySettings.settings.every(
+    (setting) => values[setting.key] === setting.value,
+  )
 
   return (
     <>
-      <DialogTitle>{`${capabilityLabel} settings`}</DialogTitle>
+      <DialogTitle>{t('dialog.title', { capability: capabilityLabel })}</DialogTitle>
       <DialogContent>
         <Stack spacing={2} sx={{ mt: 1 }}>
           {capabilitySettings.settings.map((setting) => (
@@ -81,13 +88,16 @@ function SettingsForm({
                     checked={values[setting.key] === 'true'}
                     disabled={saveMutation.isPending}
                     onChange={(event) =>
-                      setValues((current) => ({ ...current, [setting.key]: event.target.checked ? 'true' : 'false' }))
+                      setValues((current) => ({
+                        ...current,
+                        [setting.key]: event.target.checked ? 'true' : 'false',
+                      }))
                     }
                   />
                 }
                 label={setting.label}
               />
-              <Typography variant="body2" color="text.secondary" sx={{ ml: 6 }}>
+              <Typography variant="body2" color="text.secondary" sx={{ marginInlineStart: '48px' }}>
                 {setting.description}
               </Typography>
             </div>
@@ -95,14 +105,20 @@ function SettingsForm({
         </Stack>
         {saveMutation.isError && (
           <Alert severity="error" sx={{ mt: 2 }}>
-            {errorMessage(saveMutation.error)}
+            {saveMutation.error instanceof ApiError
+              ? (saveMutation.error.detail ?? saveMutation.error.message)
+              : t('dialog.failed')}
           </Alert>
         )}
       </DialogContent>
       <DialogActions>
-        <Button onClick={onClose}>Cancel</Button>
-        <Button variant="contained" disabled={unchanged || saveMutation.isPending} onClick={() => saveMutation.mutate()}>
-          {saveMutation.isPending ? 'Saving…' : 'Save'}
+        <Button onClick={onClose}>{t('dialog.cancel')}</Button>
+        <Button
+          variant="contained"
+          disabled={unchanged || saveMutation.isPending}
+          onClick={() => saveMutation.mutate()}
+        >
+          {saveMutation.isPending ? t('dialog.saving') : t('dialog.save')}
         </Button>
       </DialogActions>
     </>

@@ -11,6 +11,7 @@ export const arCommon = {
   },
   states: {
     loading: 'جارٍ التحميل…',
+    loadingPleaseWait: 'جارٍ التحميل… يرجى الانتظار',
     noLongerAvailable: 'لم يعد متاحًا',
   },
   errors: {

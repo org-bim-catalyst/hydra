@@ -11,6 +11,7 @@ export const enCommon = {
   },
   states: {
     loading: 'Loading…',
+    loadingPleaseWait: 'Loading… please wait',
     noLongerAvailable: 'No longer available',
   },
   errors: {
