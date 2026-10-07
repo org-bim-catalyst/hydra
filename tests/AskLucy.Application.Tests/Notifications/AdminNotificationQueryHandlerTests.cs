@@ -154,7 +154,7 @@ public sealed class AdminNotificationQueryHandlerTests
 
         page.NextCursor.Should().Be("next");
         await _repository.Received(1).ListDeliveriesAsync(
-            Arg.Is<AdminDeliveryFilter>(f => f.Statuses.SequenceEqual(new[] { DeliveryStatus.Failed, DeliveryStatus.DeadLettered })), null, 25, Arg.Any<CancellationToken>());
+            Arg.Is<AdminDeliveryFilter>(f => f != null && f.Statuses.SequenceEqual(new[] { DeliveryStatus.Failed, DeliveryStatus.DeadLettered })), null, 25, Arg.Any<CancellationToken>());
     }
 
     [Fact]

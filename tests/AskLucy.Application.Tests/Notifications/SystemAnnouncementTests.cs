@@ -20,6 +20,7 @@ public sealed class SystemAnnouncementTests
 {
     private const string AdminId = "admin-1";
     private static readonly DateTimeOffset Now = new(2026, 10, 6, 12, 0, 0, TimeSpan.Zero);
+    private static readonly string[] TwoRoles = ["role-a", "role-b"];
 
     private readonly ISystemAnnouncementRepository _announcements = Substitute.For<ISystemAnnouncementRepository>();
     private readonly INotificationRecipientDirectory _directory = Substitute.For<INotificationRecipientDirectory>();
@@ -35,7 +36,7 @@ public sealed class SystemAnnouncementTests
         _directory.CountActiveAsync(Arg.Any<IReadOnlyCollection<string>?>(), false, Arg.Any<CancellationToken>()).Returns(1234);
         _directory.CountActiveAsync(Arg.Any<IReadOnlyCollection<string>?>(), true, Arg.Any<CancellationToken>()).Returns(1200);
         _announcements.GetExistingRoleIdsAsync(Arg.Any<IReadOnlyCollection<string>>(), Arg.Any<CancellationToken>())
-            .Returns(call => call.Arg<IReadOnlyCollection<string>>().Where(id => id.StartsWith("role", StringComparison.Ordinal)).ToHashSet(StringComparer.Ordinal));
+            .Returns(call => call.Arg<IReadOnlyCollection<string>>()!.Where(id => id.StartsWith("role", StringComparison.Ordinal)).ToHashSet(StringComparer.Ordinal));
     }
 
     private PublishSystemAnnouncementCommandHandler Handler(int maxPerMinute = 60) => new(
@@ -152,7 +153,7 @@ public sealed class SystemAnnouncementTests
 
         _publisher.Received(1).Publish(Arg.Is<NotificationRequest>(r => r != null &&
             ((NotificationRecipient.Audience)r!.Recipient).AllActiveUsers == false &&
-            ((NotificationRecipient.Audience)r.Recipient).RoleIds.SequenceEqual(new[] { "role-a", "role-b" })));
+            ((NotificationRecipient.Audience)r.Recipient).RoleIds.SequenceEqual(TwoRoles)));
     }
 
     [Fact]

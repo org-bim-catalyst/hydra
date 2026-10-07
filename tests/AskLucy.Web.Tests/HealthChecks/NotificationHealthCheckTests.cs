@@ -189,7 +189,7 @@ public sealed class NotificationHealthCheckTests
         var result = await RunAsync(new NotificationSmtpHealthCheck(probe, Smtp(host: ""), _options, _time));
 
         result.Status.Should().Be(HealthStatus.Degraded);
-        await probe.DidNotReceiveWithAnyArgs().ProbeAsync(default);
+        await probe.DidNotReceiveWithAnyArgs().ProbeAsync(TestContext.Current.CancellationToken);
     }
 
     [Fact]

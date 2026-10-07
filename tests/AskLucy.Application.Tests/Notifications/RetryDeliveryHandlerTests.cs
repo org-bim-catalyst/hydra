@@ -211,7 +211,7 @@ public sealed class RetryDeliveryHandlerTests
         result.Retried.Should().Be(1);
         result.Skipped.Should().BeEmpty();
         await _admin.Received(1).FindDeliveryIdsAsync(
-            Arg.Is<AdminDeliveryFilter>(f => f.Channel == NotificationChannel.Email && f.Statuses.SequenceEqual(new[] { DeliveryStatus.DeadLettered })),
+            Arg.Is<AdminDeliveryFilter>(f => f != null && f.Channel == NotificationChannel.Email && f.Statuses.SequenceEqual(new[] { DeliveryStatus.DeadLettered })),
             BulkRetryNotificationDeliveriesCommand.MaxMatches + 1,
             Arg.Any<CancellationToken>());
     }
