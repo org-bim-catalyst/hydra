@@ -13,52 +13,13 @@ using AskLucy.Persistence;
 using AskLucy.Persistence.Identity;
 using FluentAssertions;
 using MediatR;
-using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Identity;
-using Microsoft.AspNetCore.TestHost;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.DependencyInjection.Extensions;
 using Xunit;
 using INotificationPublisher = AskLucy.Application.Notifications.Abstractions.INotificationPublisher;
 
 namespace AskLucy.Web.Tests.Notifications;
-
-/// <summary>
-/// The real host and real database, with only the five item-ownership checks (agent execution, workflow
-/// execution, document, knowledge base, memory) answering "yes". Seeding a real agent run, workflow run,
-/// document, knowledge base and memory for every case would test those modules' persistence, not the
-/// notification hub; the checks themselves are covered by <c>ApprovalNotificationAccessTests</c> and
-/// the per-module access-check unit tests. Everything else, the publisher, outbox, dispatcher, router,
-/// renderer and materializer, is the production code.
-/// </summary>
-public sealed class EmitterEndToEndFactory : CustomWebApplicationFactory
-{
-    private static readonly string[] ItemTypes = ["AgentExecution", "WorkflowExecution", "Document", "KnowledgeBase", "Memory"];
-
-    protected override void ConfigureWebHost(IWebHostBuilder builder)
-    {
-        base.ConfigureWebHost(builder);
-        builder.ConfigureTestServices(services =>
-        {
-            services.RemoveAll<INotificationAccessCheck>();
-            foreach (var itemType in ItemTypes)
-            {
-                services.AddSingleton<INotificationAccessCheck>(new AllowEveryItem(itemType));
-            }
-        });
-    }
-
-    private sealed class AllowEveryItem(string itemType) : INotificationAccessCheck
-    {
-        public string ItemType => itemType;
-
-        public Task<bool> CanAccessAsync(string userId, string itemId, CancellationToken cancellationToken) => Task.FromResult(true);
-
-        public Task<IReadOnlySet<string>> GetAvailableAsync(string userId, IReadOnlyCollection<string> itemIds, CancellationToken cancellationToken) =>
-            Task.FromResult<IReadOnlySet<string>>(itemIds.ToHashSet(StringComparer.Ordinal));
-    }
-}
 
 /// <summary>
 /// specs/067 T080 (US2 Independent Test): every emitted, in-center type in <see cref="NotificationTypeCatalog"/>
@@ -77,7 +38,7 @@ public sealed class EmitterEndToEndFactory : CustomWebApplicationFactory
 /// <item><description><b>Not covered here</b>: <c>knowledge-base.updated</c> (defined, never emitted, research R27); the not-emitted conversation and billing types; the email-only <c>account.*</c>, <c>security.password-changed</c> and <c>template.test</c> types, which have no center item by design and are covered by <c>AccountEmail*Tests</c> and <c>NotificationTemplateEndpointsTests</c>.</description></item>
 /// </list>
 /// </summary>
-public sealed class EmitterEndToEndTests(EmitterEndToEndFactory factory) : IClassFixture<EmitterEndToEndFactory>, IAsyncLifetime
+public sealed class EmitterEndToEndTests(CustomWebApplicationFactory factory) : IClassFixture<CustomWebApplicationFactory>, IAsyncLifetime
 {
     private readonly List<string> _userIds = [];
     private readonly List<string> _roleIds = [];
@@ -139,6 +100,11 @@ public sealed class EmitterEndToEndTests(EmitterEndToEndFactory factory) : IClas
         var document = Guid.NewGuid();
         var knowledgeBase = Guid.NewGuid();
         var memory = Guid.NewGuid();
+
+        // The item-ownership checks are the only thing not production here: seeding a real agent run, workflow run, document, knowledge base and
+        // memory per case would test those modules' persistence. They answer "yes" for exactly these ids, in every host (see the allow-list);
+        // the checks themselves are covered by ApprovalNotificationAccessTests and the per-module unit tests.
+        NotificationAccessAllowList.Allow(execution, agent, workflow, approval, document, knowledgeBase, memory);
 
         var agentRoute = $"/agents/{agent}/executions/{execution}";
         var workflowRoute = $"/workflows/{workflow}/executions/{execution}";
