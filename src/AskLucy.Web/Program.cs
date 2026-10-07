@@ -762,6 +762,7 @@ app.UseCors("Frontend");
 
 app.UseAuthentication();
 app.UseAuthorization();
+app.UseMiddleware<AskLucy.Web.Middleware.LocalizedSurfaceCultureMiddleware>();
 
 app.UseRateLimiter();
 

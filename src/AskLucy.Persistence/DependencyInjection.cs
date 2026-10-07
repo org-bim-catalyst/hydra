@@ -103,6 +103,8 @@ public static class DependencyInjection
         services.AddScoped<IVoiceProviderRepository, VoiceProviderRepository>();
         services.AddScoped<IDictationEngineSettingRepository, DictationEngineSettingRepository>();
         services.AddScoped<IPresenceSphereSettingsRepository, PresenceSphereSettingsRepository>();
+        services.AddScoped<AskLucy.Application.Localization.ILocalizationSettingRepository, LocalizationSettingRepository>();
+        services.AddScoped<AskLucy.Application.Localization.IUserLanguageStore, UserLanguageStore>();
         services.AddScoped<ICustomModelRepository, CustomModelRepository>();
         services.AddScoped<IKnowledgeBaseRepository, KnowledgeBaseRepository>();
         services.AddScoped<IKnowledgeBaseAuditLogRepository, KnowledgeBaseAuditLogRepository>();

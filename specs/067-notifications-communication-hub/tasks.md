@@ -973,62 +973,77 @@ These apply to every task below, and each one assumes them:
 
 ### Tests for User Story 8 (part A)
 
-- [ ] T184 [P] [US8] `EffectiveLanguageResolverTests` in `tests/AskLucy.Infrastructure.Tests/Notifications/EffectiveLanguageResolverTests.cs`:
+- [X] T184 [P] [US8] `EffectiveLanguageResolverTests` in `tests/AskLucy.Infrastructure.Tests/Notifications/EffectiveLanguageResolverTests.cs`:
   - the FR-044 chain: explicit request language, then the user's preferred language (only if enabled and supported), then `en`;
   - removing `ar` falls back to English;
   - the 30 s cache is evicted on update.
-- [ ] T185 [P] [US8] `LocalizationEndpointsTests` in `tests/AskLucy.Web.Tests/Localization/LocalizationEndpointsTests.cs`:
+- [X] T185 [P] [US8] `LocalizationEndpointsTests` in `tests/AskLucy.Web.Tests/Localization/LocalizationEndpointsTests.cs`:
   - admin `GET` and `PUT /api/v1/admin/localization`: `If-Match` 409, `en` required (422), unknown code 422, audited as `LocalizationSettingChanged`;
   - user `GET` and `PUT /api/v1/users/me/localization`: 422 when disabled or unsupported.
-- [ ] T186 [P] [US8] `LocalizedSurfaceCultureMiddlewareTests` in `tests/AskLucy.Web.Tests/Middleware/LocalizedSurfaceCultureMiddlewareTests.cs`:
+- [X] T186 [P] [US8] `LocalizedSurfaceCultureMiddlewareTests` in `tests/AskLucy.Web.Tests/Middleware/LocalizedSurfaceCultureMiddlewareTests.cs`:
   - Problem Details `title`, `detail` and FluentValidation `errors` are in Arabic for an Arabic user on `[LocalizedSurface]` endpoints only;
   - non-localized endpoints stay English;
   - `traceId` is unchanged.
-- [ ] T187 [P] [US8] `NotificationCatalogCoverageTests` in `tests/AskLucy.Infrastructure.Tests/Notifications/NotificationCatalogCoverageTests.cs` (SC-006). Every emitted type has an `en` and an `ar` seed for each channel it uses, and every seed parses and validates against its declared variables.
-- [ ] T188 [P] [US8] `ProtectedTermsTests` in `tests/AskLucy.Infrastructure.Tests/Notifications/ProtectedTermsTests.cs` (SC-016):
+- [X] T187 [P] [US8] `NotificationCatalogCoverageTests` in `tests/AskLucy.Infrastructure.Tests/Notifications/NotificationCatalogCoverageTests.cs` (SC-006). Every emitted type has an `en` and an `ar` seed for each channel it uses, and every seed parses and validates against its declared variables.
+- [X] T188 [P] [US8] `ProtectedTermsTests` in `tests/AskLucy.Infrastructure.Tests/Notifications/ProtectedTermsTests.cs` (SC-016):
   - every protected term in an `en` seed appears verbatim in the `ar` seed;
   - `ProtectedTerms.cs` matches `docs/localization/do-not-translate.md`.
-- [ ] T189 [P] [US8] `ArabicEmailRenderTests` in `tests/AskLucy.Infrastructure.Tests/Notifications/ArabicEmailRenderTests.cs`: `lang="ar" dir="rtl"`, Western digits, Gregorian dates, and protected terms wrapped in `<bdi>`.
-- [ ] T190 [P] [US8] Frontend i18n tests in `ClientApp/src/i18n/`:
+- [X] T189 [P] [US8] `ArabicEmailRenderTests` in `tests/AskLucy.Infrastructure.Tests/Notifications/ArabicEmailRenderTests.cs`: `lang="ar" dir="rtl"`, Western digits, Gregorian dates, and protected terms wrapped in `<bdi>`.
+- [X] T190 [P] [US8] Frontend i18n tests in `ClientApp/src/i18n/`:
   - `catalogCompleteness.test.ts`: all six Arabic plural forms, and no `en` value copied into `ar` unless it is on the allow-list;
   - `protectedTerms.test.ts`;
   - `format.test.ts`: `ar-u-nu-latn` and `ar-u-ca-gregory-nu-latn`;
   - `LocalizedSurface.test.tsx`: pass-through when disabled, and portaled Dialog and Menu content carries `dir="rtl"`.
-- [ ] T191 [P] [US8] Add Arabic and RTL variants to the notification screen tests (`NotificationBell`, `NotificationPopover`, `NotificationsPage`, `NotificationDetails`, `NotificationPreferencesTab`) and add `LanguageSwitch.test.tsx`. Each renders in `ar`/`rtl`, asserts `dir="rtl"` on the surface root, has no dev-fallback spy hits, and passes jest-axe in light and dark.
+- [X] T191 [P] [US8] Add Arabic and RTL variants to the notification screen tests (`NotificationBell`, `NotificationPopover`, `NotificationsPage`, `NotificationDetails`, `NotificationPreferencesTab`) and add `LanguageSwitch.test.tsx`. Each renders in `ar`/`rtl`, asserts `dir="rtl"` on the surface root, has no dev-fallback spy hits, and passes jest-axe in light and dark.
 
 ### Implementation for User Story 8 (part A)
 
-- [ ] T192 [P] [US8] Add `LocalizationSetting.cs` (a singleton with `IsEnabled`, `SupportedLanguages` and `RowVersion`, where `en` is always included) and `PlatformLanguages.cs` (`en` and `ar`, with native names) in `src/AskLucy.Domain/Localization/`. Add `PreferredLanguage` (`nvarchar(10)`, nullable) to `src/AskLucy.Persistence/Identity/ApplicationUser.cs`.
-- [ ] T193 [US8] Add the configurations `src/AskLucy.Persistence/Configurations/Localization/LocalizationSettingConfiguration.cs` and the `ApplicationUser` column, and the `DbSet`. Create the migration `AddLocalizationSettingAndUserPreferredLanguage`: it seeds the singleton row with `IsEnabled=false` and `["en"]`, and has no BOM.
-- [ ] T194 [US8] Add `ILocalizationSettingsProvider` in `src/AskLucy.Application/Localization/`, with a Persistence implementation cached in `IMemoryCache` for 30 s and evicted on update. Replace the English-only `EffectiveLanguageResolver` with the full FR-044 chain.
-- [ ] T195 [P] [US8] Add the queries and commands `GetLocalizationSettings`, `UpdateLocalizationSettings` (audited), `GetMyLocalization` and `SetMyLanguage` in `src/AskLucy.Application/Localization/`.
-- [ ] T196 [US8] Add `AdminLocalizationController.cs` (V/M, `admin-endpoints`) and `UserLocalizationController.cs` (`notifications-endpoints`) in `src/AskLucy.Web/Controllers/v1/`.
-- [ ] T197 [US8] Add the server-side localization:
+- [X] T192 [P] [US8] Add `LocalizationSetting.cs` (a singleton with `IsEnabled`, `SupportedLanguages` and `RowVersion`, where `en` is always included) and `PlatformLanguages.cs` (`en` and `ar`, with native names) in `src/AskLucy.Domain/Localization/`. Add `PreferredLanguage` (`nvarchar(10)`, nullable) to `src/AskLucy.Persistence/Identity/ApplicationUser.cs`.
+- [X] T193 [US8] Add the configurations `src/AskLucy.Persistence/Configurations/Localization/LocalizationSettingConfiguration.cs` and the `ApplicationUser` column, and the `DbSet`. Create the migration `AddLocalizationSettingAndUserPreferredLanguage`: it seeds the singleton row with `IsEnabled=false` and `["en"]`, and has no BOM.
+- [X] T194 [US8] Add `ILocalizationSettingsProvider` in `src/AskLucy.Application/Localization/`, with a Persistence implementation cached in `IMemoryCache` for 30 s and evicted on update. Replace the English-only `EffectiveLanguageResolver` with the full FR-044 chain.
+- [X] T195 [P] [US8] Add the queries and commands `GetLocalizationSettings`, `UpdateLocalizationSettings` (audited), `GetMyLocalization` and `SetMyLanguage` in `src/AskLucy.Application/Localization/`.
+- [X] T196 [US8] Add `AdminLocalizationController.cs` (V/M, `admin-endpoints`) and `UserLocalizationController.cs` (`notifications-endpoints`) in `src/AskLucy.Web/Controllers/v1/`.
+- [X] T197 [US8] Add the server-side localization:
   - `src/AskLucy.Application/Localization/Messages.resx` and `Messages.ar.resx` (Problem Details titles, validation and confirmation messages);
   - `LocalizedSurfaceAttribute` and `src/AskLucy.Web/Middleware/LocalizedSurfaceCultureMiddleware.cs`, which set `CultureInfo.CurrentUICulture` from the effective language on endpoints with that metadata only;
   - localize `title` and `detail` in `src/AskLucy.Web/Middleware/ProblemDetailsMiddleware.cs`;
   - enable FluentValidation's built-in Arabic messages;
   - apply `[LocalizedSurface]` to `NotificationsController`, `NotificationPreferencesController`, `UserLocalizationController` and every `Admin*` controller.
-- [ ] T198 [P] [US8] Write `docs/localization/do-not-translate.md`, the canonical list: vendor, product and model names such as OpenAI, Anthropic, Gemini and OpenRouter, and acronyms such as API, MCP, SMTP, 2FA, RAG, OCR and BIM. Add `src/AskLucy.Infrastructure/Notifications/Templates/ProtectedTerms.cs` mirroring it.
-- [ ] T199 [P] [US8] Create the Arabic seeds in `src/AskLucy.Infrastructure/Notifications/Templates/Seed/ar/`: one file for every `en` seed file (in-app and email). Protected terms stay verbatim, and dates and numbers are variables. The seeder picks them up without code changes.
-- [ ] T200 [P] [US8] Write `docs/adr/0019-frontend-i18n-and-rtl.md`, recording:
+- [X] T198 [P] [US8] Write `docs/localization/do-not-translate.md`, the canonical list: vendor, product and model names such as OpenAI, Anthropic, Gemini and OpenRouter, and acronyms such as API, MCP, SMTP, 2FA, RAG, OCR and BIM. Add `src/AskLucy.Infrastructure/Notifications/Templates/ProtectedTerms.cs` mirroring it.
+- [X] T199 [P] [US8] Create the Arabic seeds in `src/AskLucy.Infrastructure/Notifications/Templates/Seed/ar/`: one file for every `en` seed file (in-app and email). Protected terms stay verbatim, and dates and numbers are variables. The seeder picks them up without code changes.
+- [X] T200 [P] [US8] Write `docs/adr/0019-frontend-i18n-and-rtl.md`, recording:
   - the in-house `i18n/` module instead of a library;
   - the scope (notification screens and the admin area only), with the §7 complexity-tracking justification;
   - the RTL Emotion cache;
   - d3 charts kept LTR.
-- [ ] T201 [US8] In `ClientApp/`, run `npm install stylis-plugin-rtl @emotion/cache`. Then restore any `@emnapi/*` entries that the Windows install pruned from `package-lock.json`, and verify with `npm ci`, not `npm install`.
-- [ ] T202 [US8] Create the `ClientApp/src/i18n/` module per [contracts/localization-ui.md](contracts/localization-ui.md):
+- [X] T201 [US8] In `ClientApp/`, run `npm install stylis-plugin-rtl @emotion/cache`. Then restore any `@emnapi/*` entries that the Windows install pruned from `package-lock.json`, and verify with `npm ci`, not `npm install`.
+- [X] T202 [US8] Create the `ClientApp/src/i18n/` module per [contracts/localization-ui.md](contracts/localization-ui.md):
   - `types.ts` (`MessagesOf`, `Language`), `useT.ts`, `format.ts`, `protectedTerms.ts` and `useLocalization.ts` (TanStack Query);
   - `LocalizedSurface.tsx`, with `scope="page"` and `"subtree"`, an RTL `ThemeProvider` that keeps `themeStore` light/dark, a `muirtl` Emotion cache, and portal `slotProps`;
   - `messages/en/common.ts` and `messages/ar/common.ts`.
-- [ ] T203 [US8] Add `messages/en/notifications.ts` and `messages/ar/notifications.ts` (`satisfies MessagesOf<typeof enNotifications>`). Move `NotificationBell`, `NotificationPopover`, `NotificationList`, `NotificationItem`, `NotificationDetails`, `NotificationsPage` and `NotificationPreferencesTab` onto `useT` and `format.ts`, each wrapped in `<LocalizedSurface scope="subtree">`. Use logical CSS properties only.
-- [ ] T204 [US8] Add `ClientApp/src/features/settings/components/LanguageSwitch.tsx`. It appears in the account menu through `ClientApp/src/components/account/useAccountMenuItems.tsx`, only when localization is enabled with more than one supported language. Show an error toast on failure.
-- [ ] T205 [US8] Add `ClientApp/src/features/admin/pages/AdminLocalizationPage.tsx`:
+- [X] T203 [US8] Add `messages/en/notifications.ts` and `messages/ar/notifications.ts` (`satisfies MessagesOf<typeof enNotifications>`). Move `NotificationBell`, `NotificationPopover`, `NotificationList`, `NotificationItem`, `NotificationDetails`, `NotificationsPage` and `NotificationPreferencesTab` onto `useT` and `format.ts`, each wrapped in `<LocalizedSurface scope="subtree">`. Use logical CSS properties only.
+- [X] T204 [US8] Add `ClientApp/src/features/settings/components/LanguageSwitch.tsx`. It appears in the account menu through `ClientApp/src/components/account/useAccountMenuItems.tsx`, only when localization is enabled with more than one supported language. Show an error toast on failure.
+- [X] T205 [US8] Add `ClientApp/src/features/admin/pages/AdminLocalizationPage.tsx`:
   - an enable toggle and supported-language checkboxes, with `en` locked;
   - `If-Match` handling, with a reload prompt on 409.
 
   Add its route and a Localization entry in the Notifications group of `adminNav.tsx`.
+> **Implementation notes (Phase 12 frontend, T190-T191, T201-T205)**:
+> - T201: `npm install` also added `stylis` (pinned `4.2.0`, the version `@emotion/cache` pins, so there is one copy) and `@types/stylis` (dev): `createCache({ stylisPlugins: [prefixer, rtlPlugin] })` imports `prefixer` from `stylis`, which was only a transitive dependency. `stylis-plugin-rtl` 2.1.1 is used as the contract names it, rather than the `@mui/stylis-plugin-rtl` fork; it works with the installed MUI 9 and Emotion 11 (verified by `LocalizedSurface.test.tsx`). The three `@emnapi/*` lock entries are intact; `npm ci --dry-run` is consistent.
+> - T202: `useT` and `useFormat` read the language from a React context (`languageContext.ts`) that `LocalizedSurface` provides, not from a query, so components outside any surface (and existing tests with no `QueryClientProvider`) render English. `useLocalization` only fetches for a signed-in caller (`accessToken` present); while it is loading, failed or disabled, the app renders English. String params are wrapped in Unicode isolates in right-to-left languages (the effect of `<bdi>`). A subtree surface nested in an active surface for the same language is a pass-through.
+> - T203: `NotificationItem` and `NotificationList` are not wrapped in their own `LocalizedSurface`: they only render inside the popover or the page (both wrapped), and wrapping would force a `QueryClientProvider` into `NotificationItem.test.tsx`, which must stay untouched. `NotificationsPage` wraps the whole page, shell included, because the title and subtitle are part of the localized content. The popover and the details drawer anchor to the end edge by direction. `utils/relativeTime.ts` moved into `i18n/format.ts` and was removed. The popover's `<ul>` now holds `<li>` rows (an axe `list` violation that the Arabic axe test surfaced).
+> - T191: the Arabic/RTL variants are new `*.rtl.test.tsx` files beside the existing tests (the existing files are untouched).
+> - T204: the account menu shows the switch through `useShowLanguageSwitch()` in `useAccountMenuItems.tsx`, rendered by `UserMenu`. Its error toast reads the mutation cache (`LanguageSwitchErrorToast`) so it survives the menu closing. The switch is not yet on the notification preferences page (the contract also lists it there).
+> - T205: the page is English for now (Phase 13 localizes it), at `/admin/notifications/localization`.
+
 - [ ] T206 [US8] Slice 5 gate: run the full backend and frontend suites, then quickstart S9 (the user half). Confirm that with localization disabled the English rendering is unchanged, and that the existing page tests pass untouched.
+
+**Phase 12 backend implementation notes** (deviations from the task text):
+- T194: the cached provider (`CachedLocalizationSettingsProvider`, 30 s, evicted by `UpdateLocalizationSettings` after its save) lives in Infrastructure beside the resolver, because Persistence has no `IMemoryCache`; it reads through `ILocalizationSettingRepository` in its own scope. `EffectiveLanguageResolver` is now scoped (it needs the user store).
+- T195: the caller's choice is written with a single `ExecuteUpdate` of `ApplicationUser.PreferredLanguage` (`IUserLanguageStore`), not through the unit of work, because it is one column on an Identity account.
+- T196: a missing or malformed `If-Match` on `PUT /admin/notifications/localization` is 428. The 409 carries `reason: ConcurrencyConflict`: `ProblemDetailsMiddleware` now adds that `reason` for every `ConcurrencyConflictException`.
+- T197: the culture middleware stores the effective culture in `HttpContext.Items` as well as setting `CurrentUICulture`, because the async-local change doesn't reach the Problem Details middleware that wraps it. `Messages.resx` / `Messages.ar.resx` cover the Problem Details titles and the fixed or reason-based details of the notification, admin and localization problems; a detail built from the request (a token name, a field) stays as the server wrote it. Custom English messages in individual validators are not yet in the catalog; FluentValidation's built-in rules are Arabic. `[LocalizedSurface]` is on every controller whose route starts `api/v1/admin` (so Phase 13's admin pages are covered) plus `NotificationsController`, `NotificationPreferencesController` and `UserLocalizationController`.
+- T193: the migration seeds the singleton with `HasData`. Its `.cs` and `.Designer.cs` have no BOM.
 
 **Checkpoint**: Slice 5 is deployable. It stays dark until an administrator enables localization.
 

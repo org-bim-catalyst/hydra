@@ -1,0 +1,12 @@
+{
+  "name": "بدء تشغيل سير العمل",
+  "subject": "بدأ {{ workflowName }}",
+  "preheader": "بدأ {{ workflowName }} العمل.",
+  "greeting": "مرحبًا {{ recipientDisplayName }}،",
+  "heading": "بدأ سير عملك",
+  "bodyParagraphs": [
+    "بدأ {{ workflowName }} العمل."
+  ],
+  "safetyNote": "تصلك هذه الرسالة لأن إشعارات البريد الإلكتروني مفعّلة لـتحديثات سير العمل. يمكنك تغيير ذلك من الإعدادات › الإشعارات.",
+  "actionLabel": "عرض التشغيل"
+}

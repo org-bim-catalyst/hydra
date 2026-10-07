@@ -15,33 +15,16 @@ import {
   Tooltip,
   Typography,
 } from '@mui/material'
+import { LocalizedSurface } from '../../../i18n/LocalizedSurface'
+import { useT } from '../../../i18n/useT'
 import { errorMessage } from '../../notifications/api/errorMessage'
 import type { NotificationChannel } from '../../notifications/api/notificationPreferencesApi'
-import type { NotificationCategory } from '../../notifications/api/notificationsApi'
 import {
   useNotificationPreferences,
   useUpdateNotificationPreferences,
 } from '../../notifications/hooks/useNotificationPreferences'
 
-const CATEGORY_LABELS: Record<NotificationCategory, string> = {
-  Security: 'Security',
-  Account: 'Account',
-  Agent: 'Agents',
-  Workflow: 'Workflows',
-  Document: 'Documents',
-  KnowledgeBase: 'Knowledge bases',
-  Memory: 'Memory',
-  System: 'System announcements',
-  Billing: 'Billing',
-  Conversation: 'Conversations',
-}
-
-const CHANNELS: { channel: NotificationChannel; label: string }[] = [
-  { channel: 'InApp', label: 'In-app' },
-  { channel: 'Email', label: 'Email' },
-]
-
-const LOCKED_EXPLANATION = "Required: these notifications can't be turned off."
+const CHANNELS: NotificationChannel[] = ['InApp', 'Email']
 
 const visuallyHidden = {
   position: 'absolute',
@@ -58,13 +41,23 @@ const visuallyHidden = {
  * is "Immediate" only: digests exist in the model but aren't offered yet.
  */
 export function NotificationPreferencesTab() {
+  return (
+    <LocalizedSurface scope="subtree">
+      <NotificationPreferencesContent />
+    </LocalizedSurface>
+  )
+}
+
+function NotificationPreferencesContent() {
+  const t = useT('notifications')
+  const tc = useT('common')
   const { data, isPending, isError, error, refetch } = useNotificationPreferences()
   const update = useUpdateNotificationPreferences()
 
   if (isPending) {
     return (
       <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
-        <CircularProgress aria-label="Loading notification preferences" />
+        <CircularProgress aria-label={t('preferences.loadingLabel')} />
       </Box>
     )
   }
@@ -75,11 +68,11 @@ export function NotificationPreferencesTab() {
         severity="error"
         action={
           <Button color="inherit" size="small" onClick={() => void refetch()}>
-            Retry
+            {tc('actions.retry')}
           </Button>
         }
       >
-        {errorMessage(error)}
+        {errorMessage(error, tc('errors.generic'))}
       </Alert>
     )
   }
@@ -87,42 +80,42 @@ export function NotificationPreferencesTab() {
   return (
     <Stack spacing={2}>
       <Box>
-        <Typography variant="h6">Notifications</Typography>
+        <Typography variant="h6">{t('preferences.title')}</Typography>
         <Typography variant="body2" color="text.secondary">
-          Choose where you want to hear about each kind of event. Security and account notifications are
-          required, so they stay on.
+          {t('preferences.description')}
         </Typography>
       </Box>
 
       <TableContainer>
-        <Table size="small" aria-label="Notification preferences">
+        <Table size="small" aria-label={t('preferences.tableLabel')}>
           <TableHead>
             <TableRow>
-              <TableCell>Category</TableCell>
-              {CHANNELS.map(({ channel, label }) => (
+              <TableCell>{t('preferences.columns.category')}</TableCell>
+              {CHANNELS.map((channel) => (
                 <TableCell key={channel} align="center">
-                  {label}
+                  {t(`preferences.channels.${channel}`)}
                 </TableCell>
               ))}
-              <TableCell>Frequency</TableCell>
+              <TableCell>{t('preferences.columns.frequency')}</TableCell>
             </TableRow>
           </TableHead>
           <TableBody>
             {data.categories.map((category) => {
-              const categoryLabel = CATEGORY_LABELS[category.category]
+              const categoryLabel = t(`preferences.categories.${category.category}`)
               return (
                 <TableRow key={category.category}>
                   <TableCell component="th" scope="row">
                     {categoryLabel}
                   </TableCell>
-                  {CHANNELS.map(({ channel, label }) => {
+                  {CHANNELS.map((channel) => {
+                    const label = t(`preferences.channels.${channel}`)
                     const preference = category.channels.find((c) => c.channel === channel)
                     if (!preference) {
                       return (
                         <TableCell key={channel} align="center">
                           <span aria-hidden="true">—</span>
                           <Box component="span" sx={visuallyHidden}>
-                            {`${categoryLabel} notifications are not sent by ${label}`}
+                            {t('preferences.notSentBy', { category: categoryLabel, channel: label })}
                           </Box>
                         </TableCell>
                       )
@@ -131,7 +124,7 @@ export function NotificationPreferencesTab() {
                     const explanationId = `locked-${category.category}-${channel}`
                     return (
                       <TableCell key={channel} align="center">
-                        <Tooltip title={preference.locked ? LOCKED_EXPLANATION : ''}>
+                        <Tooltip title={preference.locked ? t('preferences.locked') : ''}>
                           {/* A disabled input doesn't take hover, so the tooltip sits on the wrapper. */}
                           <span>
                             <Switch
@@ -142,14 +135,14 @@ export function NotificationPreferencesTab() {
                               }
                               slotProps={{
                                 input: {
-                                  'aria-label': `${categoryLabel} notifications by ${label}`,
+                                  'aria-label': t('preferences.switchLabel', { category: categoryLabel, channel: label }),
                                   ...(preference.locked ? { 'aria-describedby': explanationId } : {}),
                                 },
                               }}
                             />
                             {preference.locked && (
                               <Box component="span" id={explanationId} sx={visuallyHidden}>
-                                {LOCKED_EXPLANATION}
+                                {t('preferences.locked')}
                               </Box>
                             )}
                           </span>
@@ -157,7 +150,7 @@ export function NotificationPreferencesTab() {
                       </TableCell>
                     )
                   })}
-                  <TableCell>Immediate</TableCell>
+                  <TableCell>{t('preferences.frequencyImmediate')}</TableCell>
                 </TableRow>
               )
             })}
@@ -172,7 +165,7 @@ export function NotificationPreferencesTab() {
         anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
       >
         <Alert severity="error" variant="filled" onClose={() => update.reset()}>
-          {`Your change wasn't saved. ${errorMessage(update.error)}`}
+          {t('preferences.saveFailed', { detail: errorMessage(update.error, tc('errors.generic')) })}
         </Alert>
       </Snackbar>
     </Stack>

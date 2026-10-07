@@ -17,6 +17,8 @@ public sealed class ApplicationUserConfiguration : IEntityTypeConfiguration<Appl
     {
         builder.HasQueryFilter(u => !u.IsDeleted);
 
+        builder.Property(u => u.PreferredLanguage).HasMaxLength(10);
+
         builder.HasIndex(u => u.CreatedAtUtc);
         builder.HasIndex(u => u.IsDeleted);
     }

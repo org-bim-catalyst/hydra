@@ -12,6 +12,7 @@ using AskLucy.Web.Contracts;
 using MediatR;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
+using AskLucy.Web.Localization;
 
 namespace AskLucy.Web.Controllers.v1;
 
@@ -21,6 +22,7 @@ namespace AskLucy.Web.Controllers.v1;
 /// <c>admin.notifications.manage</c>; each endpoint checks its own, so holding manage doesn't quietly grant more than it names.
 /// </summary>
 [ApiController]
+[LocalizedSurface]
 [EnableRateLimiting("admin-endpoints")]
 [Route("api/v1/admin/notifications")]
 public sealed class AdminNotificationsController(ISender mediator) : ControllerBase

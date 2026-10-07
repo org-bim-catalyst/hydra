@@ -1,0 +1,6 @@
+{
+  "name": "إنشاء ذاكرة",
+  "title": "تم حفظ ذاكرة جديدة",
+  "message": "تذكّرت Lucy: {{ memorySummary }}",
+  "actionLabel": "مراجعة الذاكرة"
+}

@@ -62,3 +62,9 @@ public sealed record TemplateVersionRequest(
 
 /// <summary>contracts/admin-notifications-api.md `POST …/actions/preview`. The body is optional.</summary>
 public sealed record PreviewTemplateRequest(IReadOnlyDictionary<string, string?>? Variables = null);
+
+/// <summary>contracts/notifications-api.md `PUT /users/me/localization`.</summary>
+public sealed record SetMyLanguageRequest(string? PreferredLanguage);
+
+/// <summary>contracts/admin-notifications-api.md `PUT /notifications/localization`.</summary>
+public sealed record UpdateLocalizationRequest(bool IsEnabled, IReadOnlyList<string>? SupportedLanguages);

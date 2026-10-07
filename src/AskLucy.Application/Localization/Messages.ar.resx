@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <resheader name="resmimetype"><value>text/microsoft-resx</value></resheader>
+  <resheader name="version"><value>2.0</value></resheader>
+  <resheader name="reader"><value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value></resheader>
+  <resheader name="writer"><value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value></resheader>
+  <data name="Problem.validation-failed.Title" xml:space="preserve"><value>فشل التحقق</value></data>
+  <data name="Problem.validation-failed.Detail" xml:space="preserve"><value>حقل واحد أو أكثر غير صالح.</value></data>
+  <data name="Problem.concurrency-conflict.Title" xml:space="preserve"><value>تعارض في التحديث</value></data>
+  <data name="Problem.concurrency-conflict.Detail" xml:space="preserve"><value>تم تعديل هذا العنصر بواسطة طلب آخر. يرجى إعادة التحميل والمحاولة مرة أخرى.</value></data>
+  <data name="Problem.forbidden.Title" xml:space="preserve"><value>غير مسموح</value></data>
+  <data name="Problem.forbidden.Detail" xml:space="preserve"><value>ليس لديك صلاحية تنفيذ هذا الإجراء.</value></data>
+  <data name="Problem.not-found.Title" xml:space="preserve"><value>غير موجود</value></data>
+  <data name="Problem.not-found.Detail" xml:space="preserve"><value>لم يتم العثور على العنصر المطلوب.</value></data>
+  <data name="Problem.internal-server-error.Title" xml:space="preserve"><value>حدث خطأ غير متوقع</value></data>
+  <data name="Problem.internal-server-error.Detail" xml:space="preserve"><value>حدث خطأ غير متوقع. يرجى المحاولة مرة أخرى.</value></data>
+  <data name="Problem.domain-rule-violation.Title" xml:space="preserve"><value>الطلب يخالف قاعدة عمل</value></data>
+  <data name="Problem.delivery-not-retryable.Title" xml:space="preserve"><value>لا يمكن إعادة محاولة هذا الإرسال</value></data>
+  <data name="Problem.delivery-not-retryable.Detail.NotFailed" xml:space="preserve"><value>لم يفشل هذا الإرسال، لذلك لا يمكن إعادة محاولته.</value></data>
+  <data name="Problem.delivery-not-retryable.Detail.NotificationDeleted" xml:space="preserve"><value>حذف صاحب الإشعار هذا الإشعار.</value></data>
+  <data name="Problem.delivery-not-retryable.Detail.NotificationExpired" xml:space="preserve"><value>انتهت صلاحية هذا الإشعار.</value></data>
+  <data name="Problem.delivery-not-retryable.Detail.RecipientDeleted" xml:space="preserve"><value>تم حذف حساب المستلم.</value></data>
+  <data name="Problem.notification-template-conflict.Title" xml:space="preserve"><value>تعارض في إصدار القالب</value></data>
+  <data name="Problem.notification-template-conflict.Detail.VersionNotDraft" xml:space="preserve"><value>يمكن تعديل المسودة فقط. أنشئ إصدارًا جديدًا بدلًا من ذلك.</value></data>
+  <data name="Problem.notification-template-conflict.Detail.VersionArchived" xml:space="preserve"><value>هذا الإصدار مؤرشف ولم يعد قابلًا للتعديل.</value></data>
+  <data name="Problem.notification-template-conflict.Detail.ConcurrencyConflict" xml:space="preserve"><value>تم تعديل إصدار القالب هذا بواسطة شخص آخر. أعد تحميله وحاول مرة أخرى.</value></data>
+  <data name="Problem.notification-template-conflict.Detail.LastPublishedDefault" xml:space="preserve"><value>يجب أن يكون لهذا القالب إصدار منشور دائمًا. انشر بديلًا بدلًا من ذلك.</value></data>
+  <data name="Problem.notification-template-rejected.Title" xml:space="preserve"><value>تم رفض القالب</value></data>
+  <data name="Problem.notification-preference-locked.Title" xml:space="preserve"><value>تفضيل الإشعار مقفل</value></data>
+  <data name="Problem.notification-preference-locked.Detail" xml:space="preserve"><value>بعض الإشعارات إلزامية ولا يمكن إيقافها.</value></data>
+  <data name="Problem.localization-rejected.Title" xml:space="preserve"><value>تم رفض تغيير اللغة</value></data>
+</root>

@@ -18,6 +18,7 @@ using AskLucy.Web.Contracts;
 using MediatR;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
+using AskLucy.Web.Localization;
 
 namespace AskLucy.Web.Controllers.v1;
 
@@ -31,6 +32,7 @@ namespace AskLucy.Web.Controllers.v1;
 /// <c>ClearDefaultModel</c> fields are a known interim gap — see that action's own doc comment.
 /// </summary>
 [ApiController]
+[LocalizedSurface]
 [EnableRateLimiting("admin-endpoints")]
 [Route("api/v1/admin/ai")]
 public sealed class AdminAiProvidersController(ISender mediator) : ControllerBase

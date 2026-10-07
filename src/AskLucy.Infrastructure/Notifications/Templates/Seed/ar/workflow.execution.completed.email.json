@@ -1,0 +1,12 @@
+{
+  "name": "اكتمال تشغيل سير العمل",
+  "subject": "{{ workflowName }} انتهى",
+  "preheader": "{{ workflowName }} انتهى.",
+  "greeting": "مرحبًا {{ recipientDisplayName }}،",
+  "heading": "انتهى سير عملك",
+  "bodyParagraphs": [
+    "{{ workflowName }} انتهى خلال {{ duration }}."
+  ],
+  "safetyNote": "تصلك هذه الرسالة لأن إشعارات البريد الإلكتروني مفعّلة لـتحديثات سير العمل. يمكنك تغيير ذلك من الإعدادات › الإشعارات.",
+  "actionLabel": "عرض التشغيل"
+}

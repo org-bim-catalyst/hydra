@@ -110,6 +110,9 @@ const AdminAnnouncementsPage = lazy(() =>
 const AdminNotificationTemplatesPage = lazy(() =>
   import('../features/admin/pages/AdminNotificationTemplatesPage').then((m) => ({ default: m.AdminNotificationTemplatesPage })),
 )
+const AdminLocalizationPage = lazy(() =>
+  import('../features/admin/pages/AdminLocalizationPage').then((m) => ({ default: m.AdminLocalizationPage })),
+)
 const AdminNotificationTemplateEditorPage = lazy(() =>
   import('../features/admin/pages/AdminNotificationTemplateEditorPage').then((m) => ({ default: m.AdminNotificationTemplateEditorPage })),
 )
@@ -691,6 +694,19 @@ const router = createBrowserRouter([
         <AdminRoute permission="admin.notifications.view">
           <Lazy>
             <AdminNotificationTemplatesPage />
+          </Lazy>
+        </AdminRoute>
+      </ProtectedRoute>
+    ),
+    errorElement: <ErrorPage />,
+  },
+  {
+    path: '/admin/notifications/localization',
+    element: (
+      <ProtectedRoute>
+        <AdminRoute permission="admin.notifications.view">
+          <Lazy>
+            <AdminLocalizationPage />
           </Lazy>
         </AdminRoute>
       </ProtectedRoute>

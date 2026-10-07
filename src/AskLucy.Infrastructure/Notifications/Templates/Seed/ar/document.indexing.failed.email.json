@@ -1,0 +1,12 @@
+{
+  "name": "فشل فهرسة المستند",
+  "subject": "تعذّرت فهرسة {{ documentName }}",
+  "preheader": "فشلت فهرسة {{ documentName }}.",
+  "greeting": "مرحبًا {{ recipientDisplayName }}،",
+  "heading": "تعذّرت فهرسة مستندك",
+  "bodyParagraphs": [
+    "فشلت فهرسة {{ documentName }}: {{ failureSummary }}"
+  ],
+  "safetyNote": "تصلك هذه الرسالة لأن إشعارات البريد الإلكتروني مفعّلة لـتحديثات المستندات. يمكنك تغيير ذلك من الإعدادات › الإشعارات.",
+  "actionLabel": "فتح المستند"
+}

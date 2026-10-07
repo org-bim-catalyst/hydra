@@ -152,16 +152,19 @@ public sealed class LogicFreeTemplateRenderer(
         }
 
         // The branded shell writes these into HTML as given, so every substituted text is encoded here
-        // exactly once. Subject, preheader and the button are encoded by the shell itself.
+        // exactly once. Subject, preheader and the button are encoded by the shell itself. Right-to-left
+        // output also isolates each protected name so the Arabic around it can't reorder it (SC-016).
+        var rightToLeft = DirectionOf(renderedLanguage) == "rtl";
+        string Html(string text) => rightToLeft ? ProtectedTerms.WrapInBdi(Encode(text)) : Encode(text);
         var content = new AccountEmailContent(
             Subject: subject,
             PreheaderText: preheader.Length > 0 ? preheader : subject,
-            Heading: Encode(heading),
-            BodyParagraphs: [.. paragraphs.Select(Encode)],
-            SafetyNote: Encode(safetyNote),
-            Greeting: greeting.Length > 0 ? Encode(greeting) : null,
+            Heading: Html(heading),
+            BodyParagraphs: [.. paragraphs.Select(Html)],
+            SafetyNote: Html(safetyNote),
+            Greeting: greeting.Length > 0 ? Html(greeting) : null,
             PrimaryAction: action,
-            FooterNote: footer.Length > 0 ? Encode(footer) : null);
+            FooterNote: footer.Length > 0 ? Html(footer) : null);
 
         var (html, text) = emailShell.Render(content, renderedLanguage, DirectionOf(renderedLanguage));
         return new RenderedEmail(subject, html, text, version.Id, renderedLanguage);

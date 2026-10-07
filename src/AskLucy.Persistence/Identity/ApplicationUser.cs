@@ -39,6 +39,12 @@ public sealed class ApplicationUser : IdentityUser
 
     public DateTime? DeletedAtUtc { get; set; }
 
+    /// <summary>
+    /// The interface and notification language the user chose (specs/067 FR-044b), a BCP-47 code. Kept even when the platform stops
+    /// supporting it, so re-enabling the language restores the choice. Not the AI response language (<c>UserVoicePreference.DefaultLanguage</c>).
+    /// </summary>
+    public string? PreferredLanguage { get; set; }
+
     public string? DeletedBy { get; set; }
 
     public ICollection<UserChat> UserChats { get; set; } = new List<UserChat>();

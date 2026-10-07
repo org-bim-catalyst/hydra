@@ -4033,6 +4033,61 @@ namespace AskLucy.Persistence.Migrations
                     b.ToTable("KnowledgeBaseTags", (string)null);
                 });
 
+            modelBuilder.Entity("AskLucy.Domain.Localization.LocalizationSetting", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("CreatedBy")
+                        .IsRequired()
+                        .HasMaxLength(450)
+                        .HasColumnType("nvarchar(450)");
+
+                    b.Property<DateTime?>("DeletedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("DeletedBy")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<bool>("IsEnabled")
+                        .HasColumnType("bit");
+
+                    b.Property<DateTime?>("ModifiedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("ModifiedBy")
+                        .HasMaxLength(450)
+                        .HasColumnType("nvarchar(450)");
+
+                    b.Property<byte[]>("RowVersion")
+                        .IsConcurrencyToken()
+                        .IsRequired()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("rowversion");
+
+                    b.Property<string>("SupportedLanguagesJson")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("LocalizationSettings", (string)null);
+
+                    b.HasData(
+                        new
+                        {
+                            Id = new Guid("0c6f4c2a-5b1e-4d3a-9a57-7a1f0b6c3e10"),
+                            CreatedAtUtc = new DateTime(2026, 10, 7, 0, 0, 0, 0, DateTimeKind.Utc),
+                            CreatedBy = "system",
+                            IsEnabled = false,
+                            SupportedLanguagesJson = "[\"en\"]"
+                        });
+                });
+
             modelBuilder.Entity("AskLucy.Domain.Mcp.McpAuditLog", b =>
                 {
                     b.Property<Guid>("Id")
@@ -9534,6 +9589,10 @@ namespace AskLucy.Persistence.Migrations
 
                     b.Property<bool>("PhoneNumberConfirmed")
                         .HasColumnType("bit");
+
+                    b.Property<string>("PreferredLanguage")
+                        .HasMaxLength(10)
+                        .HasColumnType("nvarchar(10)");
 
                     b.Property<string>("SecurityStamp")
                         .HasColumnType("nvarchar(max)");

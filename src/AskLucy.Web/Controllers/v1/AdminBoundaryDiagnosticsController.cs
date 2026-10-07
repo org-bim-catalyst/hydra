@@ -5,6 +5,7 @@ using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
+using AskLucy.Web.Localization;
 
 namespace AskLucy.Web.Controllers.v1;
 
@@ -20,6 +21,7 @@ namespace AskLucy.Web.Controllers.v1;
 /// boundary-resolution pipeline yet.
 /// </summary>
 [ApiController]
+[LocalizedSurface]
 [Authorize(Policy = "AdministratorOrSuperUser")]
 [EnableRateLimiting("admin-endpoints")]
 [Route("api/v1/admin/boundary-diagnostics")]

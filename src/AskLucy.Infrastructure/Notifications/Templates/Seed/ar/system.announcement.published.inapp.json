@@ -1,0 +1,6 @@
+{
+  "name": "إعلان النظام",
+  "title": "{{ announcementTitle }}",
+  "message": "{{ announcementMessage }}",
+  "actionLabel": "اقرأ المزيد"
+}

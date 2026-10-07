@@ -1,0 +1,6 @@
+{
+  "name": "فشل تشغيل الوكيل",
+  "title": "فشل تشغيل الوكيل",
+  "message": "تعذّر على {{ agentName }} إكمال مهمته: {{ failureSummary }}",
+  "actionLabel": "عرض التشغيل"
+}

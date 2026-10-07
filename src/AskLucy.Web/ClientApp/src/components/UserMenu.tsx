@@ -7,7 +7,8 @@ import type { ReactElement } from 'react'
 import { useNavigate } from 'react-router'
 import { useLogout } from '../features/auth/hooks/useAuth'
 import { useMyProfile } from '../features/profile/hooks/useProfile'
-import { useAccountMenuItems } from './account/useAccountMenuItems'
+import { LanguageSwitch, LanguageSwitchErrorToast } from '../features/settings/components/LanguageSwitch'
+import { useAccountMenuItems, useShowLanguageSwitch } from './account/useAccountMenuItems'
 import { overlaySurface } from '../theme/tokens/overlaySurface'
 import { zIndex } from '../theme/tokens/zIndex'
 
@@ -38,6 +39,7 @@ export function UserMenu({ renderTrigger }: UserMenuProps) {
   const { data: profile } = useMyProfile()
   const logout = useLogout()
   const items = useAccountMenuItems()
+  const showLanguageSwitch = useShowLanguageSwitch()
   const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null)
 
   const initials = profile?.firstName ? profile.firstName[0].toUpperCase() : (profile?.email?.[0].toUpperCase() ?? '?')
@@ -166,6 +168,12 @@ export function UserMenu({ renderTrigger }: UserMenuProps) {
           ))}
         </Box>
 
+        {showLanguageSwitch && (
+          <Box sx={{ p: 0.75, borderTop: (t) => `1px solid ${t.palette.divider}` }}>
+            <LanguageSwitch />
+          </Box>
+        )}
+
         <Box sx={{ p: 0.75, borderTop: (t) => `1px solid ${t.palette.divider}` }}>
           <MenuItem
             onClick={handleLogout}
@@ -185,6 +193,7 @@ export function UserMenu({ renderTrigger }: UserMenuProps) {
           </MenuItem>
         </Box>
       </Menu>
+      {showLanguageSwitch && <LanguageSwitchErrorToast />}
     </>
   )
 }

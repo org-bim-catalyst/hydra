@@ -1,0 +1,6 @@
+{
+  "name": "فشل فهرسة قاعدة المعرفة",
+  "title": "فشلت فهرسة قاعدة المعرفة",
+  "message": "تعذّرت فهرسة أحد المستندات في {{ knowledgeBaseName }}: {{ failureSummary }}",
+  "actionLabel": "فتح قاعدة المعرفة"
+}

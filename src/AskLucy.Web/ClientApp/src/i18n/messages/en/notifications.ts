@@ -1,0 +1,91 @@
+import type { MessageTree } from '../../types'
+
+/** The notification center, details, preferences and the language switch (contracts/localization-ui.md). */
+export const enNotifications = {
+  center: {
+    title: 'Notifications',
+    subtitle: 'Everything Lucy has told you — review, filter, or act on any of it.',
+    listLabel: 'Notifications',
+    markAllRead: 'Mark all read',
+    viewAll: 'View all',
+    loadFailed: "Couldn't load notifications.",
+    loadingMore: 'Loading more…',
+    empty: { title: 'No notifications', description: "You're all caught up." },
+    unread: 'Unread',
+    justNow: 'just now',
+    today: 'Today',
+    yesterday: 'Yesterday',
+    filters: {
+      all: 'All',
+      unread: 'Unread',
+      read: 'Read',
+      category: 'Category',
+      categoryAria: 'Filter by category',
+      allCategories: 'All categories',
+      listSeparator: ', ',
+    },
+  },
+  bell: {
+    label: 'Notifications',
+    labelUnread: {
+      one: 'Notifications, {count} unread',
+      other: 'Notifications, {count} unread',
+    },
+  },
+  categories: {
+    Security: 'Security',
+    Account: 'Account',
+    Agent: 'Agent',
+    Workflow: 'Workflow',
+    Document: 'Document',
+    KnowledgeBase: 'Knowledge base',
+    Memory: 'Memory',
+    System: 'System',
+    Billing: 'Billing',
+    Conversation: 'Conversation',
+  },
+  priorities: {
+    Low: 'Low',
+    Normal: 'Normal',
+    High: 'High',
+    Critical: 'Critical',
+  },
+  details: {
+    loadFailed: 'This notification could not be loaded.',
+    markRead: 'Mark as read',
+  },
+  approval: {
+    decided: 'This approval has already been decided.',
+    notFound: 'This approval could not be found.',
+  },
+  preferences: {
+    title: 'Notifications',
+    description:
+      'Choose where you want to hear about each kind of event. Security and account notifications are required, so they stay on.',
+    tableLabel: 'Notification preferences',
+    loadingLabel: 'Loading notification preferences',
+    columns: { category: 'Category', frequency: 'Frequency' },
+    categories: {
+      Security: 'Security',
+      Account: 'Account',
+      Agent: 'Agents',
+      Workflow: 'Workflows',
+      Document: 'Documents',
+      KnowledgeBase: 'Knowledge bases',
+      Memory: 'Memory',
+      System: 'System announcements',
+      Billing: 'Billing',
+      Conversation: 'Conversations',
+    },
+    channels: { InApp: 'In-app', Email: 'Email' },
+    frequencyImmediate: 'Immediate',
+    locked: "Required: these notifications can't be turned off.",
+    notSentBy: '{category} notifications are not sent by {channel}',
+    switchLabel: '{category} notifications by {channel}',
+    saveFailed: "Your change wasn't saved. {detail}",
+  },
+  language: {
+    label: 'Language',
+    changeFailed: "Couldn't change the language. {detail}",
+  },
+} satisfies MessageTree
