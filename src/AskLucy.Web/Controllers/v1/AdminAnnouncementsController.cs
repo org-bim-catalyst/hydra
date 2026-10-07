@@ -18,14 +18,21 @@ namespace AskLucy.Web.Controllers.v1;
 [LocalizedSurface]
 [EnableRateLimiting("admin-endpoints")]
 [Route("api/v1/admin/notifications/announcements")]
+[ProducesResponseType<ProblemDetails>(StatusCodes.Status401Unauthorized)]
+[ProducesResponseType<ProblemDetails>(StatusCodes.Status403Forbidden)]
+[ProducesResponseType<ProblemDetails>(StatusCodes.Status429TooManyRequests)]
 public sealed class AdminAnnouncementsController(ISender mediator) : ControllerBase
 {
+    [ProducesResponseType<AdminPage<AdminAnnouncementDto>>(StatusCodes.Status200OK)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status400BadRequest)]
     [HttpGet]
     [RequirePermission("admin.notifications.view")]
     public async Task<ActionResult<AdminPage<AdminAnnouncementDto>>> GetAnnouncements(
         [FromQuery] string? cursor, [FromQuery] int limit = 25, CancellationToken cancellationToken = default) =>
         Ok(await mediator.Send(new GetSystemAnnouncementsQuery(cursor, limit), cancellationToken));
 
+    [ProducesResponseType<PublishedAnnouncementDto>(StatusCodes.Status201Created)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status422UnprocessableEntity)]
     [HttpPost]
     [RequirePermission("admin.notifications.manage")]
     public async Task<IActionResult> Publish([FromBody] PublishAnnouncementRequest request, CancellationToken cancellationToken)

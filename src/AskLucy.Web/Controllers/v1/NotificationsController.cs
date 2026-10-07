@@ -23,8 +23,12 @@ namespace AskLucy.Web.Controllers.v1;
 [Authorize]
 [EnableRateLimiting("notifications-endpoints")]
 [Route("api/v1/notifications")]
+[ProducesResponseType<ProblemDetails>(StatusCodes.Status401Unauthorized)]
+[ProducesResponseType<ProblemDetails>(StatusCodes.Status429TooManyRequests)]
 public sealed class NotificationsController(ISender mediator) : ControllerBase
 {
+    [ProducesResponseType<PagedResult<NotificationListItemDto>>(StatusCodes.Status200OK)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status400BadRequest)]
     [HttpGet]
     public async Task<ActionResult<PagedResult<NotificationListItemDto>>> GetNotifications(
         [FromQuery] string? cursor = null,
@@ -34,14 +38,19 @@ public sealed class NotificationsController(ISender mediator) : ControllerBase
         CancellationToken cancellationToken = default) =>
         Ok(await mediator.Send(new GetNotificationsQuery(cursor, limit, category, state), cancellationToken));
 
+    [ProducesResponseType<UnreadNotificationCountResponse>(StatusCodes.Status200OK)]
     [HttpGet("unread-count")]
     public async Task<ActionResult<UnreadNotificationCountResponse>> GetUnreadCount(CancellationToken cancellationToken) =>
         Ok(new UnreadNotificationCountResponse(await mediator.Send(new GetUnreadNotificationCountQuery(), cancellationToken)));
 
+    [ProducesResponseType<NotificationDetailDto>(StatusCodes.Status200OK)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status404NotFound)]
     [HttpGet("{id:guid}")]
     public async Task<ActionResult<NotificationDetailDto>> GetNotification(Guid id, CancellationToken cancellationToken) =>
         Ok(await mediator.Send(new GetNotificationQuery(id), cancellationToken));
 
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status404NotFound)]
     [HttpPost("{id:guid}/actions/mark-read")]
     public async Task<IActionResult> MarkRead(Guid id, CancellationToken cancellationToken)
     {
@@ -49,6 +58,8 @@ public sealed class NotificationsController(ISender mediator) : ControllerBase
         return NoContent();
     }
 
+    [ProducesResponseType<MarkAllNotificationsReadResponse>(StatusCodes.Status200OK)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status400BadRequest)]
     [HttpPost("actions/mark-all-read")]
     public async Task<ActionResult<MarkAllNotificationsReadResponse>> MarkAllRead(MarkAllNotificationsReadRequest? request, CancellationToken cancellationToken)
     {
@@ -56,6 +67,8 @@ public sealed class NotificationsController(ISender mediator) : ControllerBase
         return Ok(new MarkAllNotificationsReadResponse(updated));
     }
 
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status404NotFound)]
     [HttpDelete("{id:guid}")]
     public async Task<IActionResult> Delete(Guid id, CancellationToken cancellationToken)
     {

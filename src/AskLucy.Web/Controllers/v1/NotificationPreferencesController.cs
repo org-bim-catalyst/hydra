@@ -16,12 +16,17 @@ namespace AskLucy.Web.Controllers.v1;
 [Authorize]
 [EnableRateLimiting("notifications-endpoints")]
 [Route("api/v1/users/me/notification-preferences")]
+[ProducesResponseType<ProblemDetails>(StatusCodes.Status401Unauthorized)]
+[ProducesResponseType<ProblemDetails>(StatusCodes.Status429TooManyRequests)]
 public sealed class NotificationPreferencesController(ISender mediator) : ControllerBase
 {
+    [ProducesResponseType<NotificationPreferencesDto>(StatusCodes.Status200OK)]
     [HttpGet]
     public async Task<ActionResult<NotificationPreferencesDto>> Get(CancellationToken cancellationToken) =>
         Ok(await mediator.Send(new GetNotificationPreferencesQuery(), cancellationToken));
 
+    [ProducesResponseType<NotificationPreferencesDto>(StatusCodes.Status200OK)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status422UnprocessableEntity)]
     [HttpPut]
     public async Task<ActionResult<NotificationPreferencesDto>> Update(
         [FromBody] UpdateNotificationPreferencesRequest request, CancellationToken cancellationToken)

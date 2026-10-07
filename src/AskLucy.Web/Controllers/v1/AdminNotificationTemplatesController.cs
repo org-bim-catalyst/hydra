@@ -27,8 +27,12 @@ namespace AskLucy.Web.Controllers.v1;
 [LocalizedSurface]
 [EnableRateLimiting("admin-endpoints")]
 [Route("api/v1/admin/notifications/templates")]
+[ProducesResponseType<ProblemDetails>(StatusCodes.Status401Unauthorized)]
+[ProducesResponseType<ProblemDetails>(StatusCodes.Status403Forbidden)]
+[ProducesResponseType<ProblemDetails>(StatusCodes.Status429TooManyRequests)]
 public sealed class AdminNotificationTemplatesController(ISender mediator) : ControllerBase
 {
+    [ProducesResponseType<IReadOnlyList<NotificationTemplateSummaryDto>>(StatusCodes.Status200OK)]
     [HttpGet]
     [RequirePermission("admin.notifications.view")]
     public async Task<ActionResult<IReadOnlyList<NotificationTemplateSummaryDto>>> List(
@@ -39,16 +43,23 @@ public sealed class AdminNotificationTemplatesController(ISender mediator) : Con
         CancellationToken cancellationToken) =>
         Ok(await mediator.Send(new GetNotificationTemplatesQuery(category, channel, language, type), cancellationToken));
 
+    [ProducesResponseType<NotificationTemplateDetailDto>(StatusCodes.Status200OK)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status404NotFound)]
     [HttpGet("{templateId:guid}")]
     [RequirePermission("admin.notifications.view")]
     public async Task<ActionResult<NotificationTemplateDetailDto>> Get(Guid templateId, CancellationToken cancellationToken) =>
         Ok(await mediator.Send(new GetNotificationTemplateQuery(templateId), cancellationToken));
 
+    [ProducesResponseType<TemplateVersionDto>(StatusCodes.Status200OK)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status404NotFound)]
     [HttpGet("{templateId:guid}/versions/{versionId:guid}")]
     [RequirePermission("admin.notifications.view")]
     public async Task<ActionResult<TemplateVersionDto>> GetVersion(Guid templateId, Guid versionId, CancellationToken cancellationToken) =>
         Ok(await mediator.Send(new GetNotificationTemplateVersionQuery(templateId, versionId), cancellationToken));
 
+    [ProducesResponseType<TemplateVersionDto>(StatusCodes.Status201Created)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status404NotFound)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status422UnprocessableEntity)]
     [HttpPost("{templateId:guid}/versions")]
     [RequirePermission("admin.notifications.manage")]
     public async Task<ActionResult<TemplateVersionDto>> CreateDraft(
@@ -58,6 +69,11 @@ public sealed class AdminNotificationTemplatesController(ISender mediator) : Con
         return Created($"/api/v1/admin/notifications/templates/{templateId}/versions/{result.Id}", result);
     }
 
+    [ProducesResponseType<TemplateVersionDto>(StatusCodes.Status200OK)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status404NotFound)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status409Conflict)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status422UnprocessableEntity)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status428PreconditionRequired)]
     [HttpPut("{templateId:guid}/versions/{versionId:guid}")]
     [RequirePermission("admin.notifications.manage")]
     public async Task<ActionResult<TemplateVersionDto>> UpdateDraft(
@@ -72,18 +88,28 @@ public sealed class AdminNotificationTemplatesController(ISender mediator) : Con
             new UpdateTemplateDraftCommand(templateId, versionId, ToContent(request) ?? new NotificationTemplateContent(), rowVersion), cancellationToken));
     }
 
+    [ProducesResponseType<TemplatePreviewDto>(StatusCodes.Status200OK)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status404NotFound)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status422UnprocessableEntity)]
     [HttpPost("{templateId:guid}/versions/{versionId:guid}/actions/preview")]
     [RequirePermission("admin.notifications.view")]
     public async Task<ActionResult<TemplatePreviewDto>> Preview(
         Guid templateId, Guid versionId, [FromBody] PreviewTemplateRequest? request, CancellationToken cancellationToken) =>
         Ok(await mediator.Send(new PreviewTemplateVersionQuery(templateId, versionId, request?.Variables), cancellationToken));
 
+    [ProducesResponseType<SendTemplateTestResult>(StatusCodes.Status202Accepted)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status404NotFound)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status422UnprocessableEntity)]
     [HttpPost("{templateId:guid}/versions/{versionId:guid}/actions/send-test")]
     [RequirePermission("admin.notifications.manage")]
     [EnableRateLimiting("notifications-test-send")]
     public async Task<IActionResult> SendTest(Guid templateId, Guid versionId, CancellationToken cancellationToken) =>
         Accepted(await mediator.Send(new SendTemplateTestCommand(templateId, versionId), cancellationToken));
 
+    [ProducesResponseType<TemplateVersionDto>(StatusCodes.Status200OK)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status404NotFound)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status409Conflict)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status428PreconditionRequired)]
     [HttpPost("{templateId:guid}/versions/{versionId:guid}/actions/publish")]
     [RequirePermission("admin.notifications.manage")]
     public async Task<ActionResult<TemplateVersionDto>> Publish(Guid templateId, Guid versionId, CancellationToken cancellationToken) =>
@@ -91,6 +117,10 @@ public sealed class AdminNotificationTemplatesController(ISender mediator) : Con
             ? Ok(await mediator.Send(new PublishTemplateVersionCommand(templateId, versionId, rowVersion), cancellationToken))
             : IfMatchRequired();
 
+    [ProducesResponseType<TemplateVersionDto>(StatusCodes.Status200OK)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status404NotFound)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status409Conflict)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status428PreconditionRequired)]
     [HttpPost("{templateId:guid}/versions/{versionId:guid}/actions/archive")]
     [RequirePermission("admin.notifications.manage")]
     public async Task<ActionResult<TemplateVersionDto>> Archive(Guid templateId, Guid versionId, CancellationToken cancellationToken) =>

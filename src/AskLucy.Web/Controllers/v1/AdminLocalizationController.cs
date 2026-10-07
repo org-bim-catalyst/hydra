@@ -18,13 +18,21 @@ namespace AskLucy.Web.Controllers.v1;
 [LocalizedSurface]
 [EnableRateLimiting("admin-endpoints")]
 [Route("api/v1/admin/notifications/localization")]
+[ProducesResponseType<ProblemDetails>(StatusCodes.Status401Unauthorized)]
+[ProducesResponseType<ProblemDetails>(StatusCodes.Status403Forbidden)]
+[ProducesResponseType<ProblemDetails>(StatusCodes.Status429TooManyRequests)]
 public sealed class AdminLocalizationController(ISender mediator) : ControllerBase
 {
+    [ProducesResponseType<AdminLocalizationDto>(StatusCodes.Status200OK)]
     [HttpGet]
     [RequirePermission("admin.notifications.view")]
     public async Task<ActionResult<AdminLocalizationDto>> Get(CancellationToken cancellationToken) =>
         Ok(await mediator.Send(new GetLocalizationSettingsQuery(), cancellationToken));
 
+    [ProducesResponseType<AdminLocalizationDto>(StatusCodes.Status200OK)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status409Conflict)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status422UnprocessableEntity)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status428PreconditionRequired)]
     [HttpPut]
     [RequirePermission("admin.notifications.manage")]
     public async Task<ActionResult<AdminLocalizationDto>> Update([FromBody] UpdateLocalizationRequest request, CancellationToken cancellationToken)
