@@ -3006,9 +3006,9 @@
     "semantic_hash": ""
   },
   "src/AskLucy.Application/DependencyInjection.cs": {
-    "mtime": 1791312283.3002253,
-    "seen": 1791312376.42866,
-    "ast_hash": "59b0427a4ea940a84b61ebc7e6f32beb",
+    "mtime": 1791340936.0455189,
+    "seen": 1791343295.0802824,
+    "ast_hash": "580d5d129f949ffe15701f71b30de4e1",
     "semantic_hash": ""
   },
   "src/AskLucy.Application/Documents/Authorization/DocumentFolderOwnershipGuard.cs": {
@@ -8034,9 +8034,9 @@
     "semantic_hash": ""
   },
   "src/AskLucy.Infrastructure/DependencyInjection.cs": {
-    "mtime": 1791312283.3167796,
-    "seen": 1791312376.4306378,
-    "ast_hash": "ba5628f62c062b6951e750299b926744",
+    "mtime": 1791343196.63335,
+    "seen": 1791343295.081425,
+    "ast_hash": "4bf0188c9061874d0d4a2f2385886984",
     "semantic_hash": ""
   },
   "src/AskLucy.Infrastructure/Documents/AiDocumentLanguageAndClassifier.cs": {
@@ -9210,9 +9210,9 @@
     "semantic_hash": "76c37d2e51f4289eb966b8ab7f892d53"
   },
   "src/AskLucy.Persistence/DependencyInjection.cs": {
-    "mtime": 1791220192.9668603,
-    "seen": 1791223260.6379437,
-    "ast_hash": "d5af2595e5d8f977495e2a179e0b0957",
+    "mtime": 1791340936.0642715,
+    "seen": 1791343295.0819778,
+    "ast_hash": "3784a93eb68f3cbdbd3461b9cf27bec3",
     "semantic_hash": ""
   },
   "src/AskLucy.Persistence/HealthChecks/PendingMigrationsHealthCheck.cs": {
@@ -10506,9 +10506,9 @@
     "semantic_hash": "4edcd688ab0282d0371f9ee6dda03995"
   },
   "src/AskLucy.Web/ClientApp/src/features/admin/adminNav.tsx": {
-    "mtime": 1791221262.6090384,
-    "seen": 1791223260.6382337,
-    "ast_hash": "8bb214536bb20ef5511a6bc968e1a16f",
+    "mtime": 1791343196.6343484,
+    "seen": 1791343295.0824397,
+    "ast_hash": "9c5b3fa762f5c3f5670e6c7747d46380",
     "semantic_hash": ""
   },
   "src/AskLucy.Web/ClientApp/src/features/admin/adminPermissions.ts": {
@@ -13446,9 +13446,9 @@
     "semantic_hash": "8ec7f952fec930c6bb6853c0ad158b56"
   },
   "src/AskLucy.Web/ClientApp/src/routes/router.tsx": {
-    "mtime": 1791221274.181523,
-    "seen": 1791223260.6388812,
-    "ast_hash": "f4d9d6b9da2e03fc27e669a66779a921",
+    "mtime": 1791343196.63741,
+    "seen": 1791343295.083329,
+    "ast_hash": "6ddab6c9944e46c5c023bbca55143a97",
     "semantic_hash": ""
   },
   "src/AskLucy.Web/ClientApp/src/setupTests.ts": {
@@ -14790,15 +14790,15 @@
     "semantic_hash": ""
   },
   "src/AskLucy.Web/Middleware/ProblemDetailsMiddleware.cs": {
-    "mtime": 1791312283.3533823,
-    "seen": 1791312376.4342697,
-    "ast_hash": "5e112aa655db8e84210b4188001d14a6",
+    "mtime": 1791343196.6384077,
+    "seen": 1791343295.0836263,
+    "ast_hash": "ccd09ee4ada4ddabbd9dbb10eecf791d",
     "semantic_hash": ""
   },
   "src/AskLucy.Web/Program.cs": {
-    "mtime": 1791312283.354382,
-    "seen": 1791312376.4342716,
-    "ast_hash": "cc594e009b0cdc201bbc119940de1008",
+    "mtime": 1791343196.6394083,
+    "seen": 1791343295.0836272,
+    "ast_hash": "d3bc9f26cbbc67365d1080ea9d4ed696",
     "semantic_hash": ""
   },
   "src/AskLucy.Web/Properties/launchSettings.json": {
@@ -14808,8 +14808,8 @@
     "semantic_hash": "23dfd8401c11de988e170f3408294466"
   },
   "src/AskLucy.Web/appsettings.json": {
-    "mtime": 1791314170.3636692,
-    "seen": 1791314260.2716787,
+    "mtime": 1791343197.8885503,
+    "seen": 1791343295.0836315,
     "ast_hash": "4cff3fda842c533c57129880e94939c2",
     "semantic_hash": ""
   },
@@ -17742,9 +17742,9 @@
     "semantic_hash": "fa4178ed4efc64ab729643a5536708f5"
   },
   "tests/AskLucy.Web.Tests/AskLucy.Web.Tests.csproj": {
-    "mtime": 1790179900.2178867,
-    "seen": 1790190400.327816,
-    "ast_hash": "875dfab62b91213c6040f236a22e9856",
+    "mtime": 1791340936.080697,
+    "seen": 1791343295.0843744,
+    "ast_hash": "cb2c9cf648ab31e3ce5c549fb8eee200",
     "semantic_hash": ""
   },
   "tests/AskLucy.Web.Tests/Auth/AccountManagementTests.cs": {
@@ -19464,8 +19464,8 @@
     "semantic_hash": ""
   },
   ".specify/feature.json": {
-    "mtime": 1791314170.080446,
-    "seen": 1791314260.267986,
+    "mtime": 1791343197.6283462,
+    "seen": 1791343295.0794678,
     "ast_hash": "28301814a1a98a02409cc11a87dc092b",
     "semantic_hash": ""
   },
@@ -24600,9 +24600,9 @@
     "semantic_hash": ""
   },
   "specs/067-notifications-communication-hub/contracts/admin-notifications-api.md": {
-    "mtime": 1790114390.6699247,
-    "seen": 1790114479.7202919,
-    "ast_hash": "bc1cb8a4d2bc9e875b9cfd717f1fd39d",
+    "mtime": 1791343196.619688,
+    "seen": 1791343295.086015,
+    "ast_hash": "fc08e84c1ebadabef141df2ac1eedf6b",
     "semantic_hash": ""
   },
   "specs/067-notifications-communication-hub/contracts/notification-hub.md": {
@@ -24618,9 +24618,9 @@
     "semantic_hash": ""
   },
   "specs/067-notifications-communication-hub/data-model.md": {
-    "mtime": 1791312283.2907114,
-    "seen": 1791312376.4371736,
-    "ast_hash": "e7928f90cd6d296f83bbd4933a77f916",
+    "mtime": 1791343196.6207511,
+    "seen": 1791343295.08602,
+    "ast_hash": "dc34031e7abb4a1991233d4849176d10",
     "semantic_hash": ""
   },
   "specs/067-notifications-communication-hub/plan.md": {
@@ -24966,9 +24966,9 @@
     "semantic_hash": ""
   },
   "specs/067-notifications-communication-hub/tasks.md": {
-    "mtime": 1791312283.2927134,
-    "seen": 1791312376.4371862,
-    "ast_hash": "ca2a7db68453524ebe29f0fb79fa4ee9",
+    "mtime": 1791343196.622295,
+    "seen": 1791343295.0860257,
+    "ast_hash": "c7d4b47da3ad97c26545c9c00510148b",
     "semantic_hash": ""
   },
   "specs/068-honest-retry-offer-card/contracts/offer-card-presentation.md": {
@@ -27732,8 +27732,8 @@
     "semantic_hash": ""
   },
   "specs/078-restore-local-whisper/tasks.md": {
-    "mtime": 1791314170.3626637,
-    "seen": 1791314260.2733617,
+    "mtime": 1791343197.8875382,
+    "seen": 1791343295.0860994,
     "ast_hash": "99fa892a13fdd9a93089fdd149afc8cf",
     "semantic_hash": ""
   },
@@ -28008,9 +28008,9 @@
     "semantic_hash": ""
   },
   "src/AskLucy.Domain/Notifications/NotificationTemplate.cs": {
-    "mtime": 1790532809.7576044,
-    "seen": 1790567584.0551066,
-    "ast_hash": "001cedb2f8ef1cb6fa833ed719cd9a7a",
+    "mtime": 1791343196.6323462,
+    "seen": 1791343295.0812483,
+    "ast_hash": "40fcca5330db104129794317115b60d6",
     "semantic_hash": ""
   },
   "src/AskLucy.Domain/Notifications/NotificationTemplateVersion.cs": {
@@ -28020,9 +28020,9 @@
     "semantic_hash": ""
   },
   "src/AskLucy.Domain/Notifications/NotificationTypeCatalog.cs": {
-    "mtime": 1791312283.3167796,
-    "seen": 1791312376.4302716,
-    "ast_hash": "55195daf11449b33e528b32c0cae2f1a",
+    "mtime": 1791340936.0622697,
+    "seen": 1791343295.081251,
+    "ast_hash": "9a4ea02e5e58a18a5acca7748945b4e0",
     "semantic_hash": ""
   },
   "src/AskLucy.Domain/Notifications/NotificationTypeDefinition.cs": {
@@ -28194,9 +28194,9 @@
     "semantic_hash": ""
   },
   "src/AskLucy.Application/Notifications/Abstractions/INotificationOutboxStore.cs": {
-    "mtime": 1791312283.3022237,
-    "seen": 1791312376.4290664,
-    "ast_hash": "4ece61634959f1fc721e2ecf5bd4f89e",
+    "mtime": 1791340936.0470035,
+    "seen": 1791343295.080575,
+    "ast_hash": "a331060ecd0b6f863814e44684fea32e",
     "semantic_hash": ""
   },
   "src/AskLucy.Application/Notifications/Abstractions/INotificationPreferenceRepository.cs": {
@@ -28218,27 +28218,27 @@
     "semantic_hash": ""
   },
   "src/AskLucy.Application/Notifications/Abstractions/INotificationRecipientDirectory.cs": {
-    "mtime": 1791312283.3037302,
-    "seen": 1791312376.4290707,
-    "ast_hash": "52ae6b00dc80a5434ec61e5600522a2b",
+    "mtime": 1791340936.0470035,
+    "seen": 1791343295.080579,
+    "ast_hash": "b3b197e222d32138d8cb17e52bb95b7a",
     "semantic_hash": ""
   },
   "src/AskLucy.Application/Notifications/Abstractions/INotificationRepository.cs": {
-    "mtime": 1791312283.3047366,
-    "seen": 1791312376.4290714,
-    "ast_hash": "70eed21694b8970a08289d035604e4eb",
+    "mtime": 1791340936.0480092,
+    "seen": 1791343295.0805798,
+    "ast_hash": "ac17eab385030802832d855c0c0eed6e",
     "semantic_hash": ""
   },
   "src/AskLucy.Application/Notifications/Abstractions/INotificationTemplateRenderer.cs": {
-    "mtime": 1791312283.3057365,
-    "seen": 1791312376.4290721,
-    "ast_hash": "4d0548268a1e5af6c7a8e678307accf6",
+    "mtime": 1791343196.6233382,
+    "seen": 1791343295.080582,
+    "ast_hash": "375b187ab3c0f400dbb2979fd5c5bbe2",
     "semantic_hash": ""
   },
   "src/AskLucy.Application/Notifications/Abstractions/INotificationTemplateRepository.cs": {
-    "mtime": 1790587120.174121,
-    "seen": 1790588725.9929934,
-    "ast_hash": "7cb0dbe355493c4aebde0868eb220def",
+    "mtime": 1791343196.6233382,
+    "seen": 1791343295.080583,
+    "ast_hash": "ea22f5fc48b64c9c84551a6adb52c4de",
     "semantic_hash": ""
   },
   "src/AskLucy.Application/Notifications/Abstractions/INotificationWakeSignal.cs": {
@@ -28272,15 +28272,15 @@
     "semantic_hash": ""
   },
   "src/AskLucy.Application/Notifications/Processing/NotificationDispatchLog.cs": {
-    "mtime": 1791312283.3112607,
-    "seen": 1791312376.4291055,
-    "ast_hash": "738b614418c5507edd2bcf06d5a5d17b",
+    "mtime": 1791340936.054998,
+    "seen": 1791343295.0806441,
+    "ast_hash": "196d1daa033d7bbdc3f9015b03646ed8",
     "semantic_hash": ""
   },
   "src/AskLucy.Application/Notifications/Processing/NotificationMaterializer.cs": {
-    "mtime": 1791312283.3112607,
-    "seen": 1791312376.4291067,
-    "ast_hash": "ba082c25961b59b0f732a79e2ea0ef6c",
+    "mtime": 1791340936.054998,
+    "seen": 1791343295.080645,
+    "ast_hash": "e088eb874979b562c007eea250f25ebe",
     "semantic_hash": ""
   },
   "src/AskLucy.Application/Notifications/Processing/OutboxDispatchService.cs": {
@@ -28290,9 +28290,9 @@
     "semantic_hash": ""
   },
   "src/AskLucy.Application/Notifications/Processing/OutboxEventProcessor.cs": {
-    "mtime": 1791312283.3122623,
-    "seen": 1791312376.4291096,
-    "ast_hash": "5f9999eadc109e9dfc9fd0287b5b5b45",
+    "mtime": 1791340936.055998,
+    "seen": 1791343295.0806484,
+    "ast_hash": "3a4b5782230444f8a100a9be775bd503",
     "semantic_hash": ""
   },
   "src/AskLucy.Domain/CustomModels/CustomModelSelectedForLocalWhisperException.cs": {
@@ -28344,9 +28344,9 @@
     "semantic_hash": ""
   },
   "tests/AskLucy.Application.Tests/Notifications/OutboxDispatchServiceTests.cs": {
-    "mtime": 1791312283.3632226,
-    "seen": 1791312376.43481,
-    "ast_hash": "86aef6398615ac961b4310d11537f5fe",
+    "mtime": 1791340936.0786963,
+    "seen": 1791343295.083951,
+    "ast_hash": "dd0c58e140231ab997a23ad01553da3b",
     "semantic_hash": ""
   },
   "tests/AskLucy.Infrastructure.Tests/Ai/LocalWhisper/LocalWhisperModelCatalogTests.cs": {
@@ -28428,9 +28428,9 @@
     "semantic_hash": ""
   },
   "src/AskLucy.Infrastructure/Notifications/Templates/LogicFreeTemplateRenderer.cs": {
-    "mtime": 1791312283.324295,
-    "seen": 1791312376.4307675,
-    "ast_hash": "6c7dc68a00bf2233becb3c6dfae11701",
+    "mtime": 1791343196.63335,
+    "seen": 1791343295.081494,
+    "ast_hash": "52d20a601eb6c5f2768e66f50e6d00c3",
     "semantic_hash": ""
   },
   "src/AskLucy.Infrastructure/Notifications/Templates/NotificationTemplateSeeder.cs": {
@@ -28608,9 +28608,9 @@
     "semantic_hash": ""
   },
   "src/AskLucy.Infrastructure/Notifications/Workers/NotificationWorkerHeartbeats.cs": {
-    "mtime": 1791312283.335472,
-    "seen": 1791312376.4308429,
-    "ast_hash": "7b13740dc4c67d7ed1a6a5ec3f219fc0",
+    "mtime": 1791340936.0642715,
+    "seen": 1791343295.0815575,
+    "ast_hash": "c4a35ad278337cf358bcc3a11f04bcb8",
     "semantic_hash": ""
   },
   "src/AskLucy.Persistence/Configurations/Notifications/NotificationAuditLogConfiguration.cs": {
@@ -28686,9 +28686,9 @@
     "semantic_hash": ""
   },
   "src/AskLucy.Persistence/Repositories/NotificationOutboxStore.cs": {
-    "mtime": 1791312283.335472,
-    "seen": 1791312376.4322727,
-    "ast_hash": "b9d4554de452d2684bfeeed1c8ebf4eb",
+    "mtime": 1791340936.0662868,
+    "seen": 1791343295.082135,
+    "ast_hash": "b32e7ddfeb3b69f16ac3699fabf30ec3",
     "semantic_hash": ""
   },
   "src/AskLucy.Persistence/Repositories/NotificationPreferenceRepository.cs": {
@@ -28698,21 +28698,21 @@
     "semantic_hash": ""
   },
   "src/AskLucy.Persistence/Repositories/NotificationRecipientDirectory.cs": {
-    "mtime": 1791312283.335472,
-    "seen": 1791312376.4322772,
-    "ast_hash": "54ed34a6855609e7db42c9a2f592dfeb",
+    "mtime": 1791340936.0662868,
+    "seen": 1791343295.082137,
+    "ast_hash": "7b55753c3ecaf8b7c6e14d9788312c25",
     "semantic_hash": ""
   },
   "src/AskLucy.Persistence/Repositories/NotificationRepository.cs": {
-    "mtime": 1791312283.337223,
-    "seen": 1791312376.4322793,
-    "ast_hash": "0d9f8de9117a87bd31f5b77788851055",
+    "mtime": 1791340936.0662868,
+    "seen": 1791343295.0821378,
+    "ast_hash": "c0c7406fe3b739b83621ea2b427fbf26",
     "semantic_hash": ""
   },
   "src/AskLucy.Persistence/Repositories/NotificationTemplateRepository.cs": {
-    "mtime": 1790740139.6728263,
-    "seen": 1790740564.9356709,
-    "ast_hash": "aa19888d4c1793103142bdcac17be244",
+    "mtime": 1791343196.6343484,
+    "seen": 1791343295.0821402,
+    "ast_hash": "379744f7e09bd6e1c2b5079d7d54313f",
     "semantic_hash": ""
   },
   "src/AskLucy.Web/ClientApp/src/features/admin/api/adminVoiceApi.test.ts": {
@@ -28914,9 +28914,9 @@
     "semantic_hash": ""
   },
   "src/AskLucy.Web/Contracts/NotificationContracts.cs": {
-    "mtime": 1791312283.3523834,
-    "seen": 1791312376.4341486,
-    "ast_hash": "2ce00d112840cd1802d39f347810559e",
+    "mtime": 1791343196.6384077,
+    "seen": 1791343295.0835629,
+    "ast_hash": "d26e721479410bc9394c10330830d8af",
     "semantic_hash": ""
   },
   "src/AskLucy.Web/Controllers/v1/NotificationsController.cs": {
@@ -29400,8 +29400,8 @@
     "semantic_hash": ""
   },
   "src/AskLucy.Web/ClientApp/src/viewer/siteBoundaryEdit/siteBoundaryEditStore.ts": {
-    "mtime": 1791313417.068725,
-    "seen": 1791314260.27159,
+    "mtime": 1791314966.8332717,
+    "seen": 1791343295.0835319,
     "ast_hash": "08dd24512a17881d0f781e52f3c594f8",
     "semantic_hash": ""
   },
@@ -29490,15 +29490,15 @@
     "semantic_hash": ""
   },
   "src/AskLucy.Web/ClientApp/src/features/chat/OutlineActionGroup.tsx": {
-    "mtime": 1791313639.3018303,
-    "seen": 1791314260.2709515,
+    "mtime": 1791314966.8192513,
+    "seen": 1791343295.0828054,
     "ast_hash": "534ca1aca5cf70f4f2df6784db2a8d83",
     "semantic_hash": ""
   },
   "src/AskLucy.Web/ClientApp/src/features/viewer/components/SiteBoundaryEditHost.tsx": {
-    "mtime": 1791313639.3018303,
-    "seen": 1791314260.271341,
-    "ast_hash": "a344d4827356ee7fc7f1496e064360f0",
+    "mtime": 1791314966.8262713,
+    "seen": 1791343295.083258,
+    "ast_hash": "fa43ba0dd3a541d48d41e6b5bedd8dad",
     "semantic_hash": ""
   },
   "src/AskLucy.Web/ClientApp/src/features/viewer/components/SiteBoundaryEditToolbar.tsx": {
@@ -29526,14 +29526,14 @@
     "semantic_hash": ""
   },
   "src/AskLucy.Web/ClientApp/src/viewer/siteBoundaryEdit/siteBoundaryEditActions.ts": {
-    "mtime": 1791313417.0697272,
-    "seen": 1791314260.271588,
-    "ast_hash": "4f161efe7bcc72b86208615a95b9e006",
+    "mtime": 1791314966.8322725,
+    "seen": 1791343295.08353,
+    "ast_hash": "5306477f07b5cc639baade19abfc804d",
     "semantic_hash": ""
   },
   "src/AskLucy.Web/ClientApp/src/viewer/siteBoundaryEdit/useSiteBoundaryEditMode.ts": {
-    "mtime": 1791313484.6616642,
-    "seen": 1791314260.2715929,
+    "mtime": 1791314966.8342717,
+    "seen": 1791343295.0835352,
     "ast_hash": "86a5162fb3dc9d29a6193f8c86051a7f",
     "semantic_hash": ""
   },
@@ -29610,9 +29610,9 @@
     "semantic_hash": ""
   },
   "src/AskLucy.Web/ClientApp/src/features/chat/outlineToolIcons.tsx": {
-    "mtime": 1791313639.3018303,
-    "seen": 1791314260.2710125,
-    "ast_hash": "1763f62d53721eae710b49448612c495",
+    "mtime": 1791314966.8202505,
+    "seen": 1791343295.0828962,
+    "ast_hash": "27b02750434dc6e3ed3dc3440ca59595",
     "semantic_hash": ""
   },
   "src/AskLucy.Web/ClientApp/src/features/viewer/components/SiteBoundaryBoxSelect.test.tsx": {
@@ -29628,15 +29628,15 @@
     "semantic_hash": ""
   },
   "src/AskLucy.Web/ClientApp/src/features/viewer/components/SiteBoundaryShapeDialog.test.tsx": {
-    "mtime": 1791314123.2768183,
-    "seen": 1791314260.2713516,
-    "ast_hash": "85e97b44695172ad2f4831d095759267",
+    "mtime": 1791314966.827274,
+    "seen": 1791343295.0832694,
+    "ast_hash": "0534ec2187d8551b7ca15c036b75533b",
     "semantic_hash": ""
   },
   "src/AskLucy.Web/ClientApp/src/features/viewer/components/SiteBoundaryShapeDialog.tsx": {
-    "mtime": 1791313484.660149,
-    "seen": 1791314260.2713523,
-    "ast_hash": "f796200fd09ffe17838f850c8a3fcaaa",
+    "mtime": 1791314966.827274,
+    "seen": 1791343295.0832703,
+    "ast_hash": "f873c3f468adc1a82f46c2fd853a67f4",
     "semantic_hash": ""
   },
   "src/AskLucy.Web/ClientApp/src/viewer/siteBoundaryEdit/googlePixelProjector.ts": {
@@ -29646,15 +29646,15 @@
     "semantic_hash": ""
   },
   "src/AskLucy.Web/ClientApp/src/viewer/siteBoundaryEdit/ringShapes.test.ts": {
-    "mtime": 1791313368.1639414,
-    "seen": 1791314260.2715867,
-    "ast_hash": "de81f080faf716a450484c77160e3cfd",
+    "mtime": 1791314966.8312728,
+    "seen": 1791343295.0835276,
+    "ast_hash": "37e873d142bd2c005f35bf516b21a21b",
     "semantic_hash": ""
   },
   "src/AskLucy.Web/ClientApp/src/viewer/siteBoundaryEdit/ringShapes.ts": {
-    "mtime": 1791313354.561907,
-    "seen": 1791314260.2715874,
-    "ast_hash": "3e8ebe204a581f2a5383be58802e9b8b",
+    "mtime": 1791314966.8322725,
+    "seen": 1791343295.0835292,
+    "ast_hash": "063574fc9bfdfb82bb4d6bf3cdd7df60",
     "semantic_hash": ""
   },
   "src/AskLucy.Web/ClientApp/src/features/viewer/components/SiteBoundaryArcDraw.test.tsx": {
@@ -30660,9 +30660,9 @@
     "semantic_hash": ""
   },
   "tests/AskLucy.Application.Tests/Notifications/FakeDeliveryStore.cs": {
-    "mtime": 1791312283.3612244,
-    "seen": 1791314260.2719662,
-    "ast_hash": "39429ffafd55f1e0510dd0b9322d0486",
+    "mtime": 1791340936.0776978,
+    "seen": 1791343295.083943,
+    "ast_hash": "153cc8f6fbb2be1fc8b2339a9fc489a5",
     "semantic_hash": ""
   },
   "tests/AskLucy.Application.Tests/Notifications/LeaseSweepServiceTests.cs": {
@@ -30789,6 +30789,654 @@
     "mtime": 1791312283.3802533,
     "seen": 1791314260.272413,
     "ast_hash": "59b49338d45e210ff9582d9dcf65d891",
+    "semantic_hash": ""
+  },
+  "src/AskLucy.Application/Notifications/Abstractions/INotificationAdminRepository.cs": {
+    "mtime": 1791340936.0455189,
+    "seen": 1791343295.0805662,
+    "ast_hash": "2d59b84f35665745fe00a4c854282c24",
+    "semantic_hash": ""
+  },
+  "src/AskLucy.Application/Notifications/Abstractions/INotificationChannelHealthReader.cs": {
+    "mtime": 1791340936.0455189,
+    "seen": 1791343295.0805702,
+    "ast_hash": "79aef3c4b28572a5709c94d8aa01bee5",
+    "semantic_hash": ""
+  },
+  "src/AskLucy.Application/Notifications/Abstractions/INotificationRetentionRepository.cs": {
+    "mtime": 1791340936.0480092,
+    "seen": 1791343295.080581,
+    "ast_hash": "58a3cceaf3dc836b79714fdb8f5411eb",
+    "semantic_hash": ""
+  },
+  "src/AskLucy.Application/Notifications/Abstractions/ISystemAnnouncementRepository.cs": {
+    "mtime": 1791340936.0480092,
+    "seen": 1791343295.0805864,
+    "ast_hash": "0c38cdfdc39c51b5111c90453c36a7ea",
+    "semantic_hash": ""
+  },
+  "src/AskLucy.Application/Notifications/Admin/AdminAddressMask.cs": {
+    "mtime": 1791340936.0489979,
+    "seen": 1791343295.0805876,
+    "ast_hash": "220e90e6a92a021275fd9b162f14439d",
+    "semantic_hash": ""
+  },
+  "src/AskLucy.Application/Notifications/Admin/AdminDeliveryMapper.cs": {
+    "mtime": 1791340936.0489979,
+    "seen": 1791343295.0805886,
+    "ast_hash": "34c7ca8ad69d0b906b5e82cee38ff821",
+    "semantic_hash": ""
+  },
+  "src/AskLucy.Application/Notifications/Admin/AnnouncementKeys.cs": {
+    "mtime": 1791340936.0489979,
+    "seen": 1791343295.0805895,
+    "ast_hash": "048496041a8d7106c7978038cb633b86",
+    "semantic_hash": ""
+  },
+  "src/AskLucy.Application/Notifications/Admin/DeliveryRetryPolicy.cs": {
+    "mtime": 1791340936.0500002,
+    "seen": 1791343295.0805905,
+    "ast_hash": "4fdf7fc5141f0ce3a9066553ebffe0e4",
+    "semantic_hash": ""
+  },
+  "src/AskLucy.Application/Notifications/Admin/DeliveryRetryRefusedException.cs": {
+    "mtime": 1791340936.0500002,
+    "seen": 1791343295.0805914,
+    "ast_hash": "3ca819e5db7c5d9b2c5aec0489429bd8",
+    "semantic_hash": ""
+  },
+  "src/AskLucy.Application/Notifications/Admin/NotificationAdminDtos.cs": {
+    "mtime": 1791340936.0510035,
+    "seen": 1791343295.0805929,
+    "ast_hash": "a68c75ead37e851b4a544b7a76950ee7",
+    "semantic_hash": ""
+  },
+  "src/AskLucy.Application/Notifications/Commands/ArchiveTemplateVersion/ArchiveTemplateVersionCommand.cs": {
+    "mtime": 1791343196.624301,
+    "seen": 1791343295.080595,
+    "ast_hash": "fa230f0a8c9a68e9c112d4e8b0610029",
+    "semantic_hash": ""
+  },
+  "src/AskLucy.Application/Notifications/Commands/ArchiveTemplateVersion/ArchiveTemplateVersionCommandHandler.cs": {
+    "mtime": 1791343196.624301,
+    "seen": 1791343295.0805957,
+    "ast_hash": "80cf839bc33d25cbb9ac307fe08dc356",
+    "semantic_hash": ""
+  },
+  "src/AskLucy.Application/Notifications/Commands/ArchiveTemplateVersion/ArchiveTemplateVersionCommandValidator.cs": {
+    "mtime": 1791343196.624301,
+    "seen": 1791343295.0805967,
+    "ast_hash": "5c3bc24b3d5ab3c778011707ef947c85",
+    "semantic_hash": ""
+  },
+  "src/AskLucy.Application/Notifications/Commands/BulkRetryNotificationDeliveries/BulkRetryNotificationDeliveriesCommand.cs": {
+    "mtime": 1791340936.0510035,
+    "seen": 1791343295.0805974,
+    "ast_hash": "14c7f019dbeab740cdf3a03b2e6985ee",
+    "semantic_hash": ""
+  },
+  "src/AskLucy.Application/Notifications/Commands/BulkRetryNotificationDeliveries/BulkRetryNotificationDeliveriesCommandHandler.cs": {
+    "mtime": 1791340936.0510035,
+    "seen": 1791343295.0805986,
+    "ast_hash": "8af5864d5c339ebdadaebf48a4dbd2d9",
+    "semantic_hash": ""
+  },
+  "src/AskLucy.Application/Notifications/Commands/BulkRetryNotificationDeliveries/BulkRetryNotificationDeliveriesCommandValidator.cs": {
+    "mtime": 1791340936.0519984,
+    "seen": 1791343295.0805993,
+    "ast_hash": "0a9900cecee7779829fe4a9ac1d4f0aa",
+    "semantic_hash": ""
+  },
+  "src/AskLucy.Application/Notifications/Commands/CreateTemplateDraft/CreateTemplateDraftCommand.cs": {
+    "mtime": 1791343196.6253066,
+    "seen": 1791343295.0806005,
+    "ast_hash": "424733845dacaec069e55c49b2a2f6f5",
+    "semantic_hash": ""
+  },
+  "src/AskLucy.Application/Notifications/Commands/CreateTemplateDraft/CreateTemplateDraftCommandHandler.cs": {
+    "mtime": 1791343196.6253066,
+    "seen": 1791343295.0806015,
+    "ast_hash": "06d0133832b470eba4c8b3eff290489d",
+    "semantic_hash": ""
+  },
+  "src/AskLucy.Application/Notifications/Commands/CreateTemplateDraft/CreateTemplateDraftCommandValidator.cs": {
+    "mtime": 1791343196.625824,
+    "seen": 1791343295.0806022,
+    "ast_hash": "8a0a3e9ef7da8b301b3ba0de590a7f4b",
+    "semantic_hash": ""
+  },
+  "src/AskLucy.Application/Notifications/Commands/PublishSystemAnnouncement/PublishSystemAnnouncementCommand.cs": {
+    "mtime": 1791340936.0519984,
+    "seen": 1791343295.0806108,
+    "ast_hash": "a44c010a3ad108c2940e94c123952e74",
+    "semantic_hash": ""
+  },
+  "src/AskLucy.Application/Notifications/Commands/PublishSystemAnnouncement/PublishSystemAnnouncementCommandHandler.cs": {
+    "mtime": 1791340936.0530012,
+    "seen": 1791343295.0806124,
+    "ast_hash": "89e32a96b2244a2e91fe21918a1859ba",
+    "semantic_hash": ""
+  },
+  "src/AskLucy.Application/Notifications/Commands/PublishSystemAnnouncement/PublishSystemAnnouncementCommandValidator.cs": {
+    "mtime": 1791340936.0530012,
+    "seen": 1791343295.0806131,
+    "ast_hash": "22b784d3541301e85feb72b9d8b091cd",
+    "semantic_hash": ""
+  },
+  "src/AskLucy.Application/Notifications/Commands/PublishTemplateVersion/PublishTemplateVersionCommand.cs": {
+    "mtime": 1791343196.625824,
+    "seen": 1791343295.0806139,
+    "ast_hash": "0db495ea6c0397520a331feb69ee4d4c",
+    "semantic_hash": ""
+  },
+  "src/AskLucy.Application/Notifications/Commands/PublishTemplateVersion/PublishTemplateVersionCommandHandler.cs": {
+    "mtime": 1791343196.625824,
+    "seen": 1791343295.0806143,
+    "ast_hash": "b577e4cb76836f40987c62a783be75fe",
+    "semantic_hash": ""
+  },
+  "src/AskLucy.Application/Notifications/Commands/PublishTemplateVersion/PublishTemplateVersionCommandValidator.cs": {
+    "mtime": 1791343196.6268315,
+    "seen": 1791343295.0806155,
+    "ast_hash": "bfd4ed0d13ff458fe50cd3bd68f6d0fa",
+    "semantic_hash": ""
+  },
+  "src/AskLucy.Application/Notifications/Commands/RetryNotificationDelivery/RetryNotificationDeliveryCommand.cs": {
+    "mtime": 1791340936.0539992,
+    "seen": 1791343295.0806165,
+    "ast_hash": "0e7a2f6b3daaaf7a7bfddfe3b5da41d0",
+    "semantic_hash": ""
+  },
+  "src/AskLucy.Application/Notifications/Commands/RetryNotificationDelivery/RetryNotificationDeliveryCommandHandler.cs": {
+    "mtime": 1791340936.0539992,
+    "seen": 1791343295.0806172,
+    "ast_hash": "e852ee463d30a5522de018dac8037a80",
+    "semantic_hash": ""
+  },
+  "src/AskLucy.Application/Notifications/Commands/RetryNotificationDelivery/RetryNotificationDeliveryCommandValidator.cs": {
+    "mtime": 1791340936.0539992,
+    "seen": 1791343295.0806181,
+    "ast_hash": "43923918929ee1a81b6173e758a15ae7",
+    "semantic_hash": ""
+  },
+  "src/AskLucy.Application/Notifications/Commands/SendTemplateTest/SendTemplateTestCommand.cs": {
+    "mtime": 1791343196.6268315,
+    "seen": 1791343295.080619,
+    "ast_hash": "95bfba61591c7fc4107843ce3f5464b6",
+    "semantic_hash": ""
+  },
+  "src/AskLucy.Application/Notifications/Commands/SendTemplateTest/SendTemplateTestCommandHandler.cs": {
+    "mtime": 1791343196.6268315,
+    "seen": 1791343295.0806198,
+    "ast_hash": "ff7635c59479e6d24b1a12fab901a887",
+    "semantic_hash": ""
+  },
+  "src/AskLucy.Application/Notifications/Commands/SendTemplateTest/SendTemplateTestCommandValidator.cs": {
+    "mtime": 1791343196.6268315,
+    "seen": 1791343295.0806208,
+    "ast_hash": "e5086f48413d646cdc602f517a339d56",
+    "semantic_hash": ""
+  },
+  "src/AskLucy.Application/Notifications/Commands/UpdateTemplateDraft/UpdateTemplateDraftCommand.cs": {
+    "mtime": 1791343196.6278534,
+    "seen": 1791343295.0806253,
+    "ast_hash": "248a9607f747bf62b1a0a0b1feb441a6",
+    "semantic_hash": ""
+  },
+  "src/AskLucy.Application/Notifications/Commands/UpdateTemplateDraft/UpdateTemplateDraftCommandHandler.cs": {
+    "mtime": 1791343196.6278534,
+    "seen": 1791343295.0806262,
+    "ast_hash": "267478b0337e213499ae9bf0abe8b2b9",
+    "semantic_hash": ""
+  },
+  "src/AskLucy.Application/Notifications/Commands/UpdateTemplateDraft/UpdateTemplateDraftCommandValidator.cs": {
+    "mtime": 1791343196.6278534,
+    "seen": 1791343295.080627,
+    "ast_hash": "7e2a7f7f0fc4e44535c141c8efcf7a57",
+    "semantic_hash": ""
+  },
+  "src/AskLucy.Application/Notifications/Processing/RetentionService.cs": {
+    "mtime": 1791340936.055998,
+    "seen": 1791343295.0806494,
+    "ast_hash": "88f5e048c354e8784e8ac0102aa1e69a",
+    "semantic_hash": ""
+  },
+  "src/AskLucy.Application/Notifications/Queries/GetNotificationAudit/GetNotificationAuditQuery.cs": {
+    "mtime": 1791340936.055998,
+    "seen": 1791343295.0806506,
+    "ast_hash": "5951c06618aa382dde8517da60be2d4d",
+    "semantic_hash": ""
+  },
+  "src/AskLucy.Application/Notifications/Queries/GetNotificationAudit/GetNotificationAuditQueryHandler.cs": {
+    "mtime": 1791340936.055998,
+    "seen": 1791343295.0806518,
+    "ast_hash": "37ed8a6859c247c2793bb9df05263a52",
+    "semantic_hash": ""
+  },
+  "src/AskLucy.Application/Notifications/Queries/GetNotificationAudit/GetNotificationAuditQueryValidator.cs": {
+    "mtime": 1791340936.0572724,
+    "seen": 1791343295.0806527,
+    "ast_hash": "b68e360194cf43ac70006382e3434c66",
+    "semantic_hash": ""
+  },
+  "src/AskLucy.Application/Notifications/Queries/GetNotificationChannels/GetNotificationChannelsQuery.cs": {
+    "mtime": 1791340936.0572724,
+    "seen": 1791343295.080654,
+    "ast_hash": "b509c31d22e1a95ca845e359e1e82e47",
+    "semantic_hash": ""
+  },
+  "src/AskLucy.Application/Notifications/Queries/GetNotificationChannels/GetNotificationChannelsQueryHandler.cs": {
+    "mtime": 1791340936.0582697,
+    "seen": 1791343295.0806546,
+    "ast_hash": "8c78fa188725b6691c8fd9f980eb49cd",
+    "semantic_hash": ""
+  },
+  "src/AskLucy.Application/Notifications/Queries/GetNotificationDeliveries/GetNotificationDeliveriesQuery.cs": {
+    "mtime": 1791340936.0582697,
+    "seen": 1791343295.0806556,
+    "ast_hash": "ff34d62754c229b61a27deacac0c3acb",
+    "semantic_hash": ""
+  },
+  "src/AskLucy.Application/Notifications/Queries/GetNotificationDeliveries/GetNotificationDeliveriesQueryHandler.cs": {
+    "mtime": 1791340936.0582697,
+    "seen": 1791343295.0806563,
+    "ast_hash": "aff3758912fc01a4479787ce2685bfb3",
+    "semantic_hash": ""
+  },
+  "src/AskLucy.Application/Notifications/Queries/GetNotificationDeliveries/GetNotificationDeliveriesQueryValidator.cs": {
+    "mtime": 1791340936.0592685,
+    "seen": 1791343295.0806575,
+    "ast_hash": "6b39ecd0d47f81877cde3ced120751a4",
+    "semantic_hash": ""
+  },
+  "src/AskLucy.Application/Notifications/Queries/GetNotificationDelivery/GetNotificationDeliveryQuery.cs": {
+    "mtime": 1791340936.0592685,
+    "seen": 1791343295.0806582,
+    "ast_hash": "56a3ff098d873c1a0c47069526328b91",
+    "semantic_hash": ""
+  },
+  "src/AskLucy.Application/Notifications/Queries/GetNotificationDelivery/GetNotificationDeliveryQueryHandler.cs": {
+    "mtime": 1791340936.0592685,
+    "seen": 1791343295.0806592,
+    "ast_hash": "0a5e8bab7a4600823a1726cff1b91c3b",
+    "semantic_hash": ""
+  },
+  "src/AskLucy.Application/Notifications/Queries/GetNotificationStatistics/GetNotificationStatisticsQuery.cs": {
+    "mtime": 1791340936.0602686,
+    "seen": 1791343295.080662,
+    "ast_hash": "b69a95fdde77d7b1d9247c96759a295b",
+    "semantic_hash": ""
+  },
+  "src/AskLucy.Application/Notifications/Queries/GetNotificationStatistics/GetNotificationStatisticsQueryHandler.cs": {
+    "mtime": 1791340936.0602686,
+    "seen": 1791343295.0806632,
+    "ast_hash": "92e1b7acaeb7e4ab29f2c4c1f99ac363",
+    "semantic_hash": ""
+  },
+  "src/AskLucy.Application/Notifications/Queries/GetNotificationStatistics/GetNotificationStatisticsQueryValidator.cs": {
+    "mtime": 1791340936.0602686,
+    "seen": 1791343295.0806642,
+    "ast_hash": "1785d2bad8dc136dc8487a926e8ce36a",
+    "semantic_hash": ""
+  },
+  "src/AskLucy.Application/Notifications/Queries/GetNotificationTemplateVersion/GetNotificationTemplateVersionQuery.cs": {
+    "mtime": 1791343196.6298375,
+    "seen": 1791343295.0806649,
+    "ast_hash": "b8b0125aa5336b3791c0a15aa83f54fb",
+    "semantic_hash": ""
+  },
+  "src/AskLucy.Application/Notifications/Queries/GetNotificationTemplateVersion/GetNotificationTemplateVersionQueryHandler.cs": {
+    "mtime": 1791343196.6298375,
+    "seen": 1791343295.0806658,
+    "ast_hash": "203007809547bb76becdda579e000abd",
+    "semantic_hash": ""
+  },
+  "src/AskLucy.Application/Notifications/Queries/GetNotificationTemplate/GetNotificationTemplateQuery.cs": {
+    "mtime": 1791343196.6288376,
+    "seen": 1791343295.0806665,
+    "ast_hash": "cd92e08da707e7aa826cd15ae9b028e1",
+    "semantic_hash": ""
+  },
+  "src/AskLucy.Application/Notifications/Queries/GetNotificationTemplate/GetNotificationTemplateQueryHandler.cs": {
+    "mtime": 1791343196.6288376,
+    "seen": 1791343295.0806677,
+    "ast_hash": "5c61b2cdea160ff5e1be82ecfeb10269",
+    "semantic_hash": ""
+  },
+  "src/AskLucy.Application/Notifications/Queries/GetNotificationTemplates/GetNotificationTemplatesQuery.cs": {
+    "mtime": 1791343196.630345,
+    "seen": 1791343295.0806684,
+    "ast_hash": "b3a8db18e82a3d5ce826cd4a5edb0114",
+    "semantic_hash": ""
+  },
+  "src/AskLucy.Application/Notifications/Queries/GetNotificationTemplates/GetNotificationTemplatesQueryHandler.cs": {
+    "mtime": 1791343196.630345,
+    "seen": 1791343295.0806692,
+    "ast_hash": "8d57ceb39e239631e00b75c7bc45ddca",
+    "semantic_hash": ""
+  },
+  "src/AskLucy.Application/Notifications/Queries/GetSystemAnnouncements/GetSystemAnnouncementsQuery.cs": {
+    "mtime": 1791340936.0602686,
+    "seen": 1791343295.080675,
+    "ast_hash": "0814dfd2379a6f70c580725f3b78f64e",
+    "semantic_hash": ""
+  },
+  "src/AskLucy.Application/Notifications/Queries/GetSystemAnnouncements/GetSystemAnnouncementsQueryHandler.cs": {
+    "mtime": 1791340936.0612702,
+    "seen": 1791343295.0806756,
+    "ast_hash": "d651005dbd61b81c60dff0d65a19931b",
+    "semantic_hash": ""
+  },
+  "src/AskLucy.Application/Notifications/Queries/GetSystemAnnouncements/GetSystemAnnouncementsQueryValidator.cs": {
+    "mtime": 1791340936.0612702,
+    "seen": 1791343295.0806766,
+    "ast_hash": "a5c9c682d2c046b41f01fe9113848d9f",
+    "semantic_hash": ""
+  },
+  "src/AskLucy.Application/Notifications/Queries/PreviewTemplateVersion/PreviewTemplateVersionQuery.cs": {
+    "mtime": 1791343196.6313474,
+    "seen": 1791343295.0806797,
+    "ast_hash": "c79b78486b162612c3b17e261f4f0910",
+    "semantic_hash": ""
+  },
+  "src/AskLucy.Application/Notifications/Queries/PreviewTemplateVersion/PreviewTemplateVersionQueryHandler.cs": {
+    "mtime": 1791343196.6313474,
+    "seen": 1791343295.0806804,
+    "ast_hash": "4c2370472bfa9b032716179b1e03473f",
+    "semantic_hash": ""
+  },
+  "src/AskLucy.Application/Notifications/Templates/NotificationTemplateDtos.cs": {
+    "mtime": 1791343196.6313474,
+    "seen": 1791343295.0806813,
+    "ast_hash": "3ea0da7898563cf88bcb580e82f9b7ab",
+    "semantic_hash": ""
+  },
+  "src/AskLucy.Application/Notifications/Templates/NotificationTemplateExceptions.cs": {
+    "mtime": 1791343196.6313474,
+    "seen": 1791343295.080682,
+    "ast_hash": "e97b4686f697e813214c1668e8b2331c",
+    "semantic_hash": ""
+  },
+  "src/AskLucy.Application/Notifications/Templates/NotificationTemplateMapper.cs": {
+    "mtime": 1791343196.6323462,
+    "seen": 1791343295.080683,
+    "ast_hash": "2fc1b6896a200782a0bc53de61b6dd5d",
+    "semantic_hash": ""
+  },
+  "src/AskLucy.Application/Notifications/Templates/TemplateSamples.cs": {
+    "mtime": 1791343196.6323462,
+    "seen": 1791343295.0806837,
+    "ast_hash": "764198958b45c64d5b712f48e0e1a3d1",
+    "semantic_hash": ""
+  },
+  "src/AskLucy.Infrastructure/Notifications/HealthChecks/ISmtpProbe.cs": {
+    "mtime": 1791340936.0632696,
+    "seen": 1791343295.0814824,
+    "ast_hash": "706f44f2cb21a7aea40af4d0158b943a",
+    "semantic_hash": ""
+  },
+  "src/AskLucy.Infrastructure/Notifications/HealthChecks/MailKitSmtpProbe.cs": {
+    "mtime": 1791340936.0632696,
+    "seen": 1791343295.0814834,
+    "ast_hash": "37980c16e38c6e64712bfad626761609",
+    "semantic_hash": ""
+  },
+  "src/AskLucy.Infrastructure/Notifications/Jobs/NotificationRetentionJob.cs": {
+    "mtime": 1791340936.0642715,
+    "seen": 1791343295.0814855,
+    "ast_hash": "421cc0c58d47ddf046364d2b14c511a8",
+    "semantic_hash": ""
+  },
+  "src/AskLucy.Persistence/Repositories/NotificationAdminRepository.cs": {
+    "mtime": 1791340936.0657766,
+    "seen": 1791343295.0821316,
+    "ast_hash": "0fc5d555646308b3edab33982f1f4559",
+    "semantic_hash": ""
+  },
+  "src/AskLucy.Persistence/Repositories/NotificationRetentionRepository.cs": {
+    "mtime": 1791340936.067291,
+    "seen": 1791343295.0821393,
+    "ast_hash": "eba7e3d04449e4341d489553986dabd7",
+    "semantic_hash": ""
+  },
+  "src/AskLucy.Persistence/Repositories/SystemAnnouncementRepository.cs": {
+    "mtime": 1791340936.067291,
+    "seen": 1791343295.0821593,
+    "ast_hash": "2823476c280dfce4dba9a89fa186c049",
+    "semantic_hash": ""
+  },
+  "src/AskLucy.Web/ClientApp/src/features/admin/api/adminNotificationTemplatesApi.ts": {
+    "mtime": 1791343196.6343484,
+    "seen": 1791343295.082454,
+    "ast_hash": "dee8da7780ba241db5fbd3a3a02f08c6",
+    "semantic_hash": ""
+  },
+  "src/AskLucy.Web/ClientApp/src/features/admin/api/adminNotificationsApi.ts": {
+    "mtime": 1791340936.0682905,
+    "seen": 1791343295.0824559,
+    "ast_hash": "16911a4c22335cfefd2c4757e9551566",
+    "semantic_hash": ""
+  },
+  "src/AskLucy.Web/ClientApp/src/features/admin/charts/NotificationSeriesChart.tsx": {
+    "mtime": 1791340936.0682905,
+    "seen": 1791343295.0824883,
+    "ast_hash": "1f588039a454513a203277315a68d316",
+    "semantic_hash": ""
+  },
+  "src/AskLucy.Web/ClientApp/src/features/admin/forms/templateText.ts": {
+    "mtime": 1791343196.6354077,
+    "seen": 1791343295.082626,
+    "ast_hash": "e1eddcdcb3a2840a74632c86dd038b67",
+    "semantic_hash": ""
+  },
+  "src/AskLucy.Web/ClientApp/src/features/admin/forms/zodResolver.ts": {
+    "mtime": 1791340936.069291,
+    "seen": 1791343295.0826275,
+    "ast_hash": "ec9f7b3bcef87232dde80694c72564ec",
+    "semantic_hash": ""
+  },
+  "src/AskLucy.Web/ClientApp/src/features/admin/hooks/useAdminNotificationTemplates.ts": {
+    "mtime": 1791343196.6354077,
+    "seen": 1791343295.0826304,
+    "ast_hash": "fcd9bb8bd1d3d3edc606a5633f00f82c",
+    "semantic_hash": ""
+  },
+  "src/AskLucy.Web/ClientApp/src/features/admin/hooks/useAdminNotifications.ts": {
+    "mtime": 1791340936.069291,
+    "seen": 1791343295.0826313,
+    "ast_hash": "650d42235515f86e62e19b0599de0f30",
+    "semantic_hash": ""
+  },
+  "src/AskLucy.Web/ClientApp/src/features/admin/pages/AdminAnnouncementsPage.a11y.test.tsx": {
+    "mtime": 1791340936.069291,
+    "seen": 1791343295.0826533,
+    "ast_hash": "179a3160a01db64ab93fd2ed4bee6eb7",
+    "semantic_hash": ""
+  },
+  "src/AskLucy.Web/ClientApp/src/features/admin/pages/AdminAnnouncementsPage.test.tsx": {
+    "mtime": 1791340936.0702903,
+    "seen": 1791343295.0826542,
+    "ast_hash": "18cf1197142d1be34637debb00ce7917",
+    "semantic_hash": ""
+  },
+  "src/AskLucy.Web/ClientApp/src/features/admin/pages/AdminAnnouncementsPage.tsx": {
+    "mtime": 1791340936.0702903,
+    "seen": 1791343295.082655,
+    "ast_hash": "70c767a631735d5708805cf099e8e68e",
+    "semantic_hash": ""
+  },
+  "src/AskLucy.Web/ClientApp/src/features/admin/pages/AdminNotificationDeliveriesPage.a11y.test.tsx": {
+    "mtime": 1791340936.0702903,
+    "seen": 1791343295.0826652,
+    "ast_hash": "6d98cfaa98ac6774a9ea286d70a0b0dc",
+    "semantic_hash": ""
+  },
+  "src/AskLucy.Web/ClientApp/src/features/admin/pages/AdminNotificationDeliveriesPage.test.tsx": {
+    "mtime": 1791340936.0702903,
+    "seen": 1791343295.082666,
+    "ast_hash": "8518a3631e9ea51ef3c9de174505cf3d",
+    "semantic_hash": ""
+  },
+  "src/AskLucy.Web/ClientApp/src/features/admin/pages/AdminNotificationDeliveriesPage.tsx": {
+    "mtime": 1791340936.0712914,
+    "seen": 1791343295.082667,
+    "ast_hash": "8e4eaf3212e2d3bed89bd0351d73b7e2",
+    "semantic_hash": ""
+  },
+  "src/AskLucy.Web/ClientApp/src/features/admin/pages/AdminNotificationTemplateEditorPage.a11y.test.tsx": {
+    "mtime": 1791343196.6354077,
+    "seen": 1791343295.0826676,
+    "ast_hash": "c3dc76656bafffb3a1f057ce0d62479e",
+    "semantic_hash": ""
+  },
+  "src/AskLucy.Web/ClientApp/src/features/admin/pages/AdminNotificationTemplateEditorPage.test.tsx": {
+    "mtime": 1791343196.6354077,
+    "seen": 1791343295.0826685,
+    "ast_hash": "91950d2fc02e72053edfa2db42d55c81",
+    "semantic_hash": ""
+  },
+  "src/AskLucy.Web/ClientApp/src/features/admin/pages/AdminNotificationTemplateEditorPage.tsx": {
+    "mtime": 1791343196.6364071,
+    "seen": 1791343295.0826695,
+    "ast_hash": "fb64207b0b6f507889d799675a299090",
+    "semantic_hash": ""
+  },
+  "src/AskLucy.Web/ClientApp/src/features/admin/pages/AdminNotificationTemplatesPage.a11y.test.tsx": {
+    "mtime": 1791343196.6364071,
+    "seen": 1791343295.0826707,
+    "ast_hash": "e1785ecae57819f46312543417662d8e",
+    "semantic_hash": ""
+  },
+  "src/AskLucy.Web/ClientApp/src/features/admin/pages/AdminNotificationTemplatesPage.test.tsx": {
+    "mtime": 1791343196.6364071,
+    "seen": 1791343295.082672,
+    "ast_hash": "d1fa356a765a87cc888e64d74c1eb47c",
+    "semantic_hash": ""
+  },
+  "src/AskLucy.Web/ClientApp/src/features/admin/pages/AdminNotificationTemplatesPage.tsx": {
+    "mtime": 1791343196.63741,
+    "seen": 1791343295.0826728,
+    "ast_hash": "814cc5949d160b5852b8059b70a253fd",
+    "semantic_hash": ""
+  },
+  "src/AskLucy.Web/ClientApp/src/features/admin/pages/AdminNotificationsDashboardPage.a11y.test.tsx": {
+    "mtime": 1791340936.0712914,
+    "seen": 1791343295.0826735,
+    "ast_hash": "7da33a221cee900a0f77f9883737a327",
+    "semantic_hash": ""
+  },
+  "src/AskLucy.Web/ClientApp/src/features/admin/pages/AdminNotificationsDashboardPage.test.tsx": {
+    "mtime": 1791340936.0712914,
+    "seen": 1791343295.0826776,
+    "ast_hash": "a26c5f41425f5e026db01e62bb2f3aaf",
+    "semantic_hash": ""
+  },
+  "src/AskLucy.Web/ClientApp/src/features/admin/pages/AdminNotificationsDashboardPage.tsx": {
+    "mtime": 1791340936.0712914,
+    "seen": 1791343295.0826786,
+    "ast_hash": "4a0809d75c2307b23ace40c19b594b08",
+    "semantic_hash": ""
+  },
+  "src/AskLucy.Web/Controllers/v1/AdminAnnouncementsController.cs": {
+    "mtime": 1791340936.0731845,
+    "seen": 1791343295.083571,
+    "ast_hash": "4fa56431713ef2a31376707255592bf0",
+    "semantic_hash": ""
+  },
+  "src/AskLucy.Web/Controllers/v1/AdminNotificationTemplatesController.cs": {
+    "mtime": 1791343196.6384077,
+    "seen": 1791343295.0835772,
+    "ast_hash": "b42963769c8f15a028fba35f2551b137",
+    "semantic_hash": ""
+  },
+  "src/AskLucy.Web/Controllers/v1/AdminNotificationsController.cs": {
+    "mtime": 1791340936.0731845,
+    "seen": 1791343295.083578,
+    "ast_hash": "6f63e603cfc4d2c09fae6bc50a89a2e6",
+    "semantic_hash": ""
+  },
+  "src/AskLucy.Web/HealthChecks/NotificationBacklogHealthCheck.cs": {
+    "mtime": 1791340936.0731845,
+    "seen": 1791343295.0836196,
+    "ast_hash": "7034d80ebc102fa181b57ba4cc17e40b",
+    "semantic_hash": ""
+  },
+  "src/AskLucy.Web/HealthChecks/NotificationChannelHealthReader.cs": {
+    "mtime": 1791340936.074189,
+    "seen": 1791343295.0836205,
+    "ast_hash": "73ff6ab302f5b8cfcb8bc6a4b658e63f",
+    "semantic_hash": ""
+  },
+  "src/AskLucy.Web/HealthChecks/NotificationSmtpHealthCheck.cs": {
+    "mtime": 1791340936.074189,
+    "seen": 1791343295.0836213,
+    "ast_hash": "3445b552befb62ebd194922e675593af",
+    "semantic_hash": ""
+  },
+  "src/AskLucy.Web/HealthChecks/NotificationWorkerHealthCheck.cs": {
+    "mtime": 1791340936.0756922,
+    "seen": 1791343295.0836225,
+    "ast_hash": "c605adb09550682e22f006775fb138cd",
+    "semantic_hash": ""
+  },
+  "tests/AskLucy.Application.Tests/Notifications/AdminNotificationQueryHandlerTests.cs": {
+    "mtime": 1791343197.4171553,
+    "seen": 1791343295.0839336,
+    "ast_hash": "1aad8004c6c7c4daffb0903f9b5dda32",
+    "semantic_hash": ""
+  },
+  "tests/AskLucy.Application.Tests/Notifications/NotificationTemplateHandlerTests.cs": {
+    "mtime": 1791343196.6399117,
+    "seen": 1791343295.08395,
+    "ast_hash": "5dcb7ae347d02f8d8d37890ba30cd81b",
+    "semantic_hash": ""
+  },
+  "tests/AskLucy.Application.Tests/Notifications/RetryDeliveryHandlerTests.cs": {
+    "mtime": 1791343197.4181206,
+    "seen": 1791343295.083952,
+    "ast_hash": "8bec3ee3a79d4a9d13d42898957d08a0",
+    "semantic_hash": ""
+  },
+  "tests/AskLucy.Application.Tests/Notifications/SystemAnnouncementTests.cs": {
+    "mtime": 1791343197.4181206,
+    "seen": 1791343295.0839527,
+    "ast_hash": "d9d015841916659bb124c512218af42c",
+    "semantic_hash": ""
+  },
+  "tests/AskLucy.Persistence.Tests/Notifications/NotificationAdminQueryTests.cs": {
+    "mtime": 1791340936.0796974,
+    "seen": 1791343295.084327,
+    "ast_hash": "9da12b334a94e5b1361f603180a9e1bd",
+    "semantic_hash": ""
+  },
+  "tests/AskLucy.Persistence.Tests/Notifications/NotificationRetentionTests.cs": {
+    "mtime": 1791340936.0796974,
+    "seen": 1791343295.0843306,
+    "ast_hash": "217d862b9f43d21442c5f7072770c624",
+    "semantic_hash": ""
+  },
+  "tests/AskLucy.Persistence.Tests/Notifications/NotificationStatisticsQueryTests.cs": {
+    "mtime": 1791340936.0796974,
+    "seen": 1791343295.0843315,
+    "ast_hash": "f2cba46d3f6bd403fa4d8dd1523724e4",
+    "semantic_hash": ""
+  },
+  "tests/AskLucy.Web.Tests/HealthChecks/NotificationHealthCheckTests.cs": {
+    "mtime": 1791343197.4196253,
+    "seen": 1791343295.0844097,
+    "ast_hash": "57ce5de2f3f93a86998ae1905051b65e",
+    "semantic_hash": ""
+  },
+  "tests/AskLucy.Web.Tests/Notifications/AdminNotificationsEndpointsTests.cs": {
+    "mtime": 1791340936.0816958,
+    "seen": 1791343295.084423,
+    "ast_hash": "54c369c4eb2591e2b3a16e2f1d497dcb",
+    "semantic_hash": ""
+  },
+  "tests/AskLucy.Web.Tests/Notifications/NotificationTemplateEndpointsTests.cs": {
+    "mtime": 1791343196.6419156,
+    "seen": 1791343295.0844274,
+    "ast_hash": "ea50b988e2b8c37a5780b039772125bf",
     "semantic_hash": ""
   }
 }

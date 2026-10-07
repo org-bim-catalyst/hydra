@@ -6,52 +6,52 @@
 - Unclassified: 211 file(s) not represented in the graph (top: .csv 102, .ttf 54, (none) 35)
 
 ## Summary
-- 41687 nodes · 103725 edges · 2046 communities (947 shown, 1099 thin omitted)
-- Extraction: 90% EXTRACTED · 10% INFERRED · 0% AMBIGUOUS · INFERRED: 10385 edges (avg confidence: 0.85)
+- 41717 nodes · 103754 edges · 2075 communities (976 shown, 1099 thin omitted)
+- Extraction: 90% EXTRACTED · 10% INFERRED · 0% AMBIGUOUS · INFERRED: 10386 edges (avg confidence: 0.85)
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `0347aff8`
+- Built from commit: `c4576029`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
 ## Community Hubs (Navigation)
-- mediatr
+- AskLucy.Application.Abstractions
 - apiFetch
-- ChatSidebar.tsx
-- aiApi.ts
+- chatsApi.ts
+- voiceApi.ts
 - AppShell.tsx
 - FtpOptions
-- useAuthStore
-- SettingsPage.tsx
-- theme/index.ts
-- microsoft_extensions_dependencyinjection
+- ExecutionMonitor.tsx
+- react
+- aiApi.ts
+- AskLucy.Domain.Notifications
 - NotificationTypeDefinition
 - Implementation for User Story 2
-- AskLucy.Domain.Common
+- system_text_json
 - PromptTestingConsole.tsx
 - NotificationHealthCheckTests
 - .AddApplication
 - ChatPage.tsx
 - ringGeometry.ts
-- IDocumentRepository
-- Tasks: Studio HUD Top Row
-- IOperationalFailureStore
-- FakeCustomModelRepository
+- BaseEntity
+- 073-studio-hud-top-row/spec.md
+- IncidentQueriesTests
+- CustomModel
 - @mui/material
 - DocumentWorkspacePage.tsx
-- shadows.integration.test.ts
-- AgentRuntimeOptions
+- solarFiguresContent.ts
+- AgentExecutionPolicy
 - BoundaryScoringOptions
-- ClientApp/package.json
-- system_text_json
+- AdminAppearancePage.tsx
+- fluentassertions
 - .CreateSource
 - McpToolAdapter
 - AskLucyDbContext
 - DATABASE.md
 - OutboxEventProcessor
 - McpServerCredential
-- fluentassertions
+- microsoft_extensions_logging
 - .AddInfrastructure
 - agentExecutionsApi.ts
 - ConversationTurnOrchestrator
@@ -61,67 +61,67 @@
 - SupertonicModel
 - ref_mui_icons_material_notificationsnone
 - Task
-- CameraRestoreGuard
-- FolderTree.tsx
+- IWorkflowExecutionRepository
+- PromptLibraryPage.tsx
 - CustomModelDeploymentJob
 - .OnConnectedAsync_ShouldAddTheConnectionToItsOwnUserGroup
 - PromptFolder
 - .AddPersistence
 - ChunkCandidate
 - DocumentsController
-- BoundaryDrawDiagnosticResult
+- SatelliteImage
 - AdminCustomModelsControllerTests
 - AskLucy.Infrastructure/DependencyInjection.cs
 - .ResolveAsync
 - RoleNameTests
 - DocumentVersion
 - FlowIntentGatingTests
-- CustomModel
+- AskLucy.Domain.KnowledgeBases
 - McpServerHealth
 - @playwright/test
 - VoiceProviderAdminCommandTests
 - WorkflowExecution
 - AnthropicProvider
-- .Read
+- IRefreshTokenRepository
 - ViewerEngine.ts
 - .Create
 - adminVoiceApi.ts
 - CustomModelDeploymentJobTests
 - I3sPrimitivesTests
-- .RetrieveContextAsync
+- AIModelCapabilities
 - .GetByIdAsync
 - StubCapability
 - microsoft_extensions_options
-- McpRateLimiter
-- DocumentFileType
+- AgentExecutionsController
+- OpenXmlTextExtractor
 - OperationalFailureIngestorTests
-- .GetByIdAsync
-- ChatMessage
+- .GetByIdForUserAsync
+- GenerationParametersDto
 - EmbeddingProvider
-- .SaveChangesAsync
+- .Create
 - OvertureBuildingFootprintProvider
-- AskLucy.Application.Abstractions
+- microsoft_entityframeworkcore
 - SiteBoundaryCorrection
 - WorkflowFailureStrategyTests
 - LocalWhisperModelAdminTests
 - AiCapability
-- User Scenarios & Testing *(mandatory)*
+- Feature Specification: Flumeria Studio Workspace Shell
 - DESIGN_SYSTEM.md
 - AIModel
 - GetSiteBuildingsQuery
 - MemoriesController
 - StubCapability
-- AskLucy.Domain.Notifications
+- UsersController.cs
 - useSiteBoundaryEditMode.ts
 - IIdentityService
 - VoiceProvider
 - OverpassBuildingFootprintProvider
-- AiProviderException
+- .EnsureSuccessAsync
 - McpResource
 - .KnowledgeBaseCheck_ShouldReportOwnedKnowledgeBaseAvailable_AndOthersNot
 - NotificationsOptions
 - NotificationOutboxEvent
-- RoleRepository
+- RoleRecord
 - DocumentRepository
 - DocumentMetadata
 - Actions
@@ -135,27 +135,27 @@
 - VoiceProviderRouterTests
 - FakeFtpClient
 - SubAgentDelegatorTests
-- .RunAsync
+- Task
 - SaveSiteBoundaryEditCommandTests
-- PromptType
-- PauseWorkflowExecutionCommandHandler
+- PromptContracts.cs
+- ICurrentUserAccessor
 - WorkflowExecutionOrchestrator
 - FluentFtpDeploymentFileUploaderTests
-- adminOperationalFailuresApi.ts
+- Tasks: Admin Panel Layout & Polish Pass
 - Persistence
 - RecordFunnelEventCommand
 - PromptsController
 - WorkflowExpressionValue
 - .SpeakAsync
 - StubCapability
-- AdjustViewerFocusCapability
+- ResolveLocationCapability
 - HuggingFaceModelRepositorySource
 - .AnalyzeAsync
 - McpPrompt
-- Mp3StreamEncoder
+- Ask Lucy
 - DeploymentDestination
 - EsriBuildingHeightSourceTests
-- .Boundary
+- .WithRelatedBuildingsAsync
 - AdminVoiceProvidersController
 - DocumentPreview
 - IDictationEngineSettingRepository
@@ -163,7 +163,7 @@
 - .StreamAsync
 - McpServersController
 - googleEditablePolygonHost.ts
-- ProducesResponseType
+- HttpGet
 - McpAuditLog
 - GoogleRenderedFillBoundaryExtractor
 - NotificationTemplateVersion
@@ -171,29 +171,29 @@
 - DictationEngineSetting
 - GeneratedImageMaterializerTests
 - .ResolveAsync
-- TurnOutcome
+- TurnContext
 - LocateAPlaceFlow
 - ConversationTurnOrchestratorBeatTests
 - KnowledgeBasesController
-- ViewerSurface.tsx
+- MapRenderTarget.tsx
 - ringShapes.ts
 - ApplyProviderModelSyncCommand
 - dependencies
 - useSiteBoundaryEditStore
-- Embedding
-- solarAnalysisExtension.tsx
+- IndexingOrchestrator
+- context.ts
 - ResetSiteBoundaryCommandTests
 - HashSet
 - SweepRepository
-- AddVoiceProviderCommandHandler
+- SetPrimaryVoiceProviderCommandHandler
 - GetVersionTimelineQuery
 - SetSiteBoundaryMembersCapability
 - OutboxDispatchServiceTests
-- .GetByIdAsync
+- IMcpToolRepository
 - GeoPoint
-- BoundaryResolutionService
+- .AreaSquareMeters
 - KnowledgeBaseRepository
-- IUserPanelPreferenceRepository
+- UserPanelPreference
 - OperationalFailureReport
 - SiteAnalysis
 - .Handle
@@ -213,15 +213,15 @@
 - RoleAuditLog
 - ActionResult
 - WorkflowExecutionNode
-- SiteAnalysisType
+- SiteAnalysisResultRelay
 - OvertureBuildingFootprintProviderTests
 - ChatStreamChunk
 - AgentApprovalWorkflowTests
 - DocumentUploadSession
-- .ValidateAsync
+- .Handle
 - NtsSiteRingGeometry
-- WorkflowExecutionStatus
-- CreateSpeechToTextSessionCommandHandlerTests
+- WorkflowConnectionSpec
+- KnowledgeBaseFolderTree.tsx
 - .ResolveSelectedAsync
 - .Apply
 - GoogleGeminiProvider
@@ -236,31 +236,31 @@
 - CustomModelDeploymentRecovery
 - KnowledgeBase
 - ResetPasswordCommandHandlerTests
-- .FileOperationNodeExecutor_ShouldNotSwallowOrReinterpret_TheUnderlyingToolsOwnershipDenial
+- IAgentTool
 - AsyncFtpClientFacade
 - .OccurrencesAsync
 - useSiteBoundaryEditMode.test.tsx
 - ProblemDetailsMiddleware
-- DictationEngineAdminCommandTests
+- .GetByKeyAsync
 - .ValidateAsync
 - .Handle_ShouldReturnRepositorySummary_Unmodified
 - Memory
-- siteBoundaryEditActions.ts
-- .GetByIdAsync
+- SiteBoundaryEditRuntime
+- McpHighRiskApprovalTests
 - .CreateDbContext
 - WorkflowDesignerPage.tsx
 - AiControllerTurnOutcomeStreamTests
 - ProcessingFailureAndRetryTests
 - ContentPermissionGrantPathsTests
 - siteBoundaryEditStore.ts
-- .AreaSquareMeters
+- .MaterializeAsync
 - NotificationDelivery
 - .SetUpExecutionWithMcpTool
 - .AdminUserActionPerformed
 - OpenSolarAnalysisCapabilityTests
 - AgentExecutionOrchestratorTests
-- KnowledgeBaseTag
-- .None
+- .Handle
+- ActiveSiteBoundary
 - OutboxDispatchService
 - WorkflowExecutionsController
 - PromptCategory
@@ -273,14 +273,14 @@
 - BrandedAccountEmailTemplateRenderer
 - WorkflowApproval
 - .CreateExecution
-- SelectLocalWhisperModelCommandHandler
-- AccountEmailJob
+- Tasks: Restore Local Whisper as the Primary Dictation Engine
+- 3. End-to-end scenarios
 - CapabilityContractTests
 - SiteAnalysisResultRelayTests
 - DataResolutionOutcome
 - SetCustomModelAvailabilityCommandHandlerTests
-- .CreateProvider
-- RequirePermission
+- SiteBoundaryResolverTool
+- UsersController
 - .Combine
 - CustomModelTests
 - OperationalFailureOccurrence
@@ -292,8 +292,8 @@
 - WorkflowExecutionEventType
 - PromptTestCase
 - Notification
-- .GetByIdAsync
-- StubHttpMessageHandler
+- .Create
+- GoogleStreetViewImageProviderTests
 - .CreateProvider
 - WeatherProvider
 - WorkflowBudgetGuardTests
@@ -308,25 +308,25 @@
 - WorkflowsControllerTests
 - .EveryAdminAction_CarriesEitherRequirePermissionOrTheReservedPolicy
 - .CheckHealthAsync
-- PromptExecutionRepository
+- ChatPage.test.tsx
 - OperationalFailureStore
 - BoundaryCandidateScorerTests
-- McpServerRepository
-- ExecutePromptCommand
+- IMcpServerRepository
+- .Create
 - SubmitCustomModelDeploymentCommand
 - SelectedActionResolver
-- PresentPanelContentCapabilityTests
+- PanelRequestDto
 - MemoryNotification
 - CapturingLogger
-- McpCapabilitySnapshot
-- .NarrateAsync
+- DocumentLanguage
+- .RunAsync
 - AdminOperationalFailuresTriageEndpointsTests
 - CombineSiteBoundaryShapeCommand
-- .CancelWorkflowExecutionCommandHandler_ShouldBeANoOp_WhenTheExecutionIsAlreadyTerminal
+- PauseWorkflowExecutionCommandHandler
 - OverpassRelatedSiteBuildingProvider
 - TurnRecorderTests
-- Templates
-- PromptVariable
+- Contract: Admin Notifications & Localization API
+- .ValidateAndResolve
 - OpenAIProvider
 - IndexingJob
 - OperationalFailureGroupingTests
@@ -337,19 +337,19 @@
 - EsriBuildingHeightSource
 - OperationalFailureTriageQueryTests
 - UpdatePresenceSphereSettingsCommand
-- .ListActiveAvailableAsync
+- IMcpClient
 - SystemAnnouncementTests
 - Feature Specification: Admin Panel Layout & Polish Pass
-- .ListByProviderIdAsync
-- RegisterCommandHandler
-- .ListAllAsync
+- .GetByIdIncludingDeletedAsync
+- IEmailSender
+- .Create
 - CompositeBuildingFootprintProvider
-- Tests for Foundational (write first)
+- NotificationTemplateSeeder
 - TokenType
 - ChangePasswordCommandHandlerTests
 - ProtobufReader
 - .GetByIdAsync
-- .GenerateAccessToken
+- ITokenService
 - AdminViewAuditBehavior
 - .SearchAsync
 - AdminDictationControllerTests
@@ -371,38 +371,38 @@
 - CancelCustomModelDeploymentCommandHandlerTests
 - .RunAsync_ShouldCompleteFiftySimultaneousExecutionsAcrossTenUsers_WithNoCrossExecutionCorruption
 - .AppendAsync
-- Research: Restore Local Whisper as the Primary Dictation Engine
-- .SearchAsync
+- API Contract: Admin Dictation Settings
+- IRoleRepository
 - .Ground
 - GgmlType
 - IRequest
 - .Conflate
 - .Cancelled
-- .GetByIdAsync
+- IUserProfileRepository
 - .Handle
 - .SaveMine
 - .CreateOrchestrator
 - PromptTag
 - IUserAdminRepository
 - devDependencies
-- BaseEntity
+- DocumentProcessingLog
 - User Scenarios & Testing *(mandatory)*
-- .GetEventsAsync
+- UserChat
 - GeminiBoundaryVisionAnalyzerTests
-- SiteAnalysisResultReceivedDto
+- Hub
 - AgentExecutionError
 - OverpassBoundaryCandidateProvider
 - ChatInvestigationTests
 - .GetWorkflowExecutionQueryHandler_ShouldThrowNotFound_AndRecordCrossUserAccessAttempted_WhenTheExecutionBelongsToAnotherUser
 - compilerOptions
 - BoundaryCandidateScorer
-- Tasks: Admin Operational Failure Audit Trail
+- IOperationalFailureStore
 - .ListPagedByChatIdAsync
-- WorkflowContracts.cs
-- GeminiBoundaryDrawDiagnosticService
+- .Update
+- .Handle
 - CreateSpeechToTextSessionCommandHandler
 - SiteAnalysisDetailDto
-- .Create
+- .GetByIdAsync
 - http
 - .RunAsync_ShouldWrapMcpToolOutput_InTheGenericToolResultFraming_BeforeItReachesTheNextModelCall
 - FakeUnitOfWork
@@ -415,29 +415,29 @@
 - RenderedBuildingFootprintProvider
 - .Build
 - .Create
-- AiProviderFailureKind
+- ProviderHealthCheck
 - OperationalFailureKind
 - AiCapabilitySetting
 - AssignRoleCommand
-- Tasks: Hand-Edit the Site Outline
-- DomainRuleViolationException
+- Phase 1 Data Model: Honest Turn Outcomes, Real Retry, and a Readable Offer Card
+- IWorkflowRepository
 - SaveMyCookieConsentCommand
 - AdminCustomModelsGuardrailTests
 - AgentExecutionStep
 - .CreateTestUser
-- AgentExecutionStatus
-- .Handle_ShouldPropagateWeatherProviderUnavailableException_ForTheMiddlewareToMap
+- FileReadTool
+- GetCurrentWeatherQuery
 - ProcessingNotifierTests
 - Research: Notifications & Communication Hub
-- .RunAsync_ShouldFailTheExecutionWithARecordedError_RatherThanCallTheTool_WhenThePlanReferencesATool_NotInTheActiveCatalog
+- AgentExecutionOrchestrator
 - Theory
 - .RunAsync
-- .Failure
-- KnowledgeBaseDocumentUploadedIndexingHandlerTests
+- WorkflowNodeType
+- Phase 8: Post-release follow-up (manual walkthrough findings)
 - HttpStatusCode
 - WorkflowAuditLog
 - ConfirmedSiteBoundaryData
-- .Route
+- RequirePermission
 - AgentToolResult
 - NotificationLinkBuilder
 - editablePolygonController.test.ts
@@ -445,10 +445,10 @@
 - AiControllerClaimGateTests
 - .EnsureNotStrandingSystemAsync
 - Tasks: Admin AI Model Catalog Management
-- WorkflowConnectionSpec
-- .CreateBranchingOrchestrator
-- WorkflowNodeType
-- DocumentProcessingJob
+- .GetVersionByIdAsync
+- .ExecuteAsync
+- LocationResolutionService
+- IDocumentProcessingJobRepository
 - IAIProviderRepository
 - Implementation Plan: Model Deprecation Workflow
 - AgentToolCall
@@ -458,25 +458,25 @@
 - SaveSiteBoundaryEditCommandHandler
 - AskLucy.Web.csproj
 - AskLucy.Application.Tests.csproj
-- AppendMessageCommand
-- StallingStream
+- .GetByIdAsync
+- ImmediateTimeProvider
 - .ParseDirectory
-- ConversationRuntimeOptions
+- .NarrowAsync
 - EditSiteBoundaryCapabilityTests
 - UserContracts.cs
-- .ExecuteAsync
+- .SetUpJob
 - UploadDocumentCommandHandlerTests
 - .RunAsync_ShouldFailCleanlyWithARecordedError_WhenSavingAConflictingWriteThrows
-- .MapProviderFailure
-- UserContentAccessEvent
-- Tasks: Restore Local Whisper as the Primary Dictation Engine
+- .For
+- AskLucy.Domain.OperationalFailures
+- TranscribeDictationClipCommandHandler
 - HttpClient
 - .CreateProvider
-- UploadAvatarCommandHandler
+- DocumentTag
 - .GetOrCreateAsync
 - AskLucy.Web.Tests.csproj
 - .EnsureCanReplaceRoleAsync
-- CustomWebApplicationFactory
+- DictationApiFactory
 - SystemAnnouncement
 - .GetByIdAsync
 - .Rect
@@ -490,18 +490,18 @@
 - FoundSiteBoundarySnapshot
 - Tasks: Honest Turn Outcomes, Real Retry, and a Readable Offer Card
 - AdminOperationalFailuresEndpointsTests
-- VoiceFailureReporterTests
-- WorkflowsController
+- TesseractOcrEngine
+- ConversationRuntimeOptions
 - DocumentProcessingController
 - ActionResult
 - GeoGrid
 - AiProviderException
-- Exception
+- ChatMessage
 - JwtOptions
-- RoleRecord
+- .Handle
 - AskLucy.Persistence.csproj
 - AskLucy.Infrastructure.Tests.csproj
-- RelatedSiteBuildingsTests
+- KnowledgeBaseDashboardSummaryCache
 - IChunkingStrategy
 - VoiceProviderFailoverEvent
 - WorkflowRetryPolicyTests
@@ -509,14 +509,14 @@
 - RecordActiveSiteBoundaryCommandHandler
 - Tasks: Solar Analysis Accuracy & Performance
 - .GetPublishedVersionAsync
-- selectPersonaVoice.ts
-- IAgentTool
-- Tasks: Password Recovery & Password Management
+- Contract: Voice Persona Mapping
+- AgentToolPermission
+- PromptVariable
 - PromptExportFile
 - WorkflowError
-- .ExecuteAsync
+- McpConnectionResiliencePolicy
 - CustomWebApplicationFactory
-- .Handle_ShouldMergeResultsFromBothVectorStores_WhenKnowledgeBasesSpanBothProviders
+- IFileStorage
 - Tasks: Custom Model Deployment (Admin)
 - ParallelExecutionTests
 - McpClientFactory
@@ -525,26 +525,26 @@
 - EditSiteBoundaryCapability
 - RequestSiteAnalysisCapability
 - .RunAsync_ShouldNeverExecuteAMutatingTool_AndShouldRecordTheStepSkipped_ForATestExecution
-- .TryExtract
+- .ResolveQueryAsync
 - Spec: Composer Interaction States Redesign
 - D2 — DOM-query for reserved regions
 - SynthesizeSpeechCommandHandler
-- .GetModelsForProvider
-- .EditOfferLevel
+- ModelSummaryDto
+- HandEditedOutlineFollowUpTurnsTests
 - AskLucy.Domain.Tests.csproj
 - AskLucy.Persistence.Tests.csproj
 - .RunAsync_ShouldStopAtBudget_WhenTheTurnHasAlreadyRunLong
 - AiContracts.cs
 - D3 — One algorithm: place-into-best-slot
-- CapabilitySettingCatalog
+- StubCapability
 - IMemoryService
 - D4 — Cascade z-order is assigned by area
 - D5 — A panel the user has moved is pinned
 - D6 — The drag placeholder snaps
-- .CreateDefault
+- GeoPoint
 - D7 — The reopen tray is a left-edge rail
 - IndexingLog
-- CurrentAuthorizationClaimsTransformation
+- Tasks: Password Recovery & Password Management
 - AiController
 - D8 — Closed panels are stored as reconstructed PanelRequests
 - D9 — Deleting the two hardcoded-offset stopgaps
@@ -555,15 +555,15 @@
 - SystemWorkflowProvisioner
 - .TranscribeAudioAsync
 - UpdateAiProviderCommand
-- Task
-- .Describe
+- IAgentExecutionRepository
+- Tasks: Hand-Edit the Site Outline
 - .Sanitize
 - TurnOutcomeClaimGate
 - Implementation Plan: Presence Sphere Admin Controls
 - RecentTurnOutcomeSummary
 - IEmbeddingService
 - Site Analysis Agent Implementation Plan
-- .Up
+- DocumentProcessingStage
 - CustomModelDeploymentHubTests
 - ApplicationUser
 - .Empty
@@ -571,17 +571,17 @@
 - Quickstart: Hangfire Dashboard Access from Admin Panel
 - AccessTokenCookie
 - PromptCapabilityRequirements
-- ChatContracts.cs
+- DocumentProcessingJobRepository
 - MemoryLayeringTests
 - Phase 0 Research: RAG & Semantic Search Engine
 - Modular Monolith Architecture
 - Extension Context
 - ICustomModelRepository
 - AgentApproval
-- PermissionSet
+- .GetByIdAsync
 - BulkTargetRequest
-- .PromoteLoneFirstStep
-- .CreateProvider
+- ConversationFlowCatalog
+- StubHttpMessageHandler
 - SetSiteBoundaryMembersCapabilityTests
 - .NotifyIndexStatusChangedAsync
 - Application abstractions and core services
@@ -609,21 +609,21 @@
 - 3. Design Principles
 - .GetByConversationAsync
 - DocumentChunk
-- .Up
+- SupertonicTextToSpeechEngine
 - GoogleMapsGisLayer.ts
 - floatingPanelStore.ts
 - OverpassElement
-- BaseEntity
+- PresenceSphereSettings
 - .Validate
-- Tasks: Admin Panel Layout & Polish Pass
+- GetSystemAgentsQuery
 - ResetPasswordCommandHandler
-- .SaveBothAsync
+- ICorrelationIdAccessor
 - OverpassGeometryPoint
-- .ResolveAsync
+- .Serialize
 - GetChatMessagesQueryHandler
-- .FetchOneAsync
-- .GetByKeyAsync
-- UserChat
+- FluentFtpDeploymentFileUploader
+- .Unprotect
+- UserChatRepository
 - .prettierrc.json
 - .Row
 - Implementation Plan: Particle Sphere Rendering Engine Upgrade
@@ -712,7 +712,7 @@
 - AI Provider Abstraction
 - Feature Specification: Immersive 3D AI Workspace
 - Feature Specification: Admin AI Provider Configuration UI
-- .ListEnabledForNodeAsync
+- .FindMatchAsync
 - LoggerMessage
 - Feature Specification: Lucy Brand & Voice Refresh
 - Phase 1 Data Model: Particle Sphere Rendering Engine Upgrade
@@ -782,7 +782,7 @@
 - Site Analysis Retrieval API Contract
 - Site Analysis Hub Events Contract
 - Produces
-- .CreateExecution
+- .Handle
 - IEmailSender
 - ITokenService
 - Viewer Engine README
@@ -802,11 +802,11 @@
 - WeatherControllerTests
 - OperationCanceledException
 - SiteAnalysis
-- PromptExecutionResult
+- KnowledgeBaseDocumentUploadedIndexingHandlerTests
 - Claim
 - Fact
 - .Configure
-- GetMemoryReferencesQueryHandler
+- PromptRating
 - ICurrentUserAccessor
 - PresenceSphereSettingsHandlerTests
 - IEnumerable
@@ -815,39 +815,39 @@
 - ILogger
 - InlineData
 - Task
-- IEmailSender
+- LogicFreeTemplateRenderer
 - Theory
 - TimeSpan
 - InMemoryAgentRepository
 - ElevenLabsOptions
-- Contract: Edit Mode in the Studio Viewer
+- .TryExtract
 - ResetSiteBoundaryCapability
 - Feature Specification: Solar Analysis Accuracy & Performance
 - DateTime
 - IOptions
 - Feature Specification: POI Viewer Zoom & Focus
 - GetMyCookieConsentQuery
-- .CoresOf
+- AppendMessageCommandHandler
 - TheoryData
 - RequestSiteAnalysisCapabilityTests
 - ref_mui_icons_material_person
 - AIModelStatus
 - IVectorStore
 - ExternalLoginTests
-- IncidentAppendRequest
+- Task
 - 17. Theme Architecture
 - Tasks: Presence Sphere Admin Controls
 - .GetByUserIdAsync
-- AgentExecutionNotifier
+- DocumentProcessingJob
 - ActiveSiteBoundaryCorrectionTests
 - UserVoicePreference
-- ApplicationRole
+- .GetSummaryAsync_ShouldAggregateCountsTrendAndRoles_Correctly
 - ref_mui_icons_material_settings
 - AllowAnonymous
 - Authorize
 - BulkActionOutcome
 - BulkTarget
-- .GetByIdAsync
+- DeleteCategoryCommand
 - EnableRateLimiting
 - HttpDelete
 - HttpGet
@@ -877,17 +877,17 @@
 - ElevenLabsSpeechToTextSessionProvider
 - ref_mui_icons_material_toggleoff
 - ref_mui_icons_material_toggleon
-- Research: Admin Operational Failure Audit Trail
+- .RunOnceAsync
 - .Handle_ShouldExtractHtmlBlock_WhenProviderWrapsResponseInHtmlFence
 - GetVoiceEnginesQueryHandler
 - Tasks: Model Deprecation Workflow
 - Feature Specification: Restore Local Whisper as the Primary Dictation Engine
 - .CreateProvider
-- ConcurrencyConflictException
+- Exception
 - .Analyze
-- NotificationWakeSignal
+- SimpleUploadCommandHandler
 - .NotifyAsync_ShouldPublishTheMappedCatalogKey_ForTheOwningUser
-- TurnContext
+- IConversationCapability
 - OnnxLocalEmbeddingProvider
 - RemoteFileDownloader
 - CancellationToken
@@ -895,7 +895,7 @@
 - Exception
 - HttpClient
 - HttpResponseMessage
-- MergeNodeExecutorTests
+- .ExecuteAsync
 - List
 - IAsyncEnumerable
 - IHttpClientFactory
@@ -913,7 +913,7 @@
 - DocumentStatistics
 - KnowledgeBase
 - McpTool
-- SolarAnalysisOverlay.tsx
+- solarAnalysisExtension.tsx
 - PromptUsageStatistics
 - SearchAnalytics
 - Fact
@@ -924,22 +924,22 @@
 - Task
 - IFtpClientFacade
 - WorkflowEventTriggerConfiguration.cs
-- .CreateProvider
+- OpenRouterProvider
 - WorkflowApprovalWorkflowTests
 - AdminNotificationQueryHandlerTests
 - Feature Specification: Hand-Edit the Site Outline
-- WorkflowTests
+- DomainRuleViolationException
 - .CreateExtractor
 - PermissionSetTests
 - LocalFileStorage
 - ActionClaimVocabulary
-- WorkflowVariableType
+- KnowledgeBaseDocumentType
 - SiteAnalysisResult
 - .NewIncident
 - AgentExecutionEvent
 - Feature Specification: Honest Turn Outcomes, Real Retry, and a Readable Offer Card
 - OperationalFailureEngine
-- .ComposeFinding
+- SiteAnalysisResultMetadata
 - .ProvisionOneAsync
 - .GetByIdAsync
 - SupertonicModelTests
@@ -955,7 +955,7 @@
 - RoleAuditAction
 - HashSet
 - asklucy_web_controllers_v1
-- .Handle_ShouldReturnEveryModel_RegardlessOfStatus
+- .Create
 - Citation
 - DictationEngineSettingRepository
 - .GetAsync
@@ -965,26 +965,26 @@
 - Phase 0 Research: Site Boundary Resolution
 - WeatherCondition
 - VoiceProviderTests
-- AdminRolesController
+- HttpPut
 - .Register_SignIn_Roles_Permissions_Claims_AndDelete_AllWorkOnTheRepairedSchema
 - GetSiteAnalysisQuery
-- .Create
+- .Handle
 - Feature Specification: Cookie Consent & Privacy Management
 - JsonElement
 - three
 - IUserVoicePreferenceRepository
 - AIProvider
-- ChunkingStrategy
+- .SearchAsync
 - Type
 - TimeSpan
 - ArgumentException
 - SearchAnalytics
 - panelPreferencesStore.ts
 - AgentsControllerTests
-- system_security_claims
+- SiteSchematicImageGenerationTool
 - AdminRoleAssignmentsBulkAssignTests
 - NotificationTypeCatalogTests
-- StubCapability
+- .Handle
 - SupertonicOptions
 - EntityTypeBuilder
 - VoiceProviderRouter
@@ -993,24 +993,24 @@
 - WeatherSnapshotDto
 - ControllerBase
 - OvertureTestBucket
-- .Handle_ShouldIssueTokens_WhenCodeIsValid
-- 20260729132404_DropLegacyUserChatDateTimeColumns.Designer.cs
+- UploadAvatarCommandHandler
+- .BuildTargetModel
 - Contract: Turn Outcome
-- BuildingCorrectionsPanel
+- Tasks: Precise Time-of-Day Control
 - AgentExecutionHistorySecurityTests
-- .EnsureOwnedBy
+- .SetUpDocumentWithTwoVersions
 - InMemoryExternalLoginCodeStore
 - WorkflowExecutionTests
-- SqlServerVectorStore
-- Phase 0 Research: External Login Profile Sync
+- AiControllerVoiceTests
+- .InvokeAsync
 - User Scenarios & Testing *(mandatory)*
 - ModelRepositorySourceFailureKind
 - ConfirmedLocationData
-- ListMcpServerReferencesQuery
+- ScopedHostedModelLocatorTests
 - TurnOutcomeAuthorityTests
 - AccountManagementTests
-- UserPanelPreference
-- Contract: User Notifications API
+- Feature Specification: Deployment Connectors Administration
+- Feature Specification: Notifications & Communication Hub
 - HashSet
 - IOptions
 - IReadOnlyList
@@ -1019,14 +1019,14 @@
 - Fact
 - InlineData
 - Theory
-- .GetByUserIdAsync
+- ClearUserChatMessagesCommand
 - IReadOnlySet
 - Action
-- AgentMemoryPolicy
+- Agent
 - DuplicateResourceException
 - .DeriveFrom
 - .SaveAsync
-- AgentTests
+- .EditOfferLevel
 - AskLucyDbContext
 - AdminRoleAssignmentsTests
 - LockUnlockUserTests
@@ -1034,17 +1034,17 @@
 - CookieConsentControllerTests
 - ICurrentUserAccessor
 - Feature Specification: Admin Dashboard & User Management Console
-- Tasks: Precise Time-of-Day Control
+- .CreateProvider
 - asklucy_application_authorization_roles_commands_bulkdeleteroles
 - OwnershipTests
-- .MaterializeAsync
+- StubCapability
 - BulkAssignRoleCommandHandler
 - Theory
 - IAgentExecutionRepository
-- .Up
-- .Up
+- .Handle
+- SiteBoundaryCorrectionTests
 - OperationalFailureIncident
-- DictationApiFactory
+- API Contract: Dictation Clip Transcription
 - Implementation for User Story 1: backend
 - BulkDeleteRolesCommandHandler
 - AppendMessageCommand
@@ -1061,20 +1061,20 @@
 - IAIModelRepository
 - asklucy_application_authorization_assignments_commands_assignrole
 - McpTool
-- VoiceProviderHealthRecorder
-- BulkUserActionsTests
+- AiProviderFailureKind
+- CustomWebApplicationFactory
 - OperationalFailuresOptions
 - RoleAuthorizationTests
 - FakeLogger
 - AssignRoleCommandHandler
 - IPublisher
 - IServiceScopeFactory
-- SiteAnalysisProgressiveDeliveryTests
+- .GetByIdAsync
 - BulkDeleteRolesCommand
 - KeyNotFoundException
 - ActionResult
 - BulkDeleteRolesResultResponse
-- 20260826190235_AddActiveSiteBoundaryToUserChat.Designer.cs
+- .BuildTargetModel
 - Authorize
 - HttpDelete
 - RoleRecord
@@ -1093,7 +1093,7 @@
 - StringBuilder
 - VoiceSettingsDto
 - SystemAgentProvisioningResult
-- 20260829194600_AddProviderFailureClassificationAndOptionalModelLimits.Designer.cs
+- .BuildTargetModel
 - EventId
 - Func
 - LogLevel
@@ -1106,8 +1106,8 @@
 - RetrievalResult
 - IIdentityService
 - LoggerMessage
-- .Create
-- .RetrieveContextAsync
+- AgentPolicyDto
+- AdminVoiceProvidersControllerTests
 - ApplicationRole
 - RoleManager
 - AuthOutcome
@@ -1116,7 +1116,7 @@
 - RequestDelegate
 - HttpPost
 - Guid
-- Part 2 — Manual
+- UserContentAccessEvent
 - IEnumerable
 - HttpPut
 - ConversationActionStaleException
@@ -1126,7 +1126,7 @@
 - Func
 - AiProviderFailureKind
 - ValueTask
-- WorkflowConnection
+- DocumentPageCountExtractor
 - IIdentityService
 - DocumentAuditLog
 - .ChunkAsync
@@ -1146,52 +1146,52 @@
 - Stream
 - DbUpdateException
 - TextToSpeechStreamerTests
-- 20260729190610_AddConversationFullTextSearch.Designer.cs
-- AbstractValidator
-- 20260925105001_AddActiveLocationType.Designer.cs
+- .BuildTargetModel
+- fluentvalidation
+- .BuildTargetModel
 - RoleSummaryDto
 - VoiceReplyEvent
 - IConfiguration
 - AdminDashboardTests
 - SystemWorkflowProvisioningHostedService
 - GenerateRecoveryCodesCommandHandler
-- ConversationTurnRequest
-- .Up
-- 20260810161902_OptimizeAgentPolicyIndex.Designer.cs
-- .Up
+- .RunOneDelegationAsync
+- Feature Specification: Precise Time-of-Day Control
+- .BuildTargetModel
+- ICookiePolicyProvider
 - AiProviderRateLimitedException
 - AiProviderException
-- .Up
+- .ListEnabledForNodeAsync
 - AiProviderUnavailableException
 - IEnumerable
 - Func
 - AiCapabilityProviderResolver
 - MessageDto
-- ITokenService
+- Feature Specification: Hangfire Dashboard Access from Admin Panel
 - JsonSerializerOptions
 - HttpRequestMessage
-- .Update
+- AgentContracts.cs
 - TurnVerdict
 - HttpResponseMessage
 - IAiCredentialProtector
 - IAIProviderRepository
 - IHttpClientFactory
-- SearchResultItemDto
-- 20260805132100_AddKnowledgeBaseVectorStoreProvider.Designer.cs
+- .RetrieveContextAsync
+- .BuildTargetModel
 - JsonDocument
-- Research: Voids and Drawing Shapes in the Outline Editor
-- HybridSearchQuery
+- .Handle
+- Feature Specification: Branded Transactional Email Templates
 - KnowledgeBaseCategory
-- .SendAsync
+- Part 2 — Manual
 - .Matches
 - Image
 - SelectedActionResolver
 - GetWorkflowExecutionEventsQuery
 - StubHttpMessageHandler
-- .Up
-- UserPanelPreferenceDto
+- .ExecuteAsync
+- LoadViewerContentCapability
 - Rgba32
-- WorkflowVersionDto
+- OpenLivePanelCapability
 - JsonElement
 - HashSet
 - AdminAgentsControllerTests
@@ -1199,41 +1199,41 @@
 - X
 - Y
 - Prompt
-- KeywordSearchQueryHandler
-- .Up
+- Fact
+- .CreateEngine
 - SiteBoundaryBoxSelect.test.tsx
 - AnonymousAccessTests
 - AdminResendConfirmationCommandHandler
 - .OnConnectedAsync_ShouldAddTheConnectionToItsOwnUserGroup
 - CookiePolicyOptions
-- DashboardAuthorizationTests
+- HandEditedMembershipComposer
 - ProcessingNotifier
 - ILogger
 - .RunAsync
-- .Up
+- EffectiveSiteBoundaryTests
 - LoggerMessage
 - DocumentProcessingHub
 - IRoleAssignmentRepository
 - HttpClient
 - HttpResponseMessage
 - IServiceProvider
-- Assumptions
+- .EnsureAtLeastOneActiveSuperUserRemains
 - SupertonicOptions
-- EsriBuildingsOptions
-- RenderedFootprintOptions
+- Mp3StreamEncoder
+- .SaveBothAsync
 - AskLucy.E2E.Tests/package.json
 - NotificationRepository
-- TableChunkingStrategy
+- HeadingChunkingStrategy
 - Attachment
 - IHttpClientFactory
 - .BuildTargetModel
 - Implementation for Foundational
-- 20260817110019_AddUserVoicePreferenceDefaultLanguage.Designer.cs
+- .BuildTargetModel
 - asklucy_application_ai_commands_transcribemicrophoneaudio
 - McpCatalogControllerTests
-- 20260823190247_AddActiveLocationToUserChat.Designer.cs
+- .BuildTargetModel
 - IKnowledgeBaseCategoryRepository
-- 20260916080502_RepairAspNetRolesConstraints.Designer.cs
+- .BuildTargetModel
 - SelectedActionResolver
 - .GetRolesAsync
 - TurnDecisionParser
@@ -1245,28 +1245,28 @@
 - AgentTool
 - IOptions
 - OperationCanceledException
-- SiteBoundaryCornerNavigator.test.tsx
+- .ListByServerAsync
 - Uri
 - AiProviderRateLimitedException
 - AiProviderUnavailableException
 - ElevenLabsOptions
 - VoiceProvider
-- IPresenceSphereSettingsRepository
+- .SetUpJob
 - Func
 - HttpRequestMessage
 - IOptions
 - ActiveSiteBoundary
 - ConfirmedLocationData
-- POIMarkerOverlay.tsx
+- .SetUpJob
 - KnowledgeBaseContracts.cs
 - PermissionEnforcementMatrixTests
 - IClientProxy
-- Verification
-- ChangeUserRoleTests
-- ImmediateTimer
+- .Boundary
+- KeyboardLayoutMisreadTests
+- .Create
 - KnowledgeBaseDetailDto
 - IHostedModelLocator
-- .HasPendingMigrationsAsync
+- NotificationTemplateRepository
 - AskLucy.Persistence.Migrations
 - ITextToSpeechEngine
 - Memory
@@ -1276,7 +1276,7 @@
 - IReadOnlyCollection
 - JsonDocument
 - HttpResponseMessage
-- PromptStatus
+- PromptDetailDto
 - IRoleRepository
 - Fact
 - asklucy_application_custommodels_commands_removecustommodel
@@ -1284,20 +1284,20 @@
 - IVoiceProviderRepository
 - KnowledgeBaseIndexStatus
 - CustomModelAvailability
-- .SearchAsync
+- ForceReset2faCommand
 - CustomModelDeploymentFailedException
 - ListWorkflowPoliciesQuery
 - ITranscriptionProvider
 - IIdentityService
 - IRoleAssignmentRepository
-- IHostedModelLocator
+- Research: Restore Local Whisper as the Primary Dictation Engine
 - TurnDecision
 - SiteAnalysesControllerTests
 - SuggestedAction
 - SuggestedActionKind
 - ScoredBoundaryCandidate
 - BoundaryConfidenceLevel
-- AgentKnowledgeBase
+- WorkflowExecutionUsage
 - OperationalFailureIngestor
 - DbUpdateException
 - IRoleRepository
@@ -1309,7 +1309,7 @@
 - ILogger
 - HashSet
 - IEnumerable
-- .Create
+- .RunAsync
 - Key
 - BoundaryCandidateScorer
 - LoggerMessage
@@ -1317,7 +1317,7 @@
 - HangfireDashboardCookieAuthenticationTests
 - TimeSpan
 - SetAiCapabilityAssignmentCommandValidatorTests
-- GeminiSegmentationDiagnosticService
+- .DrawLine
 - BoundaryConfidenceLevel
 - BuildingRetrievalOptions
 - EsriOptions
@@ -1329,10 +1329,10 @@
 - OperationalFailureIncident
 - OperationalFailureOccurrence
 - UserContentAccessEvent
-- .ExtractAsync
-- SiteBoundaryMember
+- useChatStream.ts
+- ApplicationRole
 - OvertureBuildingsOptions
-- SiteBoundaryPolygonDraw.test.tsx
+- SiteBoundaryShapeDraw.test.tsx
 - IEffectivePermissionResolver
 - ITextToSpeechProvider
 - IUserContentAccessEventRepository
@@ -1342,7 +1342,7 @@
 - HttpDelete
 - HttpPatch
 - CustomModelProgressDto
-- SiteBoundaryShapeDraw.test.tsx
+- .ReadPositionScales
 - IAIProviderRepository
 - IEffectivePermissionResolver
 - ICorrelationIdAccessor
@@ -1353,7 +1353,7 @@
 - ConfirmedSiteBoundaryData
 - SystemAgentDefinitionTests
 - CreateCustomCategoryCommandTests
-- AnalyticsControllerTests
+- StallingStream
 - FakeDeploymentFileUploader
 - OperationalFailuresOptions
 - .BuildModel
@@ -1380,7 +1380,7 @@
 - IOperationalFailureRecorder
 - IReadOnlyList
 - List
-- Contract: Solar Analysis Panels
+- Contract: User Notifications API
 - Fact
 - InlineData
 - ConversationTurnRequest
@@ -1394,11 +1394,11 @@
 - CancellationToken
 - HttpResponseMessage
 - JsonDocument
-- .Up
+- AgentPoliciesControllerTests
 - Task
 - CancellationToken
 - IVoiceFailureReporter
-- AdminAiProvidersController.cs
+- AskLucy.Domain.Ai
 - IHostEnvironment
 - IAiCredentialProtector
 - ISiteRingGeometry
@@ -1418,9 +1418,9 @@
 - Heights
 - AdminHangfireSessionEndpointTests
 - InvalidDataException
-- .Up
+- GetAdminVoiceProvidersQueryHandler
 - Location
-- .Up
+- User Scenarios & Testing *(mandatory)*
 - Provenance
 - List
 - SemaphoreSlim
@@ -1458,7 +1458,7 @@
 - NotificationEmailOptions
 - ConversationSort
 - IEnumerable
-- TurnDecisionParseFailure
+- AiDocumentLanguageAndClassifierTests
 - CancellationTokenSource
 - SourcePreviewDto
 - BoundaryCandidateScorer
@@ -1469,7 +1469,7 @@
 - Exception
 - ILogger
 - LoggerMessage
-- Implementation Plan: Selective Model Sync Review
+- FakeRealtime
 - IVoiceProviderHealthRecorder
 - GeoPoint
 - Quickstart: validating voids and drawing shapes
@@ -1482,20 +1482,20 @@
 - ChatStreamChunk
 - SaveSiteBoundaryEditResult
 - IHttpClientFactory
-- 20260810045116_AddPromptFullTextSearch.Designer.cs
+- .BuildTargetModel
 - SiteBoundarySource
 - GetEnabledAiProvidersQueryHandler
-- GetVoiceProviderVoicesQuery
+- Templates
 - IRenderedFillBoundaryExtractor
 - AppOptions
 - ISatelliteImageProvider
-- GetUserAiPreferenceQueryHandler
+- Quickstart: Model Deprecation Workflow
 - IStreetViewImageProvider
 - FlowStepResult
 - OverpassOptions
 - IReadOnlyList
 - SemaphoreSlim
-- ValidatePasswordResetTokenQueryHandler
+- WorkflowUserExecutionLimit
 - ActionResult
 - ActiveSiteBoundary
 - UserChat
@@ -1508,7 +1508,7 @@
 - HttpPut
 - ConversationFlowCatalog
 - IAIModelRepository
-- ForceReset2faTests
+- ConfirmEmailCommand
 - AiFloatingPanels.spec.ts
 - CancellationToken
 - FlowRunner
@@ -1539,7 +1539,7 @@
 - GeoPoint
 - SiteBoundaryMembershipService
 - SubAgentDelegator
-- PineconeOptions
+- .Handle
 - HashSet
 - HashSet
 - INotificationAuditWriter
@@ -1551,7 +1551,7 @@
 - Key
 - ActionAttempt
 - GeoPoint
-- GetCurrentWeatherQuery
+- GetCurrentWeatherQueryValidatorTests
 - Implementation Plan: Admin Panel Layout & Polish Pass
 - ListRelatedIncidentsQuery
 - KnowledgeBaseIndexingJobTests
@@ -1566,7 +1566,7 @@
 - IAgentRepository
 - IAgentTool
 - .BuildTargetModel
-- .Up
+- .UserOrClientKey
 - ConversationActionUnknownException
 - .BuildTargetModel
 - Guid
@@ -1640,7 +1640,7 @@
 - Task
 - Guid
 - CancellationToken
-- RingValidationResult
+- CombineFailure
 - Task
 - ActiveSiteLocation
 - ChatMessageDto
@@ -1755,7 +1755,6 @@
 - IState
 - Guid
 - Func
-- .Up
 - DomainRuleViolationException
 - ICurrentUserAccessor
 - HttpClient
@@ -1881,7 +1880,7 @@
 - LocateAPlaceFlow
 - Task
 - .BuildTargetModel
-- MigrationBuilder
+- .BuildTargetModel
 - ConfirmActionRequest
 - CreateChatRequest
 - .BuildTargetModel
@@ -1901,18 +1900,18 @@
 - GeneratedRegex
 - IReadOnlyDictionary
 - UpdateChatModelSelectionRequest
-- PromptAuditLog
+- .GetByIdForOwnerAsync
 - IUnitOfWork
 - Job
 - OutboxDispatchService
 - Task
 - IAsyncEnumerable
-- ActiveSiteBoundary
+- 069-model-deprecation-workflow/tasks.md
 - AdminRolesBulkDeleteTests
-- .CreateProvider
+- Uri
 - WorkflowApprovalGate.spec.ts
 - WorkflowExecutionHistory.spec.ts
-- IdentityResultStatus
+- Implementation Plan: [FEATURE]
 - WorkflowRealtimeMonitoring.spec.ts
 - WorkflowVersioning.spec.ts
 - ref_node_path
@@ -1986,22 +1985,22 @@
 - BoundaryConfidenceLevel
 - JsonElement
 - SiteBoundarySource
-- .Up
+- PreviewVoiceCommand
 - UserChat
 - SaveSiteBoundaryEditCommand
 - ApplicationUser
 - UserChat
 - AiProvidersControllerTests
 - UserChat
-- AgentExecutionRunner
-- 20260728115847_AddMessages.Designer.cs
+- TurnDecision
+- .BuildTargetModel
 - NotificationRetryOptions
-- .Up
-- GetMyProfileQuery
+- INotificationAccessCheck
+- .ReportSuccessAsync
 - .StylesheetResource_ShouldBeEmbeddedAndNonEmpty
 - .ReleaseUnreadable
 - .Configure
-- scripts
+- ClientApp/package.json
 - IEnumerable
 - IReadOnlyCollection
 - IReadOnlySet
@@ -2012,27 +2011,27 @@
 - AskLucyDbContext
 - ICustomModelRepository
 - IOperationalFailureStore
-- CustomModelsNotConfiguredTests
-- UpdateUserOverpostingTests
-- EffectiveLanguageResolver
-- .SearchAsync_ShouldReturnAFilteredSearchPage_InUnderTwoSeconds_At1000KnowledgeBases
+- UserConversationPreference
+- `POST /api/v1/admin/hangfire/session`
+- Contract: `NotificationHub` (SignalR)
+- WorkflowExecutionRunner
 - NotificationDispatchOptions
-- .Up
-- NotificationTemplateConfiguration
+- siteBoundaryEditStore.test.ts
+- FakeRenderer
 - .BuildTargetModel
 - .BuildTargetModel
 - .BuildTargetModel
 - .BuildTargetModel
 - .BuildTargetModel
 - .BuildTargetModel
+- 5. AI Context
 - .BuildTargetModel
 - .BuildTargetModel
 - .BuildTargetModel
 - .BuildTargetModel
 - .BuildTargetModel
-- .BuildTargetModel
-- .Up
-- MockHubConnectionBuilder
+- CookieConsentRecordTests
+- adminCustomModelsApi.ts
 - ResizeObserverStub
 - Base64MemoryContentProtector
 - .BuildTargetModel
@@ -2043,13 +2042,42 @@
 - ILogger
 - IUnitOfWork
 - IUserProfileRepository
-- .Up
-- .Up
+- 4. Identity Context
+- 7. Knowledge Context
 - resolveElementOverlap.ts
 - resolveSelection.ts
 - vitest-jest-axe.d.ts
 - PersistenceDatabaseGate
 - .SentenceBoundaryRegex
+- Contract: Frontend Localization & RTL
+- Research: Hand-Edit the Site Outline
+- .ChunkAsync
+- UnitOfWork
+- Specification Quality Checklist: Notifications & Communication Hub
+- Specification Quality Checklist: Model Deprecation Workflow
+- IMemoryExtractionJob
+- TranscribeAudioCommand
+- .UploadDocument
+- WorkflowApprovalDecision
+- .ChunkAsync
+- .Create
+- TranscriptionUploadGuardTests
+- ADR 0018: Transactional Notification Outbox with In-Process Workers
+- 16. Audit Context
+- .Changed
+- New aggregate: `DictationEngineSetting` (Domain, `AskLucy.Domain.Ai.Dictation`)
+- .TryDeserialize
+- NotificationPreferenceConfiguration
+- SystemAnnouncementConfiguration
+- .BuildTargetModel
+- .BuildTargetModel
+- .BuildTargetModel
+- .FromAsync
+- SystemAgentDefinitions
+- .Handle
+- PromptTestCaseDto
+- .ToAsyncEnumerable
+- ref_node_fs
 
 ## God Nodes (most connected - your core abstractions)
 1. `AskLucy.Application.Abstractions` - 996 edges
@@ -2064,16 +2092,16 @@
 10. `Task` - 241 edges
 
 ## Surprising Connections (you probably didn't know these)
-- `Summary` --references--> `NotificationRouter`  [INFERRED]
-  specs/067-notifications-communication-hub/plan.md → src/AskLucy.Domain/Notifications/NotificationRouter.cs
+- `Phase dependencies` --references--> `DictationFailurePolicy`  [INFERRED]
+  specs/078-restore-local-whisper/tasks.md → src/AskLucy.Application/Ai/Dictation/DictationFailurePolicy.cs
 - `D7: Notification types and recipients` --references--> `NotificationTypeCatalog`  [INFERRED]
   specs/069-model-deprecation-workflow/research.md → src/AskLucy.Domain/Notifications/NotificationTypeCatalog.cs
-- `Technical Context` --references--> `CustomWebApplicationFactory`  [INFERRED]
-  specs/072-custom-model-deploy/plan.md → tests/AskLucy.Web.Tests/CustomWebApplicationFactory.cs
+- `1. Modules publish into the caller's unit of work` --references--> `NotificationOutboxEvent`  [INFERRED]
+  docs/adr/0018-transactional-notification-outbox.md → src/AskLucy.Domain/Notifications/NotificationOutboxEvent.cs
+- ``GET /hangfire` (existing Hangfire-owned route, unchanged in shape)` --references--> `HangfireDashboardAuthorizationFilter`  [INFERRED]
+  specs/060-hangfire-dashboard-access/contracts/admin-hangfire-session.md → src/AskLucy.Web/Auth/HangfireDashboardAuthorizationFilter.cs
 - `McpTools / McpResources / McpPrompts` --references--> `Prompt`  [INFERRED]
   docs/DATABASE.md → src/AskLucy.Domain/Prompts/Prompt.cs
-- `R1. Real-time transport (FR-018)` --references--> `DocumentProcessingHub`  [INFERRED]
-  specs/067-notifications-communication-hub/research.md → src/AskLucy.Infrastructure/Documents/DocumentProcessingHub.cs
 
 ## Import Cycles
 - None detected.
@@ -2103,227 +2131,227 @@
 - **Viewer Extension Lifecycle** — specs_050_viewer_extension_framework_data_model_viewer_extension, specs_050_viewer_extension_framework_data_model_extension_context, specs_050_viewer_extension_framework_data_model_extension_registry [EXTRACTED 1.00]
 - **UI Redesign Patterns** — docs_ribbon_menu_ribbon_layout, docs_ui_guidelines_progressive_disclosure, docs_ui_ux_functional_requirements_composer_modes [INFERRED 0.85]
 
-## Communities (2046 total, 1099 thin omitted)
+## Communities (2075 total, 1099 thin omitted)
 
-### Community 0 - "mediatr"
-Cohesion: 0.00
-Nodes (318): asklucy_application_ai_commands_addvoiceprovider, asklucy_application_ai_commands_previewvoice, asklucy_application_ai_commands_setprimaryvoiceprovider, asklucy_application_ai_commands_setvoiceprovidercredential, asklucy_application_ai_dictation_commands_selectlocalwhispermodel, asklucy_application_ai_dictation_commands_trylocalwhispermodel, asklucy_application_ai_dictation_queries_getdictationsettings, asklucy_application_ai_queries_getadminvoiceproviders (+310 more)
+### Community 0 - "AskLucy.Application.Abstractions"
+Cohesion: 0.01
+Nodes (260): asklucy_application_ai_commands_addvoiceprovider, asklucy_application_ai_commands_previewvoice, asklucy_application_ai_commands_setprimaryvoiceprovider, asklucy_application_ai_commands_setvoiceprovidercredential, asklucy_application_ai_dictation_commands_selectlocalwhispermodel, asklucy_application_ai_dictation_commands_trylocalwhispermodel, asklucy_application_ai_dictation_queries_getdictationsettings, asklucy_application_ai_queries_getadminvoiceproviders (+252 more)
 
 ### Community 1 - "apiFetch"
 Cohesion: 0.01
-Nodes (339): Frontend contract, Implementation for User Story 4, Constitution Check, apiFetch(), ApiFetchInit, parseResponse(), performFetch(), BulkActionResult (+331 more)
+Nodes (308): Implementation for User Story 1, Constitution Check, API_BASE_URL, apiFetch(), ApiFetchInit, parseResponse(), performFetch(), getModels() (+300 more)
 
-### Community 2 - "ChatSidebar.tsx"
-Cohesion: 0.04
-Nodes (63): ref_mui_icons_material_archive, ref_mui_icons_material_chatbubbleoutlineoutlined, ref_mui_icons_material_contentcopy, ref_mui_icons_material_filecopy, ref_mui_icons_material_lockopen, ref_mui_icons_material_manageaccounts, ref_mui_icons_material_markemailread, ref_mui_icons_material_morevert (+55 more)
+### Community 2 - "chatsApi.ts"
+Cohesion: 0.05
+Nodes (64): ref_mui_icons_material_chatbubbleoutlineoutlined, ref_mui_icons_material_filecopy, ref_mui_icons_material_pushpin, ref_mui_icons_material_star, archiveChat(), ChatActiveLocation, clearChatMessages(), CombineSiteBoundaryShapeRequest (+56 more)
 
-### Community 3 - "aiApi.ts"
+### Community 3 - "voiceApi.ts"
 Cohesion: 0.02
-Nodes (134): ADR-0005, RFC-7807, ref_katex_dist_katex_min_css, ref_mui_icons_material_description, ref_mui_icons_material_link, ref_mui_icons_material_psychologyaltoutlined, @tanstack/react-virtual, Decision 5 — Offer card width (+126 more)
+Nodes (101): ADR-0005, `useTextToSpeech.speak(text, lang)` (modified contract), Implementation for User Story 2, Phase 5: User Story 2 - Local Whisper fails over to the browser, never to a paid engine (Priority: P1), Tests for User Story 2, GenerationParameters, transcribeDictationClip(), createSttSession() (+93 more)
 
 ### Community 4 - "AppShell.tsx"
 Cohesion: 0.03
-Nodes (97): ref_mui_icons_material_darkmodeoutlined, ref_mui_icons_material_lightmodeoutlined, ref_mui_icons_material_logout, ref_mui_icons_material_notifications, ref_mui_icons_material_settingsoutlined, Assumptions, Clarifications, Feature Specification: Flumeria Studio Workspace Shell (+89 more)
+Nodes (107): ref_mui_icons_material_adminpanelsettings, ref_mui_icons_material_articleoutlined, ref_mui_icons_material_assignmentindoutlined, ref_mui_icons_material_badgeoutlined, ref_mui_icons_material_darkmodeoutlined, ref_mui_icons_material_dashboardoutlined, ref_mui_icons_material_dnsoutlined, ref_mui_icons_material_folder (+99 more)
 
 ### Community 5 - "FtpOptions"
+Cohesion: 0.06
+Nodes (45): ADR 0016: Custom Model Deployment Reads Its FTP Target from Configuration — Temporarily, Alternatives considered, Consequences, Context, Decision, IOptionsMonitor, Configuration (not persisted), `CustomModelsOptions` — section `CustomModels` (Application — `Options/CustomModelsOptions.cs`) (+37 more)
+
+### Community 6 - "ExecutionMonitor.tsx"
 Cohesion: 0.05
-Nodes (47): ADR 0016: Custom Model Deployment Reads Its FTP Target from Configuration — Temporarily, Alternatives considered, Consequences, Context, Decision, IOptionsMonitor, Configuration (not persisted), `CustomModelsOptions` — section `CustomModels` (Application — `Options/CustomModelsOptions.cs`) (+39 more)
+Nodes (44): @microsoft/signalr, Two defects found during this run, both fixed, isUnauthorized(), keepHubConnected(), RESTART_DELAYS_MS, attemptSilentRefresh, refused(), getSiteAnalysis() (+36 more)
 
-### Community 6 - "useAuthStore"
-Cohesion: 0.05
-Nodes (53): @microsoft/signalr, Two defects found during this run, both fixed, Client behaviour (`useCustomModelDeploymentsHub`), Contract: Custom Model Deployment Hub, D8 — Live progress: a permission-gated SignalR hub, throttled, API_BASE_URL, attemptSilentRefresh(), isUnauthorized() (+45 more)
-
-### Community 7 - "SettingsPage.tsx"
-Cohesion: 0.02
-Nodes (204): ADR 0011: Merging Anonymous Consent Into the Account on Login Instead of Re-Prompting, Alternatives Considered, Consequences, Context, Decision, Related, ref_mui_icons_material_arrowupward, ref_mui_icons_material_balance (+196 more)
-
-### Community 8 - "theme/index.ts"
-Cohesion: 0.04
-Nodes (50): ref_fontsource_inter_400_css, ref_fontsource_inter_500_css, ref_fontsource_inter_600_css, ref_fontsource_inter_700_css, @mui/icons-material, ref_mui_icons_material_gppgoodoutlined, ref_mui_icons_material_gppmaybeoutlined, ref_mui_icons_material_shieldoutlined (+42 more)
-
-### Community 9 - "microsoft_extensions_dependencyinjection"
+### Community 7 - "react"
 Cohesion: 0.01
-Nodes (114): asklucy_application_ai_dictation, asklucy_application_ai_dictation_commands_setdictationprimaryengine, asklucy_application_ai_dictation_commands_setpushtotalkengine, asklucy_application_conversations_systemagents, asklucy_application_custommodels_commands_cancelcustommodeldeployment, asklucy_application_custommodels_commands_setcustommodelavailability, asklucy_application_custommodels_queries_getcustommodel, asklucy_application_custommodels_queries_getdeploymentstatus (+106 more)
+Nodes (270): ADR 0011: Merging Anonymous Consent Into the Account on Login Instead of Re-Prompting, Alternatives Considered, Consequences, Context, Decision, Related, ref_mui_icons_material_balance, ref_mui_icons_material_barchart (+262 more)
+
+### Community 8 - "aiApi.ts"
+Cohesion: 0.02
+Nodes (115): RFC-7807, ref_fontsource_inter_400_css, ref_fontsource_inter_500_css, ref_fontsource_inter_600_css, ref_fontsource_inter_700_css, ref_katex_dist_katex_min_css, ref_mui_icons_material_description, ref_mui_icons_material_link (+107 more)
+
+### Community 9 - "AskLucy.Domain.Notifications"
+Cohesion: 0.02
+Nodes (84): asklucy_application_appearance, asklucy_application_appearance_commands_updatepresencespheresettings, asklucy_application_appearance_queries_getpresencespheresettings, asklucy_application_custommodels_commands_cancelcustommodeldeployment, asklucy_application_custommodels_commands_setcustommodelavailability, asklucy_application_custommodels_queries_getcustommodel, asklucy_application_custommodels_queries_getdeploymentstatus, asklucy_application_custommodels_queries_listcustommodels (+76 more)
 
 ### Community 10 - "NotificationTypeDefinition"
-Cohesion: 0.06
-Nodes (41): FrozenDictionary, ReadOnlyDictionary, Code-owned (not persisted), Notification type catalogue, R10. One-time tokens and links: mint at send time, store nothing (FR-009d, FR-009e, FR-013), R7. Routing and the notification type catalogue (FR-002, FR-003, FR-031–FR-034, FR-060), Phase 1: Setup (Shared Infrastructure), NotificationTypeCatalog (+33 more)
+Cohesion: 0.03
+Nodes (91): BaseEntity, FrozenDictionary, ReadOnlyDictionary, ApplicationUser (existing, changed), Code-owned (not persisted), Data Model: Notifications & Communication Hub, Entities, Legacy mapping (FR-009a, research R13) (+83 more)
 
 ### Community 11 - "Implementation for User Story 2"
-Cohesion: 0.04
-Nodes (70): ref_mui_icons_material_check, ref_mui_icons_material_deleteforever, ref_mui_icons_material_download, ref_mui_icons_material_edit, ref_mui_icons_material_lock, ref_mui_icons_material_psychologyoutlined, ref_zustand_middleware, Implementation for User Story 2 (+62 more)
+Cohesion: 0.03
+Nodes (96): ref_mui_icons_material_check, ref_mui_icons_material_deleteforever, ref_mui_icons_material_download, ref_mui_icons_material_edit, ref_mui_icons_material_lock, ref_zustand_middleware, Implementation for User Story 2, EmptyState() (+88 more)
 
-### Community 12 - "AskLucy.Domain.Common"
-Cohesion: 0.01
-Nodes (40): AskLucy.Application.Workflows.Commands.CreateWorkflow, AskLucy.Application.Documents.Commands.CreateFolder, AskLucy.Application.Workflows.Commands.PublishWorkflowVersion, AskLucy.Application.Prompts.Commands.InsertPromptIntoConversation, AskLucy.Application.Workflows.Commands.CreateWorkflowPolicy, AskLucy.Application.Prompts.Commands.RecordPromptExecution, AskLucy.Persistence.Tests.Documents, AskLucy.Infrastructure.Tests.Documents (+32 more)
+### Community 12 - "system_text_json"
+Cohesion: 0.02
+Nodes (49): AskLucy.Application.Agents.Commands.UpdateAgent, AskLucy.Application.Agents.Commands.ApproveAgentAction, AskLucy.Application.Agents.Queries.ListAgents, AskLucy.Application.Agents.Commands.PauseAgentExecution, AskLucy.Application.Agents.Queries.GetAgentToolCalls, AskLucy.Application.Agents.Commands.PublishAgentVersion, AskLucy.Application.Agents.Commands.CreateAgentPolicy, AskLucy.Application.Agents.Tools (+41 more)
 
 ### Community 13 - "PromptTestingConsole.tsx"
-Cohesion: 0.05
-Nodes (56): updateChatModelSelection(), InsertPromptPicker(), InsertPromptPickerProps, ProviderModelSelector(), ProviderModelSelectorProps, useAiModels(), useAiProviders(), useChatDetail() (+48 more)
+Cohesion: 0.09
+Nodes (32): updateChatModelSelection(), InsertPromptPicker(), InsertPromptPickerProps, ProviderModelSelector(), ProviderModelSelectorProps, useAiModels(), useAiProviders(), useChatDetail() (+24 more)
 
 ### Community 14 - "NotificationHealthCheckTests"
-Cohesion: 0.09
-Nodes (28): AskLucy.Infrastructure.Notifications.Workers, DeliveryBacklog, HealthCheckResult, IMeterFactory, ISmtpProbe, Meter, MeterOptions, NotificationBacklogHealthCheck (+20 more)
+Cohesion: 0.11
+Nodes (24): AskLucy.Infrastructure.Notifications.Workers, DeliveryBacklog, HealthCheckResult, IMeterFactory, ISmtpProbe, Meter, MeterOptions, NotificationBacklogHealthCheck (+16 more)
 
 ### Community 15 - ".AddApplication"
-Cohesion: 0.01
-Nodes (177): AdjustViewerFocusCapability, AgentBudgetGuard, AgentDuplicateToolCallDetector, AgentExecutionNotificationAccessCheck, AgentExecutionOrchestrator, AgentExecutionRunner, AgentInstructions, AgentPlan (+169 more)
+Cohesion: 0.02
+Nodes (131): AdjustViewerFocusCapability, AgentExecutionNotificationAccessCheck, AgentExecutionRunner, AgentPlanner, AgentRuntimeOptions, AgentToolCatalog, BoundaryCandidateScorer, BoundaryResolutionService (+123 more)
 
 ### Community 16 - "ChatPage.tsx"
 Cohesion: 0.02
-Nodes (182): pdfjs-dist, @remixicon/react, zustand, Amendment (2026-10-01): trigger overlap and pin, Color Token Changes, `ControlPlacement` → `ExpandDirection` mapping (in `WorkspaceOverlay.tsx`), Data Model: Ribbon Menu Redesign, `ExpandDirection` (new type, `CircularAction.tsx`) (+174 more)
+Nodes (150): Context, @remixicon/react, Amendment (2026-10-01): trigger overlap and pin, Color Token Changes, `ControlPlacement` → `ExpandDirection` mapping (in `WorkspaceOverlay.tsx`), Data Model: Ribbon Menu Redesign, `ExpandDirection` (new type, `CircularAction.tsx`), Type Changes (+142 more)
 
 ### Community 17 - "ringGeometry.ts"
 Cohesion: 0.09
-Nodes (51): Point, siteBoundaryBorderRings(), siteBoundaryPaths(), hole, outer, p(), toRing(), woundAgainst() (+43 more)
+Nodes (50): Point, siteBoundaryBorderRings(), siteBoundaryPaths(), hole, outer, p(), toRing(), woundAgainst() (+42 more)
 
-### Community 18 - "IDocumentRepository"
-Cohesion: 0.03
-Nodes (85): IDocumentRepository, CancellationToken, Guid, IEnumerable, IReadOnlyDictionary, IReadOnlyList, Items, NextCursor (+77 more)
-
-### Community 19 - "Tasks: Studio HUD Top Row"
+### Community 18 - "BaseEntity"
 Cohesion: 0.04
-Nodes (45): Contract: Extension Context, Members, Shape, What is deliberately absent, Why tracking is framework-side, Content Quality, Feature Readiness, Notes (+37 more)
+Nodes (48): Data Model: Presence Sphere Admin Controls, Migration, Not stored, PresenceSphereSettings (table `PresenceSphereSettings`, exactly one row), Rules, OverrideClassificationCommand, Guid, CancellationToken (+40 more)
 
-### Community 20 - "IOperationalFailureStore"
-Cohesion: 0.05
-Nodes (67): GetIncidentQueryHandler, Implementation for User Story 3, Phase 3: User Story 1 — Calm user message, precise admin record (Priority: P1) 🎯 MVP, Tests for User Story 1 (write first, confirm failing), IncidentTransitionOutcome, IOperationalFailureStore, CancellationToken, Func (+59 more)
+### Community 19 - "073-studio-hud-top-row/spec.md"
+Cohesion: 0.07
+Nodes (28): Contract: Extension Context, Members, Shape, What is deliberately absent, Why tracking is framework-side, Content Quality, Feature Readiness, Notes (+20 more)
 
-### Community 21 - "FakeCustomModelRepository"
-Cohesion: 0.05
-Nodes (49): CommitSha, DeploymentTargetSettings, IDeploymentFileUploader, IModelRepositorySource, Path, ResolvedRevision, Revision, CustomModelProgress (+41 more)
+### Community 20 - "IncidentQueriesTests"
+Cohesion: 0.06
+Nodes (51): GetIncidentQueryHandler, Tests for User Story 1 (write first, confirm failing), GetIncidentQuery, Guid, IncidentDetailDto, ListIncidentsQuery, DateTime, IncidentSummaryDto (+43 more)
+
+### Community 21 - "CustomModel"
+Cohesion: 0.03
+Nodes (88): CommitSha, DeploymentTargetSettings, IDeploymentFileUploader, IModelRepositorySource, Path, ResolvedRevision, Revision, Key flows (+80 more)
 
 ### Community 22 - "@mui/material"
 Cohesion: 0.01
-Nodes (303): d3, ref_mui_icons_material_adminpanelsettings, ref_mui_icons_material_articleoutlined, ref_mui_icons_material_assignmentindoutlined, ref_mui_icons_material_badgeoutlined, ref_mui_icons_material_cancel, ref_mui_icons_material_checkcircle, ref_mui_icons_material_dashboardoutlined (+295 more)
+Nodes (313): jwt-decode, ref_mui_icons_material_delete, ref_mui_icons_material_expandless, ref_mui_icons_material_healthandsafety, ref_mui_icons_material_key, ref_mui_icons_material_lockopen, ref_mui_icons_material_manageaccounts, ref_mui_icons_material_markemailread (+305 more)
 
 ### Community 23 - "DocumentWorkspacePage.tsx"
 Cohesion: 0.04
-Nodes (105): ref_mui_icons_material_close, ref_mui_icons_material_comparearrows, ref_mui_icons_material_delete, ref_mui_icons_material_drivefilemove, ref_mui_icons_material_erroroutlineoutlined, ref_mui_icons_material_historyoutlined, ref_mui_icons_material_refresh, ref_mui_icons_material_unarchive (+97 more)
+Nodes (94): ref_mui_icons_material_add, ref_mui_icons_material_close, ref_mui_icons_material_comparearrows, ref_mui_icons_material_erroroutlineoutlined, ref_mui_icons_material_historyoutlined, ref_mui_icons_material_refresh, ref_mui_icons_material_unarchive, ErrorState() (+86 more)
 
-### Community 24 - "shadows.integration.test.ts"
+### Community 24 - "solarFiguresContent.ts"
 Cohesion: 0.07
-Nodes (26): ref_three_examples_jsm_utils_buffergeometryutils_js, D5 — Merged footprint geometry, BuildingFootprintSource, BuildingHeightProvenance, SiteBuildingDto, SiteBuildingsResponse, buildFootprintGeometry(), buildFootprintMaterial() (+18 more)
+Nodes (50): Phase 2: Foundational (Blocking Prerequisites), Check E — still nothing after dark, buildSolarFiguresContent(), displayedDayTimes(), formatDayLength(), formatLocalDateHeading(), formatLocalTime(), formatUtcAsLocalTime() (+42 more)
 
-### Community 25 - "AgentRuntimeOptions"
-Cohesion: 0.10
-Nodes (19): AgentBudgetCheckResult, AgentBudgetGuard, AgentBudgetLimitType, MaxCost, MaxExecutionDuration, MaxRetries, MaxSteps, MaxTokens (+11 more)
+### Community 25 - "AgentExecutionPolicy"
+Cohesion: 0.15
+Nodes (14): AgentBudgetCheckResult, AgentBudgetGuard, AgentBudgetLimitType, MaxCost, MaxExecutionDuration, MaxRetries, MaxSteps, MaxTokens (+6 more)
 
-### Community 27 - "ClientApp/package.json"
-Cohesion: 0.02
-Nodes (118): @dnd-kit/sortable, @emotion/react, @emotion/styled, eslint, eslint-config-prettier, @eslint/js, eslint-plugin-react-hooks, eslint-plugin-react-refresh (+110 more)
+### Community 27 - "AdminAppearancePage.tsx"
+Cohesion: 0.03
+Nodes (89): ref_magmaaura_frag_glsl_raw, ref_magmaaura_vert_glsl_raw, ref_magmaglow_frag_glsl_raw, ref_magmaglow_vert_glsl_raw, ref_mui_icons_material_lightmodeoutlined, ref_postprocessing, @react-three/drei, @react-three/fiber (+81 more)
 
-### Community 28 - "system_text_json"
-Cohesion: 0.02
-Nodes (156): asklucy_application_abstractions, asklucy_application_agents_commands_approveagentaction, asklucy_application_agents_commands_rejectagentaction, asklucy_application_agents_notifications, asklucy_application_agents_runtime, asklucy_application_agents_tools, asklucy_application_ai, asklucy_application_ai_capabilitysettings (+148 more)
+### Community 28 - "fluentassertions"
+Cohesion: 0.01
+Nodes (205): asklucy_application_abstractions, asklucy_application_agents_commands_approveagentaction, asklucy_application_agents_commands_rejectagentaction, asklucy_application_agents_notifications, asklucy_application_agents_runtime, asklucy_application_agents_tools, asklucy_application_ai, asklucy_application_ai_capabilitysettings (+197 more)
 
 ### Community 29 - ".CreateSource"
-Cohesion: 0.14
-Nodes (21): Implementation for User Story 4, Phase 6: User Story 4 - Failures are visible, never a stall (Priority: P1), Tests for User Story 4, ModelRepositorySourceException, Kind, ImmediateTimeProvider, RequestedDelays, HuggingFaceModelRepositorySourceTests (+13 more)
+Cohesion: 0.15
+Nodes (19): Implementation for User Story 4, Phase 6: User Story 4 - Failures are visible, never a stall (Priority: P1), Tests for User Story 4, ModelRepositorySourceException, Kind, HuggingFaceModelRepositorySourceTests, SyncProgress, Fact (+11 more)
 
 ### Community 30 - "McpToolAdapter"
-Cohesion: 0.04
-Nodes (78): IJsonSchemaValidator, IMcpClient, IMcpRateLimiter, TestMcpServerConnectionCommand, Guid, McpServerHealthDto, McpConnectionResiliencePolicy, ConcurrentDictionary (+70 more)
+Cohesion: 0.03
+Nodes (100): ConcurrencyLimiter, FixedWindowRateLimiter, RateLimiter, RateLimitLease, IJsonSchemaValidator, IMcpRateLimiter, McpRateLimitKey, CancellationToken (+92 more)
 
 ### Community 31 - "AskLucyDbContext"
 Cohesion: 0.01
 Nodes (230): AgentApproval, AgentAuditLog, AgentExecutionCost, AgentExecutionError, AgentExecutionEvent, AgentExecutionStep, AgentExecutionUsage, AgentKnowledgeBase (+222 more)
 
 ### Community 32 - "DATABASE.md"
-Cohesion: 0.04
-Nodes (51): 10. Prompt Library, 12. MCP Context, 13. File Context, 14. Payment Context, 15. Administration Context, 16. Audit Context, 17. Relationships, 18. Indexing Strategy (+43 more)
+Cohesion: 0.06
+Nodes (32): 10. Prompt Library, 12. MCP Context, 13. File Context, 14. Payment Context, 15. Administration Context, 17. Relationships, 18. Indexing Strategy, 19. Data Retention (+24 more)
 
 ### Community 33 - "OutboxEventProcessor"
-Cohesion: 0.03
-Nodes (75): ChannelDecision, DispatchResult, OutboxEventOutcome, RecipientKind, IEffectiveLanguageResolver, CancellationToken, Task, INotificationChannelRegistry (+67 more)
+Cohesion: 0.06
+Nodes (41): DispatchResult, OutboxEventOutcome, INotificationPreferenceRepository, CancellationToken, IReadOnlyCollection, IReadOnlyDictionary, IReadOnlyList, PreferenceOverride (+33 more)
 
 ### Community 34 - "McpServerCredential"
 Cohesion: 0.08
 Nodes (27): IMcpCredentialProtector, RotateMcpServerCredentialCommand, Guid, CancellationToken, McpServerDto, Task, McpServerCredential, CiphertextBlob (+19 more)
 
-### Community 35 - "fluentassertions"
-Cohesion: 0.01
-Nodes (109): asklucy_application_tests_ai, asklucy_application_users_queries_getuserseligibleids, asklucy_infrastructure_ai, AskLucy.Application.Mcp.Validation, AskLucy.Domain.Tests.Appearance, AskLucy.Application.Tests.Conversations, AskLucy.Domain.Tests.Mcp, AskLucy.Domain.Authorization (+101 more)
+### Community 35 - "microsoft_extensions_logging"
+Cohesion: 0.03
+Nodes (45): asklucy_application_conversations_systemagents, AskLucy.Application.Chats.Commands.RecordActiveSiteBoundary, AskLucy.Application.Mcp.Commands.EnableMcpServer, AskLucy.Infrastructure.Mcp, AskLucy.Application.Mcp.Queries.ListMcpAuditLog, AskLucy.Application.Tests.Mcp.Fixtures, AskLucy.Application.Mcp.Commands.TestMcpServerConnection, AskLucy.Application.Tests.Mcp (+37 more)
 
 ### Community 36 - ".AddInfrastructure"
 Cohesion: 0.01
 Nodes (184): AccountEmailJob, AgentExecutionNotifier, AiCredentialProtector, AiDocumentLanguageAndClassifier, AiProviderResolver, AnthropicOptions, AnthropicProvider, AsyncFtpClientFacadeFactory (+176 more)
 
 ### Community 37 - "agentExecutionsApi.ts"
-Cohesion: 0.03
-Nodes (89): Implementation for User Story 1, getModels(), AgentApproval, AgentConversationIntegrationMode, AgentExecutionDetail, AgentExecutionError, AgentExecutionStatus, AgentExecutionStep (+81 more)
+Cohesion: 0.04
+Nodes (69): AgentApproval, AgentConversationIntegrationMode, AgentExecutionDetail, AgentExecutionError, AgentExecutionStatus, AgentExecutionStep, AgentExecutionStepStatus, AgentExecutionStepType (+61 more)
 
 ### Community 38 - "ConversationTurnOrchestrator"
-Cohesion: 0.06
-Nodes (46): ActionAttempt, ChatRole, Content, ConversationTurnRequest, FlowStepResult, FlowVariantOfferCandidate, IAsyncEnumerable, IConversationFlow (+38 more)
+Cohesion: 0.07
+Nodes (41): ActionAttempt, ChatMessageDto, ChatRole, Content, ConversationTurnRequest, FlowStepResult, IAsyncEnumerable, IConversationTurnOrchestrator (+33 more)
 
 ### Community 39 - "IncidentTransitionTests"
 Cohesion: 0.06
-Nodes (49): D19 — Triage concurrency is judged on state, not on `RowVersion` (implementation deviation), AcknowledgeIncidentCommand, Guid, AcknowledgeIncidentCommandHandler, CancellationToken, IncidentTriageService, Task, ReopenIncidentCommand (+41 more)
+Nodes (45): AskLucy.Application.OperationalFailures.Commands.ResolveRootCause, AskLucy.Application.OperationalFailures.Commands.ResolveIncident, D19 — Triage concurrency is judged on state, not on `RowVersion` (implementation deviation), AcknowledgeIncidentCommand, Guid, AcknowledgeIncidentCommandHandler, CancellationToken, IncidentTriageService (+37 more)
 
 ### Community 40 - "ChatHarness"
-Cohesion: 0.08
-Nodes (33): OperationalFailureReport, ChatFailureRecordingTests, Exception, HttpContext, OperationalFailureEngine, Task, ChatHarness, Appended (+25 more)
+Cohesion: 0.10
+Nodes (27): OperationalFailureReport, OperationalFailureSignal, ChatFailureRecordingTests, Exception, HttpContext, OperationalFailureEngine, Task, ChatHarness (+19 more)
 
 ### Community 41 - ".Chat"
 Cohesion: 0.17
 Nodes (20): IAgentExecutionRepository, IAgentRepository, IUnitOfWork, ChatMessageDto, AiControllerChatStreamTests, AiControllerKeepAliveTests, AppendMessageCommand, CancellationToken (+12 more)
 
 ### Community 42 - "SupertonicModel"
-Cohesion: 0.06
-Nodes (38): Data, Dimensions, LoadedModel, SupertonicInstall, SupertonicModel, LoadedDirectory, SupertonicVoice, VoiceStyle (+30 more)
+Cohesion: 0.10
+Nodes (20): Data, Dimensions, LoadedModel, IsDisposed, SupertonicInstall, SupertonicModel, LoadedDirectory, SupertonicVoice (+12 more)
 
 ### Community 44 - "Task"
-Cohesion: 0.05
-Nodes (61): AllowAnonymous, Authorize, AuthResult, CancellationToken, DownloadedFile, ExternalProfilePictureSyncJob, GeoPoint, HttpPost (+53 more)
+Cohesion: 0.07
+Nodes (45): AllowAnonymous, Authorize, AuthResult, CancellationToken, CancellationTokenSource, AskLucy.Application.Authentication.Commands.Logout, GeoPoint, HttpPost (+37 more)
 
-### Community 45 - "CameraRestoreGuard"
-Cohesion: 0.08
-Nodes (11): ADR 0015: The Viewer Camera Belongs to the User, Alternatives considered, Consequences, Decision, D2 — View state: capture once, enter a north-up plan view, restore exactly, CameraRestoreGuard, CameraRestoreGuardOptions, RestorableCameraTarget (+3 more)
+### Community 45 - "IWorkflowExecutionRepository"
+Cohesion: 0.04
+Nodes (84): IWorkflowAuditLogRepository, IWorkflowExecutionRepository, IWorkflowExecutionRunner, CancellationToken, Guid, Task, IWorkflowPolicyRepository, WorkflowRuntimeOptions (+76 more)
 
-### Community 46 - "FolderTree.tsx"
+### Community 46 - "PromptLibraryPage.tsx"
 Cohesion: 0.03
-Nodes (87): ref_mui_icons_material_add, ref_mui_icons_material_chevronright, ref_mui_icons_material_clear, ref_mui_icons_material_filedownloadoutlined, ref_mui_icons_material_fileuploadoutlined, ref_mui_icons_material_search, ref_mui_icons_material_uploadfile, McpResourcesAndPromptsPanel() (+79 more)
+Nodes (77): ref_mui_icons_material_clear, ref_mui_icons_material_contentcopy, ref_mui_icons_material_filedownloadoutlined, ref_mui_icons_material_fileuploadoutlined, ref_mui_icons_material_pushpinoutlined, ref_mui_icons_material_starborder, ref_mui_icons_material_uploadfile, McpResourcesAndPromptsPanel() (+69 more)
 
 ### Community 47 - "CustomModelDeploymentJob"
 Cohesion: 0.05
-Nodes (62): CancellationTokenSource, CustomModelTransferPhase, Kind, OverwroteFileDto, PlannedFile, ProgressSnapshot, Reason, RunState (+54 more)
+Nodes (62): CustomModelTransferPhase, ICustomModelDeploymentJob, Kind, OverwroteFileDto, PlannedFile, ProgressSnapshot, Reason, RunState (+54 more)
 
 ### Community 48 - ".OnConnectedAsync_ShouldAddTheConnectionToItsOwnUserGroup"
 Cohesion: 0.25
 Nodes (9): AgentExecutionHub, Task, AgentExecutionHubTests, CancellationToken, Fact, HubCallerContext, IGroupManager, Task (+1 more)
 
 ### Community 49 - "PromptFolder"
-Cohesion: 0.04
-Nodes (53): IPromptFolderRepository, CancellationToken, Guid, IReadOnlyList, Task, CreateFolderCommand, Guid, PromptFolderDto (+45 more)
+Cohesion: 0.05
+Nodes (45): IPromptFolderRepository, CancellationToken, Guid, IReadOnlyList, Task, CreateFolderCommand, Guid, PromptFolderDto (+37 more)
 
 ### Community 50 - ".AddPersistence"
 Cohesion: 0.01
-Nodes (167): AdminDashboardRepository, AgentAuditLogRepository, AgentExecutionRepository, AgentPolicyRepository, AgentRepository, AiCapabilityAssignmentRepository, AiCapabilitySettingRepository, AIModelRepository (+159 more)
+Nodes (166): AdminDashboardRepository, AgentAuditLogRepository, AgentExecutionRepository, AgentPolicyRepository, AgentRepository, AiCapabilityAssignmentRepository, AiCapabilitySettingRepository, AIModelRepository (+158 more)
 
 ### Community 51 - "ChunkCandidate"
-Cohesion: 0.07
-Nodes (28): ChunkCandidate, CancellationToken, IReadOnlyList, Task, ChunkTextHelpers, IReadOnlyList, CancellationToken, IReadOnlyList (+20 more)
+Cohesion: 0.10
+Nodes (18): ChunkCandidate, CancellationToken, IReadOnlyList, Task, ChunkTextHelpers, IReadOnlyList, CancellationToken, IReadOnlyList (+10 more)
 
 ### Community 52 - "DocumentsController"
-Cohesion: 0.04
-Nodes (78): ADR-0006: ElevenLabs Voice Engine — standalone STT/TTS, not Speech Engine; browser-direct STT via a minted token, Consequences, Context, Decision 1: Integrate ElevenLabs' standalone STT/TTS APIs, not its "Speech Engine" conversational-AI product, Decision 2: Browser connects directly to ElevenLabs for STT; the backend only mints a short-lived token, DocumentPreview, ITimeLimitedDataProtector, ISignedUrlService (+70 more)
+Cohesion: 0.05
+Nodes (75): AskLucy.Application.Documents.Commands.SimpleUpload, ADR-0006: ElevenLabs Voice Engine — standalone STT/TTS, not Speech Engine; browser-direct STT via a minted token, Consequences, Context, Decision 2: Browser connects directly to ElevenLabs for STT; the backend only mints a short-lived token, DocumentPreview, ITimeLimitedDataProtector, ISignedUrlService (+67 more)
 
-### Community 53 - "BoundaryDrawDiagnosticResult"
-Cohesion: 0.08
-Nodes (31): BoundaryDrawDiagnosticResult, IReadOnlyList, IBoundaryDrawDiagnosticService, CancellationToken, Task, IBoundarySegmentationDiagnosticService, CancellationToken, Task (+23 more)
+### Community 53 - "SatelliteImage"
+Cohesion: 0.04
+Nodes (67): ImageBytes, L8, Note, BoundaryDrawDiagnosticResult, IReadOnlyList, IBoundaryDrawDiagnosticService, CancellationToken, Task (+59 more)
 
 ### Community 54 - "AdminCustomModelsControllerTests"
 Cohesion: 0.12
 Nodes (21): PreviewCustomModelSourceRequest, SubmitCustomModelRequest, AdminCustomModelsControllerTests, Endpoints, ManageEndpoints, ViewEndpoints, CancellationToken, Fact (+13 more)
 
 ### Community 55 - "AskLucy.Infrastructure/DependencyInjection.cs"
-Cohesion: 0.03
-Nodes (81): asklucy_application, asklucy_application_admin_commands_issuehangfiredashboardsession, asklucy_application_authentication, asklucy_application_authentication_commands_changeemail, asklucy_application_authentication_commands_changepassword, asklucy_application_authentication_commands_confirmemail, asklucy_application_authentication_commands_externallogin, asklucy_application_authentication_commands_login (+73 more)
+Cohesion: 0.02
+Nodes (112): asklucy_application, asklucy_application_admin_commands_issuehangfiredashboardsession, asklucy_application_authentication, asklucy_application_authentication_commands_changeemail, asklucy_application_authentication_commands_changepassword, asklucy_application_authentication_commands_confirmemail, asklucy_application_authentication_commands_externallogin, asklucy_application_authentication_commands_login (+104 more)
 
 ### Community 56 - ".ResolveAsync"
-Cohesion: 0.15
-Nodes (34): SatelliteImage, CancellationToken, IReadOnlyList, Task, CancellationToken, IReadOnlyList, Task, CancellationToken (+26 more)
+Cohesion: 0.13
+Nodes (37): SatelliteImage, BoundaryConfirmationTemplates, BoundaryConfidenceLevel, IReadOnlyList, CancellationToken, IReadOnlyList, Task, CancellationToken (+29 more)
 
 ### Community 57 - "RoleNameTests"
 Cohesion: 0.15
@@ -2331,171 +2359,171 @@ Nodes (7): IEquatable, RoleName, Value, RoleNameTests, Fact, InlineData, Theory
 
 ### Community 58 - "DocumentVersion"
 Cohesion: 0.05
-Nodes (42): CompareVersionsQuery, Guid, CompareVersionsQueryHandler, CancellationToken, Dictionary, Guid, Task, DocumentVersionCompareDto (+34 more)
+Nodes (43): DuplicateDocumentCommand, DocumentSummaryDto, Guid, CompareVersionsQuery, Guid, CompareVersionsQueryHandler, CancellationToken, Dictionary (+35 more)
 
 ### Community 59 - "FlowIntentGatingTests"
-Cohesion: 0.10
-Nodes (35): CapabilityIndexEntry, EmptyMcpToolRegistry, ActiveTools, FlowIntentGatingTests, PermissiveSchemaValidator, CancellationToken, ConversationTurnRequest, Fact (+27 more)
+Cohesion: 0.08
+Nodes (39): CapabilityIndexEntry, IJsonSchemaValidator, StreamChunk, EmptyMcpToolRegistry, ActiveTools, FlowIntentGatingTests, PermissiveSchemaValidator, CancellationToken (+31 more)
 
-### Community 60 - "CustomModel"
+### Community 60 - "AskLucy.Domain.KnowledgeBases"
 Cohesion: 0.04
-Nodes (51): Aggregate: `CustomModel` (Domain — `AskLucy.Domain/CustomModels/CustomModel.cs`), Data Model: Custom Model Deployment (Admin), Indexes (Persistence — `Configurations/CustomModelConfiguration.cs`), Migration, Owned collection: `CustomModelOverwrittenFile` (table `CustomModelOverwrittenFiles`), State machine (Domain methods; an illegal transition throws `DomainRuleViolationException`), Value object: `DeploymentDestination` (Domain — `CustomModels/DeploymentDestination.cs`), Value object: `HuggingFaceModelSource` (Domain — `CustomModels/HuggingFaceModelSource.cs`) (+43 more)
+Nodes (35): AskLucy.Application.KnowledgeBases.Commands.ActivateKnowledgeBase, AskLucy.Application.KnowledgeBases.Commands.MoveFolder, AskLucy.Application.KnowledgeBases.Commands.UpdateKnowledgeBaseDetails, AskLucy.Application.KnowledgeBases.Commands.DeleteDocument, AskLucy.Application.KnowledgeBases.Commands.UploadDocument, AskLucy.Application.KnowledgeBases.Commands.DeleteFolder, AskLucy.Application.Tests.KnowledgeBases, AskLucy.Application.Workflows.EventTriggers (+27 more)
 
 ### Community 61 - "McpServerHealth"
-Cohesion: 0.09
-Nodes (26): CancellationToken, McpServerHealthDto, Task, GetMcpServerHealthQuery, Guid, GetMcpServerHealthQueryHandler, CancellationToken, McpServerHealthDto (+18 more)
+Cohesion: 0.07
+Nodes (30): McpFailureCategory, AuthenticationFailure, AuthorizationFailure, CapabilityDiscoveryFailure, ConnectionFailure, InvalidRequest, InvalidResponse, ProtocolError (+22 more)
 
 ### Community 63 - "VoiceProviderAdminCommandTests"
-Cohesion: 0.09
-Nodes (28): AiProviderCredentialUnreadableException, IAsyncEnumerable, PreviewVoiceCommand, Guid, VoicePreviewDto, PreviewVoiceCommandValidator, VoiceProviderAdminCommandTests, Engines (+20 more)
+Cohesion: 0.12
+Nodes (22): AiProviderCredentialUnreadableException, IAsyncEnumerable, VoiceProviderAdminCommandTests, Engines, AiProviderNotConfiguredException, AiProviderUnavailableException, CancellationToken, DomainRuleViolationException (+14 more)
 
 ### Community 64 - "WorkflowExecution"
-Cohesion: 0.05
-Nodes (51): INotification, DocumentProcessedNotification, Guid, DocumentUploadedNotification, Guid, WorkflowExecution, Approvals, CompletedAtUtc (+43 more)
+Cohesion: 0.06
+Nodes (42): INotification, DocumentProcessedNotification, Guid, DocumentUploadedNotification, Guid, WorkflowExecution, Approvals, CompletedAtUtc (+34 more)
 
 ### Community 65 - "AnthropicProvider"
 Cohesion: 0.12
 Nodes (20): AnthropicProvider, ChatModel, ProviderName, AnthropicProviderLog, CancellationToken, Dictionary, Exception, Func (+12 more)
 
-### Community 66 - ".Read"
-Cohesion: 0.17
-Nodes (12): BoundaryConfidenceLevel, SiteBoundaryMemberKind, SiteBoundarySource, SiteBoundaryPayload, ConfirmedSiteBoundaryData, GeoPoint, IEnumerable, IReadOnlyList (+4 more)
+### Community 66 - "IRefreshTokenRepository"
+Cohesion: 0.05
+Nodes (52): ADR 0012: Enforcing Session Revocation on the Access Token via a Session Claim, Alternatives considered, Consequences, Context, Decision, IClaimsTransformation, LogoutCommand, RefreshCommand (+44 more)
 
 ### Community 67 - "ViewerEngine.ts"
-Cohesion: 0.05
-Nodes (49): ref_three_examples_jsm_loaders_gltfloader_js, R28. Preference precedence, CameraAttitudeState, CameraState, CameraViewMode, MapStyleId, ViewerCommand, ViewerCommandResult (+41 more)
+Cohesion: 0.04
+Nodes (53): ref_three_examples_jsm_loaders_gltfloader_js, R28. Preference precedence, prefersReducedMotion(), CameraState, CameraViewMode, isBuildingsOnlyStyleSupported(), MapStyleId, ViewerCommand (+45 more)
 
 ### Community 68 - ".Create"
 Cohesion: 0.06
-Nodes (46): CancellationToken, Guid, IReadOnlyList, Task, DocumentFolderOwnershipGuard, CancellationToken, DocumentFolderDto, Task (+38 more)
+Nodes (44): CancellationToken, Guid, IReadOnlyList, Task, CancellationToken, DocumentFolderDto, Task, DeleteFolderCommand (+36 more)
 
 ### Community 69 - "adminVoiceApi.ts"
-Cohesion: 0.04
-Nodes (60): ref_mui_icons_material_mic, ref_mui_icons_material_playarrow, ref_mui_icons_material_stop, Contract: Admin Voice API, Shapes, Implementation for User Story 4, addVoiceProvider(), AdminVoiceProvider (+52 more)
+Cohesion: 0.03
+Nodes (74): ref_mui_icons_material_mic, ref_mui_icons_material_playarrow, ref_mui_icons_material_stop, Contract: Admin Voice API, Shapes, Design, Implementation for User Story 4, addVoiceProvider() (+66 more)
 
 ### Community 70 - "CustomModelDeploymentJobTests"
 Cohesion: 0.08
-Nodes (35): DeploymentTargetException, DeploymentTargetFailureKind, ICustomModelTempStorage, IDisposable, ModelRepositorySourceException, ModelRepositorySourceFailureKind, CustomModelDeploymentJobTests, SourceFailures (+27 more)
+Nodes (36): DeploymentTargetException, DeploymentTargetFailureKind, ICustomModelTempStorage, IDisposable, ModelRepositorySourceException, ModelRepositorySourceFailureKind, CustomModelDeploymentJobTests, SourceFailures (+28 more)
 
 ### Community 71 - "I3sPrimitivesTests"
 Cohesion: 0.12
 Nodes (13): ReadOnlySpan, I3sAttributeReader, I3sOrientedBoundingBox, GeoPoint, X, Y, I3sPrimitivesTests, Fact (+5 more)
 
-### Community 72 - ".RetrieveContextAsync"
-Cohesion: 0.12
-Nodes (24): RagCitationContext, RagRetrievalOutcome, RagRetrievalOutcomeType, Grounded, NoRelevantContent, Unavailable, CancellationToken, Guid (+16 more)
+### Community 72 - "AIModelCapabilities"
+Cohesion: 0.03
+Nodes (94): SendChatMessageCommand, MemoryReferenceContext, MemoryRetrievalOutcome, MemoryRetrievalOutcomeType, Found, NoneRelevant, Unavailable, CancellationToken (+86 more)
 
 ### Community 73 - ".GetByIdAsync"
-Cohesion: 0.04
-Nodes (91): ClassificationResponse, IProcessingStageHandler, DetectedLanguage, DocumentClassificationResult, DocumentLanguageAndClassificationResult, IDocumentLanguageAndClassifier, CancellationToken, IReadOnlyList (+83 more)
+Cohesion: 0.05
+Nodes (73): IProcessingStageHandler, DocumentPreviewResult, IDocumentPreviewGenerator, CancellationToken, IReadOnlyList, Stream, Task, IDocumentTextExtractor (+65 more)
 
 ### Community 74 - "StubCapability"
 Cohesion: 0.09
 Nodes (42): EmptyMcpToolRegistry, ActiveTools, RetryTargetResolverTests, StubCapability, AcknowledgementTemplate, Area, ArgumentHint, Description (+34 more)
 
 ### Community 75 - "microsoft_extensions_options"
-Cohesion: 0.01
-Nodes (98): asklucy_application_appearance, asklucy_application_appearance_commands_updatepresencespheresettings, asklucy_application_appearance_queries_getpresencespheresettings, asklucy_domain_appearance, asklucy_infrastructure_boundaries, asklucy_infrastructure_boundaries_overpassrelatedsitebuildingprovider_overpasselement, asklucy_infrastructure_boundaries_overpassrelatedsitebuildingprovider_overpassgeometrypoint, asklucy_infrastructure_geocoding (+90 more)
+Cohesion: 0.02
+Nodes (111): asklucy_infrastructure_boundaries, asklucy_infrastructure_boundaries_overpassrelatedsitebuildingprovider_overpasselement, asklucy_infrastructure_boundaries_overpassrelatedsitebuildingprovider_overpassgeometrypoint, asklucy_infrastructure_geocoding, asklucy_infrastructure_tests_ai, asklucy_infrastructure_tests_buildings_footprinttestgeometry, asklucy_web_contracts, AskLucy.Web.Tests.Appearance (+103 more)
 
-### Community 76 - "McpRateLimiter"
+### Community 76 - "AgentExecutionsController"
 Cohesion: 0.07
-Nodes (32): ConcurrencyLimiter, FixedWindowRateLimiter, RateLimiter, RateLimitLease, McpRateLimitKey, CancellationToken, Guid, IAsyncDisposable (+24 more)
+Nodes (42): AgentExecutionErrorDto, AgentExecutionEventDto, AgentExecutionSummaryDto, AgentExecutionUsageDto, AgentToolCallDto, DateTime, Guid, GetAgentExecutionEventsQuery (+34 more)
 
-### Community 77 - "DocumentFileType"
-Cohesion: 0.03
-Nodes (64): Bgra32, Cell, Hyperlink, OpenXmlPackage, Paragraph, SharedStringTable, DocumentFileType, Bmp (+56 more)
+### Community 77 - "OpenXmlTextExtractor"
+Cohesion: 0.06
+Nodes (37): Cell, Hyperlink, OpenXmlPackage, Paragraph, SharedStringTable, DocumentTextExtractionResult, DateTime, ChunkingStrategy (+29 more)
 
 ### Community 78 - "OperationalFailureIngestorTests"
-Cohesion: 0.15
-Nodes (18): D18 — Future notifier seam (FR-030, not built), D9 — Administrator notification is in-app for now, CriticalIncidentOpened, Guid, OperationalFailureEngine, OperationalFailureKind, OperationalFailureIngestorTests, CancellationToken (+10 more)
+Cohesion: 0.10
+Nodes (32): OperationalFailureReferences, OperationalFailureSubject, D18 — Future notifier seam (FR-030, not built), D9 — Administrator notification is in-app for now, IncidentAppendRequest, IncidentAppendResult, IncidentFilter, IncidentStateFilter (+24 more)
 
-### Community 79 - ".GetByIdAsync"
+### Community 79 - ".GetByIdForUserAsync"
+Cohesion: 0.09
+Nodes (26): CancellationToken, Guid, IReadOnlyList, Items, NextCursor, Task, TransformNodeExecutor, NodeType (+18 more)
+
+### Community 80 - "GenerationParametersDto"
 Cohesion: 0.07
-Nodes (34): CancellationToken, Guid, IReadOnlyList, Items, NextCursor, Task, GetWorkflowStatisticsQuery, GetWorkflowStatisticsQueryHandler (+26 more)
-
-### Community 80 - "ChatMessage"
-Cohesion: 0.02
-Nodes (112): ChatCompletionResult, ChatMessage, ChatUsage, StreamChunk, IAsyncEnumerable, AgentPlanner, CancellationToken, IReadOnlyList (+104 more)
+Nodes (43): ChatCompletionResult, ChatUsage, CancellationToken, IAsyncEnumerable, IReadOnlyList, Task, AgentPlanner, CancellationToken (+35 more)
 
 ### Community 81 - "EmbeddingProvider"
-Cohesion: 0.09
-Nodes (22): CancellationToken, Guid, IReadOnlyList, Task, EmbeddingHostingType, Cloud, Local, EmbeddingProvider (+14 more)
+Cohesion: 0.05
+Nodes (44): Random, CancellationToken, Guid, IReadOnlyList, Task, MemoryEmbedding, EmbeddingProviderId, IsCurrent (+36 more)
 
-### Community 82 - ".SaveChangesAsync"
+### Community 82 - ".Create"
 Cohesion: 0.01
-Nodes (260): CancellationToken, Guid, IReadOnlyList, Task, IKnowledgeBaseFolderRepository, CancellationToken, Guid, IReadOnlyList (+252 more)
+Nodes (294): AskLucy.Application.KnowledgeBases.Queries.GetKnowledgeBaseFolderTree, R27. Knowledge-base indexing trigger and emit points, Complexity Tracking, IDocumentPageCountExtractor, IKnowledgeBaseDocumentRepository, CancellationToken, Guid, IReadOnlyList (+286 more)
 
 ### Community 83 - "OvertureBuildingFootprintProvider"
 Cohesion: 0.10
 Nodes (27): MvtFeature, MvtLayer, OvertureArchive, Piece, PmTilesEntry, PmTilesHeader, OvertureArchive, OvertureBuildingFootprintProvider (+19 more)
 
-### Community 84 - "AskLucy.Application.Abstractions"
+### Community 84 - "microsoft_entityframeworkcore"
 Cohesion: 0.01
-Nodes (70): asklucy_application_admin, AskLucy.Persistence.Configurations, AskLucy.Persistence.Configurations.SiteAnalysis, AskLucy.Application.Retrieval.Authorization, AskLucy.Application.Chats.Queries.SearchUserChats, AskLucy.Application.Users, AskLucy.Persistence.Tests.Chats, AskLucy.Persistence.Tests (+62 more)
+Nodes (84): asklucy_application_admin, asklucy_application_custommodels_abstractions, asklucy_domain_custommodels, asklucy_persistence_configurations, asklucy_persistence_identity, asklucy_persistence_interceptors, asklucy_persistence_repositories, asklucy_persistence_retrieval (+76 more)
 
 ### Community 85 - "SiteBoundaryCorrection"
-Cohesion: 0.07
-Nodes (31): DomainRuleViolationException, Domain, ActiveSiteBoundary / ChatActiveBoundaryDto / ConfirmedSiteBoundaryData, Combine request (calculation only, nothing stored), Data Model: Voids and Drawing Shapes in the Outline Editor, Lifecycle (unchanged from spec 079), Refusal reasons, Rules (enforced in the domain and in validators) (+23 more)
+Cohesion: 0.11
+Nodes (20): Domain, D1 - How voids are stored and sent: a parallel per-part list, Domain and persistence, Phase 7: User Story 5 - Lucy knows about voids (P2), SiteBoundaryCorrection, AreaSquareMeters, EditedRings, EditedVoids (+12 more)
 
 ### Community 86 - "WorkflowFailureStrategyTests"
 Cohesion: 0.10
 Nodes (30): FailsOnceExecutor, InvocationCount, NodeType, FakeExecutor, InvocationCount, NodeType, SplitExecutor, NodeType (+22 more)
 
 ### Community 87 - "LocalWhisperModelAdminTests"
-Cohesion: 0.09
-Nodes (36): Tests for User Story 4, ILocalWhisperModelTrial, CancellationToken, Stream, Task, SelectLocalWhisperModelCommand, SelectLocalWhisperModelCommandValidator, Guid (+28 more)
+Cohesion: 0.05
+Nodes (64): AskLucy.Application.Ai.Dictation.Commands.SelectLocalWhisperModel, AskLucy.Application.Ai.Dictation.Commands.TryLocalWhisperModel, Tests for User Story 4, ILocalWhisperModelCatalog, CancellationToken, Guid, IReadOnlyList, Task (+56 more)
 
 ### Community 88 - "AiCapability"
-Cohesion: 0.09
-Nodes (31): CancellationToken, IReadOnlyList, Task, AiCapabilityNotConfiguredException, Capability, AiCapability, BoundaryVision, Chat (+23 more)
+Cohesion: 0.07
+Nodes (40): CancellationToken, IReadOnlyList, Task, AiCapabilityNotConfiguredException, Capability, AiCapabilityAssignmentDto, GetAiCapabilityAssignmentsQuery, Guid (+32 more)
 
-### Community 89 - "User Scenarios & Testing *(mandatory)*"
-Cohesion: 0.29
-Nodes (7): Edge Cases, User Scenarios & Testing *(mandatory)*, User Story 1 - Arriving in the immersive Studio workspace (Priority: P1), User Story 2 - Reaching tools through a contextual circular control (Priority: P1), User Story 3 - Talking to Lucy without permanent chrome (Priority: P2), User Story 4 - Operating the workspace without a mouse (Priority: P2), User Story 5 - Consistent experience across devices (Priority: P3)
+### Community 89 - "Feature Specification: Flumeria Studio Workspace Shell"
+Cohesion: 0.12
+Nodes (16): Clarifications, Edge Cases, Feature Specification: Flumeria Studio Workspace Shell, Follow-up changes (2026-09-24), Functional Requirements, Key Entities, Measurable Outcomes, Requirements *(mandatory)* (+8 more)
 
 ### Community 90 - "DESIGN_SYSTEM.md"
 Cohesion: 0.05
 Nodes (41): 10. Grid System, 11. Breakpoints, 12. Typography, 13. Typography Scale, 14. Iconography, 15. Motion, 16. Light & Dark Themes, 19. Button Standards (+33 more)
 
 ### Community 91 - "AIModel"
-Cohesion: 0.05
-Nodes (42): Data Model: Admin AI Model Catalog Management, Existing Domain entity this feature reads/mutates (no changes), New DTOs (Application layer), State transitions (unchanged — restated for traceability to spec.md), AdminAiModelDto, DateOnly, Guid, ModelSummaryDto (+34 more)
+Cohesion: 0.06
+Nodes (41): GetAiModelsQuery, ModelSummaryDto, Data Model: Admin AI Model Catalog Management, Existing Domain entity this feature reads/mutates (no changes), CancellationToken, Guid, IReadOnlyList, Task (+33 more)
 
 ### Community 92 - "GetSiteBuildingsQuery"
 Cohesion: 0.07
 Nodes (34): BuildingFootprintResult, BuildingFootprintSource, None, Osm, Overture, Rendered, BuildingFootprint, IReadOnlyList (+26 more)
 
 ### Community 93 - "MemoriesController"
-Cohesion: 0.13
-Nodes (25): MemoryConflictResolution, KeepBoth, KeepExisting, KeepNew, EditMemoryRequest, MemoryCategoryPreferenceUpdateRequest, MemoryExportJobResponse, MemoryExportStatusResponse (+17 more)
+Cohesion: 0.06
+Nodes (47): CancellationToken, Guid, IReadOnlyList, Task, MemoryConflictResolution, KeepBoth, KeepExisting, KeepNew (+39 more)
 
 ### Community 94 - "StubCapability"
-Cohesion: 0.04
-Nodes (72): TestServiceScopeFactory, CapabilityExecutor, ConversationCapabilityCatalog, IAIProviderResolver, IServiceScopeFactory, EmptyMcpToolRegistry, ActiveTools, PermissiveSchemaValidator (+64 more)
+Cohesion: 0.05
+Nodes (67): EmptyMcpToolRegistry, ActiveTools, PermissiveSchemaValidator, StubCapability, AcknowledgementTemplate, Area, ArgumentHint, Description (+59 more)
 
-### Community 95 - "AskLucy.Domain.Notifications"
-Cohesion: 0.03
-Nodes (31): asklucy_application_custommodels_abstractions, asklucy_application_documents_authorization, asklucy_domain_common, asklucy_domain_custommodels, asklucy_domain_documents, asklucy_persistence_configurations, AskLucy.Application.Notifications.Abstractions, AskLucy.Infrastructure.Notifications (+23 more)
+### Community 95 - "UsersController.cs"
+Cohesion: 0.08
+Nodes (17): asklucy_application_users_commands_bulkdeleteusers, asklucy_application_users_commands_bulkforcereset2fa, asklucy_application_users_commands_bulklockusers, asklucy_application_users_commands_bulkunlockusers, asklucy_application_users_commands_changeuserrole, asklucy_application_users_commands_deletemyaccount, asklucy_application_users_commands_deleteuser, asklucy_application_users_commands_forcereset2fa (+9 more)
 
 ### Community 96 - "useSiteBoundaryEditMode.ts"
-Cohesion: 0.09
-Nodes (34): D7 - Applying the values in the scene, Wire format, ChatActiveBoundary, combineSiteBoundaryShape(), getChatById(), saveSiteBoundaryEdit(), ActiveSiteBoundaryState, emptyState (+26 more)
+Cohesion: 0.10
+Nodes (32): Phase 2: Foundational (blocks every story), Wire format, ChatActiveBoundary, combineSiteBoundaryShape(), getChatById(), resetSiteBoundary(), saveSiteBoundaryEdit(), SiteBoundaryResetDialog() (+24 more)
 
 ### Community 97 - "IIdentityService"
 Cohesion: 0.06
-Nodes (39): IdentityResult, SignInManager, Phase 2: Foundational (Blocking Prerequisites), Implementation for User Story 4, ExternalLoginDto, IdentityOperationResult, IIdentityService, PasswordResetEligibility (+31 more)
+Nodes (42): AskLucy.Application.Authentication.Commands.RemoveExternalLogin, IdentityResult, SignInManager, Phase 2: Foundational (Blocking Prerequisites), ExternalLoginDto, IdentityOperationResult, IdentityResultStatus, EmailNotConfirmed (+34 more)
 
 ### Community 98 - "VoiceProvider"
 Cohesion: 0.06
-Nodes (31): Configuration (`Supertonic` section, all optional), Data Model: Voice Provider Administration, Invariants (`VoiceProvider`), Seed (migration `20260923063919_AddVoiceProviders`), VoiceProvider (table `VoiceProviders`), Decisions, Design, Implementation Plan: Voice Provider Administration & On-Server Voice (+23 more)
+Nodes (35): AddVoiceProviderCommand, Invariants (`VoiceProvider`), IVoiceProviderRepository, CancellationToken, Guid, IReadOnlyList, Task, AddVoiceProviderCommandHandler (+27 more)
 
 ### Community 99 - "OverpassBuildingFootprintProvider"
 Cohesion: 0.09
-Nodes (28): OverpassElement, OverpassBuildingFootprintProvider, OverpassBuildingFootprintProviderLog, OverpassElement, OverpassGeometryPoint, OverpassResponse, BuildingFootprintResult, BuildingHeightProvenance (+20 more)
+Nodes (27): OverpassBuildingFootprintProvider, OverpassBuildingFootprintProviderLog, OverpassElement, OverpassGeometryPoint, OverpassResponse, BuildingFootprintResult, BuildingHeightProvenance, BuildingRetrievalOptions (+19 more)
 
-### Community 100 - "AiProviderException"
+### Community 100 - ".EnsureSuccessAsync"
 Cohesion: 0.07
-Nodes (37): NotSupportedException, AiProviderException, Kind, RetryAfter, AiProviderRequestInvalidException, AiProviderResponseClassifier, AiProviderResponseClassifierLog, AiVendor (+29 more)
+Nodes (32): NotSupportedException, AiProviderResponseClassifier, AiProviderResponseClassifierLog, AiVendor, Anthropic, ElevenLabs, GoogleGemini, OpenAI (+24 more)
 
 ### Community 101 - "McpResource"
 Cohesion: 0.08
@@ -2503,7 +2531,7 @@ Nodes (34): IMcpResourceRepository, CancellationToken, Guid, IReadOnlyList, Reso
 
 ### Community 102 - ".KnowledgeBaseCheck_ShouldReportOwnedKnowledgeBaseAvailable_AndOthersNot"
 Cohesion: 0.05
-Nodes (46): AskLucy.Application.Agents.Notifications, INotificationAccessCheck, AgentExecutionNotificationAccessCheck, ItemType, CancellationToken, IAgentExecutionRepository, IReadOnlyCollection, IReadOnlySet (+38 more)
+Nodes (45): INotificationAccessCheck, AgentExecutionNotificationAccessCheck, ItemType, CancellationToken, IAgentExecutionRepository, IReadOnlyCollection, IReadOnlySet, Task (+37 more)
 
 ### Community 103 - "NotificationsOptions"
 Cohesion: 0.08
@@ -2511,35 +2539,35 @@ Nodes (28): NotificationCenterOptions, DefaultPageSize, MaxPageSize, Notificatio
 
 ### Community 104 - "NotificationOutboxEvent"
 Cohesion: 0.06
-Nodes (37): 1. Modules publish into the caller's unit of work, 2. Two `BackgroundService` workers, woken by a signal, 3. Lease-based claims, 4. At-most-once email, 5. Hangfire stays for recurring maintenance, ADR 0018: Transactional Notification Outbox with In-Process Workers, Alternatives considered, Consequences (+29 more)
+Nodes (33): NotificationOutboxEvent, OutboxEventStatus, Completed, Failed, Pending, Processing, NotificationOutboxEvent, Attempts (+25 more)
 
-### Community 105 - "RoleRepository"
-Cohesion: 0.17
-Nodes (13): DuplicateResourceException, RoleRepository, ApplicationRole, AskLucyDbContext, CancellationToken, IEnumerable, IReadOnlyCollection, IReadOnlyList (+5 more)
+### Community 105 - "RoleRecord"
+Cohesion: 0.11
+Nodes (24): DbUpdateException, RoleRecord, IsDefault, CancellationToken, DateTime, IReadOnlyCollection, IReadOnlyList, PermissionSet (+16 more)
 
 ### Community 106 - "DocumentRepository"
-Cohesion: 0.06
-Nodes (41): DocumentSearchFilters, DateTime, DocumentListView, Active, Archived, Deleted, SearchDocumentsQuery, DateTime (+33 more)
+Cohesion: 0.07
+Nodes (35): DocumentSearchFilters, CancellationToken, DateTime, Guid, IReadOnlyDictionary, IReadOnlyList, Items, NextCursor (+27 more)
 
 ### Community 107 - "DocumentMetadata"
-Cohesion: 0.09
-Nodes (30): Metadata, Action, UpdateDocumentMetadataCommand, UpdateDocumentMetadataResult, DateTime, Guid, UpdateDocumentMetadataCommandHandler, CancellationToken (+22 more)
+Cohesion: 0.05
+Nodes (46): Metadata, Action, CancellationToken, DocumentSummaryDto, Task, UpdateDocumentMetadataCommand, UpdateDocumentMetadataResult, DateTime (+38 more)
 
 ### Community 108 - "Actions"
-Cohesion: 0.04
-Nodes (23): Client (`chatsApi.ts`), Client state and local geometry, Dependencies and execution order, Format: `[ID] [P?] [Story] Description`, Implementation for US1, Implementation strategy, Parallel examples, Phase 1: Setup (+15 more)
+Cohesion: 0.07
+Nodes (8): Client (`chatsApi.ts`), Client state and local geometry, Implementation for US1, Phase 3: User Story 1 - Cut an atrium out of a building (P1, MVP), Tests for US1, Actions, SiteBoundaryEditSession, totalArea()
 
 ### Community 109 - "KnowledgeBaseDashboardPage.tsx"
-Cohesion: 0.04
-Nodes (74): @dnd-kit/core, ref_mui_icons_material_arrowdownward, ref_mui_icons_material_cloudupload, ref_mui_icons_material_folderopenoutlined, ref_mui_icons_material_insertdrivefile, ref_mui_icons_material_viewlist, KnowledgeBaseFolder, KnowledgeBaseDashboardSummary (+66 more)
+Cohesion: 0.06
+Nodes (56): ref_mui_icons_material_archive, ref_mui_icons_material_arrowdownward, ref_mui_icons_material_arrowupward, ref_mui_icons_material_publishedwithchanges, ref_mui_icons_material_restore, ref_mui_icons_material_viewlist, KnowledgeBaseDashboardSummary, KnowledgeBaseSort (+48 more)
 
 ### Community 110 - "McpServer"
 Cohesion: 0.05
-Nodes (47): RegisterMcpServerCommand, McpServerDto, UpdateMcpServerCommand, Guid, McpServerDto, McpAuthenticationType, ApiKey, BearerToken (+39 more)
+Nodes (43): UpdateMcpServerCommand, Guid, McpServerDto, McpAuthenticationType, ApiKey, BearerToken, None, OAuth2ClientCredentials (+35 more)
 
 ### Community 111 - "vitest"
 Cohesion: 0.01
-Nodes (230): jest-axe, msw, ref_msw_node, react-router, @tanstack/react-query, @testing-library/react, @testing-library/user-event, vitest (+222 more)
+Nodes (179): jest-axe, msw, ref_msw_node, react-router, @tanstack/react-query, @testing-library/react, @testing-library/user-event, vitest (+171 more)
 
 ### Community 112 - "DocumentStatistics"
 Cohesion: 0.07
@@ -2551,15 +2579,15 @@ Nodes (5): fail(), generateId(), ok(), ViewerEngine, Window
 
 ### Community 114 - "Message"
 Cohesion: 0.05
-Nodes (42): Attachment, Citation, 6. Conversation Context, Attachments, Citations, Conversations (`UserChats` table), Full-text search, Messages (+34 more)
+Nodes (39): Attachment, Citation, 6. Conversation Context, Attachments, Citations, Conversations (`UserChats` table), Full-text search, Messages (+31 more)
 
 ### Community 115 - "BulkTarget"
 Cohesion: 0.05
-Nodes (57): BulkLockUsersCommandHandler, BulkUnlockUsersCommandHandler, BulkAssignRoleCommand, BulkActionOutcome, BulkActionSkip, IReadOnlyList, BulkTarget, BulkTargetValidator (+49 more)
+Nodes (59): BulkLockUsersCommandHandler, BulkUnlockUsersCommandHandler, AskLucy.Application.Users.Commands.BulkLockUsers, BulkActionOutcome, BulkActionSkip, IReadOnlyList, BulkTarget, BulkTargetValidator (+51 more)
 
 ### Community 116 - "VoiceProviderRouterTests"
 Cohesion: 0.14
-Nodes (25): AIProvider, AiProviderUnavailableException, ApiKey, FakeEngine, Settings, FakeEngine, Calls, DisplayName (+17 more)
+Nodes (26): AIProvider, AiProviderUnavailableException, ApiKey, FakeEngine, ITextToSpeechEngine, Settings, FakeEngine, Calls (+18 more)
 
 ### Community 117 - "FakeFtpClient"
 Cohesion: 0.06
@@ -2569,97 +2597,97 @@ Nodes (34): FakeFtpClient, IProgress, AsyncFtpClientFacadeFactory, FtpConnection
 Cohesion: 0.09
 Nodes (34): Delegator, IServiceScope, IServiceScopeFactory, ScopeFactory, CountingServiceScopeFactory, CreateScopeCallCount, EmptyMcpToolRegistry, ActiveTools (+26 more)
 
-### Community 119 - ".RunAsync"
+### Community 119 - "Task"
 Cohesion: 0.07
-Nodes (40): AgentExecutionErrorCategory, AgentExecutionEventType, AgentPlanStep, AgentToolResult, Result, RetriesUsed, IAgentExecutionNotifier, CancellationToken (+32 more)
+Nodes (40): AgentExecutionEventType, AgentPlanStep, AgentToolResult, Result, RetriesUsed, IAgentExecutionNotifier, CancellationToken, DateTime (+32 more)
 
 ### Community 120 - "SaveSiteBoundaryEditCommandTests"
-Cohesion: 0.15
+Cohesion: 0.14
 Nodes (20): SiteBoundaryCorrection, SaveSiteBoundaryEditCommandTests, CancellationToken, Fact, GeoPoint, ICurrentUserAccessor, IMessageRepository, InlineData (+12 more)
 
-### Community 121 - "PromptType"
-Cohesion: 0.07
-Nodes (40): PromptFolderDto, Guid, PromptType, Chat, Classification, Extraction, Instruction, Rag (+32 more)
+### Community 121 - "PromptContracts.cs"
+Cohesion: 0.10
+Nodes (30): PromptFolderDto, Guid, AddPromptTagRequest, CreatePromptCategoryRequest, CreatePromptFolderRequest, CreatePromptRequest, ExecutePromptRequest, ExportPromptsRequest (+22 more)
 
-### Community 122 - "PauseWorkflowExecutionCommandHandler"
-Cohesion: 0.08
-Nodes (34): IWorkflowExecutionRepository, IWorkflowExpressionEvaluator, IWorkflowRepository, PauseWorkflowExecutionCommand, PauseWorkflowExecutionCommand, Guid, PauseWorkflowExecutionCommandHandler, CancellationToken (+26 more)
+### Community 122 - "ICurrentUserAccessor"
+Cohesion: 0.10
+Nodes (25): ICurrentUserAccessor, IWorkflowExecutionRepository, IWorkflowExpressionEvaluator, IWorkflowRepository, PauseWorkflowExecutionCommand, Guid, WorkflowExecutionNotificationTests, AgentToolCatalog (+17 more)
 
 ### Community 123 - "WorkflowExecutionOrchestrator"
-Cohesion: 0.05
-Nodes (51): ApprovalGateOutcome, Dictionary, FailureCategory, FailureReason, OutputJson, ParallelExecutionOutcome, WorkflowErrorPolicyParser, JsonSerializerOptions (+43 more)
+Cohesion: 0.07
+Nodes (41): ApprovalGateOutcome, Dictionary, FailureCategory, FailureReason, OutputJson, ParallelExecutionOutcome, ApprovalGateOutcome, ParallelExecutionOutcome (+33 more)
 
 ### Community 124 - "FluentFtpDeploymentFileUploaderTests"
 Cohesion: 0.11
 Nodes (24): FakeFtpClientFactory, FileNotFoundException, DeploymentTargetException, Kind, DeploymentTargetFailureKind, AuthRejected, CertificateInvalid, ConnectionLost (+16 more)
 
-### Community 125 - "adminOperationalFailuresApi.ts"
-Cohesion: 0.03
-Nodes (112): Dependencies & Execution Order, Format: `[ID] [P?] [Story] Description`, Implementation for User Story 1, Implementation for User Story 2, Implementation Strategy, Incremental Delivery, MVP First (User Story 1 Only), Notes (+104 more)
+### Community 125 - "Tasks: Admin Panel Layout & Polish Pass"
+Cohesion: 0.04
+Nodes (58): Dependencies & Execution Order, Format: `[ID] [P?] [Story] Description`, Implementation for User Story 1, Implementation for User Story 2, Implementation Strategy, Incremental Delivery, MVP First (User Story 1 Only), Notes (+50 more)
 
 ### Community 126 - "Persistence"
-Cohesion: 0.09
-Nodes (21): DbContext, DbContextErrorEventData, DbContextEventData, InterceptionResult, SaveChangesCompletedEventData, SaveChangesInterceptor, Conventions, Persistence (+13 more)
+Cohesion: 0.08
+Nodes (24): DbContext, DbContextErrorEventData, DbContextEventData, InterceptionResult, SaveChangesCompletedEventData, SaveChangesInterceptor, Conventions, Persistence (+16 more)
 
 ### Community 127 - "RecordFunnelEventCommand"
 Cohesion: 0.06
 Nodes (42): FunnelCtaId, SignIn, SignUp, TryPlatform, FunnelEventType, CtaClicked, FunnelCompleted, FunnelKind (+34 more)
 
 ### Community 128 - "PromptsController"
-Cohesion: 0.15
-Nodes (20): PromptDetailDto, PromptVersionRefDto, DateTime, Guid, IReadOnlyList, PromptsController, ActionResult, CancellationToken (+12 more)
+Cohesion: 0.17
+Nodes (15): PromptsController, ActionResult, CancellationToken, EnableRateLimiting, Guid, HttpDelete, HttpGet, HttpPost (+7 more)
 
 ### Community 129 - "WorkflowExpressionValue"
-Cohesion: 0.07
-Nodes (36): ComparisonExpressionNode, FunctionCallExpressionNode, LiteralExpressionNode, LogicalExpressionNode, ReferenceExpressionNode, WorkflowExpressionEvaluationException, WorkflowExpressionNode, WorkflowExpressionParseException (+28 more)
+Cohesion: 0.06
+Nodes (48): IReadOnlyDictionary, IReadOnlyList, ComparisonExpressionNode, FunctionCallExpressionNode, LiteralExpressionNode, LogicalExpressionNode, ReferenceExpressionNode, WorkflowExpressionEvaluationException (+40 more)
 
 ### Community 130 - ".SpeakAsync"
-Cohesion: 0.08
-Nodes (25): ChannelOperationalFailureRecorder, IHttpContextAccessor, ITextToSpeechEngine, HttpContextCurrentUserAccessor, UserId, ElevenLabsBurstReplayTests, ToggledEngine, DisplayName (+17 more)
+Cohesion: 0.09
+Nodes (24): ChannelOperationalFailureRecorder, IHttpContextAccessor, HttpContextCurrentUserAccessor, UserId, ElevenLabsBurstReplayTests, ToggledEngine, DisplayName, ProviderKey (+16 more)
 
 ### Community 131 - "StubCapability"
 Cohesion: 0.07
 Nodes (40): CapabilityExecutionResult, CapabilityExecutor, CapabilityExecutorLog, CancellationToken, Exception, Guid, ILogger, IOptions (+32 more)
 
-### Community 132 - "AdjustViewerFocusCapability"
-Cohesion: 0.07
-Nodes (25): Contract: Capability Flow, Failure and interruption, Interface, Narration cadence, Record, Run automatically, or offer? (FR-051a, research.md D18), Testing contract, The `locate_a_place` flow (FR-051) (+17 more)
+### Community 132 - "ResolveLocationCapability"
+Cohesion: 0.04
+Nodes (44): IUserChatRepository, Contract: Capability Flow, Failure and interruption, Interface, Narration cadence, Record, Run automatically, or offer? (FR-051a, research.md D18), Testing contract (+36 more)
 
 ### Community 133 - "HuggingFaceModelRepositorySource"
-Cohesion: 0.08
-Nodes (29): HttpCompletionOption, IModelRepositorySource, ModelRepositoryFile, ResolvedRevision, CancellationToken, IProgress, IReadOnlyList, Stream (+21 more)
+Cohesion: 0.11
+Nodes (23): HttpCompletionOption, ModelRepositoryFile, ResolvedRevision, HuggingFaceModelRepositorySource, CancellationToken, GeneratedRegex, HttpResponseMessage, HttpStatusCode (+15 more)
 
 ### Community 134 - ".AnalyzeAsync"
-Cohesion: 0.09
-Nodes (23): BoundaryCandidate, IReadOnlyDictionary, BoundaryVisionAnalysis, IReadOnlyList, SatelliteImage, ScoredBoundaryCandidate, IReadOnlyDictionary, StreetViewImage (+15 more)
+Cohesion: 0.06
+Nodes (38): BoundaryVisionAnalysis, IReadOnlyList, IStreetViewImageProvider, CancellationToken, IReadOnlyList, Task, StreetViewImage, GoogleGeminiOptions (+30 more)
 
 ### Community 135 - "McpPrompt"
-Cohesion: 0.09
-Nodes (25): CancellationToken, Guid, IReadOnlyList, Prompt, ServerName, Task, McpPrompt, ContentTemplate (+17 more)
+Cohesion: 0.05
+Nodes (42): CancellationToken, Guid, IReadOnlyList, Prompt, ServerName, Task, CancellationToken, Func (+34 more)
 
-### Community 136 - "Mp3StreamEncoder"
-Cohesion: 0.08
-Nodes (22): Code — MIT, GroovyMp3 — MP3 encoding (specs/070), Map and building data — site and solar analysis (specs/053, 075, 076), Model weights — OpenRAIL-M, Supertonic 3 — Lucy's on-server voice (specs/070), Third-Party Notices, groovycodecs_mp3, groovycodecs_types (+14 more)
+### Community 136 - "Ask Lucy"
+Cohesion: 0.12
+Nodes (15): Code — MIT, GroovyMp3 — MP3 encoding (specs/070), Map and building data — site and solar analysis (specs/053, 075, 076), Model weights — OpenRAIL-M, Supertonic 3 — Lucy's on-server voice (specs/070), Third-Party Notices, Ask Lucy, Deployment prerequisites (+7 more)
 
 ### Community 137 - "DeploymentDestination"
 Cohesion: 0.14
-Nodes (11): SearchValues, Validation (FluentValidation plus Domain value objects), DeploymentDestination, Value, HashSet, IReadOnlyList, DeploymentDestinationTests, Fact (+3 more)
+Nodes (10): SearchValues, DeploymentDestination, Value, HashSet, IReadOnlyList, DeploymentDestinationTests, Fact, InlineData (+2 more)
 
 ### Community 138 - "EsriBuildingHeightSourceTests"
 Cohesion: 0.10
 Nodes (22): Handler, Layer, Source, EsriBuildingHeightSourceTests, Layer, FailWith, GzipBodies, Heights (+14 more)
 
-### Community 139 - ".Boundary"
-Cohesion: 0.08
-Nodes (29): ICapabilitySettingsReader, IRelatedSiteBuildingProvider, ISiteFootprintUnion, RelatedSiteBuilding, SiteBoundaryMember, D9 — Building choices on a hand-edited outline (Q2:B), SiteBoundaryMembershipLog, SiteBoundaryMembershipService (+21 more)
+### Community 139 - ".WithRelatedBuildingsAsync"
+Cohesion: 0.05
+Nodes (53): ICapabilitySettingsReader, IRelatedSiteBuildingProvider, ISiteFootprintUnion, RelatedSiteBuilding, SiteBoundaryMember, Decision, D9 — Building choices on a hand-edited outline (Q2:B), IRelatedSiteBuildingProvider (+45 more)
 
 ### Community 140 - "AdminVoiceProvidersController"
-Cohesion: 0.09
-Nodes (28): AdminVoiceProviderDto, DictationSettingsDto, DictationTranscriptionResponse, HttpPut, IFormFile, LocalWhisperTryResultDto, ProducesResponseType&lt;AdminVoiceProviderDto&gt;, ProducesResponseType&lt;LocalWhisperTryResultDto&gt; (+20 more)
+Cohesion: 0.10
+Nodes (24): AdminVoiceProviderDto, DictationSettingsDto, DictationTranscriptionResponse, IFormFile, LocalWhisperTryResultDto, ProducesResponseType&lt;AdminVoiceProviderDto&gt;, ProducesResponseType&lt;LocalWhisperTryResultDto&gt;, RequestFormLimits (+16 more)
 
 ### Community 141 - "DocumentPreview"
 Cohesion: 0.10
-Nodes (32): DocumentPreviewKind, PageImage, StructuredContent, Thumbnail, Unavailable, DocumentPreviewResultDto, Guid, GetDocumentPreviewQuery (+24 more)
+Nodes (30): CancellationToken, Guid, ProcessingStageOutcome, Task, DocumentPreviewResultDto, Guid, GetDocumentPreviewQuery, Guid (+22 more)
 
 ### Community 142 - "IDictationEngineSettingRepository"
 Cohesion: 0.06
@@ -2667,95 +2695,95 @@ Nodes (42): GetCustomModelQueryHandler, GetDeploymentStatusQueryHandler, ListCus
 
 ### Community 144 - ".StreamAsync"
 Cohesion: 0.08
-Nodes (25): ITextToSpeechProvider, IUserVoicePreferenceRepository, IVoiceProviderHealthRecorder, SequenceCounter, SequenceCounter, StreamVoiceReplyCommandHandler, CancellationToken, IAsyncEnumerable (+17 more)
+Nodes (26): ITextToSpeechProvider, IUserVoicePreferenceRepository, IVoiceProviderHealthRecorder, SequenceCounter, D8 — Sanitisation: a pure redactor applied at ingestion, SequenceCounter, StreamVoiceReplyCommandHandler, CancellationToken (+18 more)
 
 ### Community 145 - "McpServersController"
-Cohesion: 0.12
-Nodes (35): DeactivateMcpToolCommand, Guid, McpAuditLogDto, McpServerDto, McpServerHealthDto, McpServerReferenceDto, McpToolDto, DateTime (+27 more)
+Cohesion: 0.10
+Nodes (39): DeactivateMcpToolCommand, Guid, EnableMcpServerCommand, Guid, McpServerDto, McpCapabilityRefreshResultDto, RefreshMcpCapabilitiesCommand, Guid (+31 more)
 
 ### Community 146 - "googleEditablePolygonHost.ts"
-Cohesion: 0.07
-Nodes (18): Client edit session (`siteBoundaryEditStore`), ControllerOptions, clear(), listen(), listenPath(), refuse(), writePath(), EditablePath (+10 more)
+Cohesion: 0.14
+Nodes (8): Client edit session (`siteBoundaryEditStore`), ACTIVE, adaptPath(), CornerRingsSurface, DIMMED, fromLatLng(), toLatLng(), EditTool
 
-### Community 147 - "ProducesResponseType"
-Cohesion: 0.15
-Nodes (21): ProducesResponseType, ProducesResponseType&lt;BulkTransitionResultDto&gt;, ProducesResponseType&lt;ChatInvestigationDto&gt;, ProducesResponseType&lt;IncidentDetailDto&gt;, ProducesResponseType&lt;OperationalFailureSummaryDto&gt;, ProducesResponseType&lt;PagedResult&lt;IncidentSummaryDto&gt;&gt;, ProducesResponseType&lt;PagedResult&lt;OccurrenceDto&gt;&gt;, ResolveRequest (+13 more)
+### Community 147 - "HttpGet"
+Cohesion: 0.10
+Nodes (30): HttpGet, ProducesResponseType, ProducesResponseType&lt;BulkTransitionResultDto&gt;, ProducesResponseType&lt;ChatInvestigationDto&gt;, ProducesResponseType&lt;CustomModelSummaryDto&gt;, ProducesResponseType&lt;IncidentDetailDto&gt;, ProducesResponseType&lt;OperationalFailureSummaryDto&gt;, ProducesResponseType&lt;PagedResult&lt;IncidentSummaryDto&gt;&gt; (+22 more)
 
 ### Community 148 - "McpAuditLog"
 Cohesion: 0.03
-Nodes (72): McpFailureCategory, CancellationToken, Task, DeleteMcpServerCommand, Guid, CancellationToken, Task, DisableMcpServerCommand (+64 more)
+Nodes (73): McpFailureCategory, Call sites, Contract: Operational Failure Recorder (in-process), Guarantees the implementation gives callers, Rules for callers, CancellationToken, Task, CancellationToken (+65 more)
 
 ### Community 149 - "GoogleRenderedFillBoundaryExtractor"
 Cohesion: 0.09
 Nodes (27): Bounds, Bytes, Dx, Dy, East, GoogleMapsGeocodingOptions, Image, IRenderedFillBoundaryExtractor (+19 more)
 
 ### Community 150 - "NotificationTemplateVersion"
-Cohesion: 0.04
+Cohesion: 0.05
 Nodes (51): NotificationTemplate, Category, Channel, Definition, IsShippedDefault, Language, Name, PublishedVersion (+43 more)
 
 ### Community 151 - "CustomModelSummaryDto"
-Cohesion: 0.06
-Nodes (39): IHubContext, Implementation for Foundational, Phase 2: Foundational (Blocking Prerequisites), API Contract Change: Custom Models Single-File Deployment, Deployment job behavior, Frontend, List / get, Source preview — `POST /api/v1/admin/custom-models/source-preview` (+31 more)
+Cohesion: 0.05
+Nodes (46): IHubContext, PagedResult, D8 — Live progress: a permission-gated SignalR hub, throttled, Implementation for Foundational, Phase 2: Foundational (Blocking Prerequisites), API Contract Change: Custom Models Single-File Deployment, Deployment job behavior, Frontend (+38 more)
 
 ### Community 152 - "DictationEngineSetting"
-Cohesion: 0.07
-Nodes (33): Phase 7: Polish & Cross-Cutting Concerns, Tests for the foundation, None, DictationClipEngine, Browser, LocalWhisper, OpenAiWhisper, DictationEngineSetting (+25 more)
+Cohesion: 0.04
+Nodes (51): AskLucy.Domain.Ai.Dictation, Implementation for the foundation, Implementation for User Story 3, Phase 2: Foundational (Blocking Prerequisites), Tests for the foundation, IDictationClipTranscriber, Engine, DictationCaptureMode (+43 more)
 
 ### Community 153 - "GeneratedImageMaterializerTests"
-Cohesion: 0.23
-Nodes (11): Base64, Binary, DataUrl, GeneratedImage, GeneratedImagePayload, RemoteUrl, Uri, GeneratedImageMaterializerTests (+3 more)
+Cohesion: 0.14
+Nodes (18): Extension, Base64, Binary, DataUrl, GeneratedImage, GeneratedImagePayload, RemoteUrl, Uri (+10 more)
 
 ### Community 154 - ".ResolveAsync"
-Cohesion: 0.08
-Nodes (43): AiCapabilityProviderResolver, GenerationParametersDto, GeocodingCandidate, ILocationResolutionService, LocationIntentPayload, LocationResolutionOptions, LocationResolutionOutcome, CancellationToken (+35 more)
+Cohesion: 0.16
+Nodes (21): GenerationParametersDto, GeocodingCandidate, CancellationToken, IReadOnlyList, Task, ActiveSiteLocation, LocationResolutionServiceTests, AIModel (+13 more)
 
-### Community 155 - "TurnOutcome"
-Cohesion: 0.09
-Nodes (26): CapabilityIndexRetriever, 2. `RecordedTurnOutcome` (serialized document), `ActionAttempt`, `TurnVerdict` (enum), Validation rules, ConversationCapabilityCatalog, AgentToolCatalog, CancellationToken (+18 more)
+### Community 155 - "TurnContext"
+Cohesion: 0.07
+Nodes (33): ActiveSiteBoundary, ActiveSiteLocation, CapabilityIndexRetriever, 2. `RecordedTurnOutcome` (serialized document), `ActionAttempt`, `TurnVerdict` (enum), Validation rules, ConversationCapabilityCatalog (+25 more)
 
 ### Community 156 - "LocateAPlaceFlow"
-Cohesion: 0.10
+Cohesion: 0.09
 Nodes (23): FlowStep, FlowStepContext, FlowStepResult, FlowVariant, IConversationFlow, ArgumentHint, Description, Key (+15 more)
 
 ### Community 157 - "ConversationTurnOrchestratorBeatTests"
-Cohesion: 0.05
-Nodes (75): AgentExecution, TurnDecision, IsFastPath, IsFlowRun, TurnIntent, Act, Answer, Suggest (+67 more)
+Cohesion: 0.12
+Nodes (38): AgentExecution, TurnSlice, ConversationTurnOrchestratorBeatTests, EmptyMcpToolRegistry, ActiveTools, PermissiveSchemaValidator, CancellationToken, CapabilityIndexEntry (+30 more)
 
 ### Community 158 - "KnowledgeBasesController"
-Cohesion: 0.16
-Nodes (22): KnowledgeBaseDocumentDto, DateTime, Guid, KnowledgeBaseFolderDto, Guid, KnowledgeBaseSummaryDto, DateTime, Guid (+14 more)
+Cohesion: 0.19
+Nodes (17): KnowledgeBaseFolderDto, Guid, KnowledgeBaseSummaryDto, DateTime, Guid, IReadOnlyList, KnowledgeBasesController, ActionResult (+9 more)
 
-### Community 159 - "ViewerSurface.tsx"
-Cohesion: 0.04
-Nodes (65): Context, generateImage(), RetryRequest, SelectedActionRequest, ChatDetail, isSelectionRecord(), newMessageId(), resolveSelectedActionLabel() (+57 more)
+### Community 159 - "MapRenderTarget.tsx"
+Cohesion: 0.03
+Nodes (48): ADR 0015: The Viewer Camera Belongs to the User, Alternatives considered, Consequences, Decision, D2 — View state: capture once, enter a north-up plan view, restore exactly, ChatDetail, boundary, useRestoreChatSite() (+40 more)
 
 ### Community 160 - "ringShapes.ts"
 Cohesion: 0.11
-Nodes (36): Implementation for US2, Drag, INSTRUCTION, NOUN, Props, shapeOf(), SiteBoundaryShapeDraw(), VERB (+28 more)
+Nodes (37): Implementation for US2, Drag, INSTRUCTION, NOUN, Props, shapeOf(), SiteBoundaryShapeDraw(), VERB (+29 more)
 
 ### Community 161 - "ApplyProviderModelSyncCommand"
-Cohesion: 0.17
-Nodes (19): ProviderModelInfo, ApplyProviderModelSyncCommand, Guid, IReadOnlyList, CancellationToken, Task, ApplyProviderModelSyncCommandValidator, ApplyProviderModelSyncResultDto (+11 more)
+Cohesion: 0.08
+Nodes (43): New DTOs (Application layer), Implementation for User Story 3, Complexity Tracking, Constitution Check, Documentation (this feature), Implementation Plan: Selective Model Sync Review, Project Structure, Source Code (repository root) (+35 more)
 
 ### Community 162 - "dependencies"
 Cohesion: 0.05
 Nodes (37): dependencies, d3, @dnd-kit/core, @dnd-kit/sortable, @emotion/react, @emotion/styled, @fontsource/inter, @googlemaps/js-api-loader (+29 more)
 
 ### Community 163 - "useSiteBoundaryEditStore"
-Cohesion: 0.08
-Nodes (41): Preview, Props, SiteBoundaryArcDraw(), layer(), pin(), projector, SQUARE, startArc() (+33 more)
+Cohesion: 0.06
+Nodes (47): Preview, Props, SiteBoundaryArcDraw(), Drag, Props, SiteBoundaryBoxSelect(), SiteBoundaryCornerMenu(), enter() (+39 more)
 
-### Community 164 - "Embedding"
-Cohesion: 0.12
-Nodes (17): IEmbeddingRepository, CancellationToken, Guid, Task, Embedding, DocumentChunkId, EmbeddingProviderId, IsCurrent (+9 more)
+### Community 164 - "IndexingOrchestrator"
+Cohesion: 0.05
+Nodes (41): CompleteUploadAsNewCommand, IEmbeddingRepository, CancellationToken, Guid, Task, CompleteUploadAsNewCommandHandler, CancellationToken, DocumentSummaryDto (+33 more)
 
-### Community 165 - "solarAnalysisExtension.tsx"
+### Community 165 - "context.ts"
 Cohesion: 0.03
-Nodes (87): Addition, Contract Delta: `ExtensionContext.contributeHudItem`, Guarantees, Migration of built-ins, Data Model: Studio HUD Top Row, Derived presentation mapping: confidence → visual, Existing client state (read-only for this feature), Extended type: `Contribution` (viewer extension framework) (+79 more)
+Nodes (58): SHADOW_GATE_DEGREES, gateTestBuilding(), makeFakeDrawingSpace(), sceneWithBuildings(), buildMarkerContent(), ensurePoiStyles(), POIMarkerOverlay(), getDefaultMarkerStyle() (+50 more)
 
 ### Community 166 - "ResetSiteBoundaryCommandTests"
-Cohesion: 0.09
-Nodes (32): ChatActiveBoundaryDto, ChatOwnershipAuditor, ConcurrencyConflictException, IRoleAuditLogRepository, RoleAuditLog, ResetSiteBoundaryCommand, ResetSiteBoundaryResult, Guid (+24 more)
+Cohesion: 0.08
+Nodes (33): ChatOwnershipAuditor, ConcurrencyConflictException, IRoleAuditLogRepository, RoleAuditLog, ResetSiteBoundaryCommand, ResetSiteBoundaryResult, Guid, MessageDto (+25 more)
 
 ### Community 167 - "HashSet"
 Cohesion: 0.10
@@ -2765,13 +2793,13 @@ Nodes (23): HashSet, MaxX, MaxY, MinX, MinY, ExtractAllRingsResult, ExtractedRin
 Cohesion: 0.07
 Nodes (36): IStorageConnection, JobStorage, CustomModelRunSignal, CancellationRequested, Continue, NoLongerInProgress, SweepRepository, SweepTempStorage (+28 more)
 
-### Community 169 - "AddVoiceProviderCommandHandler"
+### Community 169 - "SetPrimaryVoiceProviderCommandHandler"
 Cohesion: 0.04
-Nodes (66): AddVoiceProviderCommand, GetVoiceProviderVoicesQuery, PreviewVoiceCommand, SetVoiceProviderCredentialCommand, AdminVoiceProviderDto, VoiceEngineDto, VoicePreviewDto, VoiceProviderModelStatus (+58 more)
+Nodes (68): GetVoiceProviderVoicesQuery, PreviewVoiceCommand, SetPrimaryVoiceProviderCommand, SetVoiceProviderCredentialCommand, AdminVoiceProviderDto, VoiceEngineDto, VoicePreviewDto, VoiceProviderModelStatus (+60 more)
 
 ### Community 170 - "GetVersionTimelineQuery"
 Cohesion: 0.11
-Nodes (24): DocumentVersionSummaryDto, DateTime, Guid, GetVersionTimelineQuery, Guid, IReadOnlyList, GetVersionTimelineQueryHandler, CancellationToken (+16 more)
+Nodes (23): DocumentVersionSummaryDto, DateTime, Guid, GetVersionTimelineQuery, Guid, IReadOnlyList, CancellationToken, IReadOnlyList (+15 more)
 
 ### Community 171 - "SetSiteBoundaryMembersCapability"
 Cohesion: 0.05
@@ -2781,45 +2809,45 @@ Nodes (38): JsonArray, SiteBoundaryMembershipService, SetSiteBoundaryMembersCapa
 Cohesion: 0.16
 Nodes (15): FakeRealtime, FakeRecipientDirectory, FakeRenderer, NotificationRecipient, OutboxDispatchServiceTests, Dispatcher, Fact, FakeLogger (+7 more)
 
-### Community 173 - ".GetByIdAsync"
-Cohesion: 0.09
-Nodes (28): CancellationToken, Guid, IReadOnlyList, Task, ActivateMcpToolCommand, Guid, ListMcpServerToolsQuery, Guid (+20 more)
+### Community 173 - "IMcpToolRepository"
+Cohesion: 0.05
+Nodes (61): IMcpToolRepository, CancellationToken, Guid, IReadOnlyList, ServerName, Task, Tool, ActivateMcpToolCommand (+53 more)
 
 ### Community 174 - "GeoPoint"
-Cohesion: 0.13
-Nodes (23): Fixture, FixtureBounds, BuildingFootprint, BuildingHeightProvenance, Assumed, Known, IReadOnlyList, BuildingProviderUnavailableException (+15 more)
+Cohesion: 0.09
+Nodes (34): Fixture, FixtureBounds, BuildingFootprint, BuildingHeightProvenance, Assumed, Known, IReadOnlyList, BuildingProviderUnavailableException (+26 more)
 
-### Community 175 - "BoundaryResolutionService"
-Cohesion: 0.06
-Nodes (39): BoundaryResolutionOutcome, BoundaryResolutionOutcomeType, Center, FinalSelection, RadiusMeters, BoundaryConfirmationTemplates, BoundaryConfidenceLevel, IReadOnlyList (+31 more)
+### Community 175 - ".AreaSquareMeters"
+Cohesion: 0.05
+Nodes (55): BoundaryResolutionOutcome, BoundaryResolutionOutcomeType, Center, FinalSelection, MaxLat, MaxLon, MinLat, MinLon (+47 more)
 
 ### Community 176 - "KnowledgeBaseRepository"
-Cohesion: 0.15
-Nodes (21): DateTime, KnowledgeBaseRepository, AskLucyDbContext, CancellationToken, DateTime, Func, Guid, Id (+13 more)
+Cohesion: 0.13
+Nodes (25): DateTime, KnowledgeBaseRepository, AskLucyDbContext, CancellationToken, DateTime, Func, Guid, Id (+17 more)
 
-### Community 177 - "IUserPanelPreferenceRepository"
-Cohesion: 0.33
-Nodes (8): IUserPanelPreferenceRepository, SavePanelPreferencesRequest, PanelsControllerTests, CancellationToken, CustomWebApplicationFactory, Fact, HttpClient, Task
+### Community 177 - "UserPanelPreference"
+Cohesion: 0.06
+Nodes (40): IUserPanelPreferenceRepository, CancellationToken, Task, GetUserPanelPreferenceQuery, GetUserPanelPreferenceQueryHandler, CancellationToken, Task, UserPanelPreferenceDto (+32 more)
 
 ### Community 178 - "OperationalFailureReport"
 Cohesion: 0.08
 Nodes (31): OperationalFailureReport, Engine, IsFailover, Kind, Model, Operation, Outcome, ProviderId (+23 more)
 
 ### Community 179 - "SiteAnalysis"
-Cohesion: 0.08
-Nodes (28): SiteAnalysis, BoundaryGeoJson, ClosingOutcomeReportedAtUtc, CompletedAtUtc, ExpectedResultCount, Latitude, Longitude, Results (+20 more)
+Cohesion: 0.09
+Nodes (24): SiteAnalysis, BoundaryGeoJson, ClosingOutcomeReportedAtUtc, CompletedAtUtc, ExpectedResultCount, Latitude, Longitude, Results (+16 more)
 
 ### Community 180 - ".Handle"
-Cohesion: 0.11
-Nodes (23): SetAdministratorContentAccessCommand, AdministratorContentAccessDto, SetAdministratorContentAccessCommandHandler, AdministratorContentAccessDto, CancellationToken, IAuthorizationCacheInvalidator, ICurrentUserAccessor, Task (+15 more)
+Cohesion: 0.10
+Nodes (24): AskLucy.Application.Authorization.Roles.Commands.SetAdministratorContentAccess, SetAdministratorContentAccessCommand, AdministratorContentAccessDto, SetAdministratorContentAccessCommandHandler, AdministratorContentAccessDto, CancellationToken, IAuthorizationCacheInvalidator, ICurrentUserAccessor (+16 more)
 
 ### Community 181 - "Document"
-Cohesion: 0.05
-Nodes (44): CancellationToken, IReadOnlyList, Task, RemoveTagCommand, Guid, CancellationToken, Task, ListTagsQuery (+36 more)
+Cohesion: 0.04
+Nodes (49): DocumentProcessingStatusDto, Guid, IReadOnlyList, CancellationToken, Task, Document, ArchivedAtUtc, CurrentVersionId (+41 more)
 
 ### Community 182 - "NotificationAuditAction"
 Cohesion: 0.04
-Nodes (72): ICorrelated, INotificationAuditLogRepository, MemoryCache, PlainRequest, Data Model: Notifications & Communication Hub, Legacy mapping (FR-009a, research R13), Migrations (one logical change each; all reversible), Relationships (+64 more)
+Nodes (72): ICorrelated, INotificationAuditLogRepository, MemoryCache, PlainRequest, R23. Approval notifications (FR-035–FR-037), IAuditedAdminView, AuditAction, AuditTargetId (+64 more)
 
 ### Community 183 - ".ValidateAgainst"
 Cohesion: 0.13
@@ -2830,12 +2858,12 @@ Cohesion: 0.08
 Nodes (29): FakeLogCollector, ICustomModelDeploymentJob, CancellationToken, Guid, Task, CustomModelOverwrittenFile, CustomModelId, Id (+21 more)
 
 ### Community 185 - "RefreshMcpCapabilitiesCommandHandlerTests"
-Cohesion: 0.07
-Nodes (35): ContentBlock, SdkMcpClient, McpDiscoveredPrompt, McpDiscoveredResource, McpDiscoveredTool, CancellationToken, Guid, IReadOnlyDictionary (+27 more)
+Cohesion: 0.08
+Nodes (33): ContentBlock, SdkMcpClient, McpDiscoveredPrompt, McpDiscoveredResource, McpDiscoveredTool, CancellationToken, Guid, IReadOnlyDictionary (+25 more)
 
 ### Community 186 - "WorkflowNode"
-Cohesion: 0.07
-Nodes (32): WorkflowNodeSpec, WorkflowNode, ApprovalPolicy, CanvasX, CanvasY, CompensatingNodeId, ConfigurationJson, Description (+24 more)
+Cohesion: 0.09
+Nodes (29): CancellationToken, Task, WorkflowNode, ApprovalPolicy, CanvasX, CanvasY, CompensatingNodeId, ConfigurationJson (+21 more)
 
 ### Community 187 - "AdminArea"
 Cohesion: 0.05
@@ -2846,76 +2874,76 @@ Cohesion: 0.12
 Nodes (13): Domain and model, Persistence, Phase 2: Foundational (Blocking Prerequisites), Recording on both paths, Transport, ActionAttempt, RecordedTurnOutcome, SupportsAnySuccessClaim (+5 more)
 
 ### Community 189 - "ResolveSiteBoundaryCapability"
-Cohesion: 0.06
-Nodes (45): D5 — Where a hand edit lives, and how other chats find it, ResolveSiteBoundaryCapability, AcknowledgementTemplate, Area, ArgumentHint, Description, ExpectedDuration, InputSchemaJson (+37 more)
+Cohesion: 0.07
+Nodes (37): ResolveSiteBoundaryCapability, AcknowledgementTemplate, Area, ArgumentHint, Description, ExpectedDuration, InputSchemaJson, Label (+29 more)
 
 ### Community 190 - "LocalWhisperRuntime"
-Cohesion: 0.05
-Nodes (54): FakeLoader, FakeModel, DictationTranscript, LocalWhisperTrialBusyException, TimeSpan, IWhisperModel, IWhisperModelLoader, WhisperNetModel (+46 more)
+Cohesion: 0.04
+Nodes (58): FakeLoader, FakeModel, LoadedModel, DictationTranscript, TimeSpan, IWhisperModel, IWhisperModelLoader, WhisperNetModel (+50 more)
 
 ### Community 191 - "IEntityTypeConfiguration"
 Cohesion: 0.04
-Nodes (46): IdentityRoleClaim, IdentityUserRole, IEntityTypeConfiguration, NotificationDelivery, NotificationDeliveryConfiguration, EntityTypeBuilder, NotificationTemplateVersion, NotificationOutboxEventConfiguration (+38 more)
+Nodes (45): IdentityRoleClaim, IdentityUserRole, IEntityTypeConfiguration, NotificationDelivery, NotificationDeliveryConfiguration, EntityTypeBuilder, NotificationTemplateVersion, NotificationOutboxEventConfiguration (+37 more)
 
 ### Community 192 - "ChannelOperationalFailureRecorder"
 Cohesion: 0.06
 Nodes (35): Channel, FakeTimeProvider, D1 — One cross-cutting store behind a recorder abstraction, Phase 1: Setup, IOperationalFailureRecorder, OperationalFailureMarkers, Exception, VoiceRecoveryReport (+27 more)
 
 ### Community 193 - ".Handle"
-Cohesion: 0.07
-Nodes (33): ProviderHealthDto, IEffectivePermissionResolver, CancellationToken, Task, MessageOutline, DateTime, MessageRole, GetChatInvestigationQuery (+25 more)
+Cohesion: 0.08
+Nodes (26): IUserContentAccessEventRepository, CancellationToken, Task, UserContentAccessEvent, GetChatInvestigationQuery, ChatInvestigationDto, Guid, GetChatInvestigationQueryHandler (+18 more)
 
 ### Community 194 - "RoleAuditLog"
-Cohesion: 0.04
-Nodes (44): AuthorizationHandler, AuthorizationHandlerContext, AuthorizationMiddlewareResultHandler, AuthorizationPolicy, IAuthorizationMiddlewareResultHandler, IAuthorizationRequirement, PolicyAuthorizationResult, RoleAuditAction (+36 more)
+Cohesion: 0.05
+Nodes (36): AuthorizationHandler, AuthorizationHandlerContext, AuthorizationPolicy, IAuthorizationRequirement, PolicyAuthorizationResult, RoleAuditAction, IRoleAuditLogRepository, RoleAuditLog (+28 more)
 
 ### Community 196 - "WorkflowExecutionNode"
 Cohesion: 0.06
 Nodes (23): WorkflowExecutionNode, CompletedAtUtc, InputJson, OutputJson, ResolvedIdempotencyKey, RetryCount, SkippedReason, StartedAtUtc (+15 more)
 
-### Community 197 - "SiteAnalysisType"
-Cohesion: 0.12
-Nodes (24): ScopeIsolatedSiteAnalysisResultRelay, CancellationToken, Exception, Guid, IServiceScopeFactory, JsonDocument, Task, SiteAnalysisResultMetadata (+16 more)
+### Community 197 - "SiteAnalysisResultRelay"
+Cohesion: 0.14
+Nodes (16): SiteAnalysisResultRelay, SiteAnalysisResultRelayLog, CancellationToken, Exception, Func, Guid, HashSet, ILogger (+8 more)
 
 ### Community 198 - "OvertureBuildingFootprintProviderTests"
 Cohesion: 0.17
 Nodes (18): Bucket, OvertureBuildingFootprintProviderTests, Action, BuildingFootprint, BuildingProviderUnavailableException, BuildingRetrievalOptions, Dictionary, Fact (+10 more)
 
 ### Community 199 - "ChatStreamChunk"
-Cohesion: 0.10
+Cohesion: 0.11
 Nodes (26): SiteBoundaryEditCommand, SolarAnalysisCommand, ITextToSpeechProvider, CancellationToken, IAsyncEnumerable, Task, ChatStreamChunk, ChatUsage (+18 more)
 
 ### Community 200 - "AgentApprovalWorkflowTests"
-Cohesion: 0.09
-Nodes (36): IAgentExecutionRunner, AgentApprovalWorkflowTests, AgentExecution, AgentInstructions, AgentToolCall, AgentToolExecutionContext, AgentVersion, AIModelCapabilities (+28 more)
+Cohesion: 0.07
+Nodes (43): IAgentExecutionRunner, AgentApprovalDto, ApproveAgentActionCommand, Guid, ApproveAgentActionCommandHandler, CancellationToken, CancellationToken, Task (+35 more)
 
 ### Community 201 - "DocumentUploadSession"
 Cohesion: 0.03
-Nodes (101): ReplaceDocumentCommand, IDocumentUploadSessionRepository, CancellationToken, Guid, Task, IResumableUploadStorage, CancellationToken, Stream (+93 more)
+Nodes (74): IDocumentUploadSessionRepository, CancellationToken, Guid, Task, CancelUploadCommand, Guid, CancellationToken, Task (+66 more)
 
-### Community 202 - ".ValidateAsync"
-Cohesion: 0.15
-Nodes (20): DocumentFileValidationResult, IDocumentFileValidator, CancellationToken, Stream, Task, ReplaceDocumentCommand, Guid, DocumentFileValidator (+12 more)
+### Community 202 - ".Handle"
+Cohesion: 0.06
+Nodes (44): ReplaceDocumentCommand, DocumentFileValidationResult, IDocumentFileValidator, CancellationToken, Stream, Task, IResumableUploadStorage, CancellationToken (+36 more)
 
 ### Community 203 - "NtsSiteRingGeometry"
-Cohesion: 0.13
-Nodes (11): Coordinate, Geometry, GeometryFactory, LinearRing, Outer, Polygon, NtsSiteRingGeometry, IReadOnlyList (+3 more)
+Cohesion: 0.12
+Nodes (12): Coordinate, Geometry, GeometryFactory, LinearRing, Outer, Polygon, Voids, NtsSiteRingGeometry (+4 more)
 
-### Community 204 - "WorkflowExecutionStatus"
-Cohesion: 0.09
-Nodes (27): WorkflowExecutionStatus, Cancelled, Completed, Failed, Paused, Queued, Running, TimedOut (+19 more)
+### Community 204 - "WorkflowConnectionSpec"
+Cohesion: 0.07
+Nodes (34): WorkflowConnectionSpec, WorkflowExecutionStatus, Cancelled, Completed, Failed, Paused, Queued, Running (+26 more)
 
-### Community 205 - "CreateSpeechToTextSessionCommandHandlerTests"
-Cohesion: 0.13
-Nodes (26): CreateSpeechToTextSessionCommandHandler, DictationCaptureMode, ISpeechToTextSessionProvider, ProviderName, SpeechToTextSession, CancellationToken, DateTime, Task (+18 more)
+### Community 205 - "KnowledgeBaseFolderTree.tsx"
+Cohesion: 0.06
+Nodes (46): @dnd-kit/core, ref_mui_icons_material_chevronright, ref_mui_icons_material_cloudupload, ref_mui_icons_material_drivefilemove, ref_mui_icons_material_folderopenoutlined, ref_mui_icons_material_insertdrivefile, KnowledgeBaseFolder, DocumentUploadZone() (+38 more)
 
 ### Community 206 - ".ResolveSelectedAsync"
-Cohesion: 0.10
-Nodes (24): Implementation for the foundation, ILocalWhisperModelCatalog, CancellationToken, Guid, IReadOnlyList, Task, Broken, LocalWhisperModelOption (+16 more)
+Cohesion: 0.34
+Nodes (4): LocalWhisperModelCatalogTests, CancellationToken, Fact, Task
 
 ### Community 207 - ".Apply"
-Cohesion: 0.12
-Nodes (27): CombineResult, D10 — Keyboard and touch (US6, FR-014), D11 — Server validation bounds (FR-020), D1 — The editor: the map's own editable polygons, one per ring, D3 — Geometry: NetTopologySuite on the server, plain TypeScript on the client, D8 — How Lucy knows: the effective outline, a site note, and a persisted line, Research: Hand-Edit the Site Outline, Spec amendments to apply before `/speckit-tasks` (+19 more)
+Cohesion: 0.22
+Nodes (13): CombineOperation, Add, Cut, ISiteRingGeometry, VoidValidation, IReadOnlyList, HandEditedMembershipComposerTests, Fact (+5 more)
 
 ### Community 208 - "GoogleGeminiProvider"
 Cohesion: 0.13
@@ -2930,16 +2958,16 @@ Cohesion: 0.08
 Nodes (25): D7 — Cancellation within 5 seconds (FR-023), ICustomModelDeploymentCancellationRegistry, CancellationToken, Guid, CancelCustomModelDeploymentCommand, CustomModelSummaryDto, Guid, CancelCustomModelDeploymentCommandHandler (+17 more)
 
 ### Community 211 - "Infrastructure"
-Cohesion: 0.10
-Nodes (20): BacklogSnapshot, Counter, Histogram, KeyValuePair, Measurement, Infrastructure, INotificationMetrics, DeliveryFailureKind (+12 more)
+Cohesion: 0.07
+Nodes (26): BacklogSnapshot, Counter, Histogram, IEffectiveLanguageResolver, KeyValuePair, Measurement, Infrastructure, INotificationMetrics (+18 more)
 
 ### Community 212 - "RemoveCustomModelCommandHandler"
-Cohesion: 0.05
-Nodes (42): RemoveCustomModelCommand, Application-only types, Changed aggregate: `CustomModel` (specs/072), Data Model: Restore Local Whisper as the Primary Dictation Engine, Domain methods (invariants live here, not in handlers), New aggregate: `DictationEngineSetting` (Domain, `AskLucy.Domain.Ai.Dictation`), Persistence (`AskLucy.Persistence`), Repository (Application port, `IDictationEngineSettingRepository`) (+34 more)
+Cohesion: 0.06
+Nodes (37): RemoveCustomModelCommand, Application-only types, Changed aggregate: `CustomModel` (specs/072), Data Model: Restore Local Whisper as the Primary Dictation Engine, Value types (Domain), Automated checks, Manual scenarios (localhost:7170, then production), Performance note (measured, not gated) (+29 more)
 
 ### Community 213 - "VoiceProviderRouter"
-Cohesion: 0.09
-Nodes (35): Candidate, Engine, Failure, OperationalFailureKind, OperationalFailureOutcome, Implementation for User Story 2, Phase 4: User Story 2 — Bursts collapse into one incident (Priority: P1), Tests for User Story 2 (write first, confirm failing) (+27 more)
+Cohesion: 0.06
+Nodes (47): Candidate, ConcurrentDictionary, Engine, Failure, Operation, OperationalFailureKind, OperationalFailureOutcome, Implementation for User Story 2 (+39 more)
 
 ### Community 214 - "CompositeBuildingFootprintProviderTests"
 Cohesion: 0.19
@@ -2951,23 +2979,23 @@ Nodes (20): CombineFailure, CombineSiteBoundaryShapeCommandTests, CancellationTo
 
 ### Community 216 - "DuplicateDetectionTests"
 Cohesion: 0.03
-Nodes (93): CompleteUploadAsNewCommand, CompleteUploadAsVersionCommand, CompleteUploadCommand, CompleteUploadResultDto, DocumentVersion, CompleteUploadCommandHandler, CancellationToken, DocumentUploadFinalizer (+85 more)
+Nodes (77): CompleteUploadAsVersionCommand, CompleteUploadCommand, CompleteUploadResultDto, DocumentVersion, CompleteUploadCommandHandler, CancellationToken, DocumentUploadFinalizer, ICurrentUserAccessor (+69 more)
 
 ### Community 217 - "CustomModelDeploymentRecovery"
-Cohesion: 0.13
-Nodes (16): ICustomModelTempStorage, Guid, IReadOnlyList, CustomModelDeploymentRecovery, CancellationToken, DateTime, Exception, Func (+8 more)
+Cohesion: 0.09
+Nodes (21): ICustomModelTempStorage, Guid, IReadOnlyList, CustomModelDeploymentRecovery, CancellationToken, DateTime, Exception, Func (+13 more)
 
 ### Community 218 - "KnowledgeBase"
 Cohesion: 0.04
-Nodes (31): KnowledgeBase, CategoryId, ChunkingStrategy, Color, Description, DocumentCount, EmbeddingProviderId, Icon (+23 more)
+Nodes (39): IReadOnlyList, KnowledgeBase, CategoryId, ChunkingStrategy, Color, Description, DocumentCount, EmbeddingProviderId (+31 more)
 
 ### Community 219 - "ResetPasswordCommandHandlerTests"
 Cohesion: 0.24
 Nodes (14): ResetPasswordCommandHandlerTests, CancellationToken, Fact, IBackgroundJobClient, IIdentityService, IPasswordResetTokenRepository, IState, ITokenService (+6 more)
 
-### Community 220 - ".FileOperationNodeExecutor_ShouldNotSwallowOrReinterpret_TheUnderlyingToolsOwnershipDenial"
-Cohesion: 0.46
-Nodes (6): WorkflowToolAccessBoundaryTests, CancellationToken, Fact, JsonDocument, KeyNotFoundException, Task
+### Community 220 - "IAgentTool"
+Cohesion: 0.10
+Nodes (28): AgentToolCatalog, All, IEnumerable, IReadOnlyCollection, IReadOnlyDictionary, IAgentTool, Description, InputSchemaJson (+20 more)
 
 ### Community 221 - "AsyncFtpClientFacade"
 Cohesion: 0.11
@@ -2978,36 +3006,36 @@ Cohesion: 0.10
 Nodes (30): IOperationalFailureReferenceLookup, ItemReference, ReferencedItemKind, Agent, Chat, Document, McpServer, Workflow (+22 more)
 
 ### Community 223 - "useSiteBoundaryEditMode.test.tsx"
-Cohesion: 0.06
-Nodes (24): Implementation for User Story 1: frontend, Phase 3: User Story 1 - Lucy offers an edit, and the view comes back afterwards (Priority: P1) 🎯 MVP, Tests for User Story 1, SiteBoundaryOverlay(), fakeHandle(), sampleBoundary, GoogleMapsGisLayerHandle, draw() (+16 more)
+Cohesion: 0.09
+Nodes (18): Implementation for User Story 1: frontend, Phase 3: User Story 1 - Lucy offers an edit, and the view comes back afterwards (Priority: P1) 🎯 MVP, Tests for User Story 1, draw(), syncHighlight(), EditablePolygonHost, chatsApi, engine (+10 more)
 
 ### Community 224 - "ProblemDetailsMiddleware"
-Cohesion: 0.07
-Nodes (35): AiProviderFailureKind, Func, HttpContext, IHeaderDictionary, IHttpResponseFeature, OperationalFailureEngine, PathString, RequestDelegate (+27 more)
+Cohesion: 0.05
+Nodes (49): AiProviderException, AiProviderFailureKind, Body, Detail, Func, HttpContext, IHeaderDictionary, IHttpResponseFeature (+41 more)
 
-### Community 225 - "DictationEngineAdminCommandTests"
-Cohesion: 0.06
-Nodes (37): DictationEngineNotSelectableException, DictationVendorGate, A cross-module observer, not a domain event, carries the switch-off signal, ADR 0019: Dictation Engine Policy — Local-First, Browser-Only Fallback, Audio conversion to WAV happens in the browser, not on the server, Consequences, Context, Decisions (+29 more)
+### Community 225 - ".GetByKeyAsync"
+Cohesion: 0.10
+Nodes (23): DictationEngineNotSelectableException, DictationVendorGate, A cross-module observer, not a domain event, carries the switch-off signal, IAiCredentialProtector, SetDictationPrimaryEngineCommandHandler, SetPushToTalkEngineCommandHandler, DictationEngineSettingSwitchOffObserver, CancellationToken (+15 more)
 
 ### Community 226 - ".ValidateAsync"
 Cohesion: 0.08
 Nodes (26): IPAddress, SocketsHttpConnectionContext, McpEndpointValidationResult, Allowed, RejectedInsecureScheme, RejectedLinkLocalOrCloudMetadata, RejectedPrivateOrLoopback, RejectedUnresolvable (+18 more)
 
 ### Community 227 - ".Handle_ShouldReturnRepositorySummary_Unmodified"
-Cohesion: 0.10
+Cohesion: 0.09
 Nodes (24): IAdminDashboardRepository, CancellationToken, Task, DailyUserCountDto, DashboardSummaryDto, RoleCountDto, DateOnly, IReadOnlyList (+16 more)
 
 ### Community 228 - "Memory"
-Cohesion: 0.01
-Nodes (250): ExtractedCandidate, MemoryEntity, Random, IMemoryApprovalRepository, CancellationToken, Guid, Task, CancellationToken (+242 more)
+Cohesion: 0.02
+Nodes (160): CancellationToken, IReadOnlyList, Task, CancellationToken, DateTime, Guid, IReadOnlyCollection, IReadOnlyList (+152 more)
 
-### Community 229 - "siteBoundaryEditActions.ts"
+### Community 229 - "SiteBoundaryEditRuntime"
 Cohesion: 0.07
-Nodes (15): SiteBoundaryCornerMenu(), enter(), PENTAGON, SQUARE, viewState, enter(), P(), store() (+7 more)
+Nodes (15): layer(), pin(), projector, SQUARE, startArc(), store(), viewState, enter() (+7 more)
 
-### Community 230 - ".GetByIdAsync"
-Cohesion: 0.04
-Nodes (67): HighRiskTool, McpToolAdapter, Implementation for User Story 2, Phase 4: User Story 2 - Administrator manually curates a model's status (Priority: P1), Tests for User Story 2, Guid, ClearAiProviderCredentialCommand, Guid (+59 more)
+### Community 230 - "McpHighRiskApprovalTests"
+Cohesion: 0.08
+Nodes (35): AgentToolRiskLevel, HighRiskTool, McpToolAdapter, McpHighRiskApprovalTests, AgentExecution, AgentInstructions, AgentToolCall, AIModelCapabilities (+27 more)
 
 ### Community 231 - ".CreateDbContext"
 Cohesion: 0.13
@@ -3015,7 +3043,7 @@ Nodes (22): Action, CustomModel, CustomModelOverwrittenFile, CustomModelProgress
 
 ### Community 232 - "WorkflowDesignerPage.tsx"
 Cohesion: 0.03
-Nodes (126): ref_mui_icons_material_accounttreeoutlined, ref_mui_icons_material_block, ref_mui_icons_material_buildoutlined, ref_mui_icons_material_checkcircleoutlined, ref_mui_icons_material_deleteoutlined, ref_mui_icons_material_descriptionoutlined, ref_mui_icons_material_erroroutlined, ref_mui_icons_material_eventavailable (+118 more)
+Nodes (129): ref_mui_icons_material_accounttreeoutlined, ref_mui_icons_material_block, ref_mui_icons_material_buildoutlined, ref_mui_icons_material_checkcircleoutlined, ref_mui_icons_material_deleteoutlined, ref_mui_icons_material_descriptionoutlined, ref_mui_icons_material_erroroutlined, ref_mui_icons_material_eventavailable (+121 more)
 
 ### Community 233 - "AiControllerTurnOutcomeStreamTests"
 Cohesion: 0.15
@@ -3031,23 +3059,23 @@ Nodes (17): ApplicationRole, RoleManager, RoleSnapshot, Seed, ContentPermissionG
 
 ### Community 236 - "siteBoundaryEditStore.ts"
 Cohesion: 0.08
-Nodes (34): edit(), enter(), P(), store(), viewState, formatArea(), iconButtonSx, SiteBoundaryEditToolbar() (+26 more)
+Nodes (30): enter(), press(), region(), SECOND, SQUARE, store(), viewState, edit() (+22 more)
 
-### Community 237 - ".AreaSquareMeters"
-Cohesion: 0.07
-Nodes (25): MaxLat, MaxLon, MinLat, MinLon, Tests, Found testing outside Dubai (Muscat, 2026-09-26), GeometryMath, GeoPoint (+17 more)
+### Community 237 - ".MaterializeAsync"
+Cohesion: 0.05
+Nodes (45): ChannelDecision, RecipientKind, Notification (aggregate root), IEffectiveLanguageResolver, CancellationToken, Task, INotificationChannelRegistry, AvailableChannels (+37 more)
 
 ### Community 238 - "NotificationDelivery"
-Cohesion: 0.02
-Nodes (118): ApplicationUser (existing, changed), Entities, Enumerations, LocalizationSetting (singleton), Notification (aggregate root), NotificationDelivery (child of Notification), NotificationOutboxEvent, NotificationPreference (+110 more)
+Cohesion: 0.04
+Nodes (69): Enumerations, NotificationDelivery (child of Notification), NotificationTemplateVersion, Domain, DeliveryFailureKind, AmbiguousOutcome, Permanent, RecipientUnavailable (+61 more)
 
 ### Community 239 - ".SetUpExecutionWithMcpTool"
 Cohesion: 0.06
 Nodes (39): IMcpClientFactory, IMcpRateLimiter, McpConnectionResiliencePolicy, McpRateLimitKey, McpToolExecutionOrchestratorIntegrationTests, AgentExecution, AgentInstructions, AgentToolCall (+31 more)
 
 ### Community 240 - ".AdminUserActionPerformed"
-Cohesion: 0.08
-Nodes (29): AskLucy.Application.Users.Commands.AdminSendPasswordReset, AskLucy.Application.Users.Commands.UnlockUser, IPasswordResetIssuanceJob, AdminActionLog, ILogger, LoggerMessage, AdminSendPasswordResetCommand, AdminSendPasswordResetCommandHandler (+21 more)
+Cohesion: 0.10
+Nodes (25): IPasswordResetIssuanceJob, AdminActionLog, ILogger, LoggerMessage, AdminSendPasswordResetCommand, AdminSendPasswordResetCommandHandler, CancellationToken, ICurrentUserAccessor (+17 more)
 
 ### Community 241 - "OpenSolarAnalysisCapabilityTests"
 Cohesion: 0.27
@@ -3057,21 +3085,21 @@ Nodes (7): Capability, Repository, OpenSolarAnalysisCapabilityTests, Cancellatio
 Cohesion: 0.07
 Nodes (38): AIModel, Model, AgentExecutionOrchestratorTests, AgentBudgetGuard, AgentDuplicateToolCallDetector, AgentExecution, AgentInstructions, AgentPlan (+30 more)
 
-### Community 243 - "KnowledgeBaseTag"
-Cohesion: 0.24
-Nodes (7): KnowledgeBaseTag, KnowledgeBaseId, OwnerId, Value, Guid, KnowledgeBaseTagConfiguration, EntityTypeBuilder
+### Community 243 - ".Handle"
+Cohesion: 0.07
+Nodes (34): StartAgentExecutionCommand, Guid, CancellationToken, UserChatDto, DateTime, Guid, AgentRuntimeOptions, DefaultMaxConcurrentExecutions (+26 more)
 
-### Community 244 - ".None"
-Cohesion: 0.12
-Nodes (27): GetChatByIdQuery, ChatActiveLocationDto, ChatDetailDto, Guid, GetChatByIdQuery, Guid, GetChatByIdQueryHandler, CancellationToken (+19 more)
+### Community 244 - "ActiveSiteBoundary"
+Cohesion: 0.04
+Nodes (64): GetChatByIdQuery, `activeSiteBoundaryStore` (existing): additions, API DTOs (see [contracts/site-boundary-edit-api.md](contracts/site-boundary-edit-api.md)), Application, Client state (never sent to the server except the rings on Done), Data Model: Hand-Edit the Site Outline, Migration `<timestamp>_AddSiteBoundaryCorrections`, Overview (+56 more)
 
 ### Community 245 - "OutboxDispatchService"
-Cohesion: 0.06
-Nodes (33): NotificationAuditLog, Implementation for User Story 5, Phase 9: User Story 5 - Act on approval requests securely (Priority: P2), Tests for User Story 5, INotificationAuditLogRepository, INotificationAuditWriter, NotificationAuditAction, NotificationAuditOutcome (+25 more)
+Cohesion: 0.12
+Nodes (19): INotificationOutboxStore, CancellationToken, DateTime, Guid, IReadOnlyList, NotificationOutboxEvent, Task, OutboxDispatchService (+11 more)
 
 ### Community 246 - "WorkflowExecutionsController"
-Cohesion: 0.18
-Nodes (20): WorkflowApprovalDto, WorkflowErrorDto, WorkflowExecutionDetailDto, WorkflowExecutionEventDto, WorkflowExecutionNodeDto, WorkflowExecutionSummaryDto, DateTime, Guid (+12 more)
+Cohesion: 0.14
+Nodes (26): GetWorkflowExecutionUsageQuery, Guid, CancellationToken, Task, WorkflowExecutionUsageDto, WorkflowApprovalDto, WorkflowErrorDto, WorkflowExecutionDetailDto (+18 more)
 
 ### Community 247 - "PromptCategory"
 Cohesion: 0.08
@@ -3083,18 +3111,18 @@ Nodes (11): Implementation for User Story 9 (part A), Phase 5: User Story 9 (par
 
 ### Community 249 - "mcpServersApi.ts"
 Cohesion: 0.05
-Nodes (62): ref_mui_icons_material_networkcheck, activateMcpTool(), ActivateMcpToolInput, deactivateMcpTool(), deleteMcpServer(), disableMcpServer(), enableMcpServer(), getMcpServer() (+54 more)
+Nodes (65): ref_mui_icons_material_cancel, ref_mui_icons_material_checkcircle, ref_mui_icons_material_networkcheck, activateMcpTool(), ActivateMcpToolInput, deactivateMcpTool(), deleteMcpServer(), disableMcpServer() (+57 more)
 
 ### Community 250 - "Verified Codebase Context (2026-09-25)"
-Cohesion: 0.10
-Nodes (22): Clarifications, Design Decision: one cross-cutting store behind a recorder abstraction, Edge Cases, Feature Specification: Admin Operational Failure Audit Trail, Functional Requirements, Key Entities *(include if feature involves data)*, Measurable Outcomes, Overview (+14 more)
+Cohesion: 0.08
+Nodes (28): Clarifications, Design Decision: one cross-cutting store behind a recorder abstraction, Edge Cases, Feature Specification: Admin Operational Failure Audit Trail, Functional Requirements, Key Entities *(include if feature involves data)*, Measurable Outcomes, Overview (+20 more)
 
 ### Community 251 - "MemoryReference"
 Cohesion: 0.09
 Nodes (20): CancellationToken, Guid, IReadOnlyList, Task, MemoryReference, ContentSnapshot, MemoryId, MessageId (+12 more)
 
 ### Community 252 - "ElevenLabsTextToSpeechEngine"
-Cohesion: 0.12
+Cohesion: 0.11
 Nodes (20): ElevenLabsTextToSpeechEngine, DisplayName, ProviderKey, RequiresCredential, VoiceEntry, VoicesResponse, CancellationToken, ElevenLabsOptions (+12 more)
 
 ### Community 253 - ".For"
@@ -3102,31 +3130,31 @@ Cohesion: 0.15
 Nodes (14): CorrectiveAction, CorrectiveActionCatalog, CorrectiveAdminAction, OpenJobsDashboard, Guid, OperationalFailureEngine, OperationalFailureKind, CorrectiveActionCatalogTests (+6 more)
 
 ### Community 254 - "BrandedAccountEmailTemplateRenderer"
-Cohesion: 0.04
-Nodes (51): AppOptions, HtmlBody, IEmailTemplateRenderer, Amendment 2026-09-20 — Image-based brand mark, revised footer wording, Assumptions, Clarifications, Edge Cases, Feature Specification: Branded Transactional Email Templates (+43 more)
+Cohesion: 0.12
+Nodes (15): AppOptions, HtmlBody, IEmailTemplateRenderer, Dependencies & Execution Order, Implementation for User Story 2, Parallel Opportunities, Phase 4: User Story 2 — Legible and elegant in both light and dark mode (Priority: P1), Phase Dependencies (+7 more)
 
 ### Community 255 - "WorkflowApproval"
-Cohesion: 0.08
-Nodes (21): WorkflowApproval, DecidedAtUtc, DecidedByUserId, Decision, IntendedActionDescription, MatchedWorkflowPolicyId, ParametersJson, TimeoutSeconds (+13 more)
+Cohesion: 0.10
+Nodes (15): WorkflowApproval, DecidedAtUtc, DecidedByUserId, Decision, IntendedActionDescription, MatchedWorkflowPolicyId, ParametersJson, TimeoutSeconds (+7 more)
 
 ### Community 256 - ".CreateExecution"
 Cohesion: 0.08
 Nodes (31): AgentExecutionRunnerJobTests, AgentExecution, AgentInstructions, AgentVersion, AIModelCapabilities, CancellationToken, ChatMessage, Execution (+23 more)
 
-### Community 257 - "SelectLocalWhisperModelCommandHandler"
-Cohesion: 0.05
-Nodes (44): Implementation for User Story 3, Phase 6: User Story 3 - An administrator changes the primary dictation engine (Priority: P1), Tests for User Story 3, IDictationClipTranscriber, Engine, SelectLocalWhisperModelCommandHandler, CancellationToken, ICurrentUserAccessor (+36 more)
+### Community 257 - "Tasks: Restore Local Whisper as the Primary Dictation Engine"
+Cohesion: 0.04
+Nodes (45): Dependencies & Execution Order, Format: `[ID] [P?] [Story] Description`, Implementation Strategy, Incremental delivery, MVP first (Phases 1–4), Notes, Parallel Example: User Story 4, Parallel opportunities (+37 more)
 
-### Community 258 - "AccountEmailJob"
-Cohesion: 0.07
-Nodes (29): 1. Prerequisites, 2. Automated suites, 3. End-to-end scenarios, 4. Fault-injection run (SC-003), 5. Release checklist (production is hand-deployed), Quickstart: Validating the Notifications & Communication Hub, S10: Legacy migration (US9, SC-013), S1: In-app live delivery (US1, US2, SC-001) (+21 more)
+### Community 258 - "3. End-to-end scenarios"
+Cohesion: 0.09
+Nodes (21): 1. Prerequisites, 2. Automated suites, 3. End-to-end scenarios, 4. Fault-injection run (SC-003), 5. Release checklist (production is hand-deployed), Quickstart: Validating the Notifications & Communication Hub, S10: Legacy migration (US9, SC-013), S1: In-app live delivery (US1, US2, SC-001) (+13 more)
 
 ### Community 259 - "CapabilityContractTests"
 Cohesion: 0.12
 Nodes (18): CapabilityContractTests, IBoundaryResolutionService, IConversationCapability, IConversationKnowledgeBaseRepository, IEnumerable, ILocationResolutionService, IMemoryService, InlineData (+10 more)
 
 ### Community 260 - "SiteAnalysisResultRelayTests"
-Cohesion: 0.24
+Cohesion: 0.23
 Nodes (15): ISiteAnalysisNotifier, PanelRequestDto, SiteAnalysis, SiteAnalysisCompletedDto, SiteAnalysisResultMetadata, SiteAnalysisResultReceivedDto, SiteAnalysisResultRelay, SiteAnalysisResultRelayTests (+7 more)
 
 ### Community 261 - "DataResolutionOutcome"
@@ -3134,20 +3162,20 @@ Cohesion: 0.09
 Nodes (19): AskLucy.Application.SiteAnalysis.Providers, DataResolutionOutcome, DataResolutionOutcomeType, Ambiguous, Confirmed, NoCandidates, Unavailable, ClimateData (+11 more)
 
 ### Community 262 - "SetCustomModelAvailabilityCommandHandlerTests"
-Cohesion: 0.12
-Nodes (20): SetCustomModelAvailabilityCommandHandler, CustomModelSeed, CustomModelDeploymentState, SetCustomModelAvailabilityCommandHandlerTests, CancellationToken, ConcurrencyConflictException, CustomModelAvailability, CustomModelDeploymentState (+12 more)
+Cohesion: 0.14
+Nodes (18): SetCustomModelAvailabilityCommandHandler, SetCustomModelAvailabilityCommandHandlerTests, CancellationToken, ConcurrencyConflictException, CustomModelAvailability, CustomModelDeploymentState, DomainRuleViolationException, DuplicateResourceException (+10 more)
 
-### Community 263 - ".CreateProvider"
-Cohesion: 0.06
-Nodes (43): GeoGeometry, GeoLocation, GeoResponse, GeoResult, GeoViewport, NominatimResult, 1. Point resolution: reuse vs. reimplement, GeocodingCandidate (+35 more)
+### Community 263 - "SiteBoundaryResolverTool"
+Cohesion: 0.07
+Nodes (32): GeoGeometry, GeoLocation, GeoResponse, GeoResult, GeoViewport, 1. Point resolution: reuse vs. reimplement, SiteBoundaryResolverTool, Description (+24 more)
 
-### Community 264 - "RequirePermission"
-Cohesion: 0.09
-Nodes (38): AdminAiModelDto, AdminAiProviderDto, AiCapabilityAssignmentDto, ApplyProviderModelSyncResultDto, AvatarUploadResponse, BulkActionResultResponse, BulkEligibleIdsResponse, ChangeUserRoleRequest (+30 more)
+### Community 264 - "UsersController"
+Cohesion: 0.14
+Nodes (16): AvatarUploadResponse, BulkActionResultResponse, BulkEligibleIdsResponse, ChangeUserRoleRequest, DeleteAccountRequest, EnableRateLimiting, HttpDelete, HttpPatch (+8 more)
 
 ### Community 265 - ".Combine"
-Cohesion: 0.25
-Nodes (3): NtsSiteRingGeometryCombineTests, Fact, IReadOnlyList
+Cohesion: 0.23
+Nodes (5): Geometry port, CombineResult, NtsSiteRingGeometryCombineTests, Fact, IReadOnlyList
 
 ### Community 266 - "CustomModelTests"
 Cohesion: 0.09
@@ -3158,20 +3186,20 @@ Cohesion: 0.06
 Nodes (32): OperationalFailureOccurrence, AgentExecutionId, AgentId, ChatId, CorrelationId, DocumentId, Engine, IncidentId (+24 more)
 
 ### Community 268 - "BuildingHeightMap"
-Cohesion: 0.07
-Nodes (37): Decision, Decision, BuildingHeightMap, Empty, Grid, HasMeasurements, IBuildingHeightSource, CancellationToken (+29 more)
+Cohesion: 0.08
+Nodes (32): Decision, BuildingHeightMap, Empty, Grid, HasMeasurements, RoofHeightRasterizer, HeightEnrichingBuildingFootprintProvider, HeightEnrichingBuildingFootprintProviderLog (+24 more)
 
 ### Community 269 - "AgentNodeExecutorTests"
-Cohesion: 0.09
-Nodes (29): AgentNodeExecutor, AgentNodeExecutorTests, AgentExecution, AgentInstructions, AIModelCapabilities, CancellationToken, ChatMessage, Fact (+21 more)
+Cohesion: 0.08
+Nodes (32): AgentNodeExecutor, AgentNodeExecutorTests, AgentExecution, AgentInstructions, AgentVersion, AIModelCapabilities, CancellationToken, ChatMessage (+24 more)
 
 ### Community 270 - "MemoryAuditLog"
-Cohesion: 0.10
-Nodes (21): MemoryAuditAction, Approved, Archived, ConflictDetected, ConflictResolved, Created, Deleted, Edited (+13 more)
+Cohesion: 0.07
+Nodes (28): ClearAllMemoriesCommand, CancellationToken, Task, ClearAllMemoriesCommandValidator, MemoryAuditAction, Approved, Archived, ConflictDetected (+20 more)
 
 ### Community 271 - "PromptExecution"
-Cohesion: 0.05
-Nodes (41): PromptExecutionDetailDto, PromptExecutionSummaryDto, DateTime, Guid, PromptExecution, ErrorDetail, LatencyMs, MaxOutputTokens (+33 more)
+Cohesion: 0.02
+Nodes (106): CancellationToken, Guid, IReadOnlyCollection, IReadOnlyList, Items, NextCursor, Task, RateExecutionCommand (+98 more)
 
 ### Community 272 - "AskLucy.Infrastructure.csproj"
 Cohesion: 0.08
@@ -3182,20 +3210,20 @@ Cohesion: 0.08
 Nodes (26): WorkflowExecutionEvent, EventType, OccurredAtUtc, SafeMetadataJson, Status, WorkflowExecutionId, WorkflowNodeId, WorkflowExecutionEventType (+18 more)
 
 ### Community 274 - "PromptTestCase"
-Cohesion: 0.08
-Nodes (25): CancellationToken, Guid, IReadOnlyList, Task, PromptTestCaseDto, DateTime, Guid, PromptTestCase (+17 more)
+Cohesion: 0.07
+Nodes (28): CancellationToken, Guid, IReadOnlyList, Task, SaveTestCaseCommand, Guid, PromptTestCaseDto, CancellationToken (+20 more)
 
 ### Community 275 - "Notification"
-Cohesion: 0.04
-Nodes (58): INotificationRealtimePublisher, NotificationActionDto, NotificationChange, Deleted, Expired, Read, NotificationListItemDto, NotificationRelatedItemDto (+50 more)
+Cohesion: 0.03
+Nodes (64): 1. Modules publish into the caller's unit of work, 2. Two `BackgroundService` workers, woken by a signal, 3. Lease-based claims, 4. At-most-once email, 5. Hangfire stays for recurring maintenance, Decision, INotificationRealtimePublisher, NotificationActionDto (+56 more)
 
-### Community 276 - ".GetByIdAsync"
-Cohesion: 0.01
-Nodes (183): AppendMessageCommand, MessageDto, CancellationToken, Task, AppendMessageCommandHandler, CancellationToken, IAIProvider, ICurrentUserAccessor (+175 more)
+### Community 276 - ".Create"
+Cohesion: 0.11
+Nodes (13): UserChatActiveBoundaryTests, Fact, IReadOnlyList, UserChatTests, Fact, InlineData, Theory, UserChatFullTextSearchTests (+5 more)
 
-### Community 277 - "StubHttpMessageHandler"
-Cohesion: 0.13
-Nodes (18): ConcurrentBag, StubHttpMessageHandler, LastRequest, CancellationToken, Func, HttpRequestMessage, HttpResponseMessage, Task (+10 more)
+### Community 277 - "GoogleStreetViewImageProviderTests"
+Cohesion: 0.20
+Nodes (11): ConcurrentBag, GoogleStreetViewImageProviderTests, Fact, Func, HttpRequestMessage, HttpResponseMessage, IHttpClientFactory, InlineData (+3 more)
 
 ### Community 278 - ".CreateProvider"
 Cohesion: 0.15
@@ -3206,32 +3234,32 @@ Cohesion: 0.09
 Nodes (21): NominatimAddress, NominatimReverseResponse, OpenMeteoCurrent, OpenMeteoForecastResponse, WeatherOptions, ForecastBaseUrl, ReverseGeocodingBaseUrl, NominatimAddress (+13 more)
 
 ### Community 280 - "WorkflowBudgetGuardTests"
-Cohesion: 0.11
-Nodes (17): WorkflowBudgetCheckResult, WorkflowBudgetGuard, WorkflowBudgetLimitType, MaxCost, MaxExecutionDuration, MaxLoopIterations, MaxNodeCount, MaxParallelNodes (+9 more)
+Cohesion: 0.13
+Nodes (15): WorkflowBudgetCheckResult, WorkflowBudgetGuard, WorkflowBudgetLimitType, MaxCost, MaxExecutionDuration, MaxLoopIterations, MaxNodeCount, MaxParallelNodes (+7 more)
 
 ### Community 281 - "AgentToolExecutionContext"
 Cohesion: 0.04
-Nodes (58): IReadOnlyList, JsonElement, CancellationToken, JsonDocument, CancellationToken, JsonDocument, CancellationToken, JsonDocument (+50 more)
+Nodes (66): AgentToolExecutionContext, JsonDocument, CancellationToken, JsonDocument, CancellationToken, JsonDocument, CancellationToken, JsonDocument (+58 more)
 
 ### Community 282 - "AgentExecution"
-Cohesion: 0.04
-Nodes (38): ChatUsage, AgentExecution, AgentId, AgentVersionId, Approvals, CompletedAtUtc, ConversationIntegrationMode, Cost (+30 more)
+Cohesion: 0.03
+Nodes (67): ChatUsage, AgentConversationIntegrationMode, ExistingConversation, NewConversation, Standalone, AgentExecution, AgentId, AgentVersionId (+59 more)
 
 ### Community 283 - "NotificationOutboxStore"
 Cohesion: 0.12
 Nodes (22): INotificationOutboxStore, IQueryable, NotificationOutboxStore, AskLucyDbContext, CancellationToken, DateTime, Guid, IReadOnlyList (+14 more)
 
 ### Community 284 - ".Validate"
-Cohesion: 0.08
-Nodes (27): Envelope, WorkflowDraftConnection, WorkflowDraftDefinition, WorkflowDraftNode, WorkflowDraftVariable, IReadOnlyList, JsonSerializerOptions, List (+19 more)
+Cohesion: 0.06
+Nodes (44): Envelope, WorkflowDraftConnection, WorkflowDraftDefinition, WorkflowDraftNode, WorkflowDraftVariable, IReadOnlyList, JsonSerializerOptions, List (+36 more)
 
 ### Community 285 - "ValidatePasswordResetTokenQueryHandlerTests"
-Cohesion: 0.34
-Nodes (8): PasswordResetToken, ValidatePasswordResetTokenQueryHandlerTests, CancellationToken, Fact, IIdentityService, IPasswordResetTokenRepository, ITokenService, Task
+Cohesion: 0.11
+Nodes (23): AskLucy.Application.Authentication.Queries.GetSession, AskLucy.Application.Authentication.Queries.ValidatePasswordResetToken, PasswordResetToken, GetSessionQuery, SessionResult, IReadOnlyList, GetSessionQueryHandler, CancellationToken (+15 more)
 
 ### Community 286 - ".CreateEngine"
-Cohesion: 0.15
-Nodes (16): AiProviderAuthenticationException, AiProviderNotConfiguredException, AiProviderResponseInvalidException, StubHttpMessageHandler, ElevenLabsTextToSpeechEngineTests, AiProviderRateLimitedException, Fact, Func (+8 more)
+Cohesion: 0.17
+Nodes (14): AiProviderAuthenticationException, AiProviderResponseInvalidException, ElevenLabsTextToSpeechEngineTests, AiProviderRateLimitedException, Fact, Func, HttpRequestMessage, HttpResponseMessage (+6 more)
 
 ### Community 288 - "MemoryCrossUserSecurityTests"
 Cohesion: 0.18
@@ -3249,81 +3277,81 @@ Nodes (12): AuthorizeAttribute, IAuthorizationRequirementData, MethodInfo, Route
 Cohesion: 0.09
 Nodes (19): AskLucy.Persistence.HealthChecks, AskLucy.Web.HealthChecks, AskLucy.Persistence.Tests.HealthChecks, IHealthCheck, microsoft_extensions_diagnostics_healthchecks, PendingMigrationsHealthCheck, CancellationToken, HealthCheckContext (+11 more)
 
-### Community 292 - "PromptExecutionRepository"
-Cohesion: 0.14
-Nodes (15): Payload, PromptCursor, DateTime, Guid, Id, SortValue, PromptExecutionRepository, AskLucyDbContext (+7 more)
+### Community 292 - "ChatPage.test.tsx"
+Cohesion: 0.06
+Nodes (33): ComingSoonDialog(), getVoicePreferences(), saveVoicePreferences(), UserVoicePreference, ChatPanelSizeState, useChatPanelSizeStore, conversationAudioMock, FakeAnalyserNode (+25 more)
 
 ### Community 293 - "OperationalFailureStore"
-Cohesion: 0.11
-Nodes (27): DbUpdateException, IncidentAppendRequest, IncidentFilter, IncidentParticipantType, IncidentTransitionOutcome, IncidentTransitionResult, IncidentTransitionStatus, InvestigatedItemType (+19 more)
+Cohesion: 0.15
+Nodes (21): IncidentAppendRequest, IncidentFilter, IncidentParticipantType, IncidentTransitionOutcome, IncidentTransitionResult, IncidentTransitionStatus, InvestigatedItemType, IOperationalFailureStore (+13 more)
 
 ### Community 294 - "BoundaryCandidateScorerTests"
 Cohesion: 0.23
 Nodes (9): BoundaryCandidateScorerTests, BoundaryCandidate, BoundaryScoringOptions, Fact, InlineData, IReadOnlyDictionary, SiteBoundaryPolygon, SiteBoundarySource (+1 more)
 
-### Community 295 - "McpServerRepository"
-Cohesion: 0.07
-Nodes (35): AgentId, CancellationToken, DateTime, Guid, IReadOnlyList, Items, NextCursor, Task (+27 more)
+### Community 295 - "IMcpServerRepository"
+Cohesion: 0.05
+Nodes (46): IMcpServerRepository, AgentId, CancellationToken, DateTime, Guid, IReadOnlyList, Items, NextCursor (+38 more)
 
-### Community 296 - "ExecutePromptCommand"
-Cohesion: 0.14
-Nodes (22): MemoryReferenceContext, MemoryRetrievalOutcome, MemoryRetrievalOutcomeType, Found, NoneRelevant, Unavailable, CancellationToken, Guid (+14 more)
+### Community 296 - ".Create"
+Cohesion: 0.06
+Nodes (43): AgentBudgetGuard, AgentDuplicateToolCallDetector, AgentExecutionOrchestrator, AgentInstructions, AgentPlan, AgentPolicyEvaluator, AIModelCapabilities, BoundaryScoringOptions (+35 more)
 
 ### Community 297 - "SubmitCustomModelDeploymentCommand"
-Cohesion: 0.08
-Nodes (39): CustomModelDeploymentNotConfiguredException, CustomModelSummaryDto, Submit — `POST /api/v1/admin/custom-models`, SubmitCustomModelDeploymentCommand, SubmittedCustomModelDto, FilePath, SubmitCustomModelDeploymentCommandHandler, CustomModelsOptions (+31 more)
+Cohesion: 0.07
+Nodes (39): CustomModelDeploymentNotConfiguredException, CustomModelSummaryDto, Single-file deployment (specs/078), SubmitCustomModelDeploymentCommand, SubmittedCustomModelDto, FilePath, SubmitCustomModelDeploymentCommandHandler, CustomModelsOptions (+31 more)
 
 ### Community 298 - "SelectedActionResolver"
-Cohesion: 0.07
-Nodes (26): 1. Request, 2. Resolution, 3. Dispatch, 4. Client affordance, 5. Ambiguity, Contract: Retry API, The security property, Transcript effects (+18 more)
+Cohesion: 0.06
+Nodes (28): 1. Request, 2. Resolution, 3. Dispatch, 4. Client affordance, 5. Ambiguity, Contract: Retry API, The security property, Transcript effects (+20 more)
 
-### Community 299 - "PresentPanelContentCapabilityTests"
-Cohesion: 0.09
-Nodes (27): IPanelNotifier, CancellationToken, Task, PanelChromeDto, PanelContextAssociationDto, PanelPositionDto, PanelRequestDto, PanelSizeDto (+19 more)
+### Community 299 - "PanelRequestDto"
+Cohesion: 0.11
+Nodes (22): IPanelNotifier, CancellationToken, Task, PanelChromeDto, PanelContextAssociationDto, PanelPositionDto, PanelRequestDto, PanelSizeDto (+14 more)
 
 ### Community 300 - "MemoryNotification"
-Cohesion: 0.06
-Nodes (42): CancellationToken, Task, IMemoryNotificationRepository, CancellationToken, Guid, IReadOnlyList, Task, DeleteMyAccountCommand (+34 more)
+Cohesion: 0.09
+Nodes (24): CancellationToken, Guid, IReadOnlyList, Task, MemoryNotification, EventType, MemoryId, Message (+16 more)
 
 ### Community 301 - "CapturingLogger"
-Cohesion: 0.12
-Nodes (17): EventId, Level, LogLevel, ActionAttemptView, TurnOutcomeView, TurnOutcomeViewLog, Exception, ILogger (+9 more)
+Cohesion: 0.10
+Nodes (19): ConversationTurnOrchestrator, EventId, Level, LogLevel, ActionAttemptView, TurnOutcomeView, TurnOutcomeViewLog, Exception (+11 more)
 
-### Community 302 - "McpCapabilitySnapshot"
-Cohesion: 0.07
-Nodes (27): CancellationToken, Guid, HashSet, McpCapabilitySnapshot, ChangeSummaryJson, DeclaredCapabilitiesJson, DiscoveredAtUtc, FailureCategory (+19 more)
+### Community 302 - "DocumentLanguage"
+Cohesion: 0.06
+Nodes (34): ClassificationResponse, DetectedLanguage, DocumentClassificationResult, DocumentLanguageAndClassificationResult, IDocumentLanguageAndClassifier, CancellationToken, IReadOnlyList, Task (+26 more)
 
-### Community 303 - ".NarrateAsync"
-Cohesion: 0.18
-Nodes (9): TurnNarrationPrompt, CapabilityNarrator, CapabilityNarratorLog, CancellationToken, Exception, Guid, ILogger, LoggerMessage (+1 more)
+### Community 303 - ".RunAsync"
+Cohesion: 0.09
+Nodes (21): CapabilityExecutor, CapabilityNarrator, ConversationCapabilityCatalog, ConversationRuntimeOptions, FlowStep, FlowRunner, CancellationToken, ChatStreamChunk (+13 more)
 
 ### Community 304 - "AdminOperationalFailuresTriageEndpointsTests"
 Cohesion: 0.31
 Nodes (7): AdminOperationalFailuresTriageEndpointsTests, AskLucyDbContext, Fact, Guid, InlineData, Task, Theory
 
 ### Community 305 - "CombineSiteBoundaryShapeCommand"
-Cohesion: 0.12
-Nodes (18): CombineSiteBoundaryShapeCommand, Shape, Voids, CombineSiteBoundaryShapeResult, Voids, CombineOperation, GeoPoint, Guid (+10 more)
+Cohesion: 0.09
+Nodes (24): CombineSiteBoundaryShapeCommand, Shape, Voids, CombineSiteBoundaryShapeResult, Voids, CombineOperation, GeoPoint, Guid (+16 more)
 
-### Community 306 - ".CancelWorkflowExecutionCommandHandler_ShouldBeANoOp_WhenTheExecutionIsAlreadyTerminal"
-Cohesion: 0.25
-Nodes (18): DateTime, CancelWorkflowExecutionCommand, Guid, WorkflowExecutionControlCommandsTests, CancellationToken, DomainRuleViolationException, Fact, Guid (+10 more)
+### Community 306 - "PauseWorkflowExecutionCommandHandler"
+Cohesion: 0.10
+Nodes (35): DateTime, PauseWorkflowExecutionCommand, WorkflowExecutionOwnershipGuard, CancelWorkflowExecutionCommand, Guid, CancellationToken, Task, PauseWorkflowExecutionCommandHandler (+27 more)
 
 ### Community 307 - "OverpassRelatedSiteBuildingProvider"
-Cohesion: 0.09
-Nodes (27): OverpassResponse, Decision, IRelatedSiteBuildingProvider, ISiteFootprintUnion, RelatedSiteBuilding, CancellationToken, IReadOnlyList, Task (+19 more)
+Cohesion: 0.07
+Nodes (29): Element, OverpassResponse, Point, OverpassElement, OverpassGeometryPoint, OverpassRelatedSiteBuildingProvider, OverpassRelatedSiteBuildingProviderLog, OverpassResponse (+21 more)
 
 ### Community 308 - "TurnRecorderTests"
 Cohesion: 0.11
 Nodes (28): Agent, ExecutionBox, Decision 2 — Where the turn outcome lives, TurnRecordedStep, TurnRecorder, TurnRecorderLog, AgentExecution, CancellationToken (+20 more)
 
-### Community 309 - "Templates"
-Cohesion: 0.07
-Nodes (27): Audit, Contract: Admin Notifications & Localization API, Deliveries, GET `/localization` (V), GET `/notifications/announcements` (V), GET `/notifications/audit` (V), GET `/notifications/channels` (V), GET `/notifications/deliveries/{deliveryId}` (V) (+19 more)
+### Community 309 - "Contract: Admin Notifications & Localization API"
+Cohesion: 0.11
+Nodes (17): Audit, Contract: Admin Notifications & Localization API, Deliveries, GET `/localization` (V), GET `/notifications/announcements` (V), GET `/notifications/audit` (V), GET `/notifications/channels` (V), GET `/notifications/deliveries/{deliveryId}` (V) (+9 more)
 
-### Community 310 - "PromptVariable"
-Cohesion: 0.06
-Nodes (35): PromptVariableResolutionResult, PromptVariableResolver, PromptVariableValidationError, PromptVariableValidationRules, IReadOnlyCollection, IReadOnlyDictionary, IReadOnlyList, PromptVariable (+27 more)
+### Community 310 - ".ValidateAndResolve"
+Cohesion: 0.15
+Nodes (12): PromptVariableResolutionResult, PromptVariableResolver, PromptVariableValidationError, PromptVariableValidationRules, IReadOnlyCollection, IReadOnlyDictionary, IReadOnlyList, PromptVariableResolverTests (+4 more)
 
 ### Community 311 - "OpenAIProvider"
 Cohesion: 0.13
@@ -3338,12 +3366,12 @@ Cohesion: 0.15
 Nodes (17): D16 — Retention and erasure, OperationalFailuresOptions, MaxStoredOccurrencesPerIncident, NeedsClamping, OccurrenceRetentionDays, QueueCapacity, ResolvedRetentionDays, UnacknowledgedRetentionDays (+9 more)
 
 ### Community 314 - "OutlineActionGroup.tsx"
-Cohesion: 0.20
-Nodes (16): AddCircleShapeIcon(), AddCornerIcon(), AddPolygonShapeIcon(), AddRectangleShapeIcon(), AddSquareShapeIcon(), common, CurveEdgeIcon(), CutCircleShapeIcon() (+8 more)
+Cohesion: 0.08
+Nodes (31): Summary, D10 - Keyboard and touch for shapes, D11 - Grouped ribbon (Photoshop-style tool groups), D2 - Holes in the server geometry, D3 - New shapes are client-built polygons sent to the existing combine endpoint, D4 - Showing and editing voids on the map, D5 - Selecting and moving between voids, D6 - Validating void edits on the client (+23 more)
 
 ### Community 315 - ".DecideAsync"
-Cohesion: 0.03
-Nodes (63): Content Quality, Feature Readiness, Notes, Requirement Completeness, Specification Quality Checklist: Honest Turn Outcomes, Real Retry, and a Readable Offer Card, 1. Width, 2. Internal layout, 3. Accessibility (+55 more)
+Cohesion: 0.08
+Nodes (29): Cross-cutting notes, Decision 1 — Verification without giving up streaming, Decision 3 — What the router receives, Decision 4 — How retry dispatches, Decision 6 — What voice speaks for an offer turn, Phase 0 Research: Honest Turn Outcomes, Real Retry, and a Readable Offer Card, Reproduction: the causal chain behind Defect 1, ReplyScopePromptFraming (+21 more)
 
 ### Community 316 - "UserAiPreference"
 Cohesion: 0.12
@@ -3351,19 +3379,19 @@ Nodes (15): IUserAiPreferenceRepository, CancellationToken, Task, UserAiPreferen
 
 ### Community 318 - "EsriBuildingHeightSource"
 Cohesion: 0.07
-Nodes (30): I3sOrientedBoundingBox, Mesh, ScaleX, ScaleY, Sources, DracoI3sGeometryDecoder, EsriBuildingHeightSource, EsriBuildingHeightSourceLog (+22 more)
+Nodes (35): I3sOrientedBoundingBox, Mesh, Sources, Decision, IBuildingHeightSource, CancellationToken, GeoPoint, Task (+27 more)
 
 ### Community 319 - "OperationalFailureTriageQueryTests"
 Cohesion: 0.18
 Nodes (14): OperationalFailureTriageQueryTests, AskLucyDbContext, DateTime, Fact, Func, Guid, IncidentTransitionResult, IReadOnlyCollection (+6 more)
 
 ### Community 320 - "UpdatePresenceSphereSettingsCommand"
-Cohesion: 0.16
-Nodes (14): New: `ModelDeprecation` (child of the batch), PresenceSphereSettingsLog, UpdatePresenceSphereSettingsCommand, UpdatePresenceSphereSettingsCommandHandler, UpdatePresenceSphereSettingsCommandValidator, CancellationToken, ICurrentUserAccessor, ILogger (+6 more)
+Cohesion: 0.22
+Nodes (11): UpdatePresenceSphereSettingsCommand, UpdatePresenceSphereSettingsCommandHandler, UpdatePresenceSphereSettingsCommandValidator, CancellationToken, ICurrentUserAccessor, IUnitOfWork, IUserProfileRepository, PresenceSphereSettingsDto (+3 more)
 
-### Community 321 - ".ListActiveAvailableAsync"
-Cohesion: 0.08
-Nodes (33): ServerName, Tool, McpToolCatalogSummaryDto, McpToolDetailDto, DateTime, IReadOnlyList, List, AgentToolRiskLevelDto (+25 more)
+### Community 321 - "IMcpClient"
+Cohesion: 0.10
+Nodes (29): IMcpClient, IMcpClientFactory, TestMcpServerConnectionCommand, Guid, McpServerHealthDto, TestMcpServerConnectionCommandHandler, CancellationToken, McpServerHealthDto (+21 more)
 
 ### Community 322 - "SystemAnnouncementTests"
 Cohesion: 0.13
@@ -3373,49 +3401,49 @@ Nodes (19): AnnouncementAudience, ISystemAnnouncementRepository, PublishSystemAn
 Cohesion: 0.09
 Nodes (20): Content Quality, Feature Readiness, Notes, Requirement Completeness, Specification Quality Checklist: Admin Panel Layout & Polish Pass, Assumptions, Clarifications, Edge Cases (+12 more)
 
-### Community 324 - ".ListByProviderIdAsync"
-Cohesion: 0.13
-Nodes (24): GetAiModelsQuery, ModelSummaryDto, Implementation for User Story 3, CancellationToken, Guid, IReadOnlyList, Task, IReadOnlyList (+16 more)
+### Community 324 - ".GetByIdIncludingDeletedAsync"
+Cohesion: 0.07
+Nodes (31): AskLucy.Application.Chats.Commands.PurgeUserChat, CancellationToken, DateTime, Guid, IReadOnlyList, Items, NextCursor, Task (+23 more)
 
-### Community 325 - "RegisterCommandHandler"
-Cohesion: 0.08
-Nodes (30): Implementation for User Story 1, Implementation for User Story 3, Phase 3: User Story 1 — Recognizable, on-brand email at every account touchpoint (Priority: P1) 🎯 MVP, Phase 5: User Story 3 — Unmistakable, single call-to-action for security actions (Priority: P2), Tests for User Story 1, Tests for User Story 3, RequestEmailChangeCommand, RequestEmailChangeCommandHandler (+22 more)
+### Community 325 - "IEmailSender"
+Cohesion: 0.03
+Nodes (69): Backend, Format: `[ID] [P?] [Story] Description`, Implementation for User Story 1, Implementation for User Story 3, Implementation Strategy, Incremental Delivery, MVP First (User Story 1 Only), Notes (+61 more)
 
-### Community 326 - ".ListAllAsync"
-Cohesion: 0.13
-Nodes (21): IReadOnlyList, IProviderHealthFreshnessPolicy, DateTime, GetAdminAiProvidersQuery, AdminAiProviderDto, IReadOnlyList, GetAdminAiProvidersQueryHandler, AdminAiProviderDto (+13 more)
+### Community 326 - ".Create"
+Cohesion: 0.09
+Nodes (24): CancellationToken, IReadOnlyList, Task, DateTime, GetAdminAiProvidersQuery, AdminAiProviderDto, IReadOnlyList, AdminAiProviderDto (+16 more)
 
 ### Community 327 - "CompositeBuildingFootprintProvider"
 Cohesion: 0.12
 Nodes (21): IBuildingFootprintProvider, SourceOutcome, BuildingConflationOptions, StragglerBudget, TimeSpan, CompositeBuildingFootprintProvider, CompositeBuildingFootprintProviderLog, SourceOutcome (+13 more)
 
-### Community 328 - "Tests for Foundational (write first)"
-Cohesion: 0.09
-Nodes (22): Assembly, INotificationTemplateRepository, JsonSerializerOptions, NotificationTemplateContent, NotificationTemplateKey, SeedFile, Tests for Foundational (write first), RecordedTurnOutcomeJson (+14 more)
+### Community 328 - "NotificationTemplateSeeder"
+Cohesion: 0.14
+Nodes (14): Assembly, INotificationTemplateRepository, InvalidOperationException, JsonSerializerOptions, NotificationTemplateContent, NotificationTemplateKey, SeedFile, RecordedTurnOutcomeJson (+6 more)
 
 ### Community 329 - "TokenType"
 Cohesion: 0.10
 Nodes (21): TokenType, And, Comma, EndOfInput, Eq, False, Gt, Gte (+13 more)
 
 ### Community 330 - "ChangePasswordCommandHandlerTests"
-Cohesion: 0.04
-Nodes (73): ChangePasswordCommand, LogoutCommand, RefreshCommand, Phase 9: Post-release follow-up (second walkthrough), IRefreshTokenRepository, CancellationToken, Guid, IReadOnlyList (+65 more)
+Cohesion: 0.08
+Nodes (34): ChangePasswordCommand, ISessionRevocationCache, Guid, ChangePasswordCommandHandler, CancellationToken, ChangePasswordResult, DateTime, Guid (+26 more)
 
 ### Community 331 - "ProtobufReader"
 Cohesion: 0.20
 Nodes (14): Length, MvtFeature, MvtLayer, MvtRing, MvtTile, ProtobufReader, AtEnd, IReadOnlyDictionary (+6 more)
 
 ### Community 332 - ".GetByIdAsync"
-Cohesion: 0.11
-Nodes (25): ConfirmedSiteBoundaryData, EffectiveSiteBoundary, ISiteBoundaryCorrectionRepository, RecordActiveSiteBoundaryCommandHandler, ISiteBoundaryCorrectionRepository, CancellationToken, Guid, IReadOnlyList (+17 more)
+Cohesion: 0.17
+Nodes (17): ConfirmedSiteBoundaryData, RecordActiveSiteBoundaryCommandHandler, ISiteBoundaryCorrectionRepository, CancellationToken, Guid, IReadOnlyList, Task, RecordActiveSiteBoundaryCorrectionTests (+9 more)
 
-### Community 333 - ".GenerateAccessToken"
-Cohesion: 0.05
-Nodes (52): Claim, IssueHangfireDashboardSessionCommandHandler, ITokenService, AccessTokenResult, IssuedRefreshToken, Claim, Guid, IEnumerable (+44 more)
+### Community 333 - "ITokenService"
+Cohesion: 0.03
+Nodes (85): Claim, DashboardContext, ADR 0013: Hangfire Dashboard Access via a Purpose-Scoped Cookie, and Its Theming Gap, Alternatives considered, Consequences, Context, Decision, IDashboardAuthorizationFilter (+77 more)
 
 ### Community 334 - "AdminViewAuditBehavior"
 Cohesion: 0.06
-Nodes (31): IMemoryCache, IPipelineBehavior, RequestHandlerDelegate, AdminViewAuditBehavior, AdminViewAuditBehaviorLog, CancellationToken, Exception, ICurrentUserAccessor (+23 more)
+Nodes (34): IMemoryCache, IPipelineBehavior, RequestHandlerDelegate, Implementation for User Story 6, Phase 10: User Story 6 - Administrators monitor delivery and recover failures (Priority: P3), Tests for User Story 6, AdminViewAuditBehavior, AdminViewAuditBehaviorLog (+26 more)
 
 ### Community 335 - ".SearchAsync"
 Cohesion: 0.13
@@ -3435,19 +3463,19 @@ Nodes (20): BulkActionOutcome, BulkTarget, GetRolesEligibleIdsQuery, BulkDeleteR
 
 ### Community 339 - ".ListByChatIdAsync"
 Cohesion: 0.04
-Nodes (79): ConversationActionUnavailableException, IConversationCapability, IJsonSchemaValidator, ISelectedActionResolver, ResolvedSelectedAction, CancellationToken, Guid, Task (+71 more)
+Nodes (78): ConversationActionUnavailableException, IConversationCapability, ISelectedActionResolver, ResolvedSelectedAction, CancellationToken, Guid, Task, SuggestedAction (+70 more)
 
 ### Community 340 - "AgentPolicy"
-Cohesion: 0.04
-Nodes (61): IAgentPolicyRepository, CancellationToken, Guid, IReadOnlyList, AgentPolicyDto, DateTime, Guid, CreateAgentPolicyCommand (+53 more)
+Cohesion: 0.06
+Nodes (38): IAgentPolicyRepository, CancellationToken, Guid, IReadOnlyList, AgentUserExecutionLimitDto, SetAgentUserExecutionLimitCommand, SetAgentUserExecutionLimitCommandHandler, CancellationToken (+30 more)
 
 ### Community 341 - ".TryParse"
-Cohesion: 0.09
-Nodes (23): Available, NoRecord, HuggingFaceModelSource, DerivedName, FilePath, Owner, Repository, RepositoryId (+15 more)
+Cohesion: 0.11
+Nodes (17): HuggingFaceModelSource, DerivedName, FilePath, Owner, Repository, RepositoryId, Revision, SourceUrl (+9 more)
 
 ### Community 342 - ".BuildTargetModel"
-Cohesion: 0.20
-Nodes (7): DateTime, Guid, MigrationBuilder, DateTime, DateTimeOffset, Guid, ModelBuilder
+Cohesion: 0.40
+Nodes (4): DateTime, DateTimeOffset, Guid, ModelBuilder
 
 ### Community 343 - "WorkflowApprovalTimeoutTests"
 Cohesion: 0.14
@@ -3458,12 +3486,12 @@ Cohesion: 0.10
 Nodes (19): compilerOptions, allowArbitraryExtensions, allowImportingTsExtensions, erasableSyntaxOnly, jsx, lib, module, moduleDetection (+11 more)
 
 ### Community 345 - "IncidentTriageService"
-Cohesion: 0.14
-Nodes (21): Now, AcknowledgeRootCauseCommand, BulkTransitionResultDto, AcknowledgeRootCauseCommandHandler, BulkTransitionResultDto, CancellationToken, IncidentTriageService, Task (+13 more)
+Cohesion: 0.16
+Nodes (18): Now, AcknowledgeRootCauseCommand, BulkTransitionResultDto, AcknowledgeRootCauseCommandHandler, BulkTransitionResultDto, CancellationToken, IncidentTriageService, Task (+10 more)
 
 ### Community 346 - "DocumentProcessingPipeline"
-Cohesion: 0.08
-Nodes (34): IDocumentProcessingPipeline, SimpleUploadCommand, SimpleUploadResultDto, IProcessingNotifier, CancellationToken, DocumentNotificationEventType, DocumentProcessingStageStatus, DocumentProcessingStageType (+26 more)
+Cohesion: 0.10
+Nodes (24): IDocumentProcessingPipeline, IProcessingNotifier, CancellationToken, DocumentNotificationEventType, DocumentProcessingStageStatus, DocumentProcessingStageType, Guid, Task (+16 more)
 
 ### Community 348 - "RefreshToken"
 Cohesion: 0.12
@@ -3474,8 +3502,8 @@ Cohesion: 0.14
 Nodes (17): NotificationDispatchOptions, NotificationOutboxDispatcher, WorkerId, OutboxDispatcherLog, CancellationToken, Exception, ILogger, INotificationOutboxStore (+9 more)
 
 ### Community 350 - ".CreateProvider"
-Cohesion: 0.23
-Nodes (11): WeatherProviderUnavailableException, WeatherProviderTests, Fact, Func, HttpRequestMessage, HttpResponseMessage, IHttpClientFactory, ILogger (+3 more)
+Cohesion: 0.24
+Nodes (10): WeatherProviderTests, Fact, Func, HttpRequestMessage, HttpResponseMessage, IHttpClientFactory, ILogger, InlineData (+2 more)
 
 ### Community 351 - "AiProviderUnavailableException"
 Cohesion: 0.14
@@ -3493,36 +3521,36 @@ Nodes (17): Items, NextCursor, InMemoryWorkflowExecutionRepository, WorkflowConc
 Cohesion: 0.24
 Nodes (9): ICorrelationIdAccessor, IncidentAppendResult, OperationalFailureStore, OperationalFailureStoreTests, DateTime, Fact, Guid, PersistenceTestFixture (+1 more)
 
-### Community 355 - "Research: Restore Local Whisper as the Primary Dictation Engine"
-Cohesion: 0.07
-Nodes (23): ADR 0017: One Cross-Cutting Operational Failure Trail, Written Off the Request Path, Alternatives considered, Consequences, Context, Trade-off accepted, API Contract: Admin Dictation Settings, Custom Models removal guard, Read the setting (+15 more)
+### Community 355 - "API Contract: Admin Dictation Settings"
+Cohesion: 0.06
+Nodes (27): 1. One store behind one seam, 2. A bounded channel and a background writer, 3. The built-in Administrator no longer implies the whole catalogue, ADR 0017: One Cross-Cutting Operational Failure Trail, Written Off the Request Path, Alternatives considered, Consequences, Context, Decision (+19 more)
 
-### Community 356 - ".SearchAsync"
-Cohesion: 0.13
-Nodes (21): Items, TotalCount, GetRoleQuery, RoleSummaryDto, GetRoleQueryHandler, CancellationToken, RoleSummaryDto, Task (+13 more)
+### Community 356 - "IRoleRepository"
+Cohesion: 0.14
+Nodes (20): IRoleRepository, Items, TotalCount, GetRoleQuery, RoleSummaryDto, GetRoleQueryHandler, CancellationToken, RoleSummaryDto (+12 more)
 
 ### Community 357 - ".Ground"
-Cohesion: 0.18
-Nodes (9): SuggestedActionGrounder, SuggestedActionGroundingResult, Dictionary, IReadOnlyList, JsonElement, List, SuggestedActionGrounderTests, Fact (+1 more)
+Cohesion: 0.16
+Nodes (11): IReadOnlyList, JsonElement, SuggestedActionGrounder, SuggestedActionGroundingResult, Dictionary, IReadOnlyList, JsonElement, List (+3 more)
 
 ### Community 359 - "IRequest"
 Cohesion: 0.01
-Nodes (254): IRequest, Application-layer value types (not persisted), Data Model: Model Deprecation Workflow, New: `ItemSwitch`, New: `ModelDeprecationBatch` (aggregate root), Unchanged, but read or written, IAgentRepository, CancellationToken (+246 more)
+Nodes (218): AskLucy.Application.KnowledgeBases.Commands.RenameFolder, AskLucy.Application.Documents.Commands.MoveDocument, AskLucy.Application.Agents.Commands.DeleteAgentPolicy, IRequest, IAgentRepository, IEnumerable, CancellationToken, Task (+210 more)
 
 ### Community 360 - ".Conflate"
-Cohesion: 0.16
-Nodes (13): Area, Footprint, KeptIndex, NotificationAuditLog, New: `PlatformDefaultChange` (child of `ModelDeprecation`), AssumedBuildingHeight, BuildingFootprint, BuildingFootprintConflation (+5 more)
+Cohesion: 0.18
+Nodes (11): Area, Footprint, KeptIndex, AssumedBuildingHeight, BuildingFootprint, BuildingFootprintConflation, Outcome, BuildingFootprint (+3 more)
 
 ### Community 361 - ".Cancelled"
 Cohesion: 0.06
-Nodes (39): Notification.Status (FR-011), NotificationDelivery.Status, NotificationOutboxEvent.Status, NotificationTemplateVersion.Status, State machines, Guarantees, D10 — The CI app deploy must not delete deployed models, D12 — Audit (+31 more)
+Nodes (38): Notification.Status (FR-011), NotificationDelivery.Status, NotificationOutboxEvent.Status, NotificationTemplateVersion.Status, State machines, D10 — The CI app deploy must not delete deployed models, D12 — Audit, D13 — Lists and pagination (+30 more)
 
-### Community 362 - ".GetByIdAsync"
+### Community 362 - "IUserProfileRepository"
 Cohesion: 0.13
-Nodes (13): AskLucy.Application.Users.Commands.UpdateMyProfile, Decision 3: Name/last-name sync semantics (synchronous, merge-on-null), CancellationToken, Task, UpdateMyProfileCommand, CancellationToken, Task, UserProfileDto (+5 more)
+Nodes (16): Decision 3: Name/last-name sync semantics (synchronous, merge-on-null), IUserProfileRepository, CancellationToken, Task, GetMyProfileQuery, UserProfileDto, GetMyProfileQueryHandler, CancellationToken (+8 more)
 
 ### Community 363 - ".Handle"
-Cohesion: 0.16
+Cohesion: 0.15
 Nodes (19): UpdateDefaultRoleCommand, IReadOnlyList, RoleSummaryDto, UpdateDefaultRoleCommandHandler, CancellationToken, IAuthorizationCacheInvalidator, ICurrentUserAccessor, RoleSummaryDto (+11 more)
 
 ### Community 364 - ".SaveMine"
@@ -3539,83 +3567,83 @@ Nodes (7): PromptTag, OwnerId, PromptId, Value, Guid, PromptTagConfiguration, En
 
 ### Community 367 - "IUserAdminRepository"
 Cohesion: 0.05
-Nodes (48): IUserAdminRepository, CancellationToken, IReadOnlyList, Task, DeleteUserCommand, DeleteUserCommandHandler, CancellationToken, ILogger (+40 more)
+Nodes (50): AskLucy.Application.Users.Commands.UpdateUser, IUserAdminRepository, CancellationToken, IReadOnlyList, Task, DeleteUserCommand, DeleteUserCommandHandler, CancellationToken (+42 more)
 
 ### Community 368 - "devDependencies"
 Cohesion: 0.08
 Nodes (26): devDependencies, eslint, eslint-config-prettier, @eslint/js, eslint-plugin-react-hooks, eslint-plugin-react-refresh, globals, jest-axe (+18 more)
 
-### Community 369 - "BaseEntity"
-Cohesion: 0.05
-Nodes (39): 8. Document Intelligence Context, DocumentAuditLog, DocumentCategory, DocumentChecksums, DocumentFolders, DocumentMetadata / DocumentLanguage / DocumentClassification / DocumentTag, DocumentNotification, DocumentProcessingJob / DocumentProcessingStage / DocumentProcessingLog (+31 more)
+### Community 369 - "DocumentProcessingLog"
+Cohesion: 0.09
+Nodes (22): 8. Document Intelligence Context, DocumentAuditLog, DocumentCategory, DocumentChecksums, DocumentFolders, DocumentMetadata / DocumentLanguage / DocumentClassification / DocumentTag, DocumentNotification, DocumentProcessingJob / DocumentProcessingStage / DocumentProcessingLog (+14 more)
 
 ### Community 370 - "User Scenarios & Testing *(mandatory)*"
 Cohesion: 0.06
 Nodes (31): Content Quality, Feature Readiness, Notes, Requirement Completeness, Specification Quality Checklist: Voids and Drawing Shapes in the Outline Editor, Complexity Tracking, Constitution Check, Documentation (this feature) (+23 more)
 
-### Community 371 - ".GetEventsAsync"
-Cohesion: 0.19
-Nodes (17): IVoiceProviderFailoverEventRepository, CancellationToken, DateTime, IReadOnlyList, Task, GetVoiceProviderHealthQuery, DateTime, VoiceProviderHealthDto (+9 more)
+### Community 371 - "UserChat"
+Cohesion: 0.05
+Nodes (23): SearchMode, Guid, UserChat, ActiveBoundary, ActiveLocation, ArchivedAtUtc, GenerationParametersJson, IsFavorite (+15 more)
 
 ### Community 372 - "GeminiBoundaryVisionAnalyzerTests"
 Cohesion: 0.15
 Nodes (15): GeminiBoundaryVisionAnalyzerTests, CancellationToken, Fact, Func, HttpRequestMessage, HttpResponseMessage, HttpStatusCode, IHttpClientFactory (+7 more)
 
-### Community 373 - "SiteAnalysisResultReceivedDto"
-Cohesion: 0.17
-Nodes (13): ISiteAnalysisNotifier, CancellationToken, Task, SiteAnalysisCompletedDto, SiteAnalysisResultReceivedDto, DateTime, Guid, SiteAnalysisHub (+5 more)
+### Community 373 - "Hub"
+Cohesion: 0.12
+Nodes (16): Hub, ISiteAnalysisNotifier, CancellationToken, Task, SiteAnalysisCompletedDto, SiteAnalysisResultReceivedDto, DateTime, Guid (+8 more)
 
 ### Community 374 - "AgentExecutionError"
-Cohesion: 0.10
+Cohesion: 0.11
 Nodes (20): AgentExecutionError, AgentExecutionId, AgentExecutionStepId, Category, Message, OccurredAtUtc, RetryCount, AgentExecutionErrorCategory (+12 more)
 
 ### Community 375 - "OverpassBoundaryCandidateProvider"
-Cohesion: 0.10
-Nodes (26): BoundaryCandidate, IBoundaryCandidateProvider, IReadOnlyDictionary, IReadOnlyList, List, OverpassGeometryPoint, OverpassMember, OverpassOptions (+18 more)
+Cohesion: 0.08
+Nodes (31): BoundaryCandidate, IBoundaryCandidateProvider, IReadOnlyDictionary, IReadOnlyList, List, OverpassElement, OverpassGeometryPoint, OverpassMember (+23 more)
 
 ### Community 376 - "ChatInvestigationTests"
-Cohesion: 0.15
-Nodes (17): InvalidOperationException, ChatInvestigationTests, CancellationToken, DateTime, Fact, Guid, ICorrelationIdAccessor, ICurrentUserAccessor (+9 more)
+Cohesion: 0.17
+Nodes (16): ChatInvestigationTests, CancellationToken, DateTime, Fact, Guid, ICorrelationIdAccessor, ICurrentUserAccessor, IEffectivePermissionResolver (+8 more)
 
 ### Community 377 - ".GetWorkflowExecutionQueryHandler_ShouldThrowNotFound_AndRecordCrossUserAccessAttempted_WhenTheExecutionBelongsToAnotherUser"
-Cohesion: 0.09
-Nodes (36): KeyNotFoundException, GetWorkflowExecutionQuery, Guid, WorkflowExecutionDetailDto, GetWorkflowExecutionQueryHandler, CancellationToken, Task, WorkflowExecutionDetailDto (+28 more)
+Cohesion: 0.12
+Nodes (28): KeyNotFoundException, GetWorkflowExecutionQuery, Guid, WorkflowExecutionDetailDto, CancellationToken, Task, WorkflowExecutionDetailDto, GetWorkflowExecutionNodesQuery (+20 more)
 
 ### Community 378 - "compilerOptions"
 Cohesion: 0.12
 Nodes (16): compilerOptions, allowImportingTsExtensions, erasableSyntaxOnly, lib, module, moduleDetection, noEmit, noFallthroughCasesInSwitch (+8 more)
 
 ### Community 379 - "BoundaryCandidateScorer"
-Cohesion: 0.16
+Cohesion: 0.17
 Nodes (11): IEnumerable, BoundaryCandidateScorer, BoundaryCandidate, BoundaryScoringOptions, IOptions, IReadOnlyDictionary, IReadOnlyList, IReadOnlySet (+3 more)
 
-### Community 380 - "Tasks: Admin Operational Failure Audit Trail"
-Cohesion: 0.07
-Nodes (32): Dependencies & Execution Order, Format: `[ID] [P?] [Story] Description`, Implementation for User Story 5, Implementation Strategy, Incremental delivery, MVP (US1 only), Notes, Parallel Example: User Story 1 (+24 more)
+### Community 380 - "IOperationalFailureStore"
+Cohesion: 0.10
+Nodes (30): Implementation for User Story 3, Phase 5: User Story 3 — Triage: filter, paginate, acknowledge, resolve, badge (Priority: P2), Tests for User Story 3 (write first, confirm failing), IncidentTransitionOutcome, IncidentTransitionStatus, AlreadyInState, Applied, Conflict (+22 more)
 
 ### Community 381 - ".ListPagedByChatIdAsync"
-Cohesion: 0.12
-Nodes (20): R19. Notification center queries and performance (FR-014, FR-017, SC-004), ConversationCursor, Payload, Guid, Id, Rank, SortValue, MessageRepository (+12 more)
+Cohesion: 0.18
+Nodes (13): MessageRepository, AskLucyDbContext, CancellationToken, Guid, IReadOnlyList, Items, Message, NextCursor (+5 more)
 
-### Community 382 - "WorkflowContracts.cs"
+### Community 382 - ".Update"
+Cohesion: 0.17
+Nodes (16): WorkflowPolicyDto, DateTime, Guid, WorkflowPoliciesController, ActionResult, CancellationToken, Guid, HttpDelete (+8 more)
+
+### Community 383 - ".Handle"
 Cohesion: 0.10
-Nodes (25): WorkflowPolicyDto, DateTime, Guid, CreateWorkflowPolicyRequest, PublishWorkflowVersionRequest, RejectWorkflowNodeRequest, RequestWorkflowNodeChangesRequest, SetWorkflowUserExecutionLimitRequest (+17 more)
-
-### Community 383 - "GeminiBoundaryDrawDiagnosticService"
-Cohesion: 0.11
-Nodes (21): ImageBytes, Note, GeminiBoundaryDrawDiagnosticService, GeminiBoundaryDrawDiagnosticServiceLog, CancellationToken, ContentType, Dictionary, Exception (+13 more)
+Nodes (23): ArchiveDocumentCommand, Guid, CancellationToken, Task, DeleteDocumentCommand, Guid, CancellationToken, Task (+15 more)
 
 ### Community 384 - "CreateSpeechToTextSessionCommandHandler"
-Cohesion: 0.09
-Nodes (30): Broken, CreateSpeechToTextSessionCommand, DictationSession, IVoiceProviderFailoverEventRepository, Implementation for User Story 1, Phase 4: User Story 1 - Dictation runs on Local Whisper by default (Priority: P1) 🎯 MVP, Tests for User Story 1, CreateSpeechToTextSessionCommandHandler (+22 more)
+Cohesion: 0.06
+Nodes (39): Broken, CreateSpeechToTextSessionCommand, DictationSession, DictationTurnEngine, IVoiceProviderFailoverEventRepository, Implementation for User Story 1, Phase 4: User Story 1 - Dictation runs on Local Whisper by default (Priority: P1) 🎯 MVP, Tests for User Story 1 (+31 more)
 
 ### Community 385 - "SiteAnalysisDetailDto"
-Cohesion: 0.11
-Nodes (23): CancellationToken, Task, SiteAnalysisDetailDto, SiteAnalysisResultDetailDto, DateTime, Guid, IReadOnlyList, JsonElement (+15 more)
+Cohesion: 0.12
+Nodes (21): SiteAnalysisDetailDto, SiteAnalysisResultDetailDto, DateTime, Guid, IReadOnlyList, JsonElement, ListSiteAnalysesByChatQuery, Guid (+13 more)
 
-### Community 386 - ".Create"
-Cohesion: 0.13
-Nodes (16): CancellationToken, Task, DefaultProviderResolverTests, AIModel, CancellationToken, Fact, Guid, IAIModelRepository (+8 more)
+### Community 386 - ".GetByIdAsync"
+Cohesion: 0.07
+Nodes (33): Guid, AiCapabilityProviderResolverLog, CancellationToken, ILogger, LoggerMessage, Task, ResolvedDefault, CancellationToken (+25 more)
 
 ### Community 387 - "http"
 Cohesion: 0.13
@@ -3626,12 +3654,12 @@ Cohesion: 0.07
 Nodes (29): McpUntrustedContentFramingTests, AgentInstructions, AIModelCapabilities, CancellationToken, ChatMessage, Fact, GenerationParametersDto, Guid (+21 more)
 
 ### Community 389 - "FakeUnitOfWork"
-Cohesion: 0.09
-Nodes (26): FakeDatabase, INotificationRealtimePublisher, Push, FakeDatabase, Committed, ConflictOnSave, OutboxRows, Time (+18 more)
+Cohesion: 0.12
+Nodes (18): FakeDatabase, Committed, ConflictOnSave, OutboxRows, Time, FakeUnitOfWork, Now, CancellationToken (+10 more)
 
 ### Community 390 - ".Create"
-Cohesion: 0.10
-Nodes (20): CreateSpeechToTextSessionRequest, SaveVoicePreferenceRequest, AdminRolesTests, CustomWebApplicationFactory, Fact, HttpClient, InlineData, Task (+12 more)
+Cohesion: 0.05
+Nodes (43): AdminRolesTests, CustomWebApplicationFactory, Fact, HttpClient, InlineData, Task, Theory, DashboardAuthorizationTests (+35 more)
 
 ### Community 391 - "AiControllerRetryTests"
 Cohesion: 0.13
@@ -3642,72 +3670,72 @@ Cohesion: 0.13
 Nodes (14): net10.0, AutoMapper (16.2.0), FluentValidation.DependencyInjectionExtensions (12.1.1), Hangfire.Core (1.8.24), JsonSchema.Net (9.4.0), MediatR (14.2.0), Microsoft.Extensions.Caching.Abstractions (10.0.10), Microsoft.Extensions.Configuration.Abstractions (10.0.10) (+6 more)
 
 ### Community 393 - "KnowledgeBaseIndexingEndToEndTests"
-Cohesion: 0.18
-Nodes (11): ApplicationUser, AskLucyDbContext, Guid, IKnowledgeBaseIndexingJob, IKnowledgeBaseRepository, KnowledgeBaseCreatedResponse, OutboxDispatchService, RetrievalIndexingApiFactory (+3 more)
+Cohesion: 0.14
+Nodes (14): ApplicationUser, AskLucyDbContext, DateTimeOffset, Guid, IKnowledgeBaseIndexingJob, IKnowledgeBaseRepository, KnowledgeBaseCreatedResponse, ModelBuilder (+6 more)
 
 ### Community 394 - "WavHeaderTests"
 Cohesion: 0.16
 Nodes (11): Span, WavHeader, Duration, Stream, TimeSpan, WavHeaderTests, Fact, InlineData (+3 more)
 
 ### Community 395 - "ElevenLabsProvider"
-Cohesion: 0.11
-Nodes (22): ChatCompletionResult, ChatMessage, GeneratedImagePayload, IAIProvider, ElevenLabsProvider, ChatModel, ProviderName, CancellationToken (+14 more)
+Cohesion: 0.14
+Nodes (18): ChatCompletionResult, ChatMessage, GeneratedImagePayload, ElevenLabsProvider, ChatModel, ProviderName, CancellationToken, HttpClient (+10 more)
 
 ### Community 396 - "RenderedBuildingFootprintProvider"
-Cohesion: 0.11
-Nodes (21): Buildings, Caching, Evaluated and rejected as alternative sources (spec.md Downstream), Overture Maps (specs/075), Positional tolerance, The verified style — do not retry the obvious first attempt, Why two sources, RenderedBuildingFootprintProvider (+13 more)
+Cohesion: 0.09
+Nodes (24): Buildings, Caching, Evaluated and rejected as alternative sources (spec.md Downstream), Overture Maps (specs/075), Positional tolerance, The verified style — do not retry the obvious first attempt, Why two sources, RenderedBuildingFootprintProvider (+16 more)
 
 ### Community 397 - ".Build"
 Cohesion: 0.20
 Nodes (7): TurnDecisionPrompt, CapabilityIndexEntry, IReadOnlyList, RecentTurnOutcomeSummary, TurnDecisionPromptTests, CapabilityIndexEntry, Fact
 
 ### Community 398 - ".Create"
-Cohesion: 0.12
-Nodes (15): MessageTests, Fact, Guid, InlineData, Theory, MessagePersistenceTests, Fact, PersistenceTestFixture (+7 more)
+Cohesion: 0.18
+Nodes (9): MessageTests, Fact, Guid, InlineData, Theory, MessagePersistenceTests, Fact, PersistenceTestFixture (+1 more)
 
-### Community 399 - "AiProviderFailureKind"
-Cohesion: 0.05
-Nodes (55): Complexity Tracking, Constitution Check, Documentation (this feature), Implementation Plan: Admin Operational Failure Audit Trail, Key flows, Project Structure, Source Code, Summary (+47 more)
+### Community 399 - "ProviderHealthCheck"
+Cohesion: 0.08
+Nodes (37): AskLucy.Application.Ai.Commands.CheckAiProviderHealth, ProviderHealthResult, IProviderHealthCheckRepository, CancellationToken, Guid, IReadOnlyList, Task, CheckAiProviderHealthCommand (+29 more)
 
 ### Community 400 - "OperationalFailureKind"
-Cohesion: 0.06
-Nodes (35): R22. System announcements and fan-out (FR-004a; edge case "large critical announcement"), OperationalFailureKind, AccessDenied, AccountLocked, CredentialRejected, CredentialUnreadable, DependencyUnreachable, JobFailedAfterRetries (+27 more)
+Cohesion: 0.09
+Nodes (24): OperationalFailureKind, AccessDenied, AccountLocked, CredentialRejected, CredentialUnreadable, DependencyUnreachable, JobFailedAfterRetries, NotConfigured (+16 more)
 
 ### Community 401 - "AiCapabilitySetting"
-Cohesion: 0.08
-Nodes (33): IAiCapabilitySettingRepository, CancellationToken, IReadOnlyList, Task, UpdateAiCapabilitySettingsCommand, UpdateAiCapabilitySettingsCommandHandler, UpdateAiCapabilitySettingsCommandValidator, CancellationToken (+25 more)
+Cohesion: 0.05
+Nodes (50): IAiCapabilitySettingRepository, CancellationToken, IReadOnlyList, Task, CapabilitySettingCatalog, Definitions, CapabilitySettingDefinition, CapabilitySettingValueType (+42 more)
 
-### Community 403 - "Tasks: Hand-Edit the Site Outline"
-Cohesion: 0.12
-Nodes (15): Dependencies and execution order, Format: `[ID] [P?] [Story] Description`, Implementation strategy, Incremental delivery, MVP scope: Phases 1, 2 and 3 (US1), Parallel opportunities, Path Conventions, Phase 1: Setup (+7 more)
+### Community 403 - "Phase 1 Data Model: Honest Turn Outcomes, Real Retry, and a Readable Offer Card"
+Cohesion: 0.06
+Nodes (28): Content Quality, Feature Readiness, Notes, Requirement Completeness, Specification Quality Checklist: Honest Turn Outcomes, Real Retry, and a Readable Offer Card, 1. Width, 2. Internal layout, 3. Accessibility (+20 more)
 
-### Community 404 - "DomainRuleViolationException"
-Cohesion: 0.01
-Nodes (297): Envelope, D6: Locking the Deprecated status in the Domain, Domain, Implementation, Persistence, Phase 2: Foundational (blocks every story), Phase 7: User Story 5 - A Deprecated model stays retired everywhere (P3), Tests (+289 more)
+### Community 404 - "IWorkflowRepository"
+Cohesion: 0.02
+Nodes (147): AskLucy.Application.Workflows.Commands.ValidateWorkflow, Envelope, IWorkflowRepository, WorkflowOwnershipGuard, ArchiveWorkflowCommand, Guid, WorkflowDetailDto, ArchiveWorkflowCommandHandler (+139 more)
 
 ### Community 405 - "SaveMyCookieConsentCommand"
-Cohesion: 0.14
+Cohesion: 0.12
 Nodes (18): SaveMyCookieConsentCommand, CookieConsentStatusDto, SaveMyCookieConsentCommandHandler, SaveMyCookieConsentCommandHandlerLog, CancellationToken, CookieConsentStatusDto, ILogger, LoggerMessage (+10 more)
 
 ### Community 406 - "AdminCustomModelsGuardrailTests"
-Cohesion: 0.11
-Nodes (21): AdminCustomModelsGuardrailTests, UnsafeDestinations, UnsafeSources, Fact, HttpClient, HttpResponseMessage, IBackgroundJobClient, MemberData (+13 more)
+Cohesion: 0.13
+Nodes (17): IModelRepositorySource, CancellationToken, IProgress, IReadOnlyList, Stream, Task, AdminCustomModelsGuardrailTests, UnsafeDestinations (+9 more)
 
 ### Community 407 - "AgentExecutionStep"
 Cohesion: 0.06
 Nodes (29): AgentExecutionStep, AgentExecutionId, CompletedAtUtc, DependsOnStepId, Description, ErrorId, InputJson, OutputJson (+21 more)
 
 ### Community 408 - ".CreateTestUser"
-Cohesion: 0.08
-Nodes (27): DbUpdateConcurrencyException, PersistenceTestFixture, SiteBoundaryCorrectionRepository, AskLucyDbContext, CancellationToken, Guid, IReadOnlyList, Task (+19 more)
-
-### Community 409 - "AgentExecutionStatus"
 Cohesion: 0.10
-Nodes (22): AgentExecutionStatus, Cancelled, Completed, Failed, Paused, Queued, Running, WaitingForApproval (+14 more)
+Nodes (23): DbUpdateConcurrencyException, PersistenceTestFixture, SiteBoundaryCorrectionRepository, AskLucyDbContext, CancellationToken, Guid, IReadOnlyList, Task (+15 more)
 
-### Community 410 - ".Handle_ShouldPropagateWeatherProviderUnavailableException_ForTheMiddlewareToMap"
-Cohesion: 0.22
-Nodes (10): CancellationToken, Task, GetCurrentWeatherQueryHandler, CancellationToken, Task, WeatherSnapshotDto, GetCurrentWeatherQueryHandlerTests, CancellationToken (+2 more)
+### Community 409 - "FileReadTool"
+Cohesion: 0.07
+Nodes (31): DocumentSearchTool, Description, InputSchemaJson, Name, OutputSchemaJson, RequiredPermissions, RiskLevel, IReadOnlyList (+23 more)
+
+### Community 410 - "GetCurrentWeatherQuery"
+Cohesion: 0.25
+Nodes (10): GetCurrentWeatherQuery, WeatherSnapshotDto, GetCurrentWeatherQueryHandler, CancellationToken, Task, WeatherSnapshotDto, GetCurrentWeatherQueryHandlerTests, CancellationToken (+2 more)
 
 ### Community 411 - "ProcessingNotifierTests"
 Cohesion: 0.29
@@ -3715,27 +3743,27 @@ Nodes (9): DocumentProcessingHub, IHubClients, ProcessingNotifier, ProcessingNot
 
 ### Community 412 - "Research: Notifications & Communication Hub"
 Cohesion: 0.04
-Nodes (57): CreatedAtUtc, R11. Links and content security (FR-047–FR-050), R13. Migrating legacy document and memory notifications (FR-009, FR-009a, SC-013), R14. Localization setting, user language and effective language (FR-044–FR-044c), R15. Server-side text on localized surfaces (FR-046a validation, confirmation and toast text; edge case "server-side error on an Arabic admin screen"), R16. Frontend i18n and right-to-left (FR-020, FR-045, FR-046, FR-046a, SC-011, SC-015), R17. Do-not-translate list (FR-046b, SC-016), R1. Real-time transport (FR-018) (+49 more)
+Nodes (56): CreatedAtUtc, R11. Links and content security (FR-047–FR-050), R13. Migrating legacy document and memory notifications (FR-009, FR-009a, SC-013), R14. Localization setting, user language and effective language (FR-044–FR-044c), R16. Frontend i18n and right-to-left (FR-020, FR-045, FR-046, FR-046a, SC-011, SC-015), R17. Do-not-translate list (FR-046b, SC-016), R1. Real-time transport (FR-018), R20. Retention (FR-059) (+48 more)
 
-### Community 413 - ".RunAsync_ShouldFailTheExecutionWithARecordedError_RatherThanCallTheTool_WhenThePlanReferencesATool_NotInTheActiveCatalog"
-Cohesion: 0.08
-Nodes (25): McpAuthorizationBypassSecurityTests, AgentInstructions, AIModelCapabilities, CancellationToken, Fact, Guid, IAgentAuditLogRepository, IAgentExecutionNotifier (+17 more)
+### Community 413 - "AgentExecutionOrchestrator"
+Cohesion: 0.04
+Nodes (42): AgentExecutionErrorCategory, AgentExecutionOrchestrator, AgentBudgetGuard, AgentDuplicateToolCallDetector, AgentPolicyEvaluator, AgentToolCatalog, Exception, IAgentAuditLogRepository (+34 more)
 
 ### Community 414 - "Theory"
-Cohesion: 0.06
-Nodes (25): ActiveSiteLocation, InlineData, KeyboardLayoutMisread, SuggestedActionOfferWire, SuggestedActionWire, SuggestedActionWirePayload, IEnumerable, IReadOnlyList (+17 more)
+Cohesion: 0.08
+Nodes (14): InlineData, LocationConfidence, BoundaryConfidenceLevel, BoundaryConfidenceLevel, TurnDecisionParserTests, IReadOnlySet, TurnIntent, SuggestedActionKind (+6 more)
 
 ### Community 415 - ".RunAsync"
 Cohesion: 0.11
 Nodes (20): IKnowledgeBaseIndexingJob, CancellationToken, Guid, Task, KnowledgeBaseIndexingJob, KnowledgeBaseIndexingJobLog, CancellationToken, Exception (+12 more)
 
-### Community 416 - ".Failure"
-Cohesion: 0.05
-Nodes (57): CancellationToken, JsonDocument, Task, CancellationToken, JsonDocument, Task, CancellationToken, JsonDocument (+49 more)
+### Community 416 - "WorkflowNodeType"
+Cohesion: 0.03
+Nodes (79): IWorkflowExpressionEvaluator, ConditionNodeExecutor, NodeType, DocumentProcessingNodeExecutor, NodeType, CancellationToken, JsonDocument, Task (+71 more)
 
-### Community 417 - "KnowledgeBaseDocumentUploadedIndexingHandlerTests"
-Cohesion: 0.08
-Nodes (35): IBackgroundJobClient, IState, Job, KnowledgeBaseDocumentProcessingStatus, KnowledgeBaseDocumentUploadedIndexingHandler, RequestAccountSupportCommand, CancellationToken, Task (+27 more)
+### Community 417 - "Phase 8: Post-release follow-up (manual walkthrough findings)"
+Cohesion: 0.10
+Nodes (22): AskLucy.Application.Authentication.Commands.ResendEmailConfirmation, AskLucy.Application.Authentication.Commands.RequestAccountSupport, IState, Job, Phase 8: Post-release follow-up (manual walkthrough findings), IAccountEmailJob, RequestAccountSupportCommand, RequestAccountSupportCommandHandler (+14 more)
 
 ### Community 419 - "WorkflowAuditLog"
 Cohesion: 0.07
@@ -3745,21 +3773,21 @@ Nodes (32): CancellationToken, Guid, IReadOnlyList, Task, WorkflowAuditAction, A
 Cohesion: 0.09
 Nodes (34): CancellationToken, JsonDocument, ConfirmedLocationData, ConfirmedSiteBoundaryData, AdditionalPolygons, CorePolygon, CorrectionId, Members (+26 more)
 
-### Community 421 - ".Route"
+### Community 421 - "RequirePermission"
 Cohesion: 0.16
-Nodes (13): ChannelDecision, NotificationRouter, PreferenceOverride, RecipientRoutingState, IReadOnlyCollection, IReadOnlyList, IReadOnlySet, NotificationRouterTests (+5 more)
+Nodes (21): AdminAiModelDto, AdminAiProviderDto, AiCapabilityAssignmentDto, ApplyProviderModelSyncResultDto, CheckAiProviderHealthResultDto, ProducesResponseType&lt;CheckAiProviderHealthResultDto&gt;, ProviderModelSyncDiffDto, RequirePermission (+13 more)
 
 ### Community 423 - "NotificationLinkBuilder"
 Cohesion: 0.22
 Nodes (10): INotificationLinkBuilder, RelatedItem, NotificationLinkBuilder, NotificationLinkLog, AppOptions, Guid, ILogger, IOptions (+2 more)
 
 ### Community 424 - "editablePolygonController.test.ts"
-Cohesion: 0.09
-Nodes (10): FakeHost, FakePath, FakeRing, P(), session(), setup(), square(), store() (+2 more)
+Cohesion: 0.05
+Nodes (20): ControllerOptions, clear(), listen(), listenPath(), refuse(), writePath(), EditablePath, EditableRing (+12 more)
 
 ### Community 425 - ".Handle"
-Cohesion: 0.10
-Nodes (28): McpPromptCatalogSummaryDto, McpResourceCatalogSummaryDto, ListAvailableMcpPromptsQuery, IReadOnlyList, ListAvailableMcpPromptsQueryHandler, CancellationToken, IReadOnlyList, McpPromptCatalogSummaryDto (+20 more)
+Cohesion: 0.08
+Nodes (33): McpPromptCatalogSummaryDto, McpResourceCatalogSummaryDto, McpToolCatalogSummaryDto, McpToolDetailDto, DateTime, IReadOnlyList, List, ListAvailableMcpPromptsQuery (+25 more)
 
 ### Community 426 - "AiControllerClaimGateTests"
 Cohesion: 0.15
@@ -3770,40 +3798,40 @@ Cohesion: 0.13
 Nodes (20): BulkDeleteUsersCommand, BulkDeleteUsersCommandHandler, CancellationToken, ILogger, ISender, Task, BulkDeleteUsersCommandValidator, LastSuperUserGuard (+12 more)
 
 ### Community 428 - "Tasks: Admin AI Model Catalog Management"
-Cohesion: 0.07
-Nodes (25): Automated coverage, Prerequisites, Quickstart: Admin AI Model Catalog Management, Scenario 1 — Review a provider's model catalog (User Story 1), Scenario 2 — Manually curate a model's status (User Story 2), Scenario 3 — Sync from the vendor (User Story 3), Scenario 4 — Access control, Feature Specification: Admin AI Model Catalog Management (+17 more)
+Cohesion: 0.04
+Nodes (59): Automated coverage, Prerequisites, Quickstart: Admin AI Model Catalog Management, Scenario 1 — Review a provider's model catalog (User Story 1), Scenario 2 — Manually curate a model's status (User Story 2), Scenario 3 — Sync from the vendor (User Story 3), Scenario 4 — Access control, Feature Specification: Admin AI Model Catalog Management (+51 more)
 
-### Community 429 - "WorkflowConnectionSpec"
-Cohesion: 0.13
-Nodes (21): WorkflowConnectionSpec, WorkflowExecutionOrchestratorTests, AgentToolCatalog, CancellationToken, Execution, Fact, Guid, IUnitOfWork (+13 more)
+### Community 429 - ".GetVersionByIdAsync"
+Cohesion: 0.14
+Nodes (20): WorkflowExecutionOrchestratorTests, AgentToolCatalog, CancellationToken, Execution, Fact, Guid, IUnitOfWork, IWorkflowExecutionRepository (+12 more)
 
-### Community 430 - ".CreateBranchingOrchestrator"
-Cohesion: 0.17
-Nodes (16): ConditionNodeExecutor, ConditionNodeExecutorTests, CancellationToken, Execution, Fact, IUnitOfWork, IWorkflowExecutionRepository, IWorkflowPolicyRepository (+8 more)
+### Community 430 - ".ExecuteAsync"
+Cohesion: 0.14
+Nodes (19): ConditionNodeExecutor, CancellationToken, JsonDocument, Task, ConditionNodeExecutorTests, CancellationToken, Execution, Fact (+11 more)
 
-### Community 431 - "WorkflowNodeType"
-Cohesion: 0.07
-Nodes (54): AgentToolCatalog, All, IEnumerable, IReadOnlyCollection, IReadOnlyDictionary, IWorkflowExpressionEvaluator, ConditionNodeExecutor, NodeType (+46 more)
+### Community 431 - "LocationResolutionService"
+Cohesion: 0.11
+Nodes (22): AiCapabilityProviderResolver, ILocationResolutionService, LocationIntentPayload, LocationResolutionOptions, LocationResolutionOutcome, LocationConfirmationTemplates, LocationIntentPayload, LocationResolutionService (+14 more)
 
-### Community 432 - "DocumentProcessingJob"
-Cohesion: 0.02
-Nodes (128): DocumentDashboardCounts, DocumentRetryQueueEntry, IDocumentProcessingJobRepository, CancellationToken, DateTime, Guid, IReadOnlyList, Task (+120 more)
+### Community 432 - "IDocumentProcessingJobRepository"
+Cohesion: 0.10
+Nodes (30): DocumentDashboardCounts, DocumentRetryQueueEntry, IDocumentProcessingJobRepository, CancellationToken, DateTime, Guid, IReadOnlyList, Task (+22 more)
 
 ### Community 433 - "IAIProviderRepository"
 Cohesion: 0.01
-Nodes (253): AutomaticRetryAttribute, ConflictVerdict, IStreamRequestHandler, IValidatableObject, IValidator, RankedMemory, SecondaryLanguageResponse, Constitution Check (+245 more)
+Nodes (287): AutomaticRetryAttribute, ConflictVerdict, ExtractedCandidate, IStreamRequestHandler, IValidatableObject, IValidator, MemoryEntity, RankedMemory (+279 more)
 
 ### Community 434 - "Implementation Plan: Model Deprecation Workflow"
-Cohesion: 0.11
-Nodes (16): Contract: Module Integration & Internal Abstractions, Content Quality, Feature Readiness, Notes, Requirement Completeness, Specification Quality Checklist: Model Deprecation Workflow, Complexity Tracking, Constitution Check (+8 more)
+Cohesion: 0.20
+Nodes (10): Complexity Tracking, Constitution Check, Delivery order, Documentation (this feature), Implementation Plan: Model Deprecation Workflow, Project Structure, Source code, Spec changes made during planning (+2 more)
 
 ### Community 435 - "AgentToolCall"
 Cohesion: 0.10
 Nodes (19): AgentDuplicateToolCallDetector, IEnumerable, AgentToolCall, AgentExecutionStepId, CompletedAtUtc, FailureReason, RequiredPermissionsJson, RiskLevel (+11 more)
 
 ### Community 436 - "IRoleAssignmentRepository"
-Cohesion: 0.05
-Nodes (58): BulkAssignRoleCommand, GetRoleAssignmentsEligibleIdsQuery, D14 — *View user content*: the one permission a built-in role does not get automatically, Implementation for User Story 1b, Phase 6: User Story 1b — A Super User controls who may read user content (Priority: P2), Tests for User Story 1b (write first, confirm failing), IAuthorizationCacheInvalidator, BulkAssignResult (+50 more)
+Cohesion: 0.06
+Nodes (44): BulkAssignRoleCommand, GetRoleAssignmentsEligibleIdsQuery, Implementation for User Story 1b, Phase 6: User Story 1b — A Super User controls who may read user content (Priority: P2), Tests for User Story 1b (write first, confirm failing), BulkAssignResult, BulkAssignSkipReason, AlreadyAssigned (+36 more)
 
 ### Community 437 - "WorkflowExecutionHistorySecurityTests"
 Cohesion: 0.33
@@ -3811,11 +3839,11 @@ Nodes (5): WorkflowExecutionHistorySecurityTests, CustomWebApplicationFactory, F
 
 ### Community 438 - "ICurrentUserAccessor"
 Cohesion: 0.01
-Nodes (321): IRequestHandler, Constitution Check, `INotificationPublisher`: the only entry point for modules, R27. Knowledge-base indexing trigger and emit points, Complexity Tracking, Call sites, Tests for User Story 4 (write first, confirm failing), ICurrentUserAccessor (+313 more)
+Nodes (346): AskLucy.Application.Chats.Commands.PinUserChat, AskLucy.Application.Memory.Queries.GetMemoryReferences, IRequestHandler, ICurrentUserAccessor, UserId, IDocumentFolderRepository, IDocumentRepository, IKnowledgeBaseAuditLogRepository (+338 more)
 
 ### Community 439 - "SaveSiteBoundaryEditCommandHandler"
-Cohesion: 0.08
-Nodes (27): FoundSiteBoundarySnapshot, SaveSiteBoundaryEditCommand, Voids, SaveSiteBoundaryEditResult, GeoPoint, Guid, IReadOnlyList, MessageDto (+19 more)
+Cohesion: 0.07
+Nodes (28): ChatActiveBoundaryDto, FoundSiteBoundarySnapshot, SaveSiteBoundaryEditCommand, Voids, SaveSiteBoundaryEditResult, GeoPoint, Guid, IReadOnlyList (+20 more)
 
 ### Community 440 - "AskLucy.Web.csproj"
 Cohesion: 0.18
@@ -3825,21 +3853,21 @@ Nodes (10): Hangfire.AspNetCore (1.8.24), Microsoft.AspNetCore.Authentication.Fa
 Cohesion: 0.14
 Nodes (13): Microsoft.Extensions.DependencyInjection (10.0.10), net10.0, coverlet.collector (10.0.1), FluentAssertions (8.10.0), Hangfire.Core (1.8.24), Microsoft.Extensions.Caching.Memory (10.0.10), Microsoft.Extensions.Diagnostics.Testing (10.8.0), Microsoft.Extensions.TimeProvider.Testing (10.8.0) (+5 more)
 
-### Community 442 - "AppendMessageCommand"
-Cohesion: 0.17
-Nodes (17): AppendMessageAttachmentInput, AppendMessageCitationInput, AppendMessageCommand, Guid, IReadOnlyList, MessageDto, AppendMessageCommandHandlerTests, CancellationToken (+9 more)
-
-### Community 443 - "StallingStream"
+### Community 442 - ".GetByIdAsync"
 Cohesion: 0.09
-Nodes (17): HttpMessageHandler, SeekOrigin, RecordingHttpMessageHandler, Requests, StallingStream, CanRead, CanSeek, CanWrite (+9 more)
+Nodes (34): AppendMessageAttachmentInput, RenameUserChatCommand, Guid, UserChatDto, RenameUserChatCommandHandler, CancellationToken, Task, UserChatDto (+26 more)
+
+### Community 443 - "ImmediateTimeProvider"
+Cohesion: 0.12
+Nodes (17): HttpMessageHandler, ITimer, ImmediateTimeProvider, RequestedDelays, ImmediateTimer, RecordingHttpMessageHandler, Requests, CancellationToken (+9 more)
 
 ### Community 444 - ".ParseDirectory"
 Cohesion: 0.11
 Nodes (13): PmTiles, PmTilesCompression, Gzip, None, Unknown, PmTilesEntry, PmTilesHeader, IReadOnlyList (+5 more)
 
-### Community 445 - "ConversationRuntimeOptions"
-Cohesion: 0.08
-Nodes (25): EmbeddingResult, CancellationToken, IReadOnlyList, Task, CapabilityIndexRetriever, CapabilityIndexRetrieverLog, CancellationToken, Exception (+17 more)
+### Community 445 - ".NarrowAsync"
+Cohesion: 0.14
+Nodes (12): CancellationToken, IReadOnlyList, Task, CapabilityIndexRetriever, CapabilityIndexRetrieverLog, CancellationToken, Exception, ILogger (+4 more)
 
 ### Community 446 - "EditSiteBoundaryCapabilityTests"
 Cohesion: 0.17
@@ -3849,61 +3877,61 @@ Nodes (14): EditSiteBoundaryCapabilityTests, AgentToolExecutionContext, AgentToo
 Cohesion: 0.19
 Nodes (12): DateOnly, ModelConfigurationBuilder, DateOnlyConverter, NullableDateOnlyConverter, DateTime, AvatarUploadResponse, ChangeUserRoleRequest, DeleteAccountRequest (+4 more)
 
-### Community 448 - ".ExecuteAsync"
-Cohesion: 0.29
-Nodes (6): ProcessingStageOutcome, Completed, Skipped, CancellationToken, Guid, Task
+### Community 448 - ".SetUpJob"
+Cohesion: 0.12
+Nodes (18): IProcessingStageHandler, StageType, ProcessingStageOutcome, Completed, Skipped, CancellationToken, Guid, Task (+10 more)
 
 ### Community 449 - "UploadDocumentCommandHandlerTests"
-Cohesion: 0.07
-Nodes (41): DocumentValidationResult, IDocumentContentValidator, KnowledgeBaseDocumentType, Csv, Excel, Markdown, Pdf, PowerPoint (+33 more)
+Cohesion: 0.18
+Nodes (16): CancellationToken, Stream, Task, CancellationToken, Stream, Task, UploadDocumentCommand, Guid (+8 more)
 
 ### Community 450 - ".RunAsync_ShouldFailCleanlyWithARecordedError_WhenSavingAConflictingWriteThrows"
 Cohesion: 0.07
 Nodes (27): AgentResourceConflictTests, AgentInstructions, AIModelCapabilities, CancellationToken, ChatMessage, Fact, GenerationParametersDto, Guid (+19 more)
 
-### Community 451 - ".MapProviderFailure"
-Cohesion: 0.19
-Nodes (11): AiProviderException, Detail, OperationalFailureKind, StatusCode, UserFacingFailureTextTests, Fact, InlineData, OperationalFailureKind (+3 more)
+### Community 451 - ".For"
+Cohesion: 0.29
+Nodes (6): OperationalFailureKind, UserFacingFailureTextTests, Fact, InlineData, OperationalFailureKind, Theory
 
-### Community 452 - "UserContentAccessEvent"
-Cohesion: 0.05
-Nodes (37): AskLucy.Domain.OperationalFailures, 1. One store behind one seam, 2. A bounded channel and a background writer, 3. The built-in Administrator no longer implies the whole catalogue, Decision, Enums (Domain, `AskLucy.Domain/OperationalFailures/`), `UserContentAccessEvents` (immutable audit; never purged), D15 — Investigation views are dedicated read-only queries, not the user endpoints (+29 more)
+### Community 452 - "AskLucy.Domain.OperationalFailures"
+Cohesion: 0.09
+Nodes (16): AskLucy.Domain.OperationalFailures, Enums (Domain, `AskLucy.Domain/OperationalFailures/`), IncidentParticipant, FirstSeenUtc, IncidentId, ParticipantKey, ParticipantType, DateTime (+8 more)
 
-### Community 453 - "Tasks: Restore Local Whisper as the Primary Dictation Engine"
-Cohesion: 0.05
-Nodes (46): DictationFailurePolicy, DictationTranscriptionResult, DictationTurnEngine, ResolvedClipEngine, Dependencies & Execution Order, Format: `[ID] [P?] [Story] Description`, Implementation for User Story 2, Implementation Strategy (+38 more)
+### Community 453 - "TranscribeDictationClipCommandHandler"
+Cohesion: 0.08
+Nodes (27): DictationFailurePolicy, DictationTranscriptionResult, ResolvedClipEngine, ResolvedClipEngine, TranscribeDictationClipCommandHandler, CancellationToken, DictationClipEngine, Guid (+19 more)
 
 ### Community 454 - "HttpClient"
 Cohesion: 0.14
 Nodes (15): AccessToken, AuthResponse, Client, ForgotPasswordWebApplicationFactory, HttpClient, HttpStatusCode, IAsyncLifetime, ICollectionFixture (+7 more)
 
 ### Community 455 - ".CreateProvider"
-Cohesion: 0.25
-Nodes (9): GeocodingOptions, SearchBaseUrl, NominatimGeocodingProviderTests, Fact, Func, HttpRequestMessage, HttpResponseMessage, IHttpClientFactory (+1 more)
+Cohesion: 0.11
+Nodes (21): NominatimResult, GeocodingOptions, SearchBaseUrl, NominatimGeocodingProvider, NominatimGeocodingProviderLog, NominatimResult, CancellationToken, Exception (+13 more)
 
-### Community 456 - "UploadAvatarCommandHandler"
-Cohesion: 0.08
-Nodes (32): ADR 0014: Host-Restricting and Content-Validating Provider-Sourced Profile Pictures, Alternatives Considered, Consequences, Context, Decision, Related, `IExternalProfilePictureSyncJob` (new, `Application.Abstractions`), Complexity Tracking (+24 more)
+### Community 456 - "DocumentTag"
+Cohesion: 0.12
+Nodes (17): AddTagCommand, Guid, IReadOnlyList, CancellationToken, IReadOnlyList, Task, CancellationToken, Task (+9 more)
 
 ### Community 457 - ".GetOrCreateAsync"
-Cohesion: 0.13
-Nodes (29): DictationAudioInvalidException, DictationClip, IDictationClipTranscriber, LocalWhisperModelResolution, CancellationToken, Task, DictationTranscriptionResult, Transcribed (+21 more)
+Cohesion: 0.07
+Nodes (51): CreateSpeechToTextSessionCommandHandler, AskLucy.Application.Ai.Dictation.Commands.TranscribeDictationClip, DictationAudioInvalidException, DictationCaptureMode, DictationClip, IDictationClipTranscriber, LocalWhisperModelResolution, CancellationToken (+43 more)
 
 ### Community 458 - "AskLucy.Web.Tests.csproj"
 Cohesion: 0.17
 Nodes (11): Microsoft.AspNetCore.Mvc.Testing (10.0.10), net10.0, coverlet.collector (10.0.1), FluentAssertions (8.10.0), Microsoft.Extensions.Diagnostics.Testing (10.8.0), Microsoft.NET.Test.Sdk (18.8.1), NSubstitute (6.0.0), System.IdentityModel.Tokens.Jwt (8.21.0) (+3 more)
 
 ### Community 459 - ".EnsureCanReplaceRoleAsync"
-Cohesion: 0.28
-Nodes (8): SuperUserControlledPermissionGuard, CancellationToken, ICurrentUserAccessor, IEnumerable, IReadOnlyCollection, Task, SuperUserRequiredException, UnauthorizedAccessException
+Cohesion: 0.31
+Nodes (7): SuperUserControlledPermissionGuard, CancellationToken, ICurrentUserAccessor, IEnumerable, IReadOnlyCollection, Task, SuperUserRequiredException
 
-### Community 460 - "CustomWebApplicationFactory"
-Cohesion: 0.11
-Nodes (20): ConcurrentQueue, CustomWebApplicationFactory, IEmailSender, IWebHostBuilder, CapturingEmailSender, CapturingEmailWebApplicationFactory, SentEmails, CancellationToken (+12 more)
+### Community 460 - "DictationApiFactory"
+Cohesion: 0.06
+Nodes (37): ConcurrentQueue, CustomWebApplicationFactory, IEmailSender, ILocalWhisperModelCatalog, ILocalWhisperModelTrial, IWebHostBuilder, DictationApiFactory, AiProviders (+29 more)
 
 ### Community 461 - "SystemAnnouncement"
-Cohesion: 0.09
-Nodes (23): SystemAnnouncement (aggregate root), AnnouncementAudience, AllActiveUsers, Roles, AnnouncementKind, ImportantAnnouncement, Maintenance, ServiceDegradation (+15 more)
+Cohesion: 0.08
+Nodes (24): SystemAnnouncement (aggregate root), R22. System announcements and fan-out (FR-004a; edge case "large critical announcement"), AnnouncementAudience, AllActiveUsers, Roles, AnnouncementKind, ImportantAnnouncement, Maintenance (+16 more)
 
 ### Community 462 - ".GetByIdAsync"
 Cohesion: 0.19
@@ -3926,16 +3954,16 @@ Cohesion: 0.16
 Nodes (11): CancellationToken, Exception, OperationalFailureKind, FailureClassifierTests, ProviderExceptions, Exception, Fact, MemberData (+3 more)
 
 ### Community 467 - "VoiceProviderModelStatusTests"
-Cohesion: 0.07
-Nodes (39): GetAdminVoiceProvidersQuery, SetPrimaryVoiceProviderCommand, SetPrimaryVoiceProviderCommandHandler, AdminVoiceProviderDto, CancellationToken, IAIProviderRepository, ICurrentUserAccessor, IEnumerable (+31 more)
+Cohesion: 0.14
+Nodes (18): CancellationToken, Task, VoiceProviderModelStatusTests, Engines, Hosted, CancellationToken, Fact, IAIProviderRepository (+10 more)
 
 ### Community 468 - ".CreateProvider"
-Cohesion: 0.12
-Nodes (20): AiProviderRateLimitedException, ElevenLabsSpeechToTextSessionProvider, ElevenLabsOptions, ApiKey, BaseUrl, ModelId, OutputFormat, SimilarityBoost (+12 more)
+Cohesion: 0.10
+Nodes (23): AiProviderNotConfiguredException, AiProviderRateLimitedException, ElevenLabsSpeechToTextSessionProvider, IAIProviderRepository, ElevenLabsOptions, ApiKey, BaseUrl, ModelId (+15 more)
 
 ### Community 469 - "Fact"
-Cohesion: 0.09
-Nodes (14): BoundaryProviderUnavailableException, DefaultHttpContext, Fact, RateLimitPartitions, TurnDecisionParserTests, IReadOnlySet, TurnIntent, OverpassBoundaryCandidateProviderTests (+6 more)
+Cohesion: 0.28
+Nodes (6): BoundaryProviderUnavailableException, Fact, OverpassBoundaryCandidateProviderTests, GeoPoint, IHttpClientFactory, Task
 
 ### Community 470 - "Quickstart: Validating External Login Profile Sync"
 Cohesion: 0.22
@@ -3947,43 +3975,43 @@ Nodes (14): SiteBoundaryCorrectionMatcher, FoundSiteBoundarySnapshot, BoundaryCo
 
 ### Community 472 - "Tasks: Honest Turn Outcomes, Real Retry, and a Readable Offer Card"
 Cohesion: 0.10
-Nodes (21): Client affordance, Dependencies, Format: `[ID] [P?] [Story] Description`, Implementation, Implementation Strategy, Internal layout, Parallel Execution Examples, Path Conventions (+13 more)
+Nodes (20): Client affordance, Dependencies, Format: `[ID] [P?] [Story] Description`, Implementation, Implementation Strategy, Internal layout, Parallel Execution Examples, Path Conventions (+12 more)
 
 ### Community 473 - "AdminOperationalFailuresEndpointsTests"
 Cohesion: 0.22
 Nodes (10): AdminOperationalFailuresEndpointsTests, Seed, ApplicationUser, AskLucyDbContext, CustomWebApplicationFactory, HttpClient, HttpResponseMessage, JsonDocument (+2 more)
 
-### Community 474 - "VoiceFailureReporterTests"
-Cohesion: 0.17
-Nodes (11): ConcurrentDictionary, Operation, VoiceFailoverMemory, VoiceRecoveryReport, VoiceFailureReporterTests, Fact, ICurrentUserAccessor, IOperationalFailureRecorder (+3 more)
+### Community 474 - "TesseractOcrEngine"
+Cohesion: 0.07
+Nodes (23): Bgra32, IOcrEngine, TesseractOcrEngine, CancellationToken, Dictionary, Exception, ILogger, IOptions (+15 more)
 
-### Community 475 - "WorkflowsController"
-Cohesion: 0.26
-Nodes (13): WorkflowDetailDto, WorkflowsController, ActionResult, CancellationToken, Guid, HttpDelete, HttpGet, HttpPost (+5 more)
+### Community 475 - "ConversationRuntimeOptions"
+Cohesion: 0.14
+Nodes (17): ConversationRuntimeOptions, AnnounceThresholdSeconds, BriefCapabilityTimeoutSeconds, ExtendedCapabilityTimeoutSeconds, IndexRetrievalThreshold, IndexRetrievalTopN, KeepAliveIntervalSeconds, MaxCapabilityInvocationsPerTurn (+9 more)
 
 ### Community 476 - "DocumentProcessingController"
-Cohesion: 0.14
-Nodes (21): DocumentProcessingLogDto, DateTime, Guid, GetProcessingHistoryQuery, Guid, IReadOnlyList, GetProcessingHistoryQueryHandler, CancellationToken (+13 more)
+Cohesion: 0.27
+Nodes (11): GetDocumentDashboardSummaryQuery, DocumentProcessingController, ActionResult, CancellationToken, Guid, HttpGet, HttpPost, IActionResult (+3 more)
 
 ### Community 477 - "ActionResult"
-Cohesion: 0.08
-Nodes (38): ActionResult, AssignProjectRequest, ChatDetailDto, CreateSpeechToTextSessionRequest, GenerateImageRequest, GenerateImageResponse, HttpGet, MemoryReferenceDto (+30 more)
+Cohesion: 0.10
+Nodes (34): ActionResult, AssignProjectRequest, ChatDetailDto, CreateSpeechToTextSessionRequest, MemoryReferenceDto, ProducesResponseType&lt;CombineSiteBoundaryShapeResult&gt;, ProducesResponseType&lt;ProblemDetails&gt;, ProducesResponseType&lt;ResetSiteBoundaryResult&gt; (+26 more)
 
 ### Community 478 - "GeoGrid"
 Cohesion: 0.12
 Nodes (16): GeoGrid, CellMetres, East, Height, North, South, West, Width (+8 more)
 
-### Community 480 - "Exception"
-Cohesion: 0.08
-Nodes (37): Exception, AiProviderAuthenticationException, AiProviderCredentialUnreadableException, AiProviderNotConfiguredException, AiProviderQuotaExhaustedException, AiProviderRateLimitedException, AiProviderResponseInvalidException, AiProviderUsageRestrictedException (+29 more)
+### Community 480 - "ChatMessage"
+Cohesion: 0.10
+Nodes (25): ChatMessage, ChatRole, Assistant, System, User, GoogleGeminiProviderTests, Base64, CancellationToken (+17 more)
 
 ### Community 481 - "JwtOptions"
 Cohesion: 0.29
 Nodes (6): JwtOptions, AccessTokenLifetimeMinutes, Audience, Issuer, RefreshTokenLifetimeDays, SigningKey
 
-### Community 482 - "RoleRecord"
-Cohesion: 0.08
-Nodes (42): DeleteRoleCommand, DeleteRoleCommandHandler, IRoleRepository, RoleRecord, IsDefault, CancellationToken, DateTime, IReadOnlyCollection (+34 more)
+### Community 482 - ".Handle"
+Cohesion: 0.15
+Nodes (17): DeleteRoleCommand, DeleteRoleCommandHandler, DeleteRoleCommand, DeleteRoleResult, DeleteRoleCommandHandler, CancellationToken, IAuthorizationCacheInvalidator, ICurrentUserAccessor (+9 more)
 
 ### Community 483 - "AskLucy.Persistence.csproj"
 Cohesion: 0.20
@@ -3993,17 +4021,17 @@ Nodes (8): Microsoft.AspNetCore.Identity.EntityFrameworkCore (10.0.10), Microsof
 Cohesion: 0.17
 Nodes (11): Microsoft.Extensions.Options (10.0.10), net10.0, coverlet.collector (10.0.1), FluentAssertions (8.10.0), Microsoft.Extensions.Diagnostics.Testing (10.8.0), Microsoft.Extensions.TimeProvider.Testing (10.8.0), Microsoft.NET.Test.Sdk (18.8.1), NSubstitute (6.0.0) (+3 more)
 
-### Community 485 - "RelatedSiteBuildingsTests"
-Cohesion: 0.18
-Nodes (9): Element, Point, RasterSiteFootprintUnion, IReadOnlyList, X, Y, RelatedSiteBuildingsTests, Fact (+1 more)
+### Community 485 - "KnowledgeBaseDashboardSummaryCache"
+Cohesion: 0.16
+Nodes (18): KnowledgeBaseDashboardSummaryCache, IMemoryCache, TimeSpan, KnowledgeBaseDashboardSummaryDto, GetKnowledgeBaseDashboardSummaryQuery, KnowledgeBaseDashboardSummaryDto, GetKnowledgeBaseDashboardSummaryQueryHandler, CancellationToken (+10 more)
 
 ### Community 486 - "IChunkingStrategy"
-Cohesion: 0.12
-Nodes (23): IChunkingService, IChunkingStrategy, Strategy, ChunkingStrategy, ChunkingService, IEnumerable, FixedSizeChunkingStrategy, Strategy (+15 more)
+Cohesion: 0.15
+Nodes (19): IChunkingService, IChunkingStrategy, Strategy, ChunkingStrategy, ChunkingService, IEnumerable, FixedSizeChunkingStrategy, Strategy (+11 more)
 
 ### Community 487 - "VoiceProviderFailoverEvent"
-Cohesion: 0.10
-Nodes (21): VoiceProviderFailoverDirection, FailedOverToFallback, RecoveredToPrimary, VoiceProviderFailoverEvent, Direction, OccurredAtUtc, Reason, UserId (+13 more)
+Cohesion: 0.07
+Nodes (38): IVoiceProviderFailoverEventRepository, CancellationToken, DateTime, IReadOnlyList, Task, GetVoiceProviderHealthQuery, DateTime, VoiceProviderHealthDto (+30 more)
 
 ### Community 488 - "WorkflowRetryPolicyTests"
 Cohesion: 0.10
@@ -4018,40 +4046,40 @@ Cohesion: 0.16
 Nodes (12): RecordActiveSiteBoundaryCommand, RecordActiveSiteBoundaryCommandHandler, RecordActiveSiteBoundaryLog, CancellationToken, Guid, ICurrentUserAccessor, ILogger, ISiteBoundaryCorrectionRepository (+4 more)
 
 ### Community 491 - "Tasks: Solar Analysis Accuracy & Performance"
-Cohesion: 0.03
-Nodes (71): Day figures, Instant figures, Observation carried into implementation, Pre-Implementation Baseline, Site, The defect, captured, Content Quality, Feature Readiness (+63 more)
+Cohesion: 0.02
+Nodes (99): Day figures, Instant figures, Observation carried into implementation, Pre-Implementation Baseline, Site, The defect, captured, Content Quality, Feature Readiness (+91 more)
 
 ### Community 492 - ".GetPublishedVersionAsync"
-Cohesion: 0.10
-Nodes (26): NotificationRenderException, INotificationTemplateRepository, NotificationTemplateKey, CancellationToken, IReadOnlySet, NotificationChannel, NotificationTemplate, NotificationTemplateVersion (+18 more)
+Cohesion: 0.17
+Nodes (17): NotificationRenderException, INotificationTemplateRepository, NotificationTemplateKey, CancellationToken, IReadOnlySet, NotificationChannel, NotificationTemplateVersion, Task (+9 more)
 
-### Community 493 - "selectPersonaVoice.ts"
-Cohesion: 0.11
-Nodes (17): Contract: Voice Persona Mapping, `detectBrowserEngine(): BrowserEngine | 'unknown'`, Function contracts, Notes, `selectPersonaVoice(lang: LanguageCode, voices: SpeechSynthesisVoice[]): SelectedVoiceResult`, Types, `useTextToSpeech.speak(text, lang)` (modified contract), detectBrowserEngine() (+9 more)
+### Community 493 - "Contract: Voice Persona Mapping"
+Cohesion: 0.29
+Nodes (6): Contract: Voice Persona Mapping, `detectBrowserEngine(): BrowserEngine | 'unknown'`, Function contracts, Notes, `selectPersonaVoice(lang: LanguageCode, voices: SpeechSynthesisVoice[]): SelectedVoiceResult`, Types
 
-### Community 494 - "IAgentTool"
-Cohesion: 0.02
-Nodes (140): ConversationTool, Description, InputSchemaJson, Name, OutputSchemaJson, RequiredPermissions, RiskLevel, IReadOnlyList (+132 more)
+### Community 494 - "AgentToolPermission"
+Cohesion: 0.04
+Nodes (57): ConversationTool, Description, InputSchemaJson, Name, OutputSchemaJson, RequiredPermissions, RiskLevel, IReadOnlyList (+49 more)
 
-### Community 495 - "Tasks: Password Recovery & Password Management"
+### Community 495 - "PromptVariable"
 Cohesion: 0.08
-Nodes (25): Dependencies & Execution Order, Format: `[ID] [P?] [Story] Description`, Implementation for User Story 3, Implementation Strategy, Incremental Delivery, MVP First, Notes, Parallel Example: User Story 2 (+17 more)
+Nodes (24): PromptVariable, DefaultValue, Description, ExampleValue, IsRequired, Name, OrderIndex, PromptVersionId (+16 more)
 
 ### Community 496 - "PromptExportFile"
-Cohesion: 0.20
+Cohesion: 0.23
 Nodes (11): PromptExportEntry, PromptExportFile, IReadOnlyList, PromptImportEntryError, PromptImportValidationResult, PromptImportValidator, IEnumerable, IReadOnlyList (+3 more)
 
 ### Community 497 - "WorkflowError"
 Cohesion: 0.12
 Nodes (17): WorkflowError, Category, Message, OccurredAtUtc, RetryCount, WorkflowExecutionId, WorkflowExecutionNodeId, WorkflowErrorCategory (+9 more)
 
-### Community 498 - ".ExecuteAsync"
+### Community 498 - "McpConnectionResiliencePolicy"
 Cohesion: 0.11
-Nodes (23): McpCircuitOpenException, McpServerId, McpConnectionResiliencePolicyLog, CancellationToken, Func, Guid, ILogger, LoggerMessage (+15 more)
+Nodes (26): McpCircuitOpenException, McpServerId, McpConnectionResiliencePolicy, McpConnectionResiliencePolicyLog, CancellationToken, ConcurrentDictionary, Func, Guid (+18 more)
 
-### Community 500 - ".Handle_ShouldMergeResultsFromBothVectorStores_WhenKnowledgeBasesSpanBothProviders"
+### Community 500 - "IFileStorage"
 Cohesion: 0.03
-Nodes (83): BoostFactors, ChunkId, KnowledgeBases, KeywordScore, RelevanceScore, SemanticScore, CancellationToken, DateTime (+75 more)
+Nodes (91): BoostFactors, ChunkId, AskLucy.Application.KnowledgeBases.Queries.ListTags, KnowledgeBases, KeywordScore, RelevanceScore, SemanticScore, IDocumentChunkRepository (+83 more)
 
 ### Community 501 - "Tasks: Custom Model Deployment (Admin)"
 Cohesion: 0.04
@@ -4070,36 +4098,36 @@ Cohesion: 0.25
 Nodes (8): ProtoWriter, TestBuilding, VectorTileWriter, IEnumerable, IReadOnlyList, List, X, Y
 
 ### Community 505 - ".Handle"
-Cohesion: 0.14
-Nodes (19): AskLucy.Application.Ai.Dictation.Queries.GetDictationSettings, DictationEngineChoiceDto, DictationRevertDto, DictationSettingsDto, DictationSuspensionDto, GetDictationSettingsQueryHandler, LocalWhisperEffectiveModelDto, LocalWhisperSettingsDto (+11 more)
+Cohesion: 0.18
+Nodes (16): AskLucy.Application.Ai.Dictation.Queries.GetDictationSettings, DictationEngineChoiceDto, DictationRevertDto, DictationSettingsDto, DictationSuspensionDto, GetDictationSettingsQueryHandler, LocalWhisperEffectiveModelDto, LocalWhisperSettingsDto (+8 more)
 
 ### Community 506 - "EditSiteBoundaryCapability"
-Cohesion: 0.08
-Nodes (25): EditSiteBoundaryCapability, AcknowledgementTemplate, Area, ArgumentHint, Description, ExpectedDuration, InputSchemaJson, Label (+17 more)
+Cohesion: 0.06
+Nodes (30): EditSiteBoundaryCapability, AcknowledgementTemplate, Area, ArgumentHint, Description, ExpectedDuration, InputSchemaJson, Label (+22 more)
 
 ### Community 507 - "RequestSiteAnalysisCapability"
-Cohesion: 0.05
-Nodes (43): BoundaryGeoJson, Latitude, Longitude, SiteLocation, SiteName, RequestSiteAnalysisCapability, AcknowledgementTemplate, Area (+35 more)
+Cohesion: 0.06
+Nodes (39): BoundaryGeoJson, Latitude, Longitude, SiteLocation, SiteName, RequestSiteAnalysisCapability, AcknowledgementTemplate, Area (+31 more)
 
 ### Community 508 - ".RunAsync_ShouldNeverExecuteAMutatingTool_AndShouldRecordTheStepSkipped_ForATestExecution"
 Cohesion: 0.07
 Nodes (28): TestExecutionSkipsMutatingToolsTests, AgentInstructions, AgentToolCall, AgentToolExecutionContext, AIModelCapabilities, CancellationToken, Fact, Guid (+20 more)
 
-### Community 509 - ".TryExtract"
-Cohesion: 0.06
-Nodes (31): AskLucy.Application.Viewer, D7 — Starting edit mode from Lucy: capability → stream command, AgentToolExecutionContext, CancellationToken, Task, ChatStreamChunk, CancellationToken, Guid (+23 more)
+### Community 509 - ".ResolveQueryAsync"
+Cohesion: 0.10
+Nodes (21): CancellationToken, Guid, Task, LocationResolutionOutcome, LocationResolutionOutcomeType, Ambiguous, Confirmed, NoIntent (+13 more)
 
 ### Community 512 - "SynthesizeSpeechCommandHandler"
-Cohesion: 0.12
-Nodes (17): IStreamRequest, StreamVoiceReplyCommand, ChatMessageDto, GenerationParametersDto, Guid, IReadOnlyList, VoiceReplyEvent, SynthesizeSpeechCommand (+9 more)
+Cohesion: 0.20
+Nodes (10): SynthesizeSpeechCommand, VoiceReplyEvent, SynthesizeSpeechCommandHandler, CancellationToken, GeneratedRegex, IAsyncEnumerable, IEnumerable, Regex (+2 more)
 
-### Community 513 - ".GetModelsForProvider"
-Cohesion: 0.19
-Nodes (15): GetAiModelsQuery, Guid, IReadOnlyList, ModelSummaryDto, GetEnabledAiProvidersQuery, IReadOnlyList, ProviderSummaryDto, AiProvidersController (+7 more)
+### Community 513 - "ModelSummaryDto"
+Cohesion: 0.11
+Nodes (24): ModelSummaryDto, DateOnly, Guid, GetAiModelsQuery, Guid, IReadOnlyList, ModelSummaryDto, GetEnabledAiProvidersQuery (+16 more)
 
-### Community 514 - ".EditOfferLevel"
-Cohesion: 0.09
-Nodes (27): Chat, Correction, EditOfferPrecedenceTests, ActiveSiteBoundary, BoundaryConfidenceLevel, Fact, GeoPoint, IReadOnlyList (+19 more)
+### Community 514 - "HandEditedOutlineFollowUpTurnsTests"
+Cohesion: 0.11
+Nodes (17): Chat, Correction, HandEditedOutlineFollowUpTurnsTests, Turns, ActiveSiteBoundary, CancellationToken, GeoPoint, IReadOnlyList (+9 more)
 
 ### Community 515 - "AskLucy.Domain.Tests.csproj"
 Cohesion: 0.22
@@ -4110,36 +4138,36 @@ Cohesion: 0.22
 Nodes (8): net10.0, coverlet.collector (10.0.1), FluentAssertions (8.10.0), Microsoft.NET.Test.Sdk (18.8.1), NSubstitute (6.0.0), xunit.runner.visualstudio (3.1.5), xunit.v3 (3.2.2), Microsoft.NET.Sdk
 
 ### Community 517 - ".RunAsync_ShouldStopAtBudget_WhenTheTurnHasAlreadyRunLong"
-Cohesion: 0.12
-Nodes (23): CapabilityExecutor, ConversationCapabilityCatalog, ConversationRuntimeOptions, FlowStep, LocateAPlaceFlow, FlowRunner, CancellationToken, ChatStreamChunk (+15 more)
+Cohesion: 0.22
+Nodes (12): LocateAPlaceFlow, EmptyMcpToolRegistry, ActiveTools, LocateAPlaceFlowTests, PermissiveSchemaValidator, CancellationToken, ChatStreamChunk, ConversationTurnRequest (+4 more)
 
 ### Community 518 - "AiContracts.cs"
-Cohesion: 0.08
-Nodes (36): AIModelStatus, ChatMessageDto, RemovedModelDto, AddVoiceProviderRequest, ApplyProviderModelSyncRequest, ChatRequest, DictationTranscriptionResponse, GenerateImageRequest (+28 more)
+Cohesion: 0.11
+Nodes (29): AIModelStatus, RemovedModelDto, ApplyProviderModelSyncRequest, ChatRequest, DictationTranscriptionResponse, GenerateImageRequest, GenerateImageResponse, RetryRequest (+21 more)
 
-### Community 520 - "CapabilitySettingCatalog"
-Cohesion: 0.16
-Nodes (17): CapabilitySettingCatalog, Definitions, CapabilitySettingDefinition, CapabilitySettingValueType, Boolean, IReadOnlyList, CapabilitySettingsReader, ICapabilitySettingsReader (+9 more)
+### Community 520 - "StubCapability"
+Cohesion: 0.07
+Nodes (26): StubCapability, AcknowledgementTemplate, Area, ArgumentHint, Description, ExpectedDuration, FailWith, InputSchemaJson (+18 more)
 
 ### Community 521 - "IMemoryService"
 Cohesion: 0.25
 Nodes (8): MemoryExtractionJob, IMemoryService, IMemoryVectorStore, SendChatMessageCommandHandler, ExecutePromptCommand, Prompt Aggregate, PromptContentAnalyzer, PromptVersion
 
-### Community 525 - ".CreateDefault"
-Cohesion: 0.15
-Nodes (9): DictationCaptureMode, Continuous, PushToTalk, DictationEngineSettingTests, DateTime, DomainRuleViolationException, Fact, InlineData (+1 more)
+### Community 525 - "GeoPoint"
+Cohesion: 0.14
+Nodes (13): D7 - Applying the values in the scene, GeoPoint, CAMERA_VIEW_MODE_TILT, TiltableTarget, boundsOf(), captureViewState(), EditableViewEngine, EditableViewMap (+5 more)
 
 ### Community 527 - "IndexingLog"
 Cohesion: 0.11
 Nodes (19): IndexingLog, IndexingJobId, Message, OccurredAtUtc, Stage, Status, IndexingStage, Chunking (+11 more)
 
-### Community 528 - "CurrentAuthorizationClaimsTransformation"
-Cohesion: 0.05
-Nodes (41): ADR 0010: Naming Sign-In Refusals Instead of Returning One Generic Error, Alternatives Considered, Consequences, Context, Decision, Related, ADR 0012: Enforcing Session Revocation on the Access Token via a Session Claim, Alternatives considered (+33 more)
+### Community 528 - "Tasks: Password Recovery & Password Management"
+Cohesion: 0.04
+Nodes (51): ADR 0010: Naming Sign-In Refusals Instead of Returning One Generic Error, Alternatives Considered, Consequences, Context, Decision, Related, Contract: Password Recovery & Management API, Email contract (+43 more)
 
 ### Community 529 - "AiController"
-Cohesion: 0.05
-Nodes (41): ChatRequest, SaveVoicePreferenceRequest, API Contract: Speech-to-Text Session Token, Client usage (frontend contract, not a new server behavior), Mint a speech-to-text session token, Phase 1 Data Model: ElevenLabs Conversational Voice Engine, Implementation Plan: ElevenLabs Conversational Voice Engine, Phase 0 Research: ElevenLabs Conversational Voice Engine (+33 more)
+Cohesion: 0.07
+Nodes (30): ChatRequest, GenerateImageRequest, GenerateImageResponse, StreamVoiceReplyCommand, ChatMessageDto, GenerationParametersDto, Guid, IReadOnlyList (+22 more)
 
 ### Community 532 - "AskLucy.Application.Consent"
 Cohesion: 0.29
@@ -4154,28 +4182,28 @@ Cohesion: 0.29
 Nodes (7): Buildings Only Map Style, BoundaryResolutionService, GoogleRenderedFillBoundaryExtractor, GoogleStreetViewImageProvider, MaskContourVectorizer, StaticMapFraming, IBoundaryVisionAnalyzer
 
 ### Community 535 - "WorkflowPolicy"
-Cohesion: 0.11
-Nodes (16): WorkflowPolicy, ConditionsJson, CreatedByUserId, Description, IsEnabled, Name, UnderlyingToolName, WorkflowNodeType (+8 more)
+Cohesion: 0.14
+Nodes (10): WorkflowPolicy, ConditionsJson, CreatedByUserId, Description, IsEnabled, Name, UnderlyingToolName, WorkflowNodeType (+2 more)
 
 ### Community 536 - "SystemWorkflowProvisioner"
 Cohesion: 0.20
 Nodes (10): NodeKey, SystemWorkflowProvisioner, SystemWorkflowProvisionerLog, CancellationToken, Exception, ILogger, IReadOnlyList, LoggerMessage (+2 more)
 
 ### Community 537 - ".TranscribeAudioAsync"
-Cohesion: 0.12
-Nodes (18): AiProviderQuotaExhaustedException, DictationTranscript, CancellationToken, Stream, Task, DictationClip, Stream, OpenAiWhisperClipTranscriber (+10 more)
+Cohesion: 0.14
+Nodes (16): AiProviderQuotaExhaustedException, DictationTranscript, Stream, DictationClip, Stream, OpenAiWhisperClipTranscriber, Engine, CancellationToken (+8 more)
 
 ### Community 538 - "UpdateAiProviderCommand"
 Cohesion: 0.14
 Nodes (19): IAiProviderSwitchedOffObserver, UpdateAiProviderCommand, Guid, UpdateAiProviderCommandValidator, PlatformDefaultModelTests, CancellationToken, Fact, Guid (+11 more)
 
-### Community 539 - "Task"
-Cohesion: 0.02
-Nodes (166): IAgentAuditLogRepository, CancellationToken, Guid, IReadOnlyList, IAgentExecutionRepository, CancellationToken, Guid, IReadOnlyCollection (+158 more)
+### Community 539 - "IAgentExecutionRepository"
+Cohesion: 0.04
+Nodes (72): IAgentAuditLogRepository, CancellationToken, Guid, IReadOnlyList, IAgentExecutionRepository, IAgentExecutionRunner, CancellationToken, Guid (+64 more)
 
-### Community 540 - ".Describe"
-Cohesion: 0.26
-Nodes (8): ActiveSiteBoundary, TurnContext, ActiveSiteNoteTests, ActiveSiteBoundary, Fact, GeoPoint, IReadOnlyList, TurnContext
+### Community 540 - "Tasks: Hand-Edit the Site Outline"
+Cohesion: 0.10
+Nodes (23): Dependencies and execution order, Format: `[ID] [P?] [Story] Description`, Implementation strategy, Incremental delivery, MVP scope: Phases 1, 2 and 3 (US1), Parallel opportunities, Path Conventions, Phase 1: Setup (+15 more)
 
 ### Community 541 - ".Sanitize"
 Cohesion: 0.11
@@ -4190,7 +4218,7 @@ Cohesion: 0.07
 Nodes (26): Content Quality, Feature Readiness, Notes, Requirement Completeness, Specification Quality Checklist: Presence Sphere Admin Controls, Complexity Tracking, Constitution Check, Documentation (this feature) (+18 more)
 
 ### Community 544 - "RecentTurnOutcomeSummary"
-Cohesion: 0.17
+Cohesion: 0.16
 Nodes (10): RecentTurnLine, RecentTurnOutcomeSummary, Empty, IsEmpty, IEnumerable, IReadOnlyList, RecordedTurnOutcome, RecentTurnOutcomeSummaryTests (+2 more)
 
 ### Community 545 - "IEmbeddingService"
@@ -4201,9 +4229,9 @@ Nodes (6): IEmbeddingService, Memory Entity, MemoryConflict Entity, Project Enti
 Cohesion: 0.33
 Nodes (6): Site Intelligence Feature, Site Analysis Agent Data Model, Site Analysis Agent Implementation Plan, Site Analysis Agent Research, Site Analysis Agent Specification, Site Analysis Agent Tasks
 
-### Community 547 - ".Up"
-Cohesion: 0.40
-Nodes (3): DateTime, Guid, MigrationBuilder
+### Community 547 - "DocumentProcessingStage"
+Cohesion: 0.09
+Nodes (19): DocumentProcessingStageDto, DateTime, DocumentProcessingStage, CompletedAtUtc, DocumentProcessingJobId, FailureReason, StageType, StartedAtUtc (+11 more)
 
 ### Community 548 - "CustomModelDeploymentHubTests"
 Cohesion: 0.12
@@ -4218,8 +4246,8 @@ Cohesion: 0.29
 Nodes (5): LoadViewerContentCapabilityTests, CancellationToken, Fact, IReadOnlyList, Task
 
 ### Community 551 - "ChatsController.cs"
-Cohesion: 0.07
-Nodes (26): asklucy_application_authorization_assignments_commands_bulkassignrole, asklucy_application_authorization_assignments_queries_getroleassignmentseligibleids, asklucy_application_authorization_roles_commands_createrole, asklucy_application_authorization_roles_commands_updaterole, asklucy_application_authorization_roles_queries_getroleseligibleids, asklucy_application_chats_commands_archiveuserchat, asklucy_application_chats_commands_clearuserchatmessages, asklucy_application_chats_commands_createuserchat (+18 more)
+Cohesion: 0.10
+Nodes (19): asklucy_application_chats_commands_archiveuserchat, asklucy_application_chats_commands_clearuserchatmessages, asklucy_application_chats_commands_createuserchat, asklucy_application_chats_commands_deleteuserchat, asklucy_application_chats_commands_duplicateuserchat, asklucy_application_chats_commands_favoriteuserchat, asklucy_application_chats_commands_pinuserchat, asklucy_application_chats_commands_purgeuserchat (+11 more)
 
 ### Community 552 - "Quickstart: Hangfire Dashboard Access from Admin Panel"
 Cohesion: 0.29
@@ -4233,9 +4261,9 @@ Nodes (4): AccessTokenCookie, DeleteOptions, CookieOptions, TimeSpan
 Cohesion: 0.12
 Nodes (18): CreatePromptCommand, Guid, IReadOnlyList, PromptDetailDto, PromptVariableDto, CreatePromptCommandValidator, UpdatePromptCommand, Guid (+10 more)
 
-### Community 555 - "ChatContracts.cs"
-Cohesion: 0.12
-Nodes (22): CombineSiteBoundaryShapeRequest, ConversationKnowledgeBasesResponse, CreateChatRequest, InsertPromptMessageRequest, RenameChatRequest, ResetSiteBoundaryRequest, SaveSiteBoundaryEditRequest, UpdateChatModelSelectionRequest (+14 more)
+### Community 555 - "DocumentProcessingJobRepository"
+Cohesion: 0.18
+Nodes (14): DocumentProcessingJobRepository, AskLucyDbContext, CancellationToken, DateTime, Guid, IQueryable, IReadOnlyList, Task (+6 more)
 
 ### Community 557 - "Phase 0 Research: RAG & Semantic Search Engine"
 Cohesion: 0.40
@@ -4250,24 +4278,24 @@ Cohesion: 0.40
 Nodes (5): Extension Context, Viewer Toolbar, Viewer Extension, Drawing Space, Building Footprint
 
 ### Community 560 - "ICustomModelRepository"
-Cohesion: 0.07
-Nodes (34): PreviewCustomModelSourceQuery, SourcePreviewDto, ICustomModelRepository, CancellationToken, CustomModelOverwrittenFile, Func, Guid, IReadOnlyList (+26 more)
+Cohesion: 0.06
+Nodes (42): PreviewCustomModelSourceQuery, SourcePreviewDto, ICustomModelRepository, CancellationToken, CustomModelOverwrittenFile, Func, Guid, IReadOnlyList (+34 more)
 
 ### Community 561 - "AgentApproval"
 Cohesion: 0.10
 Nodes (18): AgentApproval, AgentExecutionId, AgentToolCallId, DecidedAtUtc, DecidedByUserId, Decision, IntendedActionDescription, IntendedParametersJson (+10 more)
 
-### Community 562 - "PermissionSet"
-Cohesion: 0.08
-Nodes (26): asklucy_domain_notifications_notificationtypekeys, CreateRoleCommand, ReadOnlyCollection, CreateRoleCommand, IReadOnlyList, RoleSummaryDto, CreateRoleCommandHandler, CancellationToken (+18 more)
+### Community 562 - ".GetByIdAsync"
+Cohesion: 0.07
+Nodes (29): asklucy_domain_notifications_notificationtypekeys, ReadOnlyCollection, D14 — *View user content*: the one permission a built-in role does not get automatically, IAuthorizationCacheInvalidator, UpdateRoleCommand, IReadOnlyList, RoleSummaryDto, UpdateRoleCommandHandler (+21 more)
 
-### Community 564 - ".PromoteLoneFirstStep"
-Cohesion: 0.29
-Nodes (6): TurnContext, TurnDecision, ConversationFlowCatalogTests, Fact, TurnContext, TurnSlice
+### Community 564 - "ConversationFlowCatalog"
+Cohesion: 0.16
+Nodes (12): FlowVariantOfferCandidate, IConversationFlow, ConversationFlowCatalog, CapabilityIndexEntry, IEnumerable, IReadOnlyList, TurnContext, TurnDecision (+4 more)
 
-### Community 565 - ".CreateProvider"
-Cohesion: 0.15
-Nodes (15): AnthropicOptions, ApiKey, ApiVersion, BaseUrl, ChatModel, WorkspaceId, AnthropicProviderTests, CancellationToken (+7 more)
+### Community 565 - "StubHttpMessageHandler"
+Cohesion: 0.10
+Nodes (22): AnthropicOptions, ApiKey, ApiVersion, BaseUrl, ChatModel, WorkspaceId, AnthropicProviderTests, CancellationToken (+14 more)
 
 ### Community 566 - "SetSiteBoundaryMembersCapabilityTests"
 Cohesion: 0.19
@@ -4279,7 +4307,7 @@ Nodes (11): IRetrievalIndexingNotifier, CancellationToken, Guid, Task, Retrieval
 
 ### Community 568 - "Application abstractions and core services"
 Cohesion: 0.04
-Nodes (67): ArgumentException, DocumentNotificationEventType, Application abstractions and core services, Implementation for User Story 9 (part B), Phase dependencies, Tests for Phase 4b, Tests for User Story 2, Contract: Notification Types (+59 more)
+Nodes (69): ArgumentException, DocumentNotificationEventType, Application abstractions and core services, Implementation for User Story 9 (part B), Phase 2: Foundational (Blocking Prerequisites), Phase dependencies, Tests for Foundational (write first), Tests for Phase 4b (+61 more)
 
 ### Community 569 - "ResolveSiteBoundaryReuseTests"
 Cohesion: 0.26
@@ -4290,12 +4318,12 @@ Cohesion: 0.17
 Nodes (18): Attempt, Id, MessageId, IRetryTargetResolver, RetryTarget, RetryTargetResolver, ActionAttempt, CancellationToken (+10 more)
 
 ### Community 572 - "UpdateAiProviderCommandHandler"
-Cohesion: 0.09
-Nodes (26): Phase 1: Setup, D10: Impact preview in the sync diff (FR-003), D11: Reference counting excludes deleted and historical rows (FR-012), D1: Choosing the replacement ("same tier"), D2: Capabilities a default's function requires (FR-007 / FR-008 exception), D4: What commits at confirm time, and what is fanned out afterwards, D5: Hooking into the sync apply, D7: Notification types and recipients (+18 more)
+Cohesion: 0.08
+Nodes (24): D10: Impact preview in the sync diff (FR-003), D11: Reference counting excludes deleted and historical rows (FR-012), D1: Choosing the replacement ("same tier"), D2: Capabilities a default's function requires (FR-007 / FR-008 exception), D4: What commits at confirm time, and what is fanned out afterwards, D5: Hooking into the sync apply, D7: Notification types and recipients, D8: Email before 067's email channel exists (corrects the spec) (+16 more)
 
 ### Community 574 - ".Handle"
-Cohesion: 0.18
-Nodes (15): DuplicateRoleCommand, RoleSummaryDto, DuplicateRoleCommandHandler, CancellationToken, ICurrentUserAccessor, RoleSummaryDto, Task, DuplicateRoleCommandHandlerTests (+7 more)
+Cohesion: 0.16
+Nodes (16): DuplicateRoleCommand, RoleSummaryDto, DuplicateRoleCommandHandler, CancellationToken, ICurrentUserAccessor, RoleSummaryDto, Task, DuplicateRoleCommandValidator (+8 more)
 
 ### Community 579 - "18. Component Categories"
 Cohesion: 0.29
@@ -4310,88 +4338,88 @@ Cohesion: 0.09
 Nodes (22): Dependencies & Execution Order, Format: `[ID] [P?] [Story] Description`, Implementation for User Story 1, Implementation for User Story 2, Implementation for User Story 3, Implementation Strategy, Incremental Delivery, MVP First (User Story 1 Only) (+14 more)
 
 ### Community 582 - "CookieConsentRecord"
-Cohesion: 0.09
-Nodes (25): CancellationToken, IReadOnlyList, Task, CookieConsentRecord, AnalyticsAccepted, FunctionalAccepted, MarketingAccepted, PolicyVersion (+17 more)
+Cohesion: 0.14
+Nodes (18): CookieConsentRecord, AnalyticsAccepted, FunctionalAccepted, MarketingAccepted, PolicyVersion, UserId, CookieConsentRecordConfiguration, EntityTypeBuilder (+10 more)
 
 ### Community 583 - ".CompletedCapabilityKeys"
 Cohesion: 0.32
 Nodes (6): ActiveSiteHistory, IReadOnlyList, RecordedTurnOutcome, ActiveSiteHistoryTests, Fact, RecordedTurnOutcome
 
 ### Community 584 - ".CallToolAsync"
-Cohesion: 0.22
-Nodes (15): McpToolCallResult, JsonDocument, McpMaliciousOutputSecurityTests, CancellationToken, Fact, ILogger, JsonDocument, Task (+7 more)
+Cohesion: 0.23
+Nodes (14): McpToolCallResult, JsonDocument, CancellationToken, Fact, ILogger, JsonDocument, Task, McpToolAdapterTests (+6 more)
 
 ### Community 586 - ".SeedAsync"
 Cohesion: 0.12
 Nodes (16): IConfiguration, IServiceProvider, DevAdminSeeder, DevSeedLog, ApplicationRole, ApplicationUser, ILogger, RoleManager (+8 more)
 
 ### Community 588 - "Feature Specification: External Login Profile Sync"
-Cohesion: 0.09
-Nodes (20): Content Quality, Feature Readiness, Notes, Requirement Completeness, Specification Quality Checklist: External Login Profile Sync, Assumptions, Clarifications, Edge Cases (+12 more)
+Cohesion: 0.13
+Nodes (15): Assumptions, Clarifications, Edge Cases, Feature Specification: External Login Profile Sync, Functional Requirements, Key Entities, Measurable Outcomes, Post-Implementation Notes (+7 more)
 
 ### Community 590 - "3. Design Principles"
 Cohesion: 0.29
 Nodes (7): 3. Design Principles, Accessibility, Clarity, Consistency, Efficiency, Predictability, Progressive Disclosure
 
 ### Community 591 - ".GetByConversationAsync"
-Cohesion: 0.08
-Nodes (26): CancellationToken, Guid, IReadOnlyCollection, IReadOnlyList, Task, ConversationKnowledgeBase, AttachedAtUtc, KnowledgeBaseId (+18 more)
+Cohesion: 0.06
+Nodes (39): CancellationToken, Guid, IReadOnlyCollection, IReadOnlyList, Task, UpdateConversationKnowledgeBasesCommand, Guid, IReadOnlyList (+31 more)
 
 ### Community 592 - "DocumentChunk"
 Cohesion: 0.09
 Nodes (19): IEnumerable, DocumentChunk, CharacterCount, Content, ContentHash, DocumentId, DocumentVersionId, Heading (+11 more)
 
-### Community 593 - ".Up"
-Cohesion: 0.40
-Nodes (3): DateTime, Guid, MigrationBuilder
+### Community 593 - "SupertonicTextToSpeechEngine"
+Cohesion: 0.11
+Nodes (17): Log, SupertonicTextToSpeechEngine, DisplayName, EngineName, ModelRepositoryId, ProviderKey, RequiresCredential, CancellationToken (+9 more)
 
 ### Community 594 - "GoogleMapsGisLayer.ts"
-Cohesion: 0.06
-Nodes (32): @googlemaps/js-api-loader, Behaviour changes, `exit('done' | 'cancel' | 'forced')`, AnimatedBorderHighlight, BorderConfidenceLevel, createAnimatedBorderHighlight(), advanceActivation(), angleFromCentroid() (+24 more)
+Cohesion: 0.05
+Nodes (33): @googlemaps/js-api-loader, Behaviour changes, `exit('done' | 'cancel' | 'forced')`, AnimatedBorderHighlight, BorderConfidenceLevel, createAnimatedBorderHighlight(), advanceActivation(), angleFromCentroid() (+25 more)
 
 ### Community 595 - "floatingPanelStore.ts"
 Cohesion: 0.04
-Nodes (80): zod, useHasOpenPanels(), initialExtensionState, initialPanelState, DEFAULT_CONTENT_CHROME, PanelChrome, resolveChrome(), FloatingPanel() (+72 more)
+Nodes (86): zod, SiteAnalysisDto, getSiteAnalysesForChat(), useSiteAnalysisRehydration(), CORNER_CHROME_ATTRIBUTE, layoutWidth(), useAvoidReservedCorner(), initialExtensionState (+78 more)
 
-### Community 597 - "BaseEntity"
-Cohesion: 0.12
-Nodes (15): ArgumentOutOfRangeException, BaseEntity, EntityTypeBuilder, PresenceSphereSettings, CardFillPercent, DotSizeMultiplier, ZoomEnabled, DateTime (+7 more)
+### Community 597 - "PresenceSphereSettings"
+Cohesion: 0.13
+Nodes (13): EntityTypeBuilder, Phase 2: Foundational (blocks every story), IPresenceSphereSettingsRepository, PresenceSphereSettings, CardFillPercent, DotSizeMultiplier, ZoomEnabled, Guid (+5 more)
 
 ### Community 598 - ".Validate"
 Cohesion: 0.20
 Nodes (9): IEnumerable, ValidationResult, BoundaryScoringOptionsTests, Fact, InlineData, List, Theory, ValidationResult (+1 more)
 
-### Community 599 - "Tasks: Admin Panel Layout & Polish Pass"
-Cohesion: 0.09
-Nodes (22): Dependencies & Execution Order, Implementation for User Story 2, Implementation for User Story 3, Implementation for User Story 5, Implementation Strategy, Incremental Delivery, MVP First (User Story 1 Only), Notes (+14 more)
+### Community 599 - "GetSystemAgentsQuery"
+Cohesion: 0.14
+Nodes (17): AdminSystemAgentDto, DateTime, Guid, GetSystemAgentsQuery, IReadOnlyList, GetSystemAgentsQueryHandler, CancellationToken, IReadOnlyList (+9 more)
 
 ### Community 600 - "ResetPasswordCommandHandler"
 Cohesion: 0.17
 Nodes (15): ResetPasswordCommand, ResetPasswordCommandHandler, CancellationToken, DateTime, IBackgroundJobClient, IIdentityService, ILogger, IPasswordEmailJob (+7 more)
 
-### Community 601 - ".SaveBothAsync"
-Cohesion: 0.09
-Nodes (25): Mcp, McpLogId, Role, RoleLogId, R21. Observability (FR-057, FR-058, §14), D6 — Correlation id: one accessor for requests and jobs, ICorrelationIdAccessor, Current (+17 more)
+### Community 601 - "ICorrelationIdAccessor"
+Cohesion: 0.13
+Nodes (15): R21. Observability (FR-057, FR-058, §14), D6 — Correlation id: one accessor for requests and jobs, ICorrelationIdAccessor, Current, CorrelationIdAccessor, Current, IHttpContextAccessor, CorrelationIdMiddleware (+7 more)
 
-### Community 603 - ".ResolveAsync"
+### Community 603 - ".Serialize"
 Cohesion: 0.15
-Nodes (16): AiCapabilityProviderResolverLog, CancellationToken, ILogger, LoggerMessage, Task, ResolvedDefault, Guid, AiCapabilityAssignmentDto (+8 more)
+Nodes (13): SuggestedActionOfferWire, SuggestedActionWire, SuggestedActionWirePayload, IEnumerable, IReadOnlyList, JsonElement, SuggestedAction, SuggestedActionKind (+5 more)
 
 ### Community 604 - "GetChatMessagesQueryHandler"
-Cohesion: 0.10
-Nodes (25): GetChatMessagesQuery, PagedResult, CancellationToken, Guid, IReadOnlyList, Items, Message, NextCursor (+17 more)
+Cohesion: 0.09
+Nodes (27): GetChatMessagesQuery, MessageOutline, CancellationToken, DateTime, Guid, IReadOnlyList, Items, Message (+19 more)
 
-### Community 605 - ".FetchOneAsync"
-Cohesion: 0.15
-Nodes (15): IStreetViewImageProvider, CancellationToken, IReadOnlyList, Task, GoogleStreetViewImageProvider, GoogleStreetViewImageProviderLog, CancellationToken, Exception (+7 more)
+### Community 605 - "FluentFtpDeploymentFileUploader"
+Cohesion: 0.19
+Nodes (11): FluentFtpDeploymentFileUploader, Session, TransferredBytesProgress, CancellationToken, Exception, FtpProgress, ILogger, IProgress (+3 more)
 
-### Community 606 - ".GetByKeyAsync"
+### Community 606 - ".Unprotect"
+Cohesion: 0.09
+Nodes (23): IAiCredentialProtector, EmbeddingResult, AiCredentialProtector, IDataProtector, OpenAiEmbeddingOptions, ApiKey, BaseUrl, Model (+15 more)
+
+### Community 607 - "UserChatRepository"
 Cohesion: 0.08
-Nodes (26): IAiCredentialProtector, CancellationToken, Task, CancellationToken, Task, AiCredentialProtector, IDataProtector, OpenAiEmbeddingOptions (+18 more)
-
-### Community 607 - "UserChat"
-Cohesion: 0.04
-Nodes (64): SearchMode, CancellationToken, DateTime, Guid, IReadOnlyList, Items, NextCursor, Task (+56 more)
+Nodes (36): R19. Notification center queries and performance (FR-014, FR-017, SC-004), ConversationCursor, Payload, DateTime, Guid, Id, Rank, SortValue (+28 more)
 
 ### Community 608 - ".prettierrc.json"
 Cohesion: 0.40
@@ -4414,8 +4442,8 @@ Cohesion: 0.50
 Nodes (4): Scenario 2 — Shadows fall correctly, D13 — Buildings cast but are not drawn, D6 — Shadows: DirectionalLight + orthographic camera, D7 — Source arbitration
 
 ### Community 613 - "WorkflowPoliciesControllerTests"
-Cohesion: 0.32
-Nodes (8): WorkflowPoliciesControllerTests, CustomWebApplicationFactory, Guid, HttpClient, HttpResponseMessage, InlineData, Task, Theory
+Cohesion: 0.25
+Nodes (10): CreateWorkflowPolicyRequest, UpdateWorkflowPolicyRequest, WorkflowPoliciesControllerTests, CustomWebApplicationFactory, Guid, HttpClient, HttpResponseMessage, InlineData (+2 more)
 
 ### Community 617 - "Composer Interaction Modes"
 Cohesion: 0.67
@@ -4454,20 +4482,20 @@ Cohesion: 0.07
 Nodes (30): RetrievalHistory, DurationMs, KnowledgeBaseIdsSearchedJson, MaxContextTokens, MessageId, Outcome, Query, ResultCount (+22 more)
 
 ### Community 645 - "SiteBoundarySource"
-Cohesion: 0.14
-Nodes (12): BoundaryConfidenceLevel, GeoPoint, IReadOnlyList, SiteBoundaryMember, SiteBoundarySource, AiInterpretation, GovernmentCadastral, ManualFallback (+4 more)
+Cohesion: 0.07
+Nodes (22): BoundaryCandidate, IReadOnlyDictionary, ScoredBoundaryCandidate, IReadOnlyDictionary, BoundaryConfidenceLevel, GeoPoint, IReadOnlyList, SiteBoundaryMember (+14 more)
 
 ### Community 648 - "UserAdminRepository"
 Cohesion: 0.16
 Nodes (14): Expression, IUserAdminRepository, UserAdminRepository, ApplicationUser, AskLucyDbContext, CancellationToken, IReadOnlyList, PagedResult (+6 more)
 
-### Community 696 - ".ListEnabledForNodeAsync"
-Cohesion: 0.26
-Nodes (11): CancellationToken, Guid, IReadOnlyList, Task, WorkflowPolicyEvaluator, CancellationToken, Task, WorkflowPolicyEvaluatorTests (+3 more)
+### Community 696 - ".FindMatchAsync"
+Cohesion: 0.42
+Nodes (7): WorkflowPolicyEvaluator, CancellationToken, Task, WorkflowPolicyEvaluatorTests, CancellationToken, Fact, Task
 
 ### Community 697 - "LoggerMessage"
-Cohesion: 0.06
-Nodes (37): CapabilityNarrator, ChannelWriter, ILogger, Index, LoggerMessage, Log, FlowRunnerLog, Guid (+29 more)
+Cohesion: 0.07
+Nodes (28): ILogger, LoggerMessage, R9. Templates: storage, versioning, format and rendering (FR-038–FR-043, FR-009b, FR-022, FR-050), Log, FlowRunnerLog, Guid, ConversationTurnOrchestratorLog, Guid (+20 more)
 
 ### Community 701 - "Tasks: External Login Profile Sync"
 Cohesion: 0.10
@@ -4475,35 +4503,35 @@ Nodes (20): Dependencies & Execution Order, Format: `[ID] [P?] [Story] Descripti
 
 ### Community 702 - ".IsInRole"
 Cohesion: 0.11
-Nodes (28): AssignRoleCommand, AssignRoleCommandHandler, CancellationToken, ICurrentUserAccessor, Task, AssignRoleCommandHandlerTests, CancellationToken, DomainRuleViolationException (+20 more)
+Nodes (29): AssignRoleCommand, AssignRoleCommandHandler, CancellationToken, ICurrentUserAccessor, Task, BulkAssignRoleCommand, AssignRoleCommandHandlerTests, CancellationToken (+21 more)
 
-### Community 766 - ".CreateExecution"
-Cohesion: 0.22
-Nodes (7): AgentConversationIntegrationMode, ExistingConversation, NewConversation, Standalone, AgentExecutionTests, Fact, Guid
+### Community 766 - ".Handle"
+Cohesion: 0.18
+Nodes (18): AskLucy.Application.Chats.Queries.ExportUserChat, ConversationExportDto, ExportedAttachmentDto, ExportedCitationDto, ExportedMessageDto, DateTime, Guid, IReadOnlyList (+10 more)
 
 ### Community 780 - "IWorkflowExecutionNotifier"
 Cohesion: 0.21
 Nodes (11): IWorkflowExecutionNotifier, CancellationToken, DateTime, Guid, Task, WorkflowExecutionNotifier, CancellationToken, DateTime (+3 more)
 
 ### Community 783 - "074-operational-failure-audit/tasks.md"
-Cohesion: 0.13
-Nodes (13): Content Quality, Feature Readiness, Notes, Requirement Completeness, Specification Quality Checklist: Admin Operational Failure Audit Trail, Contract: Operational Failure Recorder (in-process), Guarantees the implementation gives callers, Rules for callers (+5 more)
+Cohesion: 0.11
+Nodes (15): Content Quality, Feature Readiness, Notes, Requirement Completeness, Specification Quality Checklist: Admin Operational Failure Audit Trail, Audit (FR-016k), Contract: *View user content* permission rules, Effective permissions (+7 more)
 
 ### Community 784 - "WeatherControllerTests"
 Cohesion: 0.36
 Nodes (7): IWeatherProvider, WeatherControllerTests, CancellationToken, CustomWebApplicationFactory, Fact, HttpClient, Task
 
-### Community 787 - "PromptExecutionResult"
-Cohesion: 0.16
-Nodes (14): PromptExecutionResult, EstimatedCostUsd, InputTokenCount, MemoryReferencesJson, OutputText, OutputTokenCount, PromptExecutionId, RagCitationsJson (+6 more)
+### Community 787 - "KnowledgeBaseDocumentUploadedIndexingHandlerTests"
+Cohesion: 0.13
+Nodes (19): IBackgroundJobClient, KnowledgeBaseDocumentProcessingStatus, KnowledgeBaseDocumentUploadedIndexingHandler, KnowledgeBaseDocumentUploadedIndexingHandlerTests, CancellationToken, Document, Fact, IIndexingJobRepository (+11 more)
 
 ### Community 790 - ".Configure"
-Cohesion: 0.20
-Nodes (9): Project, UserChatConfiguration, AIModel, AIProvider, EntityTypeBuilder, IReadOnlyList, JsonSerializerOptions, SiteBoundaryMember (+1 more)
+Cohesion: 0.18
+Nodes (10): Project, Persistence, UserChatConfiguration, AIModel, AIProvider, EntityTypeBuilder, IReadOnlyList, JsonSerializerOptions (+2 more)
 
-### Community 791 - "GetMemoryReferencesQueryHandler"
-Cohesion: 0.13
-Nodes (16): AskLucy.Application.Memory.Queries.GetMemoryReferences, IMemoryReferenceRepository, IEnumerable, RecordMemoryReferencesCommand, Guid, IReadOnlyList, CancellationToken, Task (+8 more)
+### Community 791 - "PromptRating"
+Cohesion: 0.11
+Nodes (19): PromptExecutionDetailDto, PromptExecutionSummaryDto, DateTime, Guid, PromptExecutionOutcome, Failed, Success, PromptRating (+11 more)
 
 ### Community 793 - "PresenceSphereSettingsHandlerTests"
 Cohesion: 0.19
@@ -4517,21 +4545,21 @@ Nodes (5): 5. Color Palette, Neutral Palette, Primary, Secondary, Semantic Color
 Cohesion: 0.14
 Nodes (17): PineconeVectorStore, Provider, CancellationToken, Guid, HttpClient, HttpResponseMessage, IHttpClientFactory, IReadOnlyList (+9 more)
 
-### Community 800 - "IEmailSender"
-Cohesion: 0.07
-Nodes (32): Language, Hub-internal abstractions (Application → implemented in Infrastructure), R6. SMTP transport, failure classification and throughput (FR-021, FR-026, FR-027, Risks: mail-service limits and shared-host timeouts), Implementation for User Story 3, Phase 6: User Story 3 - Receive important notifications by email (Priority: P2), Tests for User Story 3, IEmailSender, SmtpEmailSender (+24 more)
+### Community 800 - "LogicFreeTemplateRenderer"
+Cohesion: 0.17
+Nodes (14): INotificationTemplateRenderer, Language, LogicFreeTemplateRenderer, TemplateRenderLog, CancellationToken, ILogger, IReadOnlyDictionary, LoggerMessage (+6 more)
 
 ### Community 803 - "InMemoryAgentRepository"
-Cohesion: 0.13
-Nodes (15): InMemoryAgentRepository, InMemoryUnitOfWork, ConflictSimulatingUnitOfWork, InMemoryAgentRepository, All, PendingAdd, InMemoryUnitOfWork, SystemAgentProvisionerTests (+7 more)
+Cohesion: 0.09
+Nodes (21): InMemoryAgentRepository, InMemoryUnitOfWork, IDatabaseMigrationStatus, CancellationToken, Task, DatabaseMigrationStatus, CancellationToken, Task (+13 more)
 
-### Community 805 - "Contract: Edit Mode in the Studio Viewer"
+### Community 805 - ".TryExtract"
 Cohesion: 0.05
-Nodes (38): Contract: Capabilities and Offers, `edit_site_boundary` (NEW), `reset_site_boundary` (NEW), `resolve_site_boundary` (existing): correction reuse, `set_site_boundary_members` (existing): changes, Contract: Edit Mode in the Studio Viewer, `enter(chatId, revision, rings)`, Entry points (+30 more)
+Nodes (35): AskLucy.Application.Viewer, Contract: Capabilities and Offers, `edit_site_boundary` (NEW), `reset_site_boundary` (NEW), `resolve_site_boundary` (existing): correction reuse, `set_site_boundary_members` (existing): changes, Contract: Edit Mode in the Studio Viewer, `enter(chatId, revision, rings)` (+27 more)
 
 ### Community 806 - "ResetSiteBoundaryCapability"
-Cohesion: 0.02
-Nodes (89): AgentToolExecutionContext, AgentToolPermission, AgentToolRiskLevel, CapabilityDuration, IPanelNotifier, JsonDocument, PresentPanelContentCapability, AcknowledgementTemplate (+81 more)
+Cohesion: 0.05
+Nodes (41): AgentToolPermission, IPanelNotifier, PresentPanelContentCapability, AcknowledgementTemplate, Area, ArgumentHint, Description, ExpectedDuration (+33 more)
 
 ### Community 807 - "Feature Specification: Solar Analysis Accuracy & Performance"
 Cohesion: 0.11
@@ -4542,12 +4570,12 @@ Cohesion: 0.11
 Nodes (16): Immersive Viewer Platform, AI-to-UI Floating Panel Framework, Assumptions, Clarifications, Edge Cases, Feature Specification: POI Viewer Zoom & Focus, Functional Requirements, Key Entities (+8 more)
 
 ### Community 811 - "GetMyCookieConsentQuery"
-Cohesion: 0.10
-Nodes (25): ICookiePolicyProvider, DateTime, EffectiveAtUtc, Version, IUserCookieConsentRepository, GetCookiePolicyQuery, CookiePolicyDto, GetCookiePolicyQueryHandler (+17 more)
+Cohesion: 0.16
+Nodes (15): IUserCookieConsentRepository, CancellationToken, IReadOnlyList, Task, GetMyCookieConsentQuery, CookieConsentStatusDto, GetMyCookieConsentQueryHandler, CancellationToken (+7 more)
 
-### Community 812 - ".CoresOf"
-Cohesion: 0.22
-Nodes (9): SiteNameMatcher, HashSet, IEnumerable, IReadOnlySet, List, SiteNameMatcherTests, Fact, InlineData (+1 more)
+### Community 812 - "AppendMessageCommandHandler"
+Cohesion: 0.13
+Nodes (19): AppendMessageCommand, MessageDto, AppendMessageCommandHandler, CancellationToken, IAIProvider, ICurrentUserAccessor, ILogger, IMessageRepository (+11 more)
 
 ### Community 814 - "TheoryData"
 Cohesion: 0.21
@@ -4555,51 +4583,51 @@ Nodes (6): RetryPhrasing, GeneratedRegex, Regex, RetryPhrasingRoutingTests, Fact
 
 ### Community 815 - "RequestSiteAnalysisCapabilityTests"
 Cohesion: 0.14
-Nodes (18): ISiteAnalysisRepository, CancellationToken, Guid, IReadOnlyList, Task, RequestSiteAnalysisCapabilityTests, AgentToolExecutionContext, CancellationToken (+10 more)
+Nodes (17): ISiteAnalysisDispatcher, CancellationToken, Guid, Task, RequestSiteAnalysisCapabilityTests, AgentToolExecutionContext, CancellationToken, Fact (+9 more)
 
 ### Community 818 - "IVectorStore"
-Cohesion: 0.17
-Nodes (14): IVectorStore, Provider, IVectorStoreResolver, VectorSearchCandidate, CancellationToken, Guid, IReadOnlyList, Task (+6 more)
+Cohesion: 0.10
+Nodes (25): IVectorStore, Provider, IVectorStoreResolver, VectorSearchCandidate, CancellationToken, Guid, IReadOnlyList, Task (+17 more)
 
 ### Community 819 - "ExternalLoginTests"
 Cohesion: 0.36
 Nodes (5): ExternalLoginTests, CustomWebApplicationFactory, Fact, HttpClient, Task
 
-### Community 820 - "IncidentAppendRequest"
-Cohesion: 0.07
-Nodes (48): ILoggerFactory, IPublisher, OperationalFailureReferences, OperationalFailureSubject, OperationalFailureWriterService, Provider, Recorder, RecordingStoreLog (+40 more)
+### Community 820 - "Task"
+Cohesion: 0.09
+Nodes (34): ILoggerFactory, IPublisher, OperationalFailureWriterService, Provider, Recorder, RecordingStoreLog, Request, ServiceProvider (+26 more)
 
 ### Community 822 - "Tasks: Presence Sphere Admin Controls"
-Cohesion: 0.11
-Nodes (17): Dependencies and execution order, Format: `[ID] [P?] [Story] Description`, Implementation strategy, Parallel examples, Phase 1: Setup, Phase 2: Foundational (blocks every story), Phase 3: User Story 1 - Tune the sphere's look from the Admin panel (P1) MVP, Phase 4: User Story 2 - Allow or prevent zooming the sphere (P2) (+9 more)
+Cohesion: 0.20
+Nodes (9): Dependencies and execution order, Format: `[ID] [P?] [Story] Description`, Implementation strategy, Parallel examples, Phase 1: Setup, Phase 4: User Story 2 - Allow or prevent zooming the sphere (P2), Phase 5: User Story 3 - Return to the default look (P3), Phase 6: Polish and cross-cutting (+1 more)
 
 ### Community 823 - ".GetByUserIdAsync"
 Cohesion: 0.10
 Nodes (26): IUserVoicePreferenceRepository, CancellationToken, Task, SaveUserVoicePreferenceCommand, SaveUserVoicePreferenceCommandHandler, CancellationToken, Task, UserVoicePreferenceDto (+18 more)
 
-### Community 824 - "AgentExecutionNotifier"
-Cohesion: 0.38
-Nodes (5): AgentExecutionNotifier, CancellationToken, DateTime, Guid, IHubContext
+### Community 824 - "DocumentProcessingJob"
+Cohesion: 0.09
+Nodes (18): DocumentProcessingJob, CompletedAtUtc, DocumentId, DocumentVersionId, FailureReason, HangfireJobId, RetryCount, StartedAtUtc (+10 more)
 
 ### Community 825 - "ActiveSiteBoundaryCorrectionTests"
 Cohesion: 0.30
 Nodes (5): ActiveSiteBoundaryCorrectionTests, DomainRuleViolationException, Fact, GeoPoint, IReadOnlyList
 
 ### Community 826 - "UserVoicePreference"
-Cohesion: 0.12
-Nodes (15): UserVoicePreference, ConversationMode, DefaultLanguage, IsMuted, PreferredMicrophoneDeviceId, PreferredSpeakerDeviceId, SelectedVoiceId, UserId (+7 more)
+Cohesion: 0.09
+Nodes (19): UserVoicePreference, ConversationMode, DefaultLanguage, IsMuted, PreferredMicrophoneDeviceId, PreferredSpeakerDeviceId, SelectedVoiceId, UserId (+11 more)
 
-### Community 827 - "ApplicationRole"
-Cohesion: 0.10
-Nodes (23): DailyUserCountDto, DashboardSummaryDto, IAdminDashboardRepository, IdentityRole, RoleCountDto, ApplicationRoleConfiguration, EntityTypeBuilder, ApplicationRole (+15 more)
+### Community 827 - ".GetSummaryAsync_ShouldAggregateCountsTrendAndRoles_Correctly"
+Cohesion: 0.19
+Nodes (12): DailyUserCountDto, DashboardSummaryDto, IAdminDashboardRepository, RoleCountDto, AdminDashboardRepository, AskLucyDbContext, CancellationToken, IReadOnlyList (+4 more)
 
-### Community 833 - ".GetByIdAsync"
-Cohesion: 0.25
-Nodes (11): Guid, DeleteCategoryCommand, Guid, CancellationToken, Task, DeleteCategoryCommandTests, CancellationToken, Fact (+3 more)
+### Community 833 - "DeleteCategoryCommand"
+Cohesion: 0.23
+Nodes (11): DeleteCategoryCommand, Guid, DeleteCategoryCommandHandler, CancellationToken, Task, DeleteCategoryCommandTests, CancellationToken, Fact (+3 more)
 
 ### Community 841 - "IOptions"
-Cohesion: 0.09
-Nodes (21): AskLucy.Application.Authentication.Queries.GetSession, IOptions, JwtOptions, Implementation for User Story 1, Phase 3: User Story 1 — Request a password reset link (Priority: P1) 🎯 MVP part 1, Tests for User Story 1, GetSessionQuery, SessionResult (+13 more)
+Cohesion: 0.19
+Nodes (9): IOptions, JwtOptions, TokenService, Claim, Guid, IEnumerable, TimeSpan, TokenServiceTests (+1 more)
 
 ### Community 847 - ".Validate"
 Cohesion: 0.16
@@ -4627,31 +4655,31 @@ Nodes (18): Dependencies & Execution Order, Format: `[ID] [P?] [Story] Descripti
 
 ### Community 855 - "PagedResult"
 Cohesion: 0.02
-Nodes (105): CancellationToken, Guid, IReadOnlyList, Items, NextCursor, Task, CancellationToken, Guid (+97 more)
+Nodes (135): CancellationToken, Guid, IReadOnlyList, Items, NextCursor, Task, CancellationToken, Guid (+127 more)
 
 ### Community 857 - "SupertonicTextTests"
-Cohesion: 0.29
-Nodes (3): IReadOnlyList, SupertonicTextTests, Fact
+Cohesion: 0.22
+Nodes (5): IReadOnlyList, SupertonicTextTests, Fact, InlineData, Theory
 
 ### Community 858 - "Feature Specification: Model Deprecation Workflow"
 Cohesion: 0.12
 Nodes (17): Assumptions, Clarifications, Context, Edge Cases, Feature Specification: Model Deprecation Workflow, Functional Requirements, Key Entities, Measurable Outcomes (+9 more)
 
 ### Community 859 - "IClassFixture"
-Cohesion: 0.07
-Nodes (29): IClassFixture, IOpenApiDocumentProvider, SiteBoundaryEditEndpointTests, Fact, Task, CookiePolicyEndpointTests, CustomWebApplicationFactory, Fact (+21 more)
+Cohesion: 0.06
+Nodes (34): IClassFixture, IOpenApiDocumentProvider, SiteBoundaryEditEndpointTests, Fact, Task, CookiePolicyEndpointTests, CustomWebApplicationFactory, Fact (+26 more)
 
 ### Community 860 - "ElevenLabsSpeechToTextSessionProvider"
 Cohesion: 0.23
 Nodes (9): ElevenLabsOptions, IHttpClientFactory, ElevenLabsSpeechToTextSessionProvider, ProviderName, CancellationToken, Exception, IAiCredentialProtector, IAIProviderRepository (+1 more)
 
-### Community 863 - "Research: Admin Operational Failure Audit Trail"
-Cohesion: 0.09
-Nodes (25): BackgroundService, IProviderHealthCheckRepository, D10 — Distinct users and sources survive the storm cap and erasure, D11 — Exactly one occurrence per failure: record at the site that knows, mark the exception, D12 — Ownership refusals vs genuine not-found: a subclass that keeps the 404, D2 — Recording never blocks: a bounded in-memory channel plus a background writer, D5 — Severity is derived, never passed, D7 — Background jobs: a global Hangfire filter for correlation and final failure (+17 more)
+### Community 863 - ".RunOnceAsync"
+Cohesion: 0.16
+Nodes (14): BackgroundService, IProviderHealthCheckRepository, ProviderHealthCheckHostedService, ProviderHealthCheckLog, CancellationToken, Exception, IAIProviderRepository, IAIProviderResolver (+6 more)
 
 ### Community 864 - ".Handle_ShouldExtractHtmlBlock_WhenProviderWrapsResponseInHtmlFence"
-Cohesion: 0.23
-Nodes (8): CancellationToken, GeneratedRegex, Regex, Task, CancellationToken, Fact, IReadOnlyList, Task
+Cohesion: 0.21
+Nodes (12): TranslateCommand, TranslateCommandHandler, CancellationToken, GeneratedRegex, Regex, Task, TranslateCommandValidator, TranslateCommandHandlerTests (+4 more)
 
 ### Community 865 - "GetVoiceEnginesQueryHandler"
 Cohesion: 0.21
@@ -4669,57 +4697,57 @@ Nodes (20): Content Quality, Feature Readiness, Notes, Requirement Completeness,
 Cohesion: 0.10
 Nodes (21): GoogleSatelliteImageProvider, GoogleSatelliteImageProviderLog, CancellationToken, Exception, IHttpClientFactory, ILogger, IOptions, LoggerMessage (+13 more)
 
-### Community 869 - "ConcurrencyConflictException"
-Cohesion: 0.11
-Nodes (16): Body, JsonElement, D4 — Revision token for stale saves, Notes, TurnDecisionParser, IReadOnlySet, TurnIntent, ConcurrencyConflictException (+8 more)
+### Community 869 - "Exception"
+Cohesion: 0.08
+Nodes (38): Exception, Errors, 4. `RetryTarget` (derived projection, not persisted), Retry resolution, Implementation for User Story 4, Phase 7: User Story 4 — Every engine reports, not just chat (Priority: P2), Tests for User Story 4 (write first, confirm failing), AiProviderAuthenticationException (+30 more)
 
 ### Community 870 - ".Analyze"
-Cohesion: 0.18
+Cohesion: 0.17
 Nodes (10): PromptContentAnalysisResult, IsValid, PromptContentAnalyzer, GeneratedRegex, IEnumerable, IReadOnlyCollection, IReadOnlyList, Regex (+2 more)
 
-### Community 871 - "NotificationWakeSignal"
-Cohesion: 0.26
-Nodes (6): INotificationWakeSignal, SemaphoreSlim, NotificationWakeSignal, CancellationToken, Task, TimeSpan
+### Community 871 - "SimpleUploadCommandHandler"
+Cohesion: 0.13
+Nodes (16): SimpleUploadCommand, SimpleUploadResultDto, CancellationToken, Task, SimpleUploadCommandHandler, CancellationToken, DocumentUploadFinalizer, ICurrentUserAccessor (+8 more)
 
 ### Community 872 - ".NotifyAsync_ShouldPublishTheMappedCatalogKey_ForTheOwningUser"
 Cohesion: 0.23
 Nodes (9): MemoryNotificationEventType, MemoryNotifier, MemoryNotifierTests, Fact, InlineData, INotificationPublisher, NotificationRequest, Task (+1 more)
 
-### Community 873 - "TurnContext"
+### Community 873 - "IConversationCapability"
 Cohesion: 0.02
-Nodes (106): ActiveSiteBoundary, CapabilityDuration, Brief, Extended, Noticeable, IConversationCapability, AcknowledgementTemplate, Area (+98 more)
+Nodes (84): CapabilityDuration, Brief, Extended, Noticeable, IConversationCapability, AcknowledgementTemplate, Area, ArgumentHint (+76 more)
 
 ### Community 874 - "OnnxLocalEmbeddingProvider"
-Cohesion: 0.07
-Nodes (27): BertTokenizer, EmbeddingResult, IEmbeddingService, IEmbeddingServiceResolver, InferenceSession, Session, LoadedModel, IsDisposed (+19 more)
+Cohesion: 0.06
+Nodes (31): BertTokenizer, EmbeddingResult, IEmbeddingService, IEmbeddingServiceResolver, InferenceSession, INotificationWakeSignal, SemaphoreSlim, Session (+23 more)
 
-### Community 881 - "MergeNodeExecutorTests"
-Cohesion: 0.56
-Nodes (3): MergeNodeExecutorTests, Fact, Task
+### Community 881 - ".ExecuteAsync"
+Cohesion: 0.39
+Nodes (6): CancellationToken, JsonDocument, Task, MergeNodeExecutorTests, Fact, Task
 
 ### Community 892 - "RecordActiveLocationCommandHandlerTests"
 Cohesion: 0.13
 Nodes (20): RecordActiveLocationCommand, Phase 9: Polish and cross-cutting concerns, RecordActiveLocationCommandHandler, CancellationToken, ICurrentUserAccessor, IUnitOfWork, IUserChatRepository, Task (+12 more)
 
-### Community 899 - "SolarAnalysisOverlay.tsx"
-Cohesion: 0.04
-Nodes (97): getSiteBuildings(), DEFAULT_SITE_BUILDINGS_RADIUS_METRES, siteBuildingsRadiusFor(), SITE, applyPendingRequestedMoment(), calendarDateAsUtcMidnight(), FIGURES_PANEL_REQUEST_ID, makeSolarAnalysisOverlay() (+89 more)
+### Community 899 - "solarAnalysisExtension.tsx"
+Cohesion: 0.03
+Nodes (90): @mui/icons-material, ref_mui_icons_material_gppgoodoutlined, ref_mui_icons_material_gppmaybeoutlined, ref_mui_icons_material_shieldoutlined, zustand, Nonexistent local times, Preserved, Slider behaviour (+82 more)
 
 ### Community 908 - "IFtpClientFacade"
-Cohesion: 0.07
-Nodes (32): IAsyncDisposable, Implementation for User Story 1, Phase 3: User Story 1 - Deploy a model from a Hugging Face repository (Priority: P1) 🎯 MVP, Tests for User Story 1, IDeploymentFileUploader, CancellationToken, Task, IDeploymentUploadSession (+24 more)
+Cohesion: 0.09
+Nodes (21): IAsyncDisposable, Implementation for User Story 1, Phase 3: User Story 1 - Deploy a model from a Hugging Face repository (Priority: P1) 🎯 MVP, Tests for User Story 1, IDeploymentFileUploader, CancellationToken, Task, IDeploymentUploadSession (+13 more)
 
 ### Community 909 - "WorkflowEventTriggerConfiguration.cs"
 Cohesion: 0.40
 Nodes (4): WorkflowEventTriggerConfiguration, WorkflowEventTriggerConfigurationParser, Guid, JsonSerializerOptions
 
-### Community 910 - ".CreateProvider"
-Cohesion: 0.16
-Nodes (13): OpenRouterOptions, ApiKey, BaseUrl, ChatModel, OpenRouterProviderTests, CancellationToken, Fact, Func (+5 more)
+### Community 910 - "OpenRouterProvider"
+Cohesion: 0.06
+Nodes (36): StreamChunk, OpenRouterOptions, ApiKey, BaseUrl, ChatModel, OpenRouterProvider, ChatModel, ProviderName (+28 more)
 
 ### Community 911 - "WorkflowApprovalWorkflowTests"
-Cohesion: 0.09
-Nodes (33): ICurrentUserAccessor, IWorkflowAuditLogRepository, IWorkflowExecutionRunner, ApproveWorkflowNodeCommand, Guid, WorkflowApprovalDto, FakeExecutor, NodeType (+25 more)
+Cohesion: 0.05
+Nodes (53): IWorkflowAuditLogRepository, IWorkflowExecutionRunner, ApproveWorkflowNodeCommand, Guid, WorkflowApprovalDto, CancellationToken, Task, WorkflowApprovalDto (+45 more)
 
 ### Community 912 - "AdminNotificationQueryHandlerTests"
 Cohesion: 0.16
@@ -4728,6 +4756,10 @@ Nodes (9): DeliveryRetryRefusal, NotificationCategory, NotificationStatisticsDat
 ### Community 913 - "Feature Specification: Hand-Edit the Site Outline"
 Cohesion: 0.05
 Nodes (34): Content Quality, Feature Readiness, Notes, Requirement Completeness, Specification Quality Checklist: Hand-Edit the Site Outline, Complexity Tracking, Documentation (this feature), Implementation Plan: Hand-Edit the Site Outline (+26 more)
+
+### Community 914 - "DomainRuleViolationException"
+Cohesion: 0.02
+Nodes (96): Application-layer value types (not persisted), Changed: `AIModel` (`AskLucy.Domain/Ai/AIModel.cs`), Data Model: Model Deprecation Workflow, New: `ItemSwitch`, New: `ModelDeprecationBatch` (aggregate root), New: `PlatformDefaultChange` (child of `ModelDeprecation`), Unchanged, but read or written, Domain (+88 more)
 
 ### Community 915 - ".CreateExtractor"
 Cohesion: 0.29
@@ -4742,16 +4774,16 @@ Cohesion: 0.27
 Nodes (7): LocalFileStorage, CancellationToken, IOptions, Stream, Task, LocalFileStorageOptions, RootPath
 
 ### Community 918 - "ActionClaimVocabulary"
-Cohesion: 0.13
+Cohesion: 0.12
 Nodes (13): Key, Label, ActionClaimVocabulary, AllVerbs, Capabilities, StandaloneVerbs, CapabilityClaimTerms, IReadOnlyList (+5 more)
 
-### Community 919 - "WorkflowVariableType"
-Cohesion: 0.07
-Nodes (28): IReadOnlyDictionary, IReadOnlyList, WorkflowVariable, DefaultValueJson, IsRequired, Kind, Name, ValueType (+20 more)
+### Community 919 - "KnowledgeBaseDocumentType"
+Cohesion: 0.15
+Nodes (15): DocumentValidationResult, IDocumentContentValidator, KnowledgeBaseDocumentType, Csv, Excel, Markdown, Pdf, PowerPoint (+7 more)
 
 ### Community 920 - "SiteAnalysisResult"
-Cohesion: 0.06
-Nodes (31): SiteAnalysisConfidence, SiteAnalysisPrompts, CancellationToken, Guid, SiteAnalysisConfidenceLevel, High, Low, Medium (+23 more)
+Cohesion: 0.10
+Nodes (24): NotificationAuditLog, SiteAnalysisConfidence, SiteAnalysisConfidenceLevel, High, Low, Medium, SiteAnalysisResultStatus, Completed (+16 more)
 
 ### Community 921 - ".NewIncident"
 Cohesion: 0.30
@@ -4766,20 +4798,20 @@ Cohesion: 0.11
 Nodes (18): Assumptions, Clarifications, Context, Edge Cases, Feature Specification: Honest Turn Outcomes, Real Retry, and a Readable Offer Card, Functional Requirements, Key Entities, Measurable Outcomes (+10 more)
 
 ### Community 924 - "OperationalFailureEngine"
-Cohesion: 0.12
-Nodes (16): Contract: Admin Operational Failures API, Incidents, Investigations (read-only; research D15), Shapes, OperationalFailureEngine, Access, Agent, AiProvider (+8 more)
+Cohesion: 0.10
+Nodes (21): OperationalFailureEngine, Access, Agent, AiProvider, BackgroundJob, Chat, DocumentProcessing, Embeddings (+13 more)
 
-### Community 925 - ".ComposeFinding"
-Cohesion: 0.32
-Nodes (6): Alt, FileId, JsonObject, SiteAnalysisContentComposer, Guid, JsonDocument
+### Community 925 - "SiteAnalysisResultMetadata"
+Cohesion: 0.24
+Nodes (9): Alt, FileId, JsonObject, SiteAnalysisContentComposer, Guid, JsonDocument, SiteAnalysisResultMetadata, DateTime (+1 more)
 
 ### Community 926 - ".ProvisionOneAsync"
 Cohesion: 0.24
 Nodes (9): ProvisionOutcome, SystemAgentDefinition, IReadOnlyList, SystemAgentProvisioner, SystemAgentProvisionerLog, CancellationToken, Exception, ILogger (+1 more)
 
 ### Community 927 - ".GetByIdAsync"
-Cohesion: 0.12
-Nodes (24): EnableMcpServerCommand, Guid, McpServerDto, GetMcpServerQueryHandler, CancellationToken, McpServerDto, Task, CancellationToken (+16 more)
+Cohesion: 0.09
+Nodes (33): GetMcpServerQueryHandler, CancellationToken, McpServerDto, Task, GetMcpServerHealthQuery, Guid, GetMcpServerHealthQueryHandler, CancellationToken (+25 more)
 
 ### Community 928 - "SupertonicModelTests"
 Cohesion: 0.32
@@ -4794,8 +4826,8 @@ Cohesion: 0.06
 Nodes (35): IncidentTransitionResult, AlreadyInState, Applied, OperationalFailureIncident, AcknowledgedAtUtc, AcknowledgedByUserId, DistinctSourceCount, DistinctUserCount (+27 more)
 
 ### Community 931 - "Tasks: Notifications & Communication Hub"
-Cohesion: 0.05
-Nodes (47): INotificationPreferenceRepository, Dependencies & Execution Order, Deployment order, Format: `[ID] [P?] [Story] Description`, Implementation for User Story 4, Implementation for User Story 6, Implementation for User Story 7, Implementation for User Story 8 (part B) (+39 more)
+Cohesion: 0.04
+Nodes (53): INotificationPreferenceRepository, NotificationAuditLog, Dependencies & Execution Order, Deployment order, Format: `[ID] [P?] [Story] Description`, Implementation for User Story 4, Implementation for User Story 5, Implementation for User Story 7 (+45 more)
 
 ### Community 932 - "SystemAgentProvisioningHostedService"
 Cohesion: 0.21
@@ -4805,73 +4837,73 @@ Nodes (10): SystemAgentProvisioningHostedService, SystemAgentProvisioningHostedS
 Cohesion: 0.20
 Nodes (9): RoleAuditAction, AuthorizationDenied, PermissionRetired, RoleAssigned, RoleChanged, RoleCreated, RoleDeleted, RoleRemoved (+1 more)
 
-### Community 941 - ".Handle_ShouldReturnEveryModel_RegardlessOfStatus"
-Cohesion: 0.15
-Nodes (17): Phase 3: User Story 1 - Administrator reviews a provider's model catalog (Priority: P1) 🎯 MVP, Tests for User Story 1, GetAdminAiModelsQuery, AdminAiModelDto, Guid, IReadOnlyList, GetAdminAiModelsQueryHandler, AdminAiModelDto (+9 more)
+### Community 941 - ".Create"
+Cohesion: 0.09
+Nodes (23): GetAdminAiModelsQuery, AdminAiModelDto, Guid, IReadOnlyList, GetAdminAiModelsQueryHandler, AdminAiModelDto, CancellationToken, IReadOnlyList (+15 more)
 
 ### Community 942 - "Citation"
-Cohesion: 0.13
-Nodes (14): RetrievalOwnershipGuard, Citation, DocumentChunkId, DocumentId, DocumentVersionId, KnowledgeBaseId, MessageId, PageNumber (+6 more)
+Cohesion: 0.11
+Nodes (15): AskLucy.Application.Retrieval.Authorization, RetrievalOwnershipGuard, Citation, DocumentChunkId, DocumentId, DocumentVersionId, KnowledgeBaseId, MessageId (+7 more)
 
 ### Community 943 - "DictationEngineSettingRepository"
 Cohesion: 0.27
 Nodes (9): DictationEngineSettingRepository, AskLucyDbContext, CancellationToken, Guid, Task, DictationEngineSettingRepositoryTests, DateTime, Fact (+1 more)
 
 ### Community 944 - ".GetAsync"
-Cohesion: 0.09
-Nodes (20): INotificationRecipientDirectory, INotificationTemplateRenderer, NotificationRecipientDirectory, AskLucyDbContext, CancellationToken, IReadOnlyCollection, IReadOnlyDictionary, NotificationRecipientInfo (+12 more)
+Cohesion: 0.15
+Nodes (12): INotificationRecipientDirectory, NotificationRecipientDirectory, AskLucyDbContext, CancellationToken, IReadOnlyCollection, IReadOnlyDictionary, NotificationRecipientInfo, Task (+4 more)
 
 ### Community 945 - ".Handle"
-Cohesion: 0.19
+Cohesion: 0.18
 Nodes (13): ListCategoriesQuery, IReadOnlyList, KnowledgeBaseCategoryDto, ListCategoriesQueryHandler, CancellationToken, IReadOnlyList, KnowledgeBaseCategoryDto, Task (+5 more)
 
 ### Community 947 - "NotificationLinkBuilderTests"
-Cohesion: 0.21
-Nodes (9): FakeLogger, NotificationTypeDefinition, Implementation for Phase 4b, Phase 4b: User Story 2 (part B) - Knowledge-base indexing trigger (Priority: P1, ships with slice 1), IIndexingOrchestrator, NotificationLinkBuilderTests, Fact, InvalidOperationException (+1 more)
+Cohesion: 0.29
+Nodes (7): FakeLogger, NotificationTypeDefinition, Implementation for Phase 4b, NotificationLinkBuilderTests, Fact, InvalidOperationException, NotificationLinkBuilder
 
 ### Community 948 - "Phase 0 Research: Site Boundary Resolution"
 Cohesion: 0.12
 Nodes (14): 10. Persistence — corrected after reading the actual `Locations` wiring, 11. Access / tier gating, 12. Testing external HTTP dependency, 2. Boundary candidate source, 3. Scoring approach, 4. Confidence classification thresholds, 5. Multiple-similarly-plausible-candidates behavior, 6. AI-vision critique phasing (+6 more)
 
 ### Community 949 - "WeatherCondition"
-Cohesion: 0.22
-Nodes (9): WeatherCondition, Clear, Cloudy, Fog, PartlyCloudy, Rain, Snow, Thunderstorm (+1 more)
+Cohesion: 0.18
+Nodes (10): WeatherCondition, Clear, Cloudy, Fog, PartlyCloudy, Rain, Snow, Thunderstorm (+2 more)
 
 ### Community 950 - "VoiceProviderTests"
 Cohesion: 0.33
 Nodes (5): VoiceProviderTests, DomainRuleViolationException, Fact, InlineData, Theory
 
-### Community 951 - "AdminRolesController"
+### Community 951 - "HttpPut"
 Cohesion: 0.08
-Nodes (35): AdministratorContentAccessDto, RoleSummaryDto, IsDefault, LockedPermissionKeys, DateTime, IReadOnlyList, AssignRoleRequest, CreateRoleRequest (+27 more)
+Nodes (36): AdministratorContentAccessDto, HttpPut, RoleSummaryDto, IsDefault, LockedPermissionKeys, DateTime, IReadOnlyList, AssignRoleRequest (+28 more)
 
 ### Community 952 - ".Register_SignIn_Roles_Permissions_Claims_AndDelete_AllWorkOnTheRepairedSchema"
 Cohesion: 0.21
 Nodes (12): HttpResponseMessage, IdentityLifecycleSmokeTests, RoleSnapshot, ApplicationRole, ApplicationUser, AskLucyDbContext, Fact, HttpClient (+4 more)
 
 ### Community 953 - "GetSiteAnalysisQuery"
-Cohesion: 0.24
-Nodes (11): GetSiteAnalysisQuery, Guid, GetSiteAnalysisQueryHandler, GetSiteAnalysisQueryHandlerTests, CancellationToken, Fact, Guid, KeyNotFoundException (+3 more)
+Cohesion: 0.18
+Nodes (13): GetSiteAnalysisQuery, Guid, GetSiteAnalysisQueryHandler, CancellationToken, Task, GetSiteAnalysisQueryHandlerTests, CancellationToken, Fact (+5 more)
 
-### Community 954 - ".Create"
-Cohesion: 0.24
-Nodes (7): DateOnly, Guid, AIModelTests, Fact, Guid, InlineData, Theory
+### Community 954 - ".Handle"
+Cohesion: 0.15
+Nodes (14): CancellationToken, Task, DeleteMyAccountCommand, CancellationToken, Task, DeleteMyAccountCommandValidator, CancellationToken, Task (+6 more)
 
 ### Community 955 - "Feature Specification: Cookie Consent & Privacy Management"
-Cohesion: 0.13
+Cohesion: 0.12
 Nodes (15): Assumptions, Clarifications, Edge Cases, Feature Specification: Cookie Consent & Privacy Management, Functional Requirements, Key Entities, Measurable Outcomes, Post-Implementation Notes (+7 more)
 
 ### Community 957 - "three"
 Cohesion: 0.03
-Nodes (75): three, Contract: Solar Scene, Geometry & Shadows, `footprintGeometry.ts` — one geometry, one material, `MIN_SHADOW_ELEVATION_DEGREES: 1.0` — added, Playback gate, `SHADOW_FRUSTUM_RATIO` — **removed**, Shadow radius derivation, `shadowGround.ts` — unchanged in structure (+67 more)
+Nodes (73): three, ref_three_examples_jsm_utils_buffergeometryutils_js, Contract: Solar Scene, Geometry & Shadows, `footprintGeometry.ts` — one geometry, one material, `MIN_SHADOW_ELEVATION_DEGREES: 1.0` — added, Playback gate, `SHADOW_FRUSTUM_RATIO` — **removed**, Shadow radius derivation (+65 more)
 
 ### Community 959 - "AIProvider"
 Cohesion: 0.05
-Nodes (48): AdminAiProviderDto, AiProviderFailureKind, DateTime, Guid, ProviderSummaryDto, DateTime, Guid, AIProvider (+40 more)
+Nodes (39): AdminAiProviderDto, AiProviderFailureKind, DateTime, Guid, ProviderSummaryDto, DateTime, Guid, AIProvider (+31 more)
 
-### Community 960 - "ChunkingStrategy"
-Cohesion: 0.13
-Nodes (15): ChunkingStrategy, FixedSize, Heading, Markdown, Paragraph, Recursive, Semantic, Sentence (+7 more)
+### Community 960 - ".SearchAsync"
+Cohesion: 0.19
+Nodes (14): Items, TotalCount, ListRoleAssignmentsQuery, ListRoleAssignmentsQueryHandler, CancellationToken, Task, RoleAssignmentDto, RoleAssignmentRoleDto (+6 more)
 
 ### Community 964 - "SearchAnalytics"
 Cohesion: 0.13
@@ -4885,9 +4917,9 @@ Nodes (10): getPanelPreferences(), savePanelPreferences(), UserPanelPreference, 
 Cohesion: 0.35
 Nodes (5): AgentsControllerTests, CustomWebApplicationFactory, Fact, HttpClient, Task
 
-### Community 967 - "system_security_claims"
-Cohesion: 0.04
-Nodes (20): asklucy_application_authorization, AskLucy.Application.Panels.Commands.SaveUserPanelPreference, AskLucy.Infrastructure.Tests.Panels, AskLucy.Infrastructure.Retrieval, AskLucy.Infrastructure.Documents, AskLucy.Domain.SiteAnalysis, AskLucy.Application.SiteAnalysis, AskLucy.Infrastructure.Panels (+12 more)
+### Community 967 - "SiteSchematicImageGenerationTool"
+Cohesion: 0.10
+Nodes (18): IImageGenerationService, SiteAnalysisPrompts, SiteSchematicImageGenerationTool, Description, InputSchemaJson, Name, OutputSchemaJson, RequiredPermissions (+10 more)
 
 ### Community 968 - "AdminRoleAssignmentsBulkAssignTests"
 Cohesion: 0.27
@@ -4897,9 +4929,9 @@ Nodes (7): AdminRoleAssignmentsBulkAssignTests, CustomWebApplicationFactory, Fac
 Cohesion: 0.20
 Nodes (5): NotificationTypeCatalogTests, Fact, GeneratedRegex, HashSet, Regex
 
-### Community 970 - "StubCapability"
-Cohesion: 0.12
-Nodes (16): StubCapability, AcknowledgementTemplate, Area, ArgumentHint, Description, ExpectedDuration, InputSchemaJson, Label (+8 more)
+### Community 970 - ".Handle"
+Cohesion: 0.19
+Nodes (16): ChangeUserRoleCommand, ChangeUserRoleCommandHandler, CancellationToken, ICurrentUserAccessor, ILogger, ISender, Task, ChangeUserRoleCommandValidator (+8 more)
 
 ### Community 974 - ".Handle"
 Cohesion: 0.12
@@ -4910,52 +4942,52 @@ Cohesion: 0.13
 Nodes (15): OperationalFailureReferences, AgentExecutionId, AgentId, ChatId, DocumentId, JobId, KnowledgeBaseId, McpServerId (+7 more)
 
 ### Community 976 - "WeatherSnapshotDto"
-Cohesion: 0.22
-Nodes (8): WeatherSnapshotDto, DateTimeOffset, WeatherController, ActionResult, CancellationToken, HttpGet, ISender, Task
+Cohesion: 0.15
+Nodes (10): CancellationToken, Task, WeatherSnapshotDto, DateTimeOffset, WeatherController, ActionResult, CancellationToken, HttpGet (+2 more)
 
 ### Community 977 - "ControllerBase"
-Cohesion: 0.11
-Nodes (15): ControllerBase, CookieOptions, ISender, HangfireDashboardCookie, TimeSpan, AdminAgentsController, ActionResult, CancellationToken (+7 more)
+Cohesion: 0.07
+Nodes (26): ControllerBase, CookieOptions, ISender, PresenceSphereSettingsDto, Defaults, DateTime, HangfireDashboardCookie, TimeSpan (+18 more)
 
 ### Community 978 - "OvertureTestBucket"
 Cohesion: 0.18
 Nodes (9): OvertureTestBucket, FailWith, ListedReleases, Requests, Dictionary, HttpRequestMessage, HttpResponseMessage, HttpStatusCode (+1 more)
 
-### Community 979 - ".Handle_ShouldIssueTokens_WhenCodeIsValid"
-Cohesion: 0.05
-Nodes (47): Contract: External Login Claim Mapping & Sync, `IExternalProfilePictureSyncJob` (new), `ProcessExternalLoginCallbackCommand` (extended), Provider Claim Contract, New Application Contracts, `ProcessExternalLoginCallbackCommand` (extended), Decision 2: Where profile sync is orchestrated, Phase 2: Foundational (Blocking Prerequisites) (+39 more)
+### Community 979 - "UploadAvatarCommandHandler"
+Cohesion: 0.03
+Nodes (89): ADR 0014: Host-Restricting and Content-Validating Provider-Sourced Profile Pictures, Alternatives Considered, Consequences, Context, Decision, Related, Content Quality, Feature Readiness (+81 more)
 
-### Community 980 - "20260729132404_DropLegacyUserChatDateTimeColumns.Designer.cs"
-Cohesion: 0.20
-Nodes (6): MigrationBuilder, DropLegacyUserChatDateTimeColumns, DateTime, DateTimeOffset, Guid, ModelBuilder
+### Community 980 - ".BuildTargetModel"
+Cohesion: 0.40
+Nodes (4): DateTime, DateTimeOffset, Guid, ModelBuilder
 
 ### Community 981 - "Contract: Turn Outcome"
 Cohesion: 0.13
 Nodes (14): Contract: Turn Stream, Feature Specification: Panel Content Model, 1. Stream event — `__TURN_OUTCOME__`, 2. Persistence, 3. Claim gate, 4. Routing summary, 5. Audit trail, `attempts[]` (+6 more)
 
-### Community 982 - "BuildingCorrectionsPanel"
-Cohesion: 0.02
-Nodes (87): Content Quality, Feature Readiness, Notes, Requirement Completeness, Specification Quality Checklist: Precise Time-of-Day Control, `buildTimeSliderMarks(trackWidthPx: number | null): SliderMark[]`, Contract: Time Entry & Slider Marks, `copy.ts` (modified) (+79 more)
+### Community 982 - "Tasks: Precise Time-of-Day Control"
+Cohesion: 0.03
+Nodes (69): Content Quality, Feature Readiness, Notes, Requirement Completeness, Specification Quality Checklist: Precise Time-of-Day Control, `buildTimeSliderMarks(trackWidthPx: number | null): SliderMark[]`, Contract: Time Entry & Slider Marks, `copy.ts` (modified) (+61 more)
 
 ### Community 983 - "AgentExecutionHistorySecurityTests"
 Cohesion: 0.33
 Nodes (5): AgentExecutionHistorySecurityTests, CustomWebApplicationFactory, Fact, HttpClient, Task
 
-### Community 984 - ".EnsureOwnedBy"
-Cohesion: 0.06
-Nodes (38): PriorVersion, DocumentOwnershipGuard, CancellationToken, DocumentSummaryDto, Task, RenameDocumentCommand, Guid, RenameDocumentCommandHandler (+30 more)
+### Community 984 - ".SetUpDocumentWithTwoVersions"
+Cohesion: 0.17
+Nodes (14): PriorVersion, RestoreDocumentVersionCommand, DocumentSummaryDto, Guid, CancellationToken, DocumentSummaryDto, Task, VersionUploadInProgressException (+6 more)
 
 ### Community 985 - "InMemoryExternalLoginCodeStore"
 Cohesion: 0.24
 Nodes (8): Entry, Entry, InMemoryExternalLoginCodeStore, ConcurrentDictionary, DateTimeOffset, TimeSpan, InMemoryExternalLoginCodeStoreTests, Fact
 
-### Community 987 - "SqlServerVectorStore"
-Cohesion: 0.22
-Nodes (11): SqlServerVectorStore, Provider, VectorDistanceRow, Distance, DocumentChunkId, AskLucyDbContext, CancellationToken, Guid (+3 more)
+### Community 987 - "AiControllerVoiceTests"
+Cohesion: 0.25
+Nodes (5): CreateSpeechToTextSessionRequest, SaveVoicePreferenceRequest, AiControllerVoiceTests, Fact, Task
 
-### Community 988 - "Phase 0 Research: External Login Profile Sync"
-Cohesion: 0.14
-Nodes (11): `ApplicationUser` (`src/AskLucy.Persistence/Identity/ApplicationUser.cs`), Existing Entities (unchanged schema), Flow Summary, Phase 1 Data Model: External Login Profile Sync, Decision 1: Claim mapping per provider, Decision 4: Picture sync is asynchronous via a background job, Decision 6: Outbound fetch is host-restricted (SSRF hardening), Decision 7: Reuse the existing 5MB avatar size limit (+3 more)
+### Community 988 - ".InvokeAsync"
+Cohesion: 0.23
+Nodes (11): Status, ProblemDetailsMiddlewareProviderFailureTests, AiProviderException, Exception, Fact, HttpContext, IOperationalFailureRecorder, JsonElement (+3 more)
 
 ### Community 989 - "User Scenarios & Testing *(mandatory)*"
 Cohesion: 0.14
@@ -4965,9 +4997,9 @@ Nodes (13): Affected Files, Exceptions, Expansion Direction, Feature Specificati
 Cohesion: 0.29
 Nodes (6): ModelRepositorySourceFailureKind, DownloadStalled, GatedOrPrivate, IntegrityMismatch, NotFound, Unavailable
 
-### Community 992 - "ListMcpServerReferencesQuery"
-Cohesion: 0.20
-Nodes (12): ListMcpServerReferencesQuery, Guid, IReadOnlyList, ListMcpServerReferencesQueryHandler, CancellationToken, IReadOnlyList, McpServerReferenceDto, Task (+4 more)
+### Community 992 - "ScopedHostedModelLocatorTests"
+Cohesion: 0.21
+Nodes (12): Available, NoRecord, ScopedHostedModelLocator, CancellationToken, IServiceScopeFactory, Task, ScopedHostedModelLocatorTests, CancellationToken (+4 more)
 
 ### Community 993 - "TurnOutcomeAuthorityTests"
 Cohesion: 0.32
@@ -4977,21 +5009,21 @@ Nodes (4): TurnOutcomeAuthorityTests, Fact, IEnumerable, Regex
 Cohesion: 0.33
 Nodes (5): AccountManagementTests, CustomWebApplicationFactory, Fact, HttpClient, Task
 
-### Community 995 - "UserPanelPreference"
-Cohesion: 0.18
-Nodes (9): UserPanelPreference, OpacityPercent, UserId, UserPanelPreferenceConfiguration, EntityTypeBuilder, UserPanelPreferenceRepository, AskLucyDbContext, CancellationToken (+1 more)
+### Community 995 - "Feature Specification: Deployment Connectors Administration"
+Cohesion: 0.10
+Nodes (19): Content Quality, Feature Readiness, Notes, Requirement Completeness, Specification Quality Checklist: Deployment Connectors Administration, Assumptions, Clarifications, Edge Cases (+11 more)
 
-### Community 996 - "Contract: User Notifications API"
-Cohesion: 0.04
-Nodes (49): Content Quality, Feature Readiness, Notes, Requirement Completeness, Specification Quality Checklist: Notifications & Communication Hub, API, Contract: Frontend Localization & RTL, Language switch (+41 more)
+### Community 996 - "Feature Specification: Notifications & Communication Hub"
+Cohesion: 0.14
+Nodes (14): Assumptions, Clarifications, Dependencies, Feature Specification: Notifications & Communication Hub, Functional Requirements, Key Entities, Measurable Outcomes, Migration Considerations (+6 more)
 
-### Community 1005 - ".GetByUserIdAsync"
-Cohesion: 0.24
-Nodes (11): CancellationToken, Task, GetUserPanelPreferenceQuery, GetUserPanelPreferenceQueryHandler, CancellationToken, Task, UserPanelPreferenceDto, GetUserPanelPreferenceQueryHandlerTests (+3 more)
+### Community 1005 - "ClearUserChatMessagesCommand"
+Cohesion: 0.15
+Nodes (15): ClearUserChatMessagesCommand, Guid, ClearUserChatMessagesCommandHandlerLog, CancellationToken, Guid, ILogger, LoggerMessage, Task (+7 more)
 
-### Community 1008 - "AgentMemoryPolicy"
-Cohesion: 0.16
-Nodes (10): AgentMemoryPolicy, AgentId, AllowRead, AllowWriteProposals, PreApprovedCategoriesJson, Guid, AgentConfiguration, EntityTypeBuilder (+2 more)
+### Community 1008 - "Agent"
+Cohesion: 0.02
+Nodes (83): CancellationToken, Guid, IReadOnlyList, Items, NextCursor, Agent, AgentType, Description (+75 more)
 
 ### Community 1010 - ".DeriveFrom"
 Cohesion: 0.24
@@ -4999,11 +5031,11 @@ Nodes (7): ConversationTitleGenerator, GeneratedRegex, Regex, ConversationTitleG
 
 ### Community 1011 - ".SaveAsync"
 Cohesion: 0.04
-Nodes (54): ExportedCategory, ExportedMemory, CancellationToken, Stream, Task, IMemoryExportGenerationJob, CancellationToken, Guid (+46 more)
+Nodes (55): AskLucy.Application.Memory.Queries.GetMemoryExportStatus, ExportedCategory, ExportedMemory, CancellationToken, Stream, Task, IMemoryExportGenerationJob, CancellationToken (+47 more)
 
-### Community 1012 - "AgentTests"
-Cohesion: 0.35
-Nodes (3): AgentTests, Fact, Guid
+### Community 1012 - ".EditOfferLevel"
+Cohesion: 0.27
+Nodes (9): EditOfferPrecedenceTests, ActiveSiteBoundary, BoundaryConfidenceLevel, Fact, GeoPoint, IReadOnlyList, SiteBoundarySource, TurnContext (+1 more)
 
 ### Community 1014 - "AdminRoleAssignmentsTests"
 Cohesion: 0.27
@@ -5014,8 +5046,8 @@ Cohesion: 0.29
 Nodes (7): LockUnlockUserTests, CustomWebApplicationFactory, Fact, HttpClient, InlineData, Task, Theory
 
 ### Community 1016 - "SignalRNotificationRealtimePublisher"
-Cohesion: 0.10
-Nodes (22): Hub, IClientProxy, NotificationActionDto, NotificationRelatedItemDto, CustomModelDeploymentHub, ILogger, LoggerMessage, Task (+14 more)
+Cohesion: 0.16
+Nodes (15): IClientProxy, NotificationActionDto, NotificationRelatedItemDto, NotificationHub, Task, NotificationCreatedPayload, NotificationUpdatedPayload, SignalRNotificationRealtimePublisher (+7 more)
 
 ### Community 1017 - "CookieConsentControllerTests"
 Cohesion: 0.39
@@ -5025,37 +5057,37 @@ Nodes (5): CookieConsentControllerTests, CustomWebApplicationFactory, Fact, Http
 Cohesion: 0.13
 Nodes (14): Clarifications, Edge Cases, Feature Specification: Admin Dashboard & User Management Console, Functional Requirements, Key Entities, Measurable Outcomes, Requirements *(mandatory)*, Session 2026-07-28 (+6 more)
 
-### Community 1020 - "Tasks: Precise Time-of-Day Control"
-Cohesion: 0.08
-Nodes (25): Dependencies & Execution Order, Format: `[ID] [P?] [Story] Description`, Implementation for User Story 1, Implementation for User Story 2, Implementation for User Story 3, Implementation Strategy, Incremental delivery, MVP (+17 more)
+### Community 1020 - ".CreateProvider"
+Cohesion: 0.30
+Nodes (8): GeocodingProviderUnavailableException, GoogleMapsGeocodingProviderTests, Fact, Func, HttpRequestMessage, HttpResponseMessage, IHttpClientFactory, Task
 
 ### Community 1022 - "OwnershipTests"
 Cohesion: 0.26
 Nodes (7): OwnershipTests, CustomWebApplicationFactory, Fact, HttpClient, InlineData, Task, Theory
 
-### Community 1023 - ".MaterializeAsync"
-Cohesion: 0.28
-Nodes (7): Extension, GeneratedImageMaterializer, InvalidGeneratedImageException, CancellationToken, ContentType, Task, Uri
+### Community 1023 - "StubCapability"
+Cohesion: 0.10
+Nodes (19): CapabilityDuration, StubCapability, AcknowledgementTemplate, Area, ArgumentHint, Description, ExpectedDuration, InputSchemaJson (+11 more)
 
-### Community 1027 - ".Up"
-Cohesion: 0.40
-Nodes (3): DateTime, Guid, MigrationBuilder
-
-### Community 1028 - ".Up"
-Cohesion: 0.40
-Nodes (3): DateTime, Guid, MigrationBuilder
-
-### Community 1030 - "DictationApiFactory"
+### Community 1027 - ".Handle"
 Cohesion: 0.22
-Nodes (11): ILocalWhisperModelCatalog, ILocalWhisperModelTrial, DictationApiFactory, AiProviders, Catalog, ElevenLabs, Settings, Trial (+3 more)
+Nodes (14): CreateRoleCommand, CreateRoleCommand, IReadOnlyList, RoleSummaryDto, CreateRoleCommandHandler, CancellationToken, ICurrentUserAccessor, RoleSummaryDto (+6 more)
+
+### Community 1028 - "SiteBoundaryCorrectionTests"
+Cohesion: 0.25
+Nodes (5): DomainRuleViolationException, SiteBoundaryCorrectionTests, Fact, FoundSiteBoundarySnapshot, IReadOnlyList
+
+### Community 1030 - "API Contract: Dictation Clip Transcription"
+Cohesion: 0.10
+Nodes (17): API Contract: Speech-to-Text Session Token, Client usage (frontend contract, not a new server behavior), Mint a speech-to-text session token, Phase 1 Data Model: ElevenLabs Conversational Voice Engine, Implementation Plan: ElevenLabs Conversational Voice Engine, Phase 0 Research: ElevenLabs Conversational Voice Engine, Feature Specification: ElevenLabs Conversational Voice Engine, Tasks: ElevenLabs Conversational Voice Engine (+9 more)
 
 ### Community 1031 - "Implementation for User Story 1: backend"
-Cohesion: 0.10
-Nodes (19): D6 — Where the edit offer goes, and closing the decline gap, Verification, Implementation for User Story 1: backend, Phase 7: User Story 5 - Go back to what Lucy found (Priority: P2), ChatOwnershipAuditor, IRoleAuditLogRepository, IUnitOfWork, SiteBoundaryEditOffer (+11 more)
+Cohesion: 0.07
+Nodes (30): 200 OK, 200 OK, 200 OK, Contract: Site Boundary Edit API, Errors, Errors, Errors, `GET /api/v1/chats/{chatId}` (existing): additive change (+22 more)
 
 ### Community 1035 - "blocks.ts"
 Cohesion: 0.04
-Nodes (64): ref_mui_system, ref_node_fs, ActionAffordance(), ActionAffordanceProps, actionAllowlist, ActionValidation, AllowlistEntry, clearSelectionArgsSchema (+56 more)
+Nodes (71): ref_mui_system, 1. Time Control — live panel, 2. Building Corrections — live panel, 3. Solar Figures — content panel, Accessibility (FR-032, constitution §7), Contract: Solar Analysis Panels, Presentation (amended 2026-09-14), Required content rules (+63 more)
 
 ### Community 1036 - ".TryTakeSegment"
 Cohesion: 0.43
@@ -5075,51 +5107,51 @@ Nodes (4): DateTime, DateTimeOffset, Guid, ModelBuilder
 
 ### Community 1046 - "McpTool"
 Cohesion: 0.05
-Nodes (46): ActiveAvailableRow, McpTool, ActivatedAtUtc, ActivatedByUserId, ActivationStatus, DeclaredCapabilitiesJson, Description, DisplayName (+38 more)
+Nodes (42): ActiveAvailableRow, McpTool, ActivatedAtUtc, ActivatedByUserId, ActivationStatus, DeclaredCapabilitiesJson, Description, DisplayName (+34 more)
 
-### Community 1047 - "VoiceProviderHealthRecorder"
-Cohesion: 0.24
-Nodes (6): IVoiceProviderHealthRecorder, CancellationToken, Task, VoiceProviderHealthRecorder, CancellationToken, Task
+### Community 1047 - "AiProviderFailureKind"
+Cohesion: 0.11
+Nodes (19): Complexity Tracking, Constitution Check, Documentation (this feature), Implementation Plan: Admin Operational Failure Audit Trail, Key flows, Project Structure, Source Code, Summary (+11 more)
 
-### Community 1048 - "BulkUserActionsTests"
-Cohesion: 0.13
-Nodes (15): Technical Context, Program, CustomWebApplicationFactory, IWebHostBuilder, JsonEnumSerializationTests, Fact, IOptions, JsonOptions (+7 more)
+### Community 1048 - "CustomWebApplicationFactory"
+Cohesion: 0.17
+Nodes (10): Technical Context, Technical Context, Program, CustomWebApplicationFactory, IWebHostBuilder, JsonEnumSerializationTests, Fact, IOptions (+2 more)
 
 ### Community 1050 - "RoleAuthorizationTests"
 Cohesion: 0.27
 Nodes (7): RoleAuthorizationTests, CustomWebApplicationFactory, Fact, HttpClient, InlineData, Task, Theory
 
-### Community 1055 - "SiteAnalysisProgressiveDeliveryTests"
-Cohesion: 0.18
-Nodes (14): ISiteAnalysisResultRelay, CancellationToken, Exception, Guid, JsonDocument, Task, SiteAnalysisProgressiveDeliveryTests, CancellationToken (+6 more)
+### Community 1055 - ".GetByIdAsync"
+Cohesion: 0.13
+Nodes (19): ISiteAnalysisRepository, CancellationToken, Guid, IReadOnlyList, Task, ISiteAnalysisResultRelay, CancellationToken, Exception (+11 more)
 
-### Community 1060 - "20260826190235_AddActiveSiteBoundaryToUserChat.Designer.cs"
-Cohesion: 0.20
-Nodes (6): MigrationBuilder, AddActiveSiteBoundaryToUserChat, DateTime, DateTimeOffset, Guid, ModelBuilder
+### Community 1060 - ".BuildTargetModel"
+Cohesion: 0.40
+Nodes (4): DateTime, DateTimeOffset, Guid, ModelBuilder
 
 ### Community 1067 - ".BuildTargetModel"
-Cohesion: 0.18
-Nodes (8): DateTime, DateTimeOffset, Guid, ModelBuilder, DateTime, DateTimeOffset, Guid, ModelBuilder
+Cohesion: 0.40
+Nodes (4): DateTime, DateTimeOffset, Guid, ModelBuilder
 
 ### Community 1069 - "SaveUserPanelPreferenceCommand"
 Cohesion: 0.20
-Nodes (13): SaveUserPanelPreferenceCommand, SaveUserPanelPreferenceCommandHandler, CancellationToken, Task, UserPanelPreferenceDto, SaveUserPanelPreferenceCommandValidator, SaveUserPanelPreferenceCommandHandlerTests, CancellationToken (+5 more)
+Nodes (11): SaveUserPanelPreferenceCommand, CancellationToken, Task, UserPanelPreferenceDto, SaveUserPanelPreferenceCommandValidator, CancellationToken, Fact, Task (+3 more)
 
 ### Community 1070 - ".Handle"
-Cohesion: 0.27
+Cohesion: 0.24
 Nodes (10): GetRoleAssignmentsEligibleIdsQuery, IReadOnlyList, GetRoleAssignmentsEligibleIdsQueryHandler, CancellationToken, IReadOnlyList, Task, GetRoleAssignmentsEligibleIdsQueryHandlerTests, CancellationToken (+2 more)
 
 ### Community 1073 - "IncidentSummaryDto"
 Cohesion: 0.05
-Nodes (74): CorrectiveAdminAction, IncidentTriageState, ProviderHealthStatus, Implementation for User Story 1, ChatFailurePointDto, ChatInvestigationChatDto, ChatInvestigationDto, ChatTranscriptMessageDto (+66 more)
+Nodes (76): CorrectiveAdminAction, IncidentTriageState, ProviderHealthStatus, Implementation for User Story 1, BulkTransitionFailureDto, BulkTransitionResultDto, ChatFailurePointDto, ChatInvestigationChatDto (+68 more)
 
 ### Community 1078 - "SystemAgentProvisioningResult"
 Cohesion: 0.21
 Nodes (8): ISystemAgentProvisioner, SystemAgentProvisioningResult, CancellationToken, Task, ISystemAgentProvisioningStatus, IsDeferred, SystemAgentProvisioningStatus, IsDeferred
 
-### Community 1079 - "20260829194600_AddProviderFailureClassificationAndOptionalModelLimits.Designer.cs"
-Cohesion: 0.20
-Nodes (6): MigrationBuilder, AddProviderFailureClassificationAndOptionalModelLimits, DateTime, DateTimeOffset, Guid, ModelBuilder
+### Community 1079 - ".BuildTargetModel"
+Cohesion: 0.40
+Nodes (4): DateTime, DateTimeOffset, Guid, ModelBuilder
 
 ### Community 1084 - "ChunkStatistics"
 Cohesion: 0.18
@@ -5129,13 +5161,13 @@ Nodes (10): ChunkStatistics, ComputedAtUtc, KnowledgeBaseId, StorageBytes, Total
 Cohesion: 0.18
 Nodes (11): RetrievalResult, BoostFactorsJson, DocumentChunkId, KeywordScore, Rank, RelevanceScore, RetrievalHistoryId, SemanticScore (+3 more)
 
-### Community 1092 - ".Create"
-Cohesion: 0.35
-Nodes (4): UserVoicePreferenceTests, Fact, InlineData, Theory
+### Community 1092 - "AgentPolicyDto"
+Cohesion: 0.15
+Nodes (16): AgentPolicyDto, DateTime, Guid, CreateAgentPolicyCommand, CreateAgentPolicyCommandHandler, CancellationToken, UpdateAgentPolicyCommand, Guid (+8 more)
 
-### Community 1093 - ".RetrieveContextAsync"
+### Community 1093 - "AdminVoiceProvidersControllerTests"
 Cohesion: 0.19
-Nodes (10): RagService, RagServiceLog, CancellationToken, Exception, Guid, ILogger, IMediator, IReadOnlyList (+2 more)
+Nodes (13): AddVoiceProviderRequest, PreviewVoiceRequest, AdminVoiceProvidersControllerTests, Endpoints, CustomWebApplicationFactory, Fact, Guid, HttpClient (+5 more)
 
 ### Community 1096 - "AuthOutcome"
 Cohesion: 0.20
@@ -5145,25 +5177,25 @@ Nodes (10): AuthOutcome, EmailNotConfirmed, Failed, InvalidCredentials, LockedOu
 Cohesion: 0.20
 Nodes (11): AppearanceApiFactory, HttpMethod, HttpRequestMessage, PresenceSphereSettingsDto, AppearanceEndpointsTests, CancellationToken, Fact, InlineData (+3 more)
 
-### Community 1102 - "Part 2 — Manual"
-Cohesion: 0.11
-Nodes (18): Before you change anything, Check 1 — the numbers agree (the main repair), Check 2 — nothing moved at midday, Check 3 — sunrise/sunset times moved slightly, Check 4 — shadows at low sun, Check 5 — the new no-shadow window, Check 6 — the dome is stable across dates, Check 7 — scrubbing stays smooth (+10 more)
+### Community 1102 - "UserContentAccessEvent"
+Cohesion: 0.12
+Nodes (17): `UserContentAccessEvents` (immutable audit; never purged), D15 — Investigation views are dedicated read-only queries, not the user endpoints, InvestigatedItemType, Chat, Document, WorkflowRun, UserContentAccessEvent, CorrelationId (+9 more)
 
-### Community 1112 - "WorkflowConnection"
-Cohesion: 0.19
-Nodes (9): WorkflowConnection, BranchLabel, SourceNodeId, TargetNodeId, TypeContract, WorkflowVersionId, Guid, WorkflowConnectionConfiguration (+1 more)
+### Community 1112 - "DocumentPageCountExtractor"
+Cohesion: 0.22
+Nodes (10): DocumentPageCountExtractor, DocumentPageCountExtractorLog, CancellationToken, Exception, GeneratedRegex, ILogger, LoggerMessage, Regex (+2 more)
 
 ### Community 1114 - "DocumentAuditLog"
-Cohesion: 0.20
+Cohesion: 0.18
 Nodes (10): DocumentAuditLog, ActorUserId, Detail, DocumentId, EventType, OccurredAtUtc, DateTime, Guid (+2 more)
 
 ### Community 1115 - ".ChunkAsync"
-Cohesion: 0.25
-Nodes (5): CancellationToken, GeneratedRegex, IReadOnlyList, Regex, Task
+Cohesion: 0.24
+Nodes (7): SemanticChunkingStrategy, Strategy, CancellationToken, GeneratedRegex, IReadOnlyList, Regex, Task
 
 ### Community 1117 - "ITextToSpeechEngine"
 Cohesion: 0.06
-Nodes (28): 5. AI Context, AiCapabilityAssignments, AIModels, AIProviders, AIUsage, CustomModelOverwrittenFiles, CustomModels, SiteAnalyses / SiteAnalysisResults (+20 more)
+Nodes (28): VoiceProviders, Configuration (`Supertonic` section, all optional), Data Model: Voice Provider Administration, Seed (migration `20260923063919_AddVoiceProviders`), VoiceProvider (table `VoiceProviders`), Decisions, Implementation Plan: Voice Provider Administration & On-Server Voice, Verification (+20 more)
 
 ### Community 1119 - "TwoFactorManagementTests"
 Cohesion: 0.39
@@ -5181,17 +5213,17 @@ Nodes (7): PromptSearchTests, Fact, Func, IReadOnlyList, List, PersistenceTestFi
 Cohesion: 0.23
 Nodes (9): TextToSpeechStreamerTests, CancellationToken, Fact, IAsyncEnumerable, IEnumerable, InlineData, List, Task (+1 more)
 
-### Community 1132 - "20260729190610_AddConversationFullTextSearch.Designer.cs"
-Cohesion: 0.20
-Nodes (6): MigrationBuilder, AddConversationFullTextSearch, DateTime, DateTimeOffset, Guid, ModelBuilder
+### Community 1132 - ".BuildTargetModel"
+Cohesion: 0.40
+Nodes (4): DateTime, DateTimeOffset, Guid, ModelBuilder
 
-### Community 1133 - "AbstractValidator"
+### Community 1133 - "fluentvalidation"
 Cohesion: 0.02
-Nodes (101): AbstractValidator, AskLucy.Application.Ai.Commands.GenerateImage, AskLucy.Application.Ai.Commands.SetAiProviderCredential, AskLucy.Application.Ai.Commands.Transcribe, SendChatMessageCommand, CreateAgentCommandValidator, StartAgentExecutionCommandValidator, UpdateAgentCommandValidator (+93 more)
+Nodes (87): AbstractValidator, asklucy_application_authorization_assignments_commands_bulkassignrole, asklucy_application_authorization_roles_commands_createrole, asklucy_application_authorization_roles_commands_setadministratorcontentaccess, asklucy_application_authorization_roles_commands_updaterole, asklucy_application_authorization_roles_queries_getadministratorcontentaccess, asklucy_application_authorization_roles_queries_getrole, asklucy_application_authorization_roles_queries_getroleseligibleids (+79 more)
 
-### Community 1134 - "20260925105001_AddActiveLocationType.Designer.cs"
-Cohesion: 0.20
-Nodes (5): AddActiveLocationType, DateTime, DateTimeOffset, Guid, ModelBuilder
+### Community 1134 - ".BuildTargetModel"
+Cohesion: 0.40
+Nodes (4): DateTime, DateTimeOffset, Guid, ModelBuilder
 
 ### Community 1138 - "AdminDashboardTests"
 Cohesion: 0.27
@@ -5202,80 +5234,84 @@ Cohesion: 0.21
 Nodes (9): IHostedService, SystemWorkflowProvisioningHostedService, SystemWorkflowProvisioningHostedServiceLog, CancellationToken, Exception, ILogger, IServiceScopeFactory, LoggerMessage (+1 more)
 
 ### Community 1140 - "GenerateRecoveryCodesCommandHandler"
-Cohesion: 0.07
+Cohesion: 0.06
 Nodes (33): DisableTwoFactorCommand, EnableTwoFactorCommand, GenerateRecoveryCodesCommand, IIdentityService, DisableTwoFactorCommand, DisableTwoFactorCommandHandler, CancellationToken, IIdentityService (+25 more)
 
-### Community 1141 - "ConversationTurnRequest"
-Cohesion: 0.17
-Nodes (11): RetryInput, SelectedActionInput, ConversationTurnRequest, IConversationTurnOrchestrator, CancellationToken, ChatStreamChunk, GenerationParametersDto, Guid (+3 more)
+### Community 1141 - ".RunOneDelegationAsync"
+Cohesion: 0.10
+Nodes (28): ChannelWriter, Index, Outcome, RetryInput, SelectedActionInput, ConversationTurnRequest, IConversationTurnOrchestrator, CancellationToken (+20 more)
 
-### Community 1142 - ".Up"
-Cohesion: 0.40
-Nodes (3): DateTime, Guid, MigrationBuilder
-
-### Community 1143 - "20260810161902_OptimizeAgentPolicyIndex.Designer.cs"
-Cohesion: 0.20
-Nodes (6): MigrationBuilder, OptimizeAgentPolicyIndex, DateTime, DateTimeOffset, Guid, ModelBuilder
-
-### Community 1147 - ".Up"
-Cohesion: 0.40
-Nodes (3): DateTime, Guid, MigrationBuilder
-
-### Community 1153 - "ITokenService"
-Cohesion: 0.04
-Nodes (52): DashboardContext, ADR 0013: Hangfire Dashboard Access via a Purpose-Scoped Cookie, and Its Theming Gap, Alternatives considered, Consequences, Context, Decision, IDashboardAuthorizationFilter, Content Quality (+44 more)
-
-### Community 1156 - ".Update"
+### Community 1142 - "Feature Specification: Precise Time-of-Day Control"
 Cohesion: 0.11
-Nodes (24): CreateAgentPolicyRequest, SetAgentUserExecutionLimitRequest, UpdateAgentPolicyRequest, AgentPoliciesController, ActionResult, CancellationToken, Guid, HttpDelete (+16 more)
+Nodes (18): Assumptions, Clarifications, Context, Edge Cases, Feature Specification: Precise Time-of-Day Control, Functional Requirements — Direct Time Entry, Functional Requirements — Preservation, Functional Requirements — Slider Behaviour (+10 more)
+
+### Community 1143 - ".BuildTargetModel"
+Cohesion: 0.40
+Nodes (4): DateTime, DateTimeOffset, Guid, ModelBuilder
+
+### Community 1144 - "ICookiePolicyProvider"
+Cohesion: 0.15
+Nodes (13): ICookiePolicyProvider, DateTime, EffectiveAtUtc, Version, GetCookiePolicyQuery, CookiePolicyDto, GetCookiePolicyQueryHandler, CancellationToken (+5 more)
+
+### Community 1147 - ".ListEnabledForNodeAsync"
+Cohesion: 0.20
+Nodes (10): CancellationToken, Guid, IReadOnlyList, Task, WorkflowPolicyRepository, AskLucyDbContext, CancellationToken, Guid (+2 more)
+
+### Community 1153 - "Feature Specification: Hangfire Dashboard Access from Admin Panel"
+Cohesion: 0.18
+Nodes (11): Assumptions, Edge Cases, Feature Specification: Hangfire Dashboard Access from Admin Panel, Functional Requirements, Key Entities, Measurable Outcomes, Requirements *(mandatory)*, Success Criteria *(mandatory)* (+3 more)
+
+### Community 1156 - "AgentContracts.cs"
+Cohesion: 0.14
+Nodes (19): CreateAgentPolicyRequest, PublishAgentVersionRequest, RejectAgentActionRequest, SetAgentUserExecutionLimitRequest, StartAgentExecutionRequest, UpdateAgentPolicyRequest, AgentPoliciesController, ActionResult (+11 more)
 
 ### Community 1157 - "TurnVerdict"
 Cohesion: 0.40
 Nodes (4): TurnVerdict, Acted, AnsweredInWords, FailedBeforeCompleting
 
-### Community 1162 - "SearchResultItemDto"
-Cohesion: 0.33
-Nodes (10): SearchResultItemDto, Guid, IReadOnlyDictionary, RagServiceTests, CancellationToken, Fact, IMediator, IReadOnlyList (+2 more)
+### Community 1162 - ".RetrieveContextAsync"
+Cohesion: 0.09
+Nodes (31): HybridSearchQuery, Guid, IReadOnlyCollection, IReadOnlyList, SearchResultItemDto, HybridSearchQueryHandler, CancellationToken, IMediator (+23 more)
 
-### Community 1163 - "20260805132100_AddKnowledgeBaseVectorStoreProvider.Designer.cs"
-Cohesion: 0.20
-Nodes (6): MigrationBuilder, AddKnowledgeBaseVectorStoreProvider, DateTime, DateTimeOffset, Guid, ModelBuilder
+### Community 1163 - ".BuildTargetModel"
+Cohesion: 0.40
+Nodes (4): DateTime, DateTimeOffset, Guid, ModelBuilder
 
-### Community 1165 - "Research: Voids and Drawing Shapes in the Outline Editor"
-Cohesion: 0.17
-Nodes (11): D10 - Keyboard and touch for shapes, D11 - Grouped ribbon (Photoshop-style tool groups), D1 - How voids are stored and sent: a parallel per-part list, D2 - Holes in the server geometry, D3 - New shapes are client-built polygons sent to the existing combine endpoint, D4 - Showing and editing voids on the map, D5 - Selecting and moving between voids, D6 - Validating void edits on the client (+3 more)
+### Community 1165 - ".Handle"
+Cohesion: 0.15
+Nodes (13): ProviderHealthDto, IEffectivePermissionResolver, CancellationToken, Task, GetIncidentQueryHandler, CancellationToken, Guid, IAIProviderRepository (+5 more)
 
-### Community 1166 - "HybridSearchQuery"
-Cohesion: 0.21
-Nodes (11): HybridSearchQuery, Guid, IReadOnlyCollection, IReadOnlyList, SearchResultItemDto, HybridSearchQueryHandler, CancellationToken, IMediator (+3 more)
+### Community 1166 - "Feature Specification: Branded Transactional Email Templates"
+Cohesion: 0.12
+Nodes (15): Amendment 2026-09-20 — Image-based brand mark, revised footer wording, Assumptions, Clarifications, Edge Cases, Feature Specification: Branded Transactional Email Templates, Functional Requirements, Key Entities *(include if feature involves data)*, Measurable Outcomes (+7 more)
 
 ### Community 1167 - "KnowledgeBaseCategory"
-Cohesion: 0.15
+Cohesion: 0.14
 Nodes (12): KnowledgeBaseCategory, IsPredefined, Name, OwnerId, KnowledgeBaseCategoryConfiguration, EntityTypeBuilder, KnowledgeBaseCategoryRepository, AskLucyDbContext (+4 more)
 
-### Community 1168 - ".SendAsync"
-Cohesion: 0.32
-Nodes (8): AdminAiProvidersControllerTests, CustomWebApplicationFactory, Guid, HttpClient, HttpResponseMessage, InlineData, Task, Theory
+### Community 1168 - "Part 2 — Manual"
+Cohesion: 0.12
+Nodes (17): Check 1 — type an exact minute (the reason this feature exists), Check 2 — the ticks, Check 3 — ticks survive a resize, Check 4 — dark theme, Check 5 — drag snaps, keys are fine, Check 6 — a bad entry is refused out loud, Check 7 — the daylight-saving case, Check 8 — typing while playing (+9 more)
 
 ### Community 1169 - ".Matches"
-Cohesion: 0.31
-Nodes (5): PolicyConditionMatcher, PolicyConditionMatcherTests, Fact, InlineData, Theory
+Cohesion: 0.36
+Nodes (4): PolicyConditionMatcherTests, Fact, InlineData, Theory
 
 ### Community 1172 - "GetWorkflowExecutionEventsQuery"
 Cohesion: 0.24
 Nodes (10): GetWorkflowExecutionEventsQuery, DateTime, Guid, IReadOnlyList, WorkflowExecutionEventDto, GetWorkflowExecutionEventsQueryHandler, CancellationToken, IReadOnlyList (+2 more)
 
-### Community 1174 - ".Up"
-Cohesion: 0.40
-Nodes (3): DateTime, Guid, MigrationBuilder
+### Community 1174 - ".ExecuteAsync"
+Cohesion: 0.12
+Nodes (13): ActiveSiteBoundary / ChatActiveBoundaryDto / ConfirmedSiteBoundaryData, Combine request (calculation only, nothing stored), Data Model: Voids and Drawing Shapes in the Outline Editor, Lifecycle (unchanged from spec 079), Refusal reasons, Rules (enforced in the domain and in validators), SiteBoundaryCorrection (table `SiteBoundaryCorrections`, from spec 079), AgentToolExecutionContext (+5 more)
 
-### Community 1175 - "UserPanelPreferenceDto"
-Cohesion: 0.25
-Nodes (8): UserPanelPreferenceDto, PanelsController, ActionResult, CancellationToken, HttpGet, HttpPut, ISender, Task
+### Community 1175 - "LoadViewerContentCapability"
+Cohesion: 0.12
+Nodes (16): LoadViewerContentCapability, AcknowledgementTemplate, Area, ArgumentHint, Description, ExpectedDuration, InputSchemaJson, Label (+8 more)
 
-### Community 1177 - "WorkflowVersionDto"
-Cohesion: 0.29
-Nodes (8): WorkflowConnectionDto, WorkflowListItemDto, WorkflowNodeDto, WorkflowValidationIssueDto, WorkflowVersionDto, DateTime, Guid, IReadOnlyList
+### Community 1177 - "OpenLivePanelCapability"
+Cohesion: 0.12
+Nodes (16): OpenLivePanelCapability, AcknowledgementTemplate, Area, ArgumentHint, Description, ExpectedDuration, InputSchemaJson, Label (+8 more)
 
 ### Community 1180 - "AdminAgentsControllerTests"
 Cohesion: 0.27
@@ -5286,140 +5322,140 @@ Cohesion: 0.24
 Nodes (8): SystemAccountProvisioningHostedService, SystemAccountProvisioningHostedServiceLog, CancellationToken, Exception, ILogger, IServiceScopeFactory, LoggerMessage, Task
 
 ### Community 1184 - "Prompt"
-Cohesion: 0.01
-Nodes (340): IPromptExecutionRepository, CancellationToken, Guid, IReadOnlyCollection, IReadOnlyList, Items, NextCursor, Task (+332 more)
+Cohesion: 0.02
+Nodes (153): IMcpPromptRepository, PromptListView, All, Archived, Favorites, Pinned, RecentlyModified, RecentlyUsed (+145 more)
 
-### Community 1185 - "KeywordSearchQueryHandler"
-Cohesion: 0.21
-Nodes (11): KeywordSearchQuery, Guid, IReadOnlyCollection, IReadOnlyList, SearchResultItemDto, KeywordSearchQueryHandler, CancellationToken, IReadOnlyList (+3 more)
+### Community 1185 - "Fact"
+Cohesion: 0.23
+Nodes (5): SiteAnalysisResultTests, SiteAnalysisTests, Fact, Guid, SiteAnalysis
 
-### Community 1186 - ".Up"
-Cohesion: 0.40
-Nodes (3): DateTime, Guid, MigrationBuilder
+### Community 1186 - ".CreateEngine"
+Cohesion: 0.22
+Nodes (9): SupertonicTextToSpeechEngineTests, AiProviderUnavailableException, CancellationToken, Fact, IHostEnvironment, InlineData, Task, Theory (+1 more)
 
 ### Community 1187 - "SiteBoundaryBoxSelect.test.tsx"
-Cohesion: 0.27
-Nodes (9): drag(), enter(), enterWithVoid(), layer(), pinLayer(), projector, RING, store() (+1 more)
+Cohesion: 0.06
+Nodes (23): Dependencies and execution order, Format: `[ID] [P?] [Story] Description`, Implementation strategy, Parallel examples, Phase 1: Setup, Phase 4: User Story 2 - Rectangle, square and free polygon (P1), Phase 5: User Story 3 - Adjust or remove a void (P2), Phase 6: User Story 4 - Splits keep voids with their piece (P2) (+15 more)
 
 ### Community 1188 - "AnonymousAccessTests"
 Cohesion: 0.38
 Nodes (5): AnonymousAccessTests, CustomWebApplicationFactory, Fact, HttpClient, Task
 
 ### Community 1189 - "AdminResendConfirmationCommandHandler"
-Cohesion: 0.22
-Nodes (9): IAccountEmailJob, AdminResendConfirmationCommand, AdminResendConfirmationCommandHandler, CancellationToken, ICurrentUserAccessor, IIdentityService, ILogger, Task (+1 more)
+Cohesion: 0.16
+Nodes (11): IAccountEmailJob, CancellationToken, Task, AdminResendConfirmationCommand, AdminResendConfirmationCommandHandler, CancellationToken, ICurrentUserAccessor, IIdentityService (+3 more)
 
 ### Community 1190 - ".OnConnectedAsync_ShouldAddTheConnectionToItsOwnUserGroup"
 Cohesion: 0.25
 Nodes (9): WorkflowExecutionHub, Task, WorkflowExecutionHubTests, CancellationToken, Fact, HubCallerContext, IGroupManager, Task (+1 more)
 
 ### Community 1191 - "CookiePolicyOptions"
-Cohesion: 0.19
+Cohesion: 0.21
 Nodes (10): CookiePolicyOptions, CurrentVersion, EffectiveAtUtc, DateTime, CookiePolicyProvider, DateTime, IOptions, Version (+2 more)
 
-### Community 1192 - "DashboardAuthorizationTests"
-Cohesion: 0.27
-Nodes (7): DashboardAuthorizationTests, CustomWebApplicationFactory, Fact, HttpClient, InlineData, Task, Theory
+### Community 1192 - "HandEditedMembershipComposer"
+Cohesion: 0.30
+Nodes (10): CombineResult, HandEditedMembershipComposer, HandEditedMembershipResult, Succeeded, Voids, GeoPoint, IReadOnlyList, ISiteRingGeometry (+2 more)
 
 ### Community 1195 - ".RunAsync"
-Cohesion: 0.12
-Nodes (13): IMemoryExtractionJob, CancellationToken, Guid, Task, MemoryExtractionSweepJob, MemoryExtractionSweepJobLog, CancellationToken, Exception (+5 more)
+Cohesion: 0.20
+Nodes (9): MemoryExtractionSweepJob, MemoryExtractionSweepJobLog, CancellationToken, Exception, Guid, IBackgroundJobClient, ILogger, LoggerMessage (+1 more)
 
-### Community 1196 - ".Up"
-Cohesion: 0.40
-Nodes (3): DateTime, Guid, MigrationBuilder
+### Community 1196 - "EffectiveSiteBoundaryTests"
+Cohesion: 0.30
+Nodes (8): EffectiveSiteBoundary, ISiteBoundaryCorrectionRepository, EffectiveSiteBoundaryTests, CancellationToken, Fact, GeoPoint, IReadOnlyList, Task
 
 ### Community 1198 - "DocumentProcessingHub"
-Cohesion: 0.09
-Nodes (28): Connection, Contract: `NotificationHub` (SignalR), Failure semantics, `notificationCreated`, `notificationUpdated`, Removed events (FR-009a), Server → client events, `unreadCountChanged` (+20 more)
+Cohesion: 0.13
+Nodes (20): Complexity Tracking, Constitution Check, Delivery Slices, Documentation (this feature), Implementation Plan: Notifications & Communication Hub, Project Structure, Source Code (repository root), Summary (+12 more)
 
-### Community 1203 - "Assumptions"
+### Community 1203 - ".EnsureAtLeastOneActiveSuperUserRemains"
 Cohesion: 0.27
-Nodes (6): Assumptions, SuperUserSafeguard, SuperUserSafeguardTests, Fact, InlineData, Theory
+Nodes (5): SuperUserSafeguard, SuperUserSafeguardTests, Fact, InlineData, Theory
 
 ### Community 1204 - "SupertonicOptions"
 Cohesion: 0.22
 Nodes (8): SupertonicOptions, DefaultVoice, IntraOpThreads, MaxConcurrentSyntheses, ModelDirectory, Mp3BitRate, Speed, TotalSteps
 
-### Community 1205 - "EsriBuildingsOptions"
-Cohesion: 0.25
-Nodes (7): EsriBuildingsOptions, Enabled, HeightMapCellMetres, LayerCacheTtl, NodePageCacheTtl, SceneLayerUrl, TimeSpan
+### Community 1205 - "Mp3StreamEncoder"
+Cohesion: 0.24
+Nodes (6): groovycodecs_mp3, groovycodecs_types, Mp3Encoder, Mp3StreamEncoder, Mp3StreamEncoderTests, Fact
 
-### Community 1206 - "RenderedFootprintOptions"
-Cohesion: 0.25
-Nodes (7): RenderedFootprintOptions, CacheTtl, MinimumAreaSquareMetres, SimplifyTolerancePixels, StatedPositionalToleranceMetres, Zoom, TimeSpan
+### Community 1206 - ".SaveBothAsync"
+Cohesion: 0.26
+Nodes (10): Mcp, McpLogId, Role, RoleLogId, AuditLogCorrelationTests, Fact, Guid, ICurrentUserAccessor (+2 more)
 
 ### Community 1207 - "AskLucy.E2E.Tests/package.json"
 Cohesion: 0.15
 Nodes (12): author, description, devDependencies, @playwright/test, keywords, license, main, name (+4 more)
 
 ### Community 1208 - "NotificationRepository"
-Cohesion: 0.15
-Nodes (13): INotificationRepository, Tests for User Story 1, NotificationRepository, AskLucyDbContext, CancellationToken, Guid, IReadOnlyCollection, IReadOnlyDictionary (+5 more)
+Cohesion: 0.11
+Nodes (18): INotificationRepository, Tests for User Story 1, NotificationRepository, AskLucyDbContext, CancellationToken, Guid, IReadOnlyCollection, IReadOnlyDictionary (+10 more)
 
-### Community 1209 - "TableChunkingStrategy"
-Cohesion: 0.15
-Nodes (10): DocumentStructureElement, Exception, List, LoggerMessage, TableChunkingStrategy, Strategy, Exception, ILogger (+2 more)
+### Community 1209 - "HeadingChunkingStrategy"
+Cohesion: 0.20
+Nodes (9): HeadingChunkingStrategy, Strategy, CancellationToken, Exception, ILogger, IReadOnlyList, List, LoggerMessage (+1 more)
 
 ### Community 1210 - "Attachment"
-Cohesion: 0.24
+Cohesion: 0.22
 Nodes (8): Attachment, AccessLocation, ContentType, FileName, MessageId, Guid, AttachmentConfiguration, EntityTypeBuilder
 
 ### Community 1212 - ".BuildTargetModel"
-Cohesion: 0.18
-Nodes (8): DateTime, DateTimeOffset, Guid, ModelBuilder, DateTime, DateTimeOffset, Guid, ModelBuilder
+Cohesion: 0.40
+Nodes (4): DateTime, DateTimeOffset, Guid, ModelBuilder
 
 ### Community 1213 - "Implementation for Foundational"
-Cohesion: 0.15
-Nodes (19): D3 — Ingestion: one upsert per report, race-safe by a filtered unique index, Implementation for Foundational, Phase 2: Foundational (Blocking Prerequisites), Phase 9: Polish & Cross-Cutting Concerns, Tests for Foundational (write first, confirm failing), OperationalFailureIngestor, CancellationToken, ILogger (+11 more)
+Cohesion: 0.06
+Nodes (45): AuthorizationMiddlewareResultHandler, IAuthorizationMiddlewareResultHandler, D10 — Distinct users and sources survive the storm cap and erasure, D11 — Exactly one occurrence per failure: record at the site that knows, mark the exception, D12 — Ownership refusals vs genuine not-found: a subclass that keeps the 404, D13 — Access engine hook points, D2 — Recording never blocks: a bounded in-memory channel plus a background writer, D3 — Ingestion: one upsert per report, race-safe by a filtered unique index (+37 more)
 
-### Community 1214 - "20260817110019_AddUserVoicePreferenceDefaultLanguage.Designer.cs"
-Cohesion: 0.20
-Nodes (6): MigrationBuilder, AddUserVoicePreferenceDefaultLanguage, DateTime, DateTimeOffset, Guid, ModelBuilder
+### Community 1214 - ".BuildTargetModel"
+Cohesion: 0.40
+Nodes (4): DateTime, DateTimeOffset, Guid, ModelBuilder
 
 ### Community 1216 - "McpCatalogControllerTests"
 Cohesion: 0.36
 Nodes (6): McpCatalogControllerTests, CustomWebApplicationFactory, HttpClient, InlineData, Task, Theory
 
-### Community 1217 - "20260823190247_AddActiveLocationToUserChat.Designer.cs"
-Cohesion: 0.20
-Nodes (6): MigrationBuilder, AddActiveLocationToUserChat, DateTime, DateTimeOffset, Guid, ModelBuilder
+### Community 1217 - ".BuildTargetModel"
+Cohesion: 0.40
+Nodes (4): DateTime, DateTimeOffset, Guid, ModelBuilder
 
 ### Community 1218 - "IKnowledgeBaseCategoryRepository"
-Cohesion: 0.24
-Nodes (7): IKnowledgeBaseCategoryRepository, CancellationToken, IReadOnlyList, Task, CancellationToken, KnowledgeBaseCategoryDto, Task
+Cohesion: 0.33
+Nodes (5): IKnowledgeBaseCategoryRepository, CancellationToken, Guid, IReadOnlyList, Task
 
-### Community 1219 - "20260916080502_RepairAspNetRolesConstraints.Designer.cs"
-Cohesion: 0.20
-Nodes (6): MigrationBuilder, RepairAspNetRolesConstraints, DateTime, DateTimeOffset, Guid, ModelBuilder
+### Community 1219 - ".BuildTargetModel"
+Cohesion: 0.40
+Nodes (4): DateTime, DateTimeOffset, Guid, ModelBuilder
 
 ### Community 1221 - ".GetRolesAsync"
-Cohesion: 0.14
-Nodes (25): IEffectivePermissionResolver, EffectivePermissionResolver, CancellationToken, PermissionSet, Task, ChangeUserRoleCommand, ChangeUserRoleCommandHandler, CancellationToken (+17 more)
+Cohesion: 0.31
+Nodes (10): IEffectivePermissionResolver, Assumptions, EffectivePermissionResolver, CancellationToken, PermissionSet, Task, EffectivePermissionResolverTests, CancellationToken (+2 more)
 
 ### Community 1223 - "ListDocumentCategoriesQuery"
-Cohesion: 0.31
-Nodes (8): DocumentCategoryDto, ListDocumentCategoriesQuery, Guid, IReadOnlyList, ListDocumentCategoriesQueryHandler, CancellationToken, IReadOnlyList, Task
+Cohesion: 0.27
+Nodes (9): AskLucy.Application.Documents.Queries.ListDocumentCategories, DocumentCategoryDto, ListDocumentCategoriesQuery, Guid, IReadOnlyList, ListDocumentCategoriesQueryHandler, CancellationToken, IReadOnlyList (+1 more)
 
 ### Community 1226 - "ISystemAccountProvisioner"
 Cohesion: 0.22
 Nodes (7): ISystemAccountProvisioner, CancellationToken, Task, SystemAccountProvisioner, AskLucyDbContext, CancellationToken, UserManager
 
 ### Community 1228 - "AgentTool"
-Cohesion: 0.27
+Cohesion: 0.24
 Nodes (7): AgentTool, AgentId, ConfigurationJson, ToolName, Guid, AgentToolConfiguration, EntityTypeBuilder
 
-### Community 1231 - "SiteBoundaryCornerNavigator.test.tsx"
-Cohesion: 0.24
-Nodes (8): button(), enter(), press(), region(), SECOND, SQUARE, store(), viewState
-
-### Community 1237 - "IPresenceSphereSettingsRepository"
+### Community 1231 - ".ListByServerAsync"
 Cohesion: 0.18
-Nodes (11): IPresenceSphereSettingsRepository, PresenceSphereSettingsRepository, AskLucyDbContext, CancellationToken, Task, AppearanceApiFactory, Profiles, Settings (+3 more)
+Nodes (12): CancellationToken, Guid, IReadOnlyList, Items, NextCursor, Task, McpCursor, Payload (+4 more)
 
-### Community 1243 - "POIMarkerOverlay.tsx"
-Cohesion: 0.33
-Nodes (8): buildMarkerContent(), ensurePoiStyles(), POIMarkerOverlay(), getDefaultMarkerStyle(), MarkerStyle, MarkerStyleState, useMarkerStyleStore, VALID_STYLES
+### Community 1237 - ".SetUpJob"
+Cohesion: 0.22
+Nodes (11): ProcessingDurabilityTests, CancellationToken, Dictionary, Fact, Guid, IBackgroundJobClient, IPublisher, Job (+3 more)
+
+### Community 1243 - ".SetUpJob"
+Cohesion: 0.22
+Nodes (11): ProcessingDurabilityTests, CancellationToken, Dictionary, Fact, Guid, IBackgroundJobClient, IPublisher, Job (+3 more)
 
 ### Community 1244 - "KnowledgeBaseContracts.cs"
 Cohesion: 0.31
@@ -5429,93 +5465,89 @@ Nodes (9): CreateFolderRequest, CreateKnowledgeBaseRequest, DeleteFolderRequest,
 Cohesion: 0.36
 Nodes (5): PermissionEnforcementMatrixTests, MemberData, Task, Theory, TheoryData
 
-### Community 1247 - "Verification"
-Cohesion: 0.14
-Nodes (12): API, Database, Problem, SPEC-077: Site Boundary Membership and Capability Settings, Verification, Offers (`ConversationTurnOrchestrator.EmitOfferIfDueAsync`), SiteBoundaryMembershipOffer, IReadOnlyList (+4 more)
+### Community 1247 - ".Boundary"
+Cohesion: 0.08
+Nodes (24): BoundaryConfidenceLevel, SiteBoundaryMemberKind, SiteBoundarySource, API, Database, Problem, SPEC-077: Site Boundary Membership and Capability Settings, Verification (+16 more)
 
-### Community 1248 - "ChangeUserRoleTests"
-Cohesion: 0.38
-Nodes (5): ChangeUserRoleTests, CustomWebApplicationFactory, Fact, HttpClient, Task
-
-### Community 1249 - "ImmediateTimer"
-Cohesion: 0.33
-Nodes (5): ITimer, ImmediateTimer, TimeSpan, ValueTask, TimerCallback
+### Community 1249 - ".Create"
+Cohesion: 0.27
+Nodes (7): ArgumentOutOfRangeException, DateTime, PresenceSphereSettingsTests, DateTime, Fact, InlineData, Theory
 
 ### Community 1250 - "KnowledgeBaseDetailDto"
 Cohesion: 0.22
 Nodes (8): KnowledgeBaseDetailDto, DateTime, Guid, IReadOnlyList, KnowledgeBaseStatus, Active, Archived, Draft
 
-### Community 1252 - ".HasPendingMigrationsAsync"
-Cohesion: 0.25
-Nodes (6): IDatabaseMigrationStatus, CancellationToken, Task, DatabaseMigrationStatus, CancellationToken, Task
+### Community 1252 - "NotificationTemplateRepository"
+Cohesion: 0.18
+Nodes (9): NotificationTemplate, NotificationTemplateRepository, AskLucyDbContext, CancellationToken, IReadOnlySet, NotificationChannel, NotificationTemplate, NotificationTemplateVersion (+1 more)
 
 ### Community 1253 - "AskLucy.Persistence.Migrations"
-Cohesion: 0.07
-Nodes (42): AskLucy.Persistence, AskLucy.Persistence.Migrations, microsoft_entityframeworkcore_infrastructure, microsoft_entityframeworkcore_metadata, microsoft_entityframeworkcore_migrations, microsoft_entityframeworkcore_storage_valueconversion, Migration, ModelSnapshot (+34 more)
+Cohesion: 0.01
+Nodes (156): asklucy_persistence, AskLucy.Persistence, AskLucy.Persistence.Migrations, microsoft_entityframeworkcore_infrastructure, microsoft_entityframeworkcore_metadata, microsoft_entityframeworkcore_migrations, microsoft_entityframeworkcore_storage_valueconversion, Migration (+148 more)
 
-### Community 1262 - "PromptStatus"
-Cohesion: 0.25
-Nodes (8): PromptListItemDto, DateTime, Guid, IReadOnlyList, PromptStatus, Active, Archived, Draft
+### Community 1262 - "PromptDetailDto"
+Cohesion: 0.09
+Nodes (23): PromptDetailDto, PromptVersionRefDto, DateTime, Guid, IReadOnlyList, PromptListItemDto, DateTime, Guid (+15 more)
 
 ### Community 1268 - "KnowledgeBaseIndexStatus"
 Cohesion: 0.29
 Nodes (7): KnowledgeBaseIndexStatus, Failed, Indexed, Indexing, InitialIndexQueued, NotIndexed, PartiallyIndexed
 
-### Community 1270 - ".SearchAsync"
-Cohesion: 0.09
-Nodes (27): Items, NextCursor, KnowledgeBaseSort, Created, DocumentCount, Name, RecentlyUpdated, StorageSize (+19 more)
+### Community 1270 - "ForceReset2faCommand"
+Cohesion: 0.24
+Nodes (10): ForceReset2faCommand, ForceReset2faCommandHandler, CancellationToken, ILogger, Task, ForceReset2faCommandHandlerTests, CancellationToken, Fact (+2 more)
 
 ### Community 1272 - "ListWorkflowPoliciesQuery"
 Cohesion: 0.31
 Nodes (8): ListWorkflowPoliciesQuery, IReadOnlyList, WorkflowPolicyDto, ListWorkflowPoliciesQueryHandler, CancellationToken, IReadOnlyList, Task, WorkflowPolicyDto
 
-### Community 1276 - "IHostedModelLocator"
-Cohesion: 0.04
-Nodes (53): Changed: `AIModel` (`AskLucy.Domain/Ai/AIModel.cs`), Automated checks, Performance check (SC-007), Prerequisites, Quickstart: Model Deprecation Workflow, Scenario S1: Deprecate with impact preview (US1, FR-001..FR-004), Scenario S2: Defaults follow the replacement, or get flagged (US2), Scenario S3: Users keep working and are told once (US3) (+45 more)
+### Community 1276 - "Research: Restore Local Whisper as the Primary Dictation Engine"
+Cohesion: 0.05
+Nodes (45): Changed: Admin Voice API (`api/v1/admin/voice`, spec 070), Aggregate: `CustomModel` (Domain — `AskLucy.Domain/CustomModels/CustomModel.cs`), Data Model: Custom Model Deployment (Admin), Indexes (Persistence — `Configurations/CustomModelConfiguration.cs`), Locator query (research D9, FR-039), Owned collection: `CustomModelOverwrittenFile` (table `CustomModelOverwrittenFiles`), State machine (Domain methods; an illegal transition throws `DomainRuleViolationException`), Value object: `DeploymentDestination` (Domain — `CustomModels/DeploymentDestination.cs`) (+37 more)
 
 ### Community 1278 - "SiteAnalysesControllerTests"
 Cohesion: 0.38
 Nodes (5): SiteAnalysesControllerTests, CustomWebApplicationFactory, Fact, HttpClient, Task
 
-### Community 1283 - "AgentKnowledgeBase"
-Cohesion: 0.31
-Nodes (6): AgentKnowledgeBase, AgentId, KnowledgeBaseId, Guid, AgentKnowledgeBaseConfiguration, EntityTypeBuilder
+### Community 1283 - "WorkflowExecutionUsage"
+Cohesion: 0.18
+Nodes (9): WorkflowExecutionUsage, InputTokenCount, OutputTokenCount, ReasoningTokenCount, ToolCallCount, WorkflowExecutionId, Guid, WorkflowExecutionUsageConfiguration (+1 more)
 
-### Community 1295 - ".Create"
-Cohesion: 0.39
-Nodes (4): UserPanelPreferenceTests, Fact, InlineData, Theory
+### Community 1295 - ".RunAsync"
+Cohesion: 0.15
+Nodes (9): McpCapabilityRefreshJobLog, CancellationToken, Exception, Guid, ILogger, LoggerMessage, Task, SystemCurrentUserAccessor (+1 more)
 
 ### Community 1300 - "HangfireDashboardCookieAuthenticationTests"
 Cohesion: 0.48
 Nodes (4): HangfireDashboardCookieAuthenticationTests, CustomWebApplicationFactory, Fact, Task
 
 ### Community 1302 - "SetAiCapabilityAssignmentCommandValidatorTests"
-Cohesion: 0.33
-Nodes (7): SetAiCapabilityAssignmentCommand, SetAiCapabilityAssignmentCommandValidator, SetAiCapabilityAssignmentCommandValidatorTests, CancellationToken, Fact, Task, ValidationResult
+Cohesion: 0.42
+Nodes (5): SetAiCapabilityAssignmentCommandValidatorTests, CancellationToken, Fact, Task, ValidationResult
 
-### Community 1303 - "GeminiSegmentationDiagnosticService"
-Cohesion: 0.08
-Nodes (25): L8, GoogleGeminiOptions, ApiKey, BaseUrl, ChatModel, VisionModel, GeminiSegmentationDiagnosticService, GeminiSegmentationDiagnosticServiceLog (+17 more)
+### Community 1303 - ".DrawLine"
+Cohesion: 0.42
+Nodes (6): PixelRingRenderer, Image, IReadOnlyList, Rgba32, X, Y
 
-### Community 1315 - ".ExtractAsync"
-Cohesion: 0.29
-Nodes (6): DocumentFileType, DocumentTextExtractionResult, IDocumentTextExtractor, PlainTextExtractor, CancellationToken, Task
+### Community 1315 - "useChatStream.ts"
+Cohesion: 0.26
+Nodes (12): generateImage(), RetryRequest, SelectedActionRequest, PersistedMessage, isSelectionRecord(), newMessageId(), resolveSelectedActionLabel(), toChatMessages() (+4 more)
 
-### Community 1316 - "SiteBoundaryMember"
-Cohesion: 0.28
-Nodes (8): SiteBoundaryMember, SiteBoundaryMemberKind, Building, TransportStation, SiteBoundaryMemberRelation, Connected, Nearby, IReadOnlyList
+### Community 1316 - "ApplicationRole"
+Cohesion: 0.18
+Nodes (11): IdentityRole, ApplicationRoleConfiguration, EntityTypeBuilder, ApplicationRole, CreatedAtUtc, CreatedBy, Description, IsBuiltIn (+3 more)
 
 ### Community 1317 - "OvertureBuildingsOptions"
 Cohesion: 0.29
 Nodes (6): OvertureBuildingsOptions, ArchiveCacheTtl, BucketUrl, Enabled, Release, TimeSpan
 
-### Community 1318 - "SiteBoundaryPolygonDraw.test.tsx"
-Cohesion: 0.31
-Nodes (7): click(), layer(), projector, SQUARE, start(), store(), viewState
+### Community 1318 - "SiteBoundaryShapeDraw.test.tsx"
+Cohesion: 0.13
+Nodes (14): click(), layer(), projector, SQUARE, start(), store(), viewState, layer() (+6 more)
 
-### Community 1328 - "SiteBoundaryShapeDraw.test.tsx"
-Cohesion: 0.28
-Nodes (7): layer(), pin(), projector, SQUARE, startCircle(), store(), viewState
+### Community 1328 - ".ReadPositionScales"
+Cohesion: 0.23
+Nodes (7): ScaleX, ScaleY, DracoI3sGeometryDecoder, I3sMesh, VertexCount, II3sGeometryDecoder, FakeDecoder
 
 ### Community 1333 - "Research: Presence Sphere Admin Controls"
 Cohesion: 0.18
@@ -5525,41 +5557,41 @@ Nodes (10): D10 - Operational notes, D1 - Where the settings live, D2 - Concurre
 Cohesion: 0.44
 Nodes (5): CreateCustomCategoryCommandTests, CancellationToken, Fact, Task, UnauthorizedAccessException
 
-### Community 1339 - "AnalyticsControllerTests"
-Cohesion: 0.39
-Nodes (5): AnalyticsControllerTests, CustomWebApplicationFactory, Fact, HttpClient, Task
+### Community 1339 - "StallingStream"
+Cohesion: 0.17
+Nodes (7): SeekOrigin, StallingStream, CanRead, CanSeek, CanWrite, Length, Position
 
 ### Community 1342 - ".BuildModel"
-Cohesion: 0.40
-Nodes (4): DateTime, DateTimeOffset, Guid, ModelBuilder
+Cohesion: 0.29
+Nodes (6): ModelSnapshot, AskLucyDbContextModelSnapshot, DateTime, DateTimeOffset, Guid, ModelBuilder
 
 ### Community 1348 - "Contract: Site boundary voids and shapes (changes to the spec 079 API)"
 Cohesion: 0.40
 Nodes (4): Contract: Site boundary voids and shapes (changes to the spec 079 API), POST `/api/v1/chats/{id}/site-boundary/actions/combine`, PUT `/api/v1/chats/{id}/site-boundary`, Read paths that gain `voids`
 
-### Community 1366 - "Contract: Solar Analysis Panels"
-Cohesion: 0.22
-Nodes (8): 1. Time Control — live panel, 2. Building Corrections — live panel, 3. Solar Figures — content panel, Accessibility (FR-032, constitution §7), Contract: Solar Analysis Panels, Presentation (amended 2026-09-14), Required content rules, Why this is the first client-composed content document
+### Community 1366 - "Contract: User Notifications API"
+Cohesion: 0.17
+Nodes (12): Contract: User Notifications API, DELETE `/notifications/{id}`, GET `/notifications`, GET `/notifications/{id}`, GET `/notifications/unread-count`, GET `/users/me/localization`, GET `/users/me/notification-preferences`, POST `/notifications/actions/mark-all-read` (+4 more)
 
-### Community 1380 - ".Up"
-Cohesion: 0.40
-Nodes (3): DateTime, Guid, MigrationBuilder
+### Community 1380 - "AgentPoliciesControllerTests"
+Cohesion: 0.32
+Nodes (8): AgentPoliciesControllerTests, CustomWebApplicationFactory, Guid, HttpClient, HttpResponseMessage, InlineData, Task, Theory
 
-### Community 1384 - "AdminAiProvidersController.cs"
-Cohesion: 0.15
-Nodes (12): asklucy_application_ai_commands_applyprovidermodelsync, asklucy_application_ai_commands_checkaiproviderhealth, asklucy_application_ai_commands_clearaiprovidercredential, asklucy_application_ai_commands_setaicapabilityassignment, asklucy_application_ai_commands_setaiprovidercredential, asklucy_application_ai_commands_updateaimodelstatus, asklucy_application_ai_commands_updateaiprovider, asklucy_application_ai_queries_getadminaimodels (+4 more)
+### Community 1384 - "AskLucy.Domain.Ai"
+Cohesion: 0.03
+Nodes (33): asklucy_application_ai_commands_applyprovidermodelsync, asklucy_application_ai_commands_checkaiproviderhealth, asklucy_application_ai_commands_clearaiprovidercredential, asklucy_application_ai_commands_setaicapabilityassignment, asklucy_application_ai_commands_setaiprovidercredential, asklucy_application_ai_commands_updateaimodelstatus, asklucy_application_ai_commands_updateaiprovider, asklucy_application_ai_queries_getadminaimodels (+25 more)
 
 ### Community 1402 - "AdminHangfireSessionEndpointTests"
 Cohesion: 0.31
 Nodes (6): AdminHangfireSessionEndpointTests, CustomWebApplicationFactory, Fact, InlineData, Task, Theory
 
-### Community 1404 - ".Up"
-Cohesion: 0.40
-Nodes (3): DateTime, Guid, MigrationBuilder
+### Community 1404 - "GetAdminVoiceProvidersQueryHandler"
+Cohesion: 0.24
+Nodes (10): GetAdminVoiceProvidersQuery, GetAdminVoiceProvidersQueryHandler, AdminVoiceProviderDto, CancellationToken, IAIProviderRepository, IEnumerable, IReadOnlyList, ITextToSpeechEngine (+2 more)
 
-### Community 1406 - ".Up"
-Cohesion: 0.33
-Nodes (4): DateTime, DateTimeOffset, Guid, MigrationBuilder
+### Community 1406 - "User Scenarios & Testing *(mandatory)*"
+Cohesion: 0.18
+Nodes (11): Edge Cases, User Scenarios & Testing *(mandatory)*, User Story 1 - Notification Center: see and manage my notifications (Priority: P1), User Story 2 - Be told when platform work finishes, fails or needs me (Priority: P1), User Story 3 - Receive important notifications by email (Priority: P2), User Story 4 - Control which notifications I receive and how (Priority: P2), User Story 5 - Act on approval requests securely (Priority: P2), User Story 6 - Administrators monitor delivery and recover failures (Priority: P3) (+3 more)
 
 ### Community 1440 - "SPEC-075: Measured Building Heights (Esri) and Overture Footprints"
 Cohesion: 0.22
@@ -5569,45 +5601,45 @@ Nodes (8): Esri I3S, Functional requirements, Known caveats, Live probe (2026-09
 Cohesion: 0.15
 Nodes (12): INotificationChannelHealthReader, INotificationChannelRegistry, NotificationEmailOptions, MaxPerMinute, ReservedPerMinuteForMandatory, SendTimeoutSeconds, NotificationChannelRegistry, AvailableChannels (+4 more)
 
-### Community 1444 - "TurnDecisionParseFailure"
-Cohesion: 0.29
-Nodes (7): TurnDecisionParseFailure, MissingSlices, None, NotJson, UnrecognisedIntent, TurnDecisionParseResult, Succeeded
+### Community 1444 - "AiDocumentLanguageAndClassifierTests"
+Cohesion: 0.44
+Nodes (5): AiDocumentLanguageAndClassifierTests, CancellationToken, Fact, IReadOnlyList, Task
 
-### Community 1455 - "Implementation Plan: Selective Model Sync Review"
-Cohesion: 0.25
-Nodes (7): Complexity Tracking, Documentation (this feature), Implementation Plan: Selective Model Sync Review, Project Structure, Source Code (repository root), Summary, Feature Specification: Selective Model Sync Review
+### Community 1455 - "FakeRealtime"
+Cohesion: 0.22
+Nodes (8): FakeDatabase, INotificationRealtimePublisher, Push, FakeRealtime, Fail, Pushes, Push, NotificationListItemDto
 
 ### Community 1458 - "Quickstart: validating voids and drawing shapes"
 Cohesion: 0.40
 Nodes (4): Automated, Manual scenarios, Prerequisites, Quickstart: validating voids and drawing shapes
 
-### Community 1468 - "20260810045116_AddPromptFullTextSearch.Designer.cs"
-Cohesion: 0.20
-Nodes (6): MigrationBuilder, AddPromptFullTextSearch, DateTime, DateTimeOffset, Guid, ModelBuilder
+### Community 1468 - ".BuildTargetModel"
+Cohesion: 0.40
+Nodes (4): DateTime, DateTimeOffset, Guid, ModelBuilder
 
 ### Community 1470 - "GetEnabledAiProvidersQueryHandler"
 Cohesion: 0.36
 Nodes (7): GetEnabledAiProvidersQuery, ProviderSummaryDto, GetEnabledAiProvidersQueryHandler, CancellationToken, IAIProviderRepository, IReadOnlyList, Task
 
-### Community 1471 - "GetVoiceProviderVoicesQuery"
-Cohesion: 0.25
-Nodes (7): VoiceOptionDto, CancellationToken, IReadOnlyList, Task, GetVoiceProviderVoicesQuery, Guid, IReadOnlyList
+### Community 1471 - "Templates"
+Cohesion: 0.20
+Nodes (10): GET `/notifications/templates/{templateId}` (V), GET `/notifications/templates/{templateId}/versions/{versionId}` (V), GET `/notifications/templates` (V), POST `/notifications/templates/{templateId}/versions` (M), POST `/notifications/templates/{templateId}/versions/{versionId}/actions/archive` (M), POST `/notifications/templates/{templateId}/versions/{versionId}/actions/preview` (V), POST `/notifications/templates/{templateId}/versions/{versionId}/actions/publish` (M), POST `/notifications/templates/{templateId}/versions/{versionId}/actions/send-test` (M) (+2 more)
 
-### Community 1475 - "GetUserAiPreferenceQueryHandler"
-Cohesion: 0.36
-Nodes (6): GetUserAiPreferenceQuery, GetUserAiPreferenceQueryHandler, CancellationToken, Task, UserAiPreferenceDto, Guid
+### Community 1475 - "Quickstart: Model Deprecation Workflow"
+Cohesion: 0.20
+Nodes (10): Automated checks, Performance check (SC-007), Prerequisites, Quickstart: Model Deprecation Workflow, Scenario S1: Deprecate with impact preview (US1, FR-001..FR-004), Scenario S2: Defaults follow the replacement, or get flagged (US2), Scenario S3: Users keep working and are told once (US3), Scenario S4: Admins validate (US4, FR-011a/b, FR-020b) (+2 more)
 
-### Community 1481 - "ValidatePasswordResetTokenQueryHandler"
-Cohesion: 0.29
-Nodes (7): ValidatePasswordResetTokenQuery, ValidatePasswordResetTokenQueryHandler, CancellationToken, IIdentityService, IPasswordResetTokenRepository, ITokenService, Task
+### Community 1481 - "WorkflowUserExecutionLimit"
+Cohesion: 0.24
+Nodes (6): WorkflowUserExecutionLimit, MaxConcurrentExecutions, SetByUserId, UserId, WorkflowUserExecutionLimitConfiguration, EntityTypeBuilder
 
 ### Community 1487 - "PromptVersionDetailDto"
-Cohesion: 0.43
+Cohesion: 0.31
 Nodes (7): PromptVersionComparisonDto, PromptVersionDetailDto, PromptVersionFieldDiff, PromptVersionSummaryDto, DateTime, Guid, IReadOnlyList
 
-### Community 1494 - "ForceReset2faTests"
-Cohesion: 0.39
-Nodes (5): ForceReset2faTests, CustomWebApplicationFactory, Fact, HttpClient, Task
+### Community 1494 - "ConfirmEmailCommand"
+Cohesion: 0.28
+Nodes (6): AskLucy.Application.Authentication.Commands.ConfirmEmail, ConfirmEmailCommand, ConfirmEmailCommandHandler, CancellationToken, Task, ConfirmEmailCommandValidator
 
 ### Community 1495 - "AiFloatingPanels.spec.ts"
 Cohesion: 0.33
@@ -5621,29 +5653,29 @@ Nodes (3): SaveUserVoicePreferenceCommandValidatorTests, InlineData, Theory
 Cohesion: 0.20
 Nodes (9): HubFallbackRoutingTests, HubPaths, CustomWebApplicationFactory, Fact, HttpClient, IEnumerable, MemberData, Task (+1 more)
 
-### Community 1525 - "PineconeOptions"
-Cohesion: 0.40
-Nodes (4): PineconeOptions, ApiKey, ApiVersion, IndexHost
+### Community 1525 - ".Handle"
+Cohesion: 0.36
+Nodes (7): AskLucy.Application.Documents.Queries.GetDocumentDownloadUrl, DocumentDownloadTokenDto, GetDocumentDownloadTokenQuery, Guid, GetDocumentDownloadTokenQueryHandler, CancellationToken, Task
 
-### Community 1537 - "GetCurrentWeatherQuery"
-Cohesion: 0.42
-Nodes (6): GetCurrentWeatherQuery, WeatherSnapshotDto, GetCurrentWeatherQueryValidator, GetCurrentWeatherQueryValidatorTests, InlineData, Theory
+### Community 1537 - "GetCurrentWeatherQueryValidatorTests"
+Cohesion: 0.39
+Nodes (4): GetCurrentWeatherQueryValidator, GetCurrentWeatherQueryValidatorTests, InlineData, Theory
 
 ### Community 1538 - "Implementation Plan: Admin Panel Layout & Polish Pass"
 Cohesion: 0.29
 Nodes (7): Complexity Tracking, Documentation (this feature), Implementation Plan: Admin Panel Layout & Polish Pass, Project Structure, Source Code (repository root), Summary, Technical Context
 
 ### Community 1539 - "ListRelatedIncidentsQuery"
-Cohesion: 0.21
-Nodes (11): ListRelatedIncidentsQuery, Guid, IncidentSummaryDto, PagedResult, ListRelatedIncidentsQueryHandler, CancellationToken, IncidentSummaryDto, OperationalFailureReadModelBuilder (+3 more)
+Cohesion: 0.24
+Nodes (10): ListRelatedIncidentsQuery, Guid, IncidentSummaryDto, PagedResult, ListRelatedIncidentsQueryHandler, CancellationToken, IncidentSummaryDto, OperationalFailureReadModelBuilder (+2 more)
 
 ### Community 1540 - "KnowledgeBaseIndexingJobTests"
-Cohesion: 0.11
+Cohesion: 0.12
 Nodes (25): IIndexingOrchestrator, IndexingOutcome, INotificationPublisher, IRetrievalIndexingNotifier, KnowledgeBaseIndexingJob, NotificationRequest, CancellationToken, Guid (+17 more)
 
 ### Community 1541 - ".OnModelCreating"
-Cohesion: 0.14
-Nodes (8): Memory, MemoryReference, MemoryVersion, IMemoryContentProtector, MemoryContentProtector, IDataProtector, ModelBuilder, EncryptedStringConverter
+Cohesion: 0.40
+Nodes (4): Memory, MemoryReference, MemoryVersion, ModelBuilder
 
 ### Community 1543 - "VoiceProviderFailoverEventDto"
 Cohesion: 0.50
@@ -5653,9 +5685,9 @@ Nodes (4): VoiceProviderFailoverEventDto, VoiceProviderHealthDto, DateTime, IRea
 Cohesion: 0.40
 Nodes (4): DateTime, DateTimeOffset, Guid, ModelBuilder
 
-### Community 1552 - ".Up"
-Cohesion: 0.40
-Nodes (3): DateTime, Guid, MigrationBuilder
+### Community 1552 - ".UserOrClientKey"
+Cohesion: 0.42
+Nodes (3): DefaultHttpContext, RateLimitPartitions, RateLimitPartitionsTests
 
 ### Community 1554 - ".BuildTargetModel"
 Cohesion: 0.40
@@ -5665,17 +5697,13 @@ Nodes (4): DateTime, DateTimeOffset, Guid, ModelBuilder
 Cohesion: 0.40
 Nodes (4): DateTime, DateTimeOffset, Guid, ModelBuilder
 
-### Community 1626 - "RingValidationResult"
-Cohesion: 0.10
-Nodes (20): Geometry port, Phase 2: Foundational (blocking prerequisites), Geometry port, Phase 2: Foundational (blocks every story), CombineFailure, HoleNotSupported, None, NothingChanged (+12 more)
+### Community 1626 - "CombineFailure"
+Cohesion: 0.40
+Nodes (5): CombineFailure, HoleNotSupported, None, NothingChanged, NothingLeft
 
 ### Community 1665 - ".BuildTargetModel"
 Cohesion: 0.40
 Nodes (4): DateTime, DateTimeOffset, Guid, ModelBuilder
-
-### Community 1741 - ".Up"
-Cohesion: 0.40
-Nodes (3): DateTime, Guid, MigrationBuilder
 
 ### Community 1771 - ".BuildTargetModel"
 Cohesion: 0.40
@@ -5697,9 +5725,9 @@ Nodes (7): Behaviour changes, Configuration, Operational note, Problem, SPEC-076
 Cohesion: 0.40
 Nodes (4): DateTime, DateTimeOffset, Guid, ModelBuilder
 
-### Community 1867 - "MigrationBuilder"
-Cohesion: 0.04
-Nodes (34): DateTimeOffset, MigrationBuilder, ModelBuilder, Phase 2: Foundational, AddAiProviderCredentialHint, DateTime, Guid, DateTime (+26 more)
+### Community 1867 - ".BuildTargetModel"
+Cohesion: 0.40
+Nodes (4): DateTime, DateTimeOffset, Guid, ModelBuilder
 
 ### Community 1870 - ".BuildTargetModel"
 Cohesion: 0.40
@@ -5709,25 +5737,21 @@ Nodes (4): DateTime, DateTimeOffset, Guid, ModelBuilder
 Cohesion: 0.33
 Nodes (5): Client behaviour contract, Contract: Presence Sphere Settings API, GET, Permissions (added to the catalogue), PUT
 
-### Community 1887 - "PromptAuditLog"
-Cohesion: 0.11
-Nodes (18): PromptAuditAction, Archived, Created, Deleted, Duplicated, Exported, Imported, Restored (+10 more)
-
-### Community 1893 - "ActiveSiteBoundary"
-Cohesion: 0.06
-Nodes (34): `activeSiteBoundaryStore` (existing): additions, API DTOs (see [contracts/site-boundary-edit-api.md](contracts/site-boundary-edit-api.md)), Application, Client state (never sent to the server except the rings on Done), Data Model: Hand-Edit the Site Outline, Migration `<timestamp>_AddSiteBoundaryCorrections`, Overview, Persistence (+26 more)
+### Community 1887 - ".GetByIdForOwnerAsync"
+Cohesion: 0.01
+Nodes (175): Decision 1: Integrate ElevenLabs' standalone STT/TTS APIs, not its "Speech Engine" conversational-AI product, IStreamRequest, RetryInput, SendChatMessageCommand, ChatMessageDto, ChatStreamChunk, GenerationParametersDto, Guid (+167 more)
 
 ### Community 1894 - "AdminRolesBulkDeleteTests"
 Cohesion: 0.27
 Nodes (7): AdminRolesBulkDeleteTests, CustomWebApplicationFactory, Fact, HttpClient, InlineData, Task, Theory
 
-### Community 1895 - ".CreateProvider"
-Cohesion: 0.18
-Nodes (12): ElevenLabsProviderTests, Fact, Func, HttpRequestMessage, HttpResponseMessage, IAiCredentialProtector, IAIProviderRepository, IHttpClientFactory (+4 more)
+### Community 1895 - "Uri"
+Cohesion: 0.06
+Nodes (36): DocumentFileType, DocumentTextExtractionResult, DownloadedFile, ExternalProfilePictureSyncJob, IDocumentTextExtractor, IFileStorage, IImageContentValidator, IRemoteFileDownloader (+28 more)
 
-### Community 1900 - "IdentityResultStatus"
-Cohesion: 0.29
-Nodes (7): IdentityResultStatus, EmailNotConfirmed, Failed, InvalidCredentials, LockedOut, RequiresTwoFactor, Success
+### Community 1900 - "Implementation Plan: [FEATURE]"
+Cohesion: 0.22
+Nodes (8): Complexity Tracking, Constitution Check, Documentation (this feature), Implementation Plan: [FEATURE], Project Structure, Source Code (repository root), Summary, Technical Context
 
 ### Community 1923 - "Quickstart: validating Presence Sphere Admin Controls"
 Cohesion: 0.40
@@ -5746,44 +5770,44 @@ Cohesion: 0.29
 Nodes (6): OnnxEmbeddingOptions, MaxTokenCount, ModelDirectory, ModelFileName, NaturalDimensionality, VocabFileName
 
 ### Community 1948 - "CustomModelsOptions"
-Cohesion: 0.14
-Nodes (13): CustomModelsOptions, AllowedDestinationPrefixes, MaxDeploymentBytes, ProgressPersistIntervalSeconds, ProgressPushIntervalMilliseconds, StallTimeoutSeconds, TempDirectory, IReadOnlyList (+5 more)
+Cohesion: 0.22
+Nodes (8): CustomModelsOptions, AllowedDestinationPrefixes, MaxDeploymentBytes, ProgressPersistIntervalSeconds, ProgressPushIntervalMilliseconds, StallTimeoutSeconds, TempDirectory, IReadOnlyList
 
 ### Community 1969 - ".GenerateAsync"
 Cohesion: 0.10
 Nodes (23): CapabilityIndexEntry, FlowVariantOfferCandidate, SuggestedActionPrompt, IReadOnlyList, ISuggestedActionOfferGenerator, SuggestedActionOfferGeneratorLog, CancellationToken, Exception (+15 more)
 
-### Community 1982 - ".Up"
-Cohesion: 0.40
-Nodes (3): DateTime, Guid, MigrationBuilder
+### Community 1982 - "PreviewVoiceCommand"
+Cohesion: 0.22
+Nodes (6): PreviewVoiceCommand, Guid, VoicePreviewDto, PreviewVoiceCommandValidator, InlineData, Theory
 
 ### Community 1985 - "ApplicationUser"
-Cohesion: 0.07
-Nodes (28): ICollection, IdentityUser, UserConversationPreference, SuggestedActionsEnabled, UserId, ApplicationUserConfiguration, EntityTypeBuilder, SiteAnalysisConfiguration (+20 more)
+Cohesion: 0.10
+Nodes (20): ICollection, IdentityUser, ApplicationUserConfiguration, EntityTypeBuilder, ApplicationUser, AvatarFileName, BirthDate, CookieConsentRecords (+12 more)
 
 ### Community 1987 - "AiProvidersControllerTests"
 Cohesion: 0.36
 Nodes (6): AiProvidersControllerTests, CustomWebApplicationFactory, HttpClient, InlineData, Task, Theory
 
-### Community 1989 - "AgentExecutionRunner"
-Cohesion: 0.43
-Nodes (5): AgentExecutionRunner, CancellationToken, Guid, IBackgroundJobClient, Task
+### Community 1989 - "TurnDecision"
+Cohesion: 0.25
+Nodes (8): TurnDecision, IsFastPath, IsFlowRun, TurnIntent, Act, Answer, Suggest, IReadOnlyList
 
-### Community 1990 - "20260728115847_AddMessages.Designer.cs"
-Cohesion: 0.17
-Nodes (8): DateTime, Guid, MigrationBuilder, AddMessages, DateTime, DateTimeOffset, Guid, ModelBuilder
+### Community 1990 - ".BuildTargetModel"
+Cohesion: 0.40
+Nodes (4): DateTime, DateTimeOffset, Guid, ModelBuilder
 
 ### Community 1991 - "NotificationRetryOptions"
 Cohesion: 0.29
 Nodes (7): NotificationRetryOptions, CriticalDelaysSeconds, DelaysMinutes, EffectiveCriticalDelaysSeconds, EffectiveDelaysMinutes, MaxAttempts, IReadOnlyList
 
-### Community 1992 - ".Up"
-Cohesion: 0.40
-Nodes (3): DateTime, Guid, MigrationBuilder
+### Community 1992 - "INotificationAccessCheck"
+Cohesion: 0.28
+Nodes (6): INotificationAccessCheck, ItemType, CancellationToken, IReadOnlyCollection, IReadOnlySet, Task
 
-### Community 1993 - "GetMyProfileQuery"
-Cohesion: 0.38
-Nodes (6): GetMyProfileQuery, UserProfileDto, GetMyProfileQueryHandler, CancellationToken, Task, UserProfileDto
+### Community 1993 - ".ReportSuccessAsync"
+Cohesion: 0.31
+Nodes (7): ScopeIsolatedSiteAnalysisResultRelay, CancellationToken, Exception, Guid, IServiceScopeFactory, JsonDocument, Task
 
 ### Community 1994 - ".StylesheetResource_ShouldBeEmbeddedAndNonEmpty"
 Cohesion: 0.50
@@ -5797,37 +5821,37 @@ Nodes (4): OvertureBuildingFootprintProviderLog, Exception, ILogger, LoggerMessa
 Cohesion: 0.33
 Nodes (6): NotificationConfiguration, ApplicationUser, EntityTypeBuilder, Notification, NotificationOutboxEvent, NotificationTemplateVersion
 
-### Community 1997 - "scripts"
-Cohesion: 0.29
-Nodes (7): scripts, build, dev, format, lint, preview, test
+### Community 1997 - "ClientApp/package.json"
+Cohesion: 0.04
+Nodes (59): d3, @dnd-kit/sortable, @emotion/react, @emotion/styled, eslint, eslint-config-prettier, @eslint/js, eslint-plugin-react-hooks (+51 more)
 
-### Community 2008 - "CustomModelsNotConfiguredTests"
-Cohesion: 0.38
-Nodes (5): CustomModelsNotConfiguredTests, CustomWebApplicationFactory, Fact, HttpClient, Task
+### Community 2008 - "UserConversationPreference"
+Cohesion: 0.25
+Nodes (5): UserConversationPreference, SuggestedActionsEnabled, UserId, UserConversationPreferenceConfiguration, EntityTypeBuilder
 
-### Community 2009 - "UpdateUserOverpostingTests"
-Cohesion: 0.33
-Nodes (5): UpdateUserOverpostingTests, CustomWebApplicationFactory, Fact, HttpClient, Task
+### Community 2009 - "`POST /api/v1/admin/hangfire/session`"
+Cohesion: 0.25
+Nodes (7): Client contract, Contract: Admin Hangfire Dashboard Session, `GET /hangfire` (existing Hangfire-owned route, unchanged in shape), `POST /api/v1/admin/hangfire/session`, Response `204 No Content`, Response `401 Unauthorized` / `403 Forbidden`, Response `429 Too Many Requests`
 
-### Community 2010 - "EffectiveLanguageResolver"
-Cohesion: 0.33
-Nodes (4): IEffectiveLanguageResolver, EffectiveLanguageResolver, CancellationToken, Task
+### Community 2010 - "Contract: `NotificationHub` (SignalR)"
+Cohesion: 0.25
+Nodes (8): Connection, Contract: `NotificationHub` (SignalR), Failure semantics, `notificationCreated`, `notificationUpdated`, Removed events (FR-009a), Server → client events, `unreadCountChanged`
 
-### Community 2011 - ".SearchAsync_ShouldReturnAFilteredSearchPage_InUnderTwoSeconds_At1000KnowledgeBases"
-Cohesion: 0.47
-Nodes (4): KnowledgeBaseScalePerformanceTests, Fact, PersistenceTestFixture, Task
+### Community 2011 - "WorkflowExecutionRunner"
+Cohesion: 0.36
+Nodes (5): WorkflowExecutionRunner, CancellationToken, Guid, IBackgroundJobClient, Task
 
 ### Community 2012 - "NotificationDispatchOptions"
 Cohesion: 0.40
 Nodes (5): NotificationDispatchOptions, BatchSize, IdlePollIntervalSeconds, LeaseMinutes, PollIntervalSeconds
 
-### Community 2013 - ".Up"
-Cohesion: 0.40
-Nodes (3): DateTime, Guid, MigrationBuilder
+### Community 2013 - "siteBoundaryEditStore.test.ts"
+Cohesion: 0.39
+Nodes (7): closeRing(), enter(), P(), session(), square(), store(), viewState
 
-### Community 2014 - "NotificationTemplateConfiguration"
-Cohesion: 0.50
-Nodes (4): NotificationTemplateConfiguration, EntityTypeBuilder, NotificationTemplate, NotificationTemplateVersion
+### Community 2014 - "FakeRenderer"
+Cohesion: 0.29
+Nodes (7): FakeRenderer, Calls, Fail, LastVariables, IReadOnlyDictionary, NotificationTypeDefinition, RenderedInApp
 
 ### Community 2015 - ".BuildTargetModel"
 Cohesion: 0.40
@@ -5853,9 +5877,9 @@ Nodes (4): DateTime, DateTimeOffset, Guid, ModelBuilder
 Cohesion: 0.40
 Nodes (4): DateTime, DateTimeOffset, Guid, ModelBuilder
 
-### Community 2021 - ".BuildTargetModel"
-Cohesion: 0.40
-Nodes (4): DateTime, DateTimeOffset, Guid, ModelBuilder
+### Community 2021 - "5. AI Context"
+Cohesion: 0.10
+Nodes (17): 5. AI Context, AiCapabilityAssignments, AIModels, AIProviders, AIUsage, CustomModelOverwrittenFiles, CustomModels, SiteAnalyses / SiteAnalysisResults (+9 more)
 
 ### Community 2022 - ".BuildTargetModel"
 Cohesion: 0.40
@@ -5877,9 +5901,13 @@ Nodes (4): DateTime, DateTimeOffset, Guid, ModelBuilder
 Cohesion: 0.40
 Nodes (4): DateTime, DateTimeOffset, Guid, ModelBuilder
 
-### Community 2027 - ".Up"
-Cohesion: 0.40
-Nodes (3): DateTime, Guid, MigrationBuilder
+### Community 2027 - "CookieConsentRecordTests"
+Cohesion: 0.36
+Nodes (4): CookieConsentRecordTests, Fact, InlineData, Theory
+
+### Community 2028 - "adminCustomModelsApi.ts"
+Cohesion: 0.04
+Nodes (73): Contract: Admin Custom Models API, Guarantees, Shapes, Validation (FluentValidation plus Domain value objects), Client behaviour (`useCustomModelDeploymentsHub`), Contract: Custom Model Deployment Hub, `CustomModelDeploymentProgress`, `CustomModelDeploymentStateChanged` (+65 more)
 
 ### Community 2031 - ".BuildTargetModel"
 Cohesion: 0.40
@@ -5890,28 +5918,144 @@ Cohesion: 0.50
 Nodes (4): ProvisionOutcome, Created, Unchanged, Upgraded
 
 ### Community 2033 - "IndexingOutcome"
+Cohesion: 0.29
+Nodes (6): Phase 4b: User Story 2 (part B) - Knowledge-base indexing trigger (Priority: P1, ships with slice 1), IIndexingOrchestrator, IndexingOutcome, Completed, Failed, PartiallyCompleted
+
+### Community 2039 - "4. Identity Context"
+Cohesion: 0.29
+Nodes (7): 4. Identity Context, ExternalLogins, PasswordResetTokens, RefreshTokens, TwoFactorDevices, Users, UserSessions
+
+### Community 2040 - "7. Knowledge Context"
+Cohesion: 0.29
+Nodes (7): 7. Knowledge Context, KnowledgeBaseAuditLogs, KnowledgeBaseCategories, KnowledgeBaseDocuments, KnowledgeBaseFolders, KnowledgeBaseTags, Not implemented (reserved for a future RAG spec)
+
+### Community 2046 - "Contract: Frontend Localization & RTL"
+Cohesion: 0.29
+Nodes (7): API, Contract: Frontend Localization & RTL, Language switch, `LocalizedSurface`, Module layout (`ClientApp/src/i18n/`), RTL rules for existing and new admin screens, Tests (frontend)
+
+### Community 2047 - "Research: Hand-Edit the Site Outline"
+Cohesion: 0.29
+Nodes (7): D10 — Keyboard and touch (US6, FR-014), D11 — Server validation bounds (FR-020), D1 — The editor: the map's own editable polygons, one per ring, D3 — Geometry: NetTopologySuite on the server, plain TypeScript on the client, D8 — How Lucy knows: the effective outline, a site note, and a persisted line, Research: Hand-Edit the Site Outline, Spec amendments to apply before `/speckit-tasks`
+
+### Community 2048 - ".ChunkAsync"
+Cohesion: 0.29
+Nodes (5): CancellationToken, GeneratedRegex, IReadOnlyList, Regex, Task
+
+### Community 2049 - "UnitOfWork"
+Cohesion: 0.43
+Nodes (4): UnitOfWork, CancellationToken, DbUpdateException, Task
+
+### Community 2050 - "Specification Quality Checklist: Notifications & Communication Hub"
+Cohesion: 0.33
+Nodes (5): Content Quality, Feature Readiness, Notes, Requirement Completeness, Specification Quality Checklist: Notifications & Communication Hub
+
+### Community 2051 - "Specification Quality Checklist: Model Deprecation Workflow"
+Cohesion: 0.33
+Nodes (5): Content Quality, Feature Readiness, Notes, Requirement Completeness, Specification Quality Checklist: Model Deprecation Workflow
+
+### Community 2052 - "IMemoryExtractionJob"
+Cohesion: 0.33
+Nodes (4): IMemoryExtractionJob, CancellationToken, Guid, Task
+
+### Community 2053 - "TranscribeAudioCommand"
+Cohesion: 0.40
+Nodes (5): TranscribeAudioCommand, Stream, TranscribeAudioCommandHandler, CancellationToken, Task
+
+### Community 2054 - ".UploadDocument"
+Cohesion: 0.33
+Nodes (5): KnowledgeBaseDocumentDto, DateTime, Guid, IFormFile, RequestSizeLimit
+
+### Community 2055 - "WorkflowApprovalDecision"
+Cohesion: 0.33
+Nodes (6): WorkflowApprovalDecision, Approve, Cancel, Pending, Reject, RequestChanges
+
+### Community 2056 - ".ChunkAsync"
+Cohesion: 0.33
+Nodes (4): CancellationToken, IReadOnlyList, List, Task
+
+### Community 2057 - ".Create"
+Cohesion: 0.33
+Nodes (5): TestServiceScopeFactory, CapabilityExecutor, ConversationCapabilityCatalog, IAIProviderResolver, IServiceScopeFactory
+
+### Community 2059 - "ADR 0018: Transactional Notification Outbox with In-Process Workers"
+Cohesion: 0.40
+Nodes (4): ADR 0018: Transactional Notification Outbox with In-Process Workers, Alternatives considered, Consequences, Context
+
+### Community 2060 - "16. Audit Context"
+Cohesion: 0.40
+Nodes (5): 16. Audit Context, AuditLogs, ErrorLogs, LoginHistory, SecurityEvents
+
+### Community 2061 - ".Changed"
+Cohesion: 0.60
+Nodes (3): New: `ModelDeprecation` (child of the batch), PresenceSphereSettingsLog, ILogger
+
+### Community 2062 - "New aggregate: `DictationEngineSetting` (Domain, `AskLucy.Domain.Ai.Dictation`)"
+Cohesion: 0.40
+Nodes (5): Domain methods (invariants live here, not in handlers), New aggregate: `DictationEngineSetting` (Domain, `AskLucy.Domain.Ai.Dictation`), Persistence (`AskLucy.Persistence`), Repository (Application port, `IDictationEngineSettingRepository`), State transitions
+
+### Community 2063 - ".TryDeserialize"
+Cohesion: 0.40
+Nodes (3): Exception, List, LoggerMessage
+
+### Community 2064 - "NotificationPreferenceConfiguration"
 Cohesion: 0.50
-Nodes (4): IndexingOutcome, Completed, Failed, PartiallyCompleted
+Nodes (4): NotificationPreferenceConfiguration, ApplicationUser, EntityTypeBuilder, NotificationPreference
+
+### Community 2065 - "SystemAnnouncementConfiguration"
+Cohesion: 0.50
+Nodes (4): SystemAnnouncementConfiguration, ApplicationUser, EntityTypeBuilder, SystemAnnouncement
+
+### Community 2066 - ".BuildTargetModel"
+Cohesion: 0.40
+Nodes (4): DateTime, DateTimeOffset, Guid, ModelBuilder
+
+### Community 2067 - ".BuildTargetModel"
+Cohesion: 0.40
+Nodes (4): DateTime, DateTimeOffset, Guid, ModelBuilder
+
+### Community 2068 - ".BuildTargetModel"
+Cohesion: 0.40
+Nodes (4): DateTime, DateTimeOffset, Guid, ModelBuilder
+
+### Community 2069 - ".FromAsync"
+Cohesion: 0.50
+Nodes (3): CancellationToken, IUserProfileRepository, Task
+
+### Community 2070 - "SystemAgentDefinitions"
+Cohesion: 0.50
+Nodes (4): SystemAgentDefinitions, All, IReadOnlyList, SystemAgentDefinition
+
+### Community 2071 - ".Handle"
+Cohesion: 0.50
+Nodes (3): CancellationToken, KnowledgeBaseCategoryDto, Task
+
+### Community 2072 - "PromptTestCaseDto"
+Cohesion: 0.50
+Nodes (3): PromptTestCaseDto, DateTime, Guid
+
+### Community 2073 - ".ToAsyncEnumerable"
+Cohesion: 0.50
+Nodes (3): IAsyncEnumerable, IEnumerable, StreamChunk
 
 ## Knowledge Gaps
-- **6031 isolated node(s):** `AdministratorContentAccess`, `BulkActionResult`, `BulkActionSkip`, `BulkDeleteRolesResult`, `BulkTargetRequest` (+6026 more)
-  These have ≤1 connection - possible missing edges or undocumented components. (Counts symbols only; 15651 node(s) total have ≤1 connection when file, concept and rationale nodes are included.)
+- **6051 isolated node(s):** `Content Quality`, `Requirement Completeness`, `Feature Readiness`, `Notes`, `Summary` (+6046 more)
+  These have ≤1 connection - possible missing edges or undocumented components. (Counts symbols only; 15672 node(s) total have ≤1 connection when file, concept and rationale nodes are included.)
 - **1099 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
 
 ## Suggested Questions
 _Questions this graph is uniquely positioned to answer:_
 
-- **Why does `AskLucy.Application.Abstractions` connect `AskLucy.Application.Abstractions` to `mediatr`, `AccountEmailJob`, `.OnModelCreating`, `AiContracts.cs`, `CapabilitySettingCatalog`, `microsoft_extensions_dependencyinjection`, `AskLucy.Domain.Common`, `IWorkflowExecutionNotifier`, `DomainRuleViolationException`, `VoiceProviderHealthRecorder`, `GeneratedImageMaterializerTests`, `PresenceSphereSettingsHandlerTests`, `Task`, `system_text_json`, `.RunAsync`, `IEmailSender`, `McpServerCredential`, `fluentassertions`, `ChatsController.cs`, `ExecutePromptCommand`, `GetMyCookieConsentQuery`, `.RunAsync`, `RequestSiteAnalysisCapabilityTests`, `DocumentProcessingJob`, `IAIProviderRepository`, `IVectorStore`, `NotificationLinkBuilderTests`, `IRoleAssignmentRepository`, `DocumentsController`, `ICurrentUserAccessor`, `.NotifyIndexStatusChangedAsync`, `AskLucy.Infrastructure/DependencyInjection.cs`, `RefreshMcpCapabilitiesCommandHandlerTests`, `UploadDocumentCommandHandlerTests`, `.ListAllAsync`, `system_security_claims`, `.RetrieveContextAsync`, `.GetByIdAsync`, `UploadAvatarCommandHandler`, `DocumentUploadSession`, `McpRateLimiter`, `ChangePasswordCommandHandlerTests`, `CreateSpeechToTextSessionCommandHandlerTests`, `.SearchAsync`, `ISystemAccountProvisioner`, `microsoft_extensions_options`, `IOptions`, `.Handle_ShouldIssueTokens_WhenCodeIsValid`, `.SaveBothAsync`, `.GetByKeyAsync`, `AskLucy.Domain.Notifications`, `Exception`, `DictationEngineAdminCommandTests`, `IIdentityService`, `.ValidateAsync`, `.HasPendingMigrationsAsync`, `Memory`, `RoleRecord`, `DocumentStatistics`, `.SaveAsync`, `.Handle`, `.MaterializeAsync`?**
-  _High betweenness centrality (0.091) - this node is a cross-community bridge._
-- **Why does `BaseEntity` connect `BaseEntity` to `IndexingLog`, `IDocumentRepository`, `McpTool`, `WorkflowPolicy`, `Task`, `McpServerCredential`, `AgentApproval`, `PromptFolder`, `DocumentVersion`, `CustomModel`, `McpServerHealth`, `ChunkStatistics`, `WorkflowExecution`, `RetrievalResult`, `.Create`, `CookieConsentRecord`, `.GetByConversationAsync`, `DocumentChunk`, `EmbeddingProvider`, `.SaveChangesAsync`, `AiCapability`, `WorkflowConnection`, `DocumentAuditLog`, `AIModel`, `VoiceProvider`, `.Model`, `McpResource`, `DocumentMetadata`, `McpServer`, `DocumentStatistics`, `Persistence`, `RetrievalHistory`, `McpPrompt`, `DocumentPreview`, `KnowledgeBaseCategory`, `CustomModelSummaryDto`, `Prompt`, `Embedding`, `SiteAnalysis`, `Document`, `Attachment`, `WorkflowNode`, `Implementation for Foundational`, `WorkflowExecutionNode`, `DocumentUploadSession`, `AgentTool`, `KnowledgeBase`, `Memory`, `NotificationDelivery`, `KnowledgeBaseTag`, `PromptCategory`, `Verified Codebase Context (2026-09-25)`, `MemoryReference`, `WorkflowApproval`, `AgentKnowledgeBase`, `CustomModelTests`, `MemoryAuditLog`, `PromptExecution`, `WorkflowExecutionEventType`, `PromptTestCase`, `PromptExecutionResult`, `AgentExecution`, `MemoryNotification`, `McpCapabilitySnapshot`, `Research: Presence Sphere Admin Controls`, `Tasks: Presence Sphere Admin Controls`, `PromptVariable`, `IndexingJob`, `UserVoicePreference`, `UserAiPreference`, `AgentPolicy`, `AgentExecutionCost`, `PagedResult`, `PromptAuditLog`, `ActiveSiteBoundary`, `IRequest`, `.Conflate`, `PromptTag`, `AgentExecutionError`, `AiProviderFailureKind`, `DomainRuleViolationException`, `AgentExecutionStep`, `SiteAnalysisResult`, `WorkflowVariableType`, `AgentExecutionEvent`, `Research: Notifications & Communication Hub`, `WorkflowAuditLog`, `Citation`, `DocumentProcessingJob`, `IAIProviderRepository`, `AgentToolCall`, `ApplicationUser`, `SearchAnalytics`, `UserPanelPreference`, `VoiceProviderFailoverEvent`, `AgentMemoryPolicy`, `WorkflowError`, `.SaveAsync`?**
-  _High betweenness centrality (0.066) - this node is a cross-community bridge._
-- **Why does `Implementation for User Story 2` connect `Implementation for User Story 2` to `.CreateExecution`, `.RunAsync_ShouldWrapMcpToolOutput_InTheGenericToolResultFraming_BeforeItReachesTheNextModelCall`, `NotificationTypeDefinition`, `AgentNodeExecutorTests`, `DomainRuleViolationException`, `DocumentWorkspacePage.tsx`, `Research: Notifications & Communication Hub`, `.RunAsync_ShouldFailTheExecutionWithARecordedError_RatherThanCallTheTool_WhenThePlanReferencesATool_NotInTheActiveCatalog`, `.RunAsync`, `Tasks: Notifications & Communication Hub`, `MemoryNotification`, `Citation`, `CustomModelDeploymentJob`, `IAIProviderRepository`, `ICurrentUserAccessor`, `Application abstractions and core services`, `.RunAsync_ShouldFailCleanlyWithARecordedError_WhenSavingAConflictingWriteThrows`, `Tests for Foundational (write first)`, `DocumentUploadSession`, `AgentApprovalWorkflowTests`, `DuplicateDetectionTests`, `.EnsureOwnedBy`, `DocumentProcessingPipeline`, `KnowledgeBase`, `IIdentityService`, `.KnowledgeBaseCheck_ShouldReportOwnedKnowledgeBaseAvailable_AndOthersNot`, `IRequest`, `.GetByIdAsync`, `WorkflowRetryPolicyTests`, `ProcessingFailureAndRetryTests`, `.SetUpExecutionWithMcpTool`, `AgentExecutionOrchestratorTests`, `.Handle_ShouldMergeResultsFromBothVectorStores_WhenKnowledgeBasesSpanBothProviders`, `PauseWorkflowExecutionCommandHandler`, `WorkflowExecutionOrchestrator`, `.RunAsync_ShouldNeverExecuteAMutatingTool_AndShouldRecordTheStepSkipped_ForATestExecution`?**
-  _High betweenness centrality (0.044) - this node is a cross-community bridge._
-- **What connects `AdministratorContentAccess`, `BulkActionResult`, `BulkActionSkip` to the rest of the system?**
-  _6031 weakly-connected nodes found - possible documentation gaps or missing edges._
-- **Should `mediatr` be split into smaller, more focused modules?**
-  _Cohesion score 0.004035438025403963 - nodes in this community are weakly interconnected._
+- **Why does `AskLucy.Application.Abstractions` connect `AskLucy.Application.Abstractions` to `IMemoryExtractionJob`, `AiContracts.cs`, `AskLucy.Domain.Notifications`, `system_text_json`, `IAgentExecutionRepository`, `fluentassertions`, `McpToolAdapter`, `McpServerCredential`, `microsoft_extensions_logging`, `IWorkflowExecutionRepository`, `.GetByIdAsync`, `DocumentsController`, `AskLucy.Infrastructure/DependencyInjection.cs`, `.NotifyIndexStatusChangedAsync`, `UpdateAiProviderCommandHandler`, `AskLucy.Domain.KnowledgeBases`, `IRefreshTokenRepository`, `AIModelCapabilities`, `.GetByIdAsync`, `microsoft_extensions_options`, `OpenXmlTextExtractor`, `.Create`, `microsoft_entityframeworkcore`, `LocalWhisperModelAdminTests`, `ICorrelationIdAccessor`, `GetChatMessagesQueryHandler`, `.Unprotect`, `IIdentityService`, `McpResource`, `fluentvalidation`, `DocumentStatistics`, `Task`, `ICookiePolicyProvider`, `.Handle`, `DictationEngineSetting`, `GeneratedImageMaterializerTests`, `Prompt`, `IMcpToolRepository`, `SiteAnalysis`, `IKnowledgeBaseCategoryRepository`, `RoleAuditLog`, `DocumentUploadSession`, `.Handle`, `ISystemAccountProvisioner`, `VoiceProviderRouter`, `.ValidateAsync`, `.Handle_ShouldReturnRepositorySummary_Unmodified`, `Memory`, `Verified Codebase Context (2026-09-25)`, `IWorkflowExecutionNotifier`, `.RunAsync`, `PresenceSphereSettingsHandlerTests`, `ValidatePasswordResetTokenQueryHandlerTests`, `InMemoryAgentRepository`, `IMcpServerRepository`, `PanelRequestDto`, `GetMyCookieConsentQuery`, `DocumentLanguage`, `IVectorStore`, `IMcpClient`, `IEmailSender`, `ChangePasswordCommandHandlerTests`, `ITokenService`, `.SearchAsync`, `AgentPolicy`, `DocumentProcessingPipeline`, `IRoleRepository`, `Exception`, `IRequest`, `AskLucy.Domain.Ai`, `Uri`, `IUserProfileRepository`, `OnnxLocalEmbeddingProvider`, `IUserAdminRepository`, `Hub`, `CreateSpeechToTextSessionCommandHandler`, `AiCapabilitySetting`, `KnowledgeBaseDocumentType`, `Research: Notifications & Communication Hub`, `.RunAsync`, `Phase 8: Post-release follow-up (manual walkthrough findings)`, `IDocumentProcessingJobRepository`, `IAIProviderRepository`, `IRoleAssignmentRepository`, `WeatherCondition`, `ICurrentUserAccessor`, `HttpPut`, `.SearchAsync`, `WeatherSnapshotDto`, `UploadAvatarCommandHandler`, `TesseractOcrEngine`, `WorkflowExecutionRunner`, `IChunkingStrategy`, `IndexingOutcome`, `.SaveAsync`, `IFileStorage`, `.Handle`?**
+  _High betweenness centrality (0.084) - this node is a cross-community bridge._
+- **Why does `BaseEntity` connect `BaseEntity` to `IndexingLog`, `McpTool`, `AiProviderFailureKind`, `WorkflowPolicy`, `IAgentExecutionRepository`, `McpServerCredential`, `DocumentProcessingStage`, `AgentApproval`, `PromptFolder`, `DocumentVersion`, `ChunkStatistics`, `McpServerHealth`, `WorkflowExecution`, `RetrievalResult`, `.Create`, `CookieConsentRecord`, `.GetByConversationAsync`, `DocumentChunk`, `EmbeddingProvider`, `.Create`, `PresenceSphereSettings`, `AiCapability`, `DocumentAuditLog`, `AIModel`, `ITextToSpeechEngine`, `MemoriesController`, `.Model`, `McpResource`, `DocumentMetadata`, `McpServer`, `DocumentStatistics`, `Persistence`, `RetrievalHistory`, `McpPrompt`, `DocumentPreview`, `KnowledgeBaseCategory`, `CustomModelSummaryDto`, `Prompt`, `IndexingOrchestrator`, `UserPanelPreference`, `SiteAnalysis`, `Document`, `Attachment`, `WorkflowNode`, `Implementation for Foundational`, `WorkflowExecutionNode`, `DocumentUploadSession`, `AgentTool`, `KnowledgeBase`, `Memory`, `NotificationDelivery`, `ActiveSiteBoundary`, `PromptCategory`, `Verified Codebase Context (2026-09-25)`, `MemoryReference`, `Research: Restore Local Whisper as the Primary Dictation Engine`, `WorkflowApproval`, `WorkflowExecutionUsage`, `CustomModelTests`, `MemoryAuditLog`, `PromptExecution`, `WorkflowExecutionEventType`, `PromptTestCase`, `PromptRating`, `AgentExecution`, `.Validate`, `MemoryNotification`, `DocumentLanguage`, `Research: Presence Sphere Admin Controls`, `DocumentProcessingJob`, `IndexingJob`, `UserVoicePreference`, `UserAiPreference`, `AgentPolicy`, `AgentExecutionCost`, `PagedResult`, `.GetByIdForOwnerAsync`, `PromptTag`, `DocumentProcessingLog`, `AgentExecutionError`, `ProviderHealthCheck`, `DomainRuleViolationException`, `AgentExecutionStep`, `SiteAnalysisResult`, `AgentExecutionEvent`, `Research: Notifications & Communication Hub`, `WorkflowAuditLog`, `Citation`, `IAIProviderRepository`, `AgentToolCall`, `SearchAnalytics`, `DocumentTag`, `WorkflowUserExecutionLimit`, `UserConversationPreference`, `VoiceProviderFailoverEvent`, `PromptVariable`, `Agent`, `WorkflowError`, `.SaveAsync`?**
+  _High betweenness centrality (0.063) - this node is a cross-community bridge._
+- **Why does `Implementation for User Story 2` connect `Implementation for User Story 2` to `.CreateExecution`, `.RunAsync_ShouldWrapMcpToolOutput_InTheGenericToolResultFraming_BeforeItReachesTheNextModelCall`, `NotificationTypeDefinition`, `AgentNodeExecutorTests`, `DomainRuleViolationException`, `IWorkflowRepository`, `DocumentWorkspacePage.tsx`, `Research: Notifications & Communication Hub`, `Theory`, `.RunAsync`, `Tasks: Notifications & Communication Hub`, `IndexingOrchestrator`, `Citation`, `CustomModelDeploymentJob`, `IAIProviderRepository`, `PauseWorkflowExecutionCommandHandler`, `ICurrentUserAccessor`, `Application abstractions and core services`, `AskLucy.Domain.KnowledgeBases`, `.RunAsync_ShouldFailCleanlyWithARecordedError_WhenSavingAConflictingWriteThrows`, `INotificationAccessCheck`, `DocumentUploadSession`, `AgentApprovalWorkflowTests`, `DuplicateDetectionTests`, `DocumentProcessingPipeline`, `KnowledgeBase`, `IIdentityService`, `.KnowledgeBaseCheck_ShouldReportOwnedKnowledgeBaseAvailable_AndOthersNot`, `McpHighRiskApprovalTests`, `WorkflowRetryPolicyTests`, `ProcessingFailureAndRetryTests`, `DocumentMetadata`, `.SetUpExecutionWithMcpTool`, `Agent`, `AgentExecutionOrchestratorTests`, `IFileStorage`, `Task`, `WorkflowExecutionOrchestrator`, `.RunAsync_ShouldNeverExecuteAMutatingTool_AndShouldRecordTheStepSkipped_ForATestExecution`?**
+  _High betweenness centrality (0.050) - this node is a cross-community bridge._
+- **What connects `Content Quality`, `Requirement Completeness`, `Feature Readiness` to the rest of the system?**
+  _6051 weakly-connected nodes found - possible documentation gaps or missing edges._
+- **Should `AskLucy.Application.Abstractions` be split into smaller, more focused modules?**
+  _Cohesion score 0.0055515312177303764 - nodes in this community are weakly interconnected._
 - **Should `apiFetch` be split into smaller, more focused modules?**
-  _Cohesion score 0.009234711912336515 - nodes in this community are weakly interconnected._
-- **Should `ChatSidebar.tsx` be split into smaller, more focused modules?**
-  _Cohesion score 0.044684684684684686 - nodes in this community are weakly interconnected._
+  _Cohesion score 0.010029498525073746 - nodes in this community are weakly interconnected._
+- **Should `chatsApi.ts` be split into smaller, more focused modules?**
+  _Cohesion score 0.04627766599597585 - nodes in this community are weakly interconnected._
