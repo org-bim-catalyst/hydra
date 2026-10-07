@@ -175,14 +175,49 @@ WHERE (d.IsRead = 1 AND n.ReadAtUtc IS NULL) OR (d.IsRead = 0 AND n.ReadAtUtc IS
 
 ## 5. Release checklist (production is hand-deployed)
 
-1. `appsettings.Production.json` (untracked) needs:
-   - `Notifications:Email:MaxPerMinute`, confirmed against the myasp.net plan's sending limit.
-   - `ReservedPerMinuteForMandatory`.
-   - `Notifications:Retention:*`.
-   
-   The existing `Smtp` and support-mailbox settings are unchanged, and no new secret is introduced.
-2. After deploy, check `/health/ready`: all `notifications-*` checks are Healthy (SMTP may briefly show Degraded on first probe).
-3. Run the S10 SQL against prod (see the repo notes on querying the prod DB).
-4. Confirm there are no pending legacy `AccountEmailJob` or `PasswordEmailJob` entries in the Hangfire dashboard after about 5 minutes, because the shims drain them.
-5. An Arabic native speaker has signed off on the templates and admin copy (Assumptions) **before** localization is enabled in production.
-6. **Follow-up release**, once the S10 counts are verified in prod: drop the legacy tables, the importer and the Hangfire shims (research R13 and R12).
+Every push to main deploys, so the feature ships as six slices (plan.md "Delivery Slices", tasks.md "Deployment order"). Each slice leaves production coherent. The steps below apply to every slice unless a step says otherwise.
+
+### 5.1 Before deploying
+
+1. **Apply the EF migrations first**, by hand, to every database the build will touch (production, and the shared test databases that CI uses; CI fails against a database that is behind). The feature adds two migrations:
+   - `AddNotificationHub` (slice 1) creates the eight notification tables and their indexes.
+   - `AddLocalizationSettingAndUserPreferredLanguage` (slice 5) adds `AspNetUsers.PreferredLanguage`, creates `LocalizationSettings` and seeds the singleton row (disabled, `["en"]`).
+
+   A host that boots before its migration has run fails the `pending-migrations` readiness check.
+2. **Hand-add configuration keys** to the untracked `appsettings.Production.json`. Only key names are listed here; never commit or paste values. All are optional (each has a default and a missing section never stops the host), but the first two must be set deliberately before slice 2:
+
+   | Key | Default | Notes |
+   |---|---|---|
+   | `Notifications:Email:MaxPerMinute` | 60 | Set to the sending limit of the myasp.net plan, confirmed with the host. |
+   | `Notifications:Email:ReservedPerMinuteForMandatory` | 20 | Capacity bulk mail can never use, so a password reset is never queued behind an announcement. Keep it below `MaxPerMinute`. |
+   | `Notifications:Email:SendTimeoutSeconds` | 60 | Keep generous on the shared host. |
+   | `Notifications:Retention:ReadDays` | 90 | Read notifications. |
+   | `Notifications:Retention:DeletedDays` | 30 | Owner-deleted notifications. |
+   | `Notifications:Retention:FailedDays` | 30 | Failed and dead-lettered deliveries, from the last attempt. |
+   | `Notifications:Retention:DeliveryDays` | 90 | Finished non-in-app deliveries. |
+   | `Notifications:Retention:CompletedOutboxDays` | 7 | Completed outbox events. |
+   | `Notifications:Retention:BatchSize` | 1000 | Rows per delete batch (clamped to 1-5000). |
+
+   The existing `Smtp` and support-mailbox settings are unchanged, and **no new secret is introduced**. The other `Notifications:*` sections (`Dispatch`, `Retry`, `Channels`, `Center`, `HealthChecks`) have defaults that need no production override.
+3. Make sure the host can run two background services (the dispatcher and the delivery worker) and the Hangfire jobs `notification-lease-sweep` (every minute) and `notification-retention` (daily, 03:00).
+
+### 5.2 After deploying
+
+1. Check `/health/ready`. All four checks must be Healthy: `notifications-dispatcher`, `notifications-delivery-worker`, `notifications-backlog` and `notifications-smtp`. SMTP may show Degraded on the first probe (its result is cached for 5 minutes); a Degraded SMTP check never takes the site out of rotation. From slice 1 the dispatcher and backlog checks apply; the delivery-worker and SMTP checks are meaningful from slice 2.
+2. Slice 1 only: run the S10 SQL against prod (see the repo notes on querying the prod DB). The counts must match, the read state must be preserved, and a restart must not change them.
+3. Slice 2 only: confirm there are no pending legacy `AccountEmailJob` or `PasswordEmailJob` entries in the Hangfire dashboard after about 5 minutes, because the shims drain them.
+4. Request a password reset for a test account and confirm the email is handed off within 60 s.
+5. An Arabic native speaker has signed off on the templates and admin copy (spec Assumptions) **before** localization is enabled in production. Localization stays disabled until then, and slices 5 and 6 are dark until an administrator enables it.
+
+### 5.3 Release notes per slice (constitution section 13)
+
+1. **Slice 1: Hub core and in-app notifications.** One notification center for the whole app: a bell with a live unread badge, a popover, a `/notifications` page with filters, mark-read, mark-all-read and delete, and a details view. Agents, workflows, documents, knowledge bases and memory now report through the hub, and two-factor and recovery-code changes appear as security notices. The old document and memory inboxes, their endpoints (`/documents/notifications`, `/memories/notifications`) and their `notificationCreated` pushes are removed in this same release, and existing legacy rows are imported once at startup (no new rows reach `DocumentNotifications` or `MemoryNotifications`). Migration: `AddNotificationHub`. Knowledge-base uploads now trigger indexing (FR-004b). **Knowledge-base documents uploaded before this slice stay un-indexed until the user re-uploads them; they are not back-filled.**
+2. **Slice 2: Email channel and account emails.** A delivery worker with retry, dead letter, a lease sweeper and a rate-limited sender. Account emails (confirmation, email change, password reset and support requests) move behind the hub, and the security notices (password changed, two-factor changes, recovery codes) gain their email, which is mandatory and cannot be switched off, with links minted at send time and no change to what a requester can learn. `AccountEmailJob`, `PasswordEmailJob` and `PasswordResetIssuanceJob` remain for one release as `[Obsolete]` forwarding shims that drain jobs already queued. New configuration: `Notifications:Email:*`.
+3. **Slice 3: Preferences and approvals.** Settings has a Notifications tab with per-category, per-channel toggles. Security notices are locked on. Agent and workflow approval requests notify the approver in-app and by email with a link to the existing approval screen (no approve or reject in the email), and their history is audited.
+4. **Slice 4: Admin operations.** A new Notifications group in Admin: dashboard and statistics, delivery list with retry and bulk retry, channel health, template editor with preview, test send, publish and archive, announcements (plain text, in-app for all, email only if critical) and an audit view. New permissions `admin.notifications.view` and `admin.notifications.manage` need assigning to the roles that should have them. The daily retention job starts. New configuration: `Notifications:Retention:*`.
+5. **Slice 5: Localization foundation and notification screens.** An administrator setting (off by default) and a per-user language choice; Arabic templates; Arabic, right-to-left bell, center, details and preferences; server error text localized on notification and admin endpoints. English is unchanged while the setting is off. Migration: `AddLocalizationSettingAndUserPreferredLanguage`.
+6. **Slice 6: Admin area in Arabic.** The admin shell, the 12 existing sections and the five notification screens are available in Arabic and right-to-left when localization is enabled. No backend or schema change.
+
+### 5.4 Follow-up release
+
+Once the S10 counts are verified in production, a separate release drops `DocumentNotifications` and `MemoryNotifications` (migration `DropLegacyDocumentAndMemoryNotifications`), the startup importer and the three `[Obsolete]` forwarding shims (research R13 and R12). It is not part of this feature.
