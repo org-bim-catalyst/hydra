@@ -153,7 +153,7 @@ public sealed class NotificationThroughputTests(NotificationThroughputFactory fa
     // ---- publishing ----
 
     /// <summary>Publishes the stream in 100 batches, one commit each, spaced evenly over <paramref name="duration"/>.</summary>
-    private async Task PublishStreamAsync(List<string> users, IReadOnlyDictionary<string, Guid> documents, string prefix, int count, TimeSpan duration, CancellationToken ct)
+    private async Task PublishStreamAsync(List<string> users, Dictionary<string, Guid> documents, string prefix, int count, TimeSpan duration, CancellationToken ct)
     {
         const int batches = 100;
         var started = Stopwatch.GetTimestamp();
@@ -217,7 +217,7 @@ public sealed class NotificationThroughputTests(NotificationThroughputFactory fa
         await db.Documents.IgnoreQueryFilters().Where(d => ownerIds.Contains(d.OwnerId)).ExecuteDeleteAsync(CancellationToken.None);
     }
 
-    private async Task PublishBurstAsync(string userId, string prefix, IReadOnlyList<Guid> documents, CancellationToken ct)
+    private async Task PublishBurstAsync(string userId, string prefix, List<Guid> documents, CancellationToken ct)
     {
         var count = documents.Count;
         for (var from = 0; from < count; from += 100)

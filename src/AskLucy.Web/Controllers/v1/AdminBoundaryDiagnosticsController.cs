@@ -1,11 +1,11 @@
 using AskLucy.Application.SiteBoundaries;
 using AskLucy.Application.SiteBoundaries.Queries.DrawSiteBoundaryDiagnostic;
 using AskLucy.Application.SiteBoundaries.Queries.SegmentSiteBoundaryDiagnostic;
+using AskLucy.Web.Localization;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
-using AskLucy.Web.Localization;
 
 namespace AskLucy.Web.Controllers.v1;
 

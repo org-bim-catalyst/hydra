@@ -3,10 +3,10 @@ using AskLucy.Application.Notifications.Commands.PublishSystemAnnouncement;
 using AskLucy.Application.Notifications.Queries.GetSystemAnnouncements;
 using AskLucy.Web.Auth;
 using AskLucy.Web.Contracts;
+using AskLucy.Web.Localization;
 using MediatR;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
-using AskLucy.Web.Localization;
 
 namespace AskLucy.Web.Controllers.v1;
 

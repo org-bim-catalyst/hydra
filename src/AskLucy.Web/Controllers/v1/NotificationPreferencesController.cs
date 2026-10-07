@@ -2,11 +2,11 @@ using AskLucy.Application.Notifications;
 using AskLucy.Application.Notifications.Commands.UpdateNotificationPreferences;
 using AskLucy.Application.Notifications.Queries.GetNotificationPreferences;
 using AskLucy.Web.Contracts;
+using AskLucy.Web.Localization;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
-using AskLucy.Web.Localization;
 
 namespace AskLucy.Web.Controllers.v1;
 

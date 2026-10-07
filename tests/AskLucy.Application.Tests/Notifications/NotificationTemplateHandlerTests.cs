@@ -77,7 +77,7 @@ public sealed class NotificationTemplateHandlerTests
     {
         var template = Template();
 
-        var dto = await Create().Handle(new CreateTemplateDraftCommand(template.Id, Email()), default);
+        var dto = await Create().Handle(new CreateTemplateDraftCommand(template.Id, Email()), TestContext.Current.CancellationToken);
 
         dto.VersionNumber.Should().Be(2);
         dto.Status.Should().Be(TemplateVersionStatus.Draft);
@@ -92,7 +92,7 @@ public sealed class NotificationTemplateHandlerTests
         var template = Template();
         var v1 = template.Versions.Single();
 
-        var dto = await Create().Handle(new CreateTemplateDraftCommand(template.Id, null, v1.Id), default);
+        var dto = await Create().Handle(new CreateTemplateDraftCommand(template.Id, null, v1.Id), TestContext.Current.CancellationToken);
 
         dto.Heading.Should().Be(v1.Heading);
         dto.BodyParagraphs.Should().Equal(v1.BodyParagraphs);
@@ -105,7 +105,7 @@ public sealed class NotificationTemplateHandlerTests
         var published = template.PublishedVersion!;
         published.RowVersion = Token;
 
-        var ex = await ConflictOf(() => Update().Handle(new UpdateTemplateDraftCommand(template.Id, published.Id, Email(), Token), default));
+        var ex = await ConflictOf(() => Update().Handle(new UpdateTemplateDraftCommand(template.Id, published.Id, Email(), Token), TestContext.Current.CancellationToken));
 
         ex.Reason.Should().Be(TemplateConflictReason.VersionNotDraft);
     }
@@ -117,7 +117,7 @@ public sealed class NotificationTemplateHandlerTests
         var draft = template.AddDraft(Email(), Now.UtcDateTime);
         draft.RowVersion = [9, 9];
 
-        var ex = await ConflictOf(() => Update().Handle(new UpdateTemplateDraftCommand(template.Id, draft.Id, Email(), Token), default));
+        var ex = await ConflictOf(() => Update().Handle(new UpdateTemplateDraftCommand(template.Id, draft.Id, Email(), Token), TestContext.Current.CancellationToken));
 
         ex.Reason.Should().Be(TemplateConflictReason.ConcurrencyConflict);
         await _unitOfWork.DidNotReceive().SaveChangesAsync(Arg.Any<CancellationToken>());
@@ -130,7 +130,7 @@ public sealed class NotificationTemplateHandlerTests
         var draft = template.AddDraft(Email(), Now.UtcDateTime);
         draft.RowVersion = Token;
 
-        var dto = await Update().Handle(new UpdateTemplateDraftCommand(template.Id, draft.Id, Email(heading: "Changed {{ workflowName }}"), Token), default);
+        var dto = await Update().Handle(new UpdateTemplateDraftCommand(template.Id, draft.Id, Email(heading: "Changed {{ workflowName }}"), Token), TestContext.Current.CancellationToken);
 
         dto.Heading.Should().Be("Changed {{ workflowName }}");
         _templates.Received(1).ExpectRowVersion(draft, Arg.Is<byte[]>(b => b.SequenceEqual(Token)));
@@ -147,7 +147,7 @@ public sealed class NotificationTemplateHandlerTests
         var draft = template.AddDraft(Email(), Now.UtcDateTime);
         draft.RowVersion = Token;
 
-        var act = () => Update().Handle(new UpdateTemplateDraftCommand(template.Id, draft.Id, Email(heading: heading), Token), default);
+        var act = () => Update().Handle(new UpdateTemplateDraftCommand(template.Id, draft.Id, Email(heading: heading), Token), TestContext.Current.CancellationToken);
 
         (await act.Should().ThrowAsync<NotificationTemplateRejectedException>()).Which.Message.Should().Contain(expected);
         await _unitOfWork.DidNotReceive().SaveChangesAsync(Arg.Any<CancellationToken>());
@@ -161,7 +161,7 @@ public sealed class NotificationTemplateHandlerTests
         var draft = template.AddDraft(Email(heading: "New {{ workflowName }}"), Now.UtcDateTime);
         draft.RowVersion = Token;
 
-        var dto = await Publish().Handle(new PublishTemplateVersionCommand(template.Id, draft.Id, Token), default);
+        var dto = await Publish().Handle(new PublishTemplateVersionCommand(template.Id, draft.Id, Token), TestContext.Current.CancellationToken);
 
         dto.Status.Should().Be(TemplateVersionStatus.Published);
         v1.Status.Should().Be(TemplateVersionStatus.Archived);
@@ -178,7 +178,7 @@ public sealed class NotificationTemplateHandlerTests
         var published = template.PublishedVersion!;
         published.RowVersion = Token;
 
-        var ex = await ConflictOf(() => Publish().Handle(new PublishTemplateVersionCommand(template.Id, published.Id, Token), default));
+        var ex = await ConflictOf(() => Publish().Handle(new PublishTemplateVersionCommand(template.Id, published.Id, Token), TestContext.Current.CancellationToken));
 
         ex.Reason.Should().Be(TemplateConflictReason.VersionNotDraft);
     }
@@ -189,7 +189,7 @@ public sealed class NotificationTemplateHandlerTests
         var template = Template(shippedDefault: true);
         var published = template.PublishedVersion!;
 
-        var ex = await ConflictOf(() => Archive().Handle(new ArchiveTemplateVersionCommand(template.Id, published.Id, Token), default));
+        var ex = await ConflictOf(() => Archive().Handle(new ArchiveTemplateVersionCommand(template.Id, published.Id, Token), TestContext.Current.CancellationToken));
 
         ex.Reason.Should().Be(TemplateConflictReason.LastPublishedDefault);
         template.PublishedVersion.Should().NotBeNull();
@@ -202,7 +202,7 @@ public sealed class NotificationTemplateHandlerTests
         var draft = template.AddDraft(Email(), Now.UtcDateTime);
         draft.RowVersion = Token;
 
-        var dto = await Archive().Handle(new ArchiveTemplateVersionCommand(template.Id, draft.Id, Token), default);
+        var dto = await Archive().Handle(new ArchiveTemplateVersionCommand(template.Id, draft.Id, Token), TestContext.Current.CancellationToken);
 
         dto.Status.Should().Be(TemplateVersionStatus.Archived);
         _audit.Received(1).Write(NotificationAuditAction.TemplateVersionArchived, "NotificationTemplateVersion", draft.Id.ToString(), NotificationAuditOutcome.Succeeded, Arg.Any<object?>(), Arg.Any<string?>());
@@ -216,7 +216,7 @@ public sealed class NotificationTemplateHandlerTests
         draft.RowVersion = Token;
         template.Archive(draft.Id, AdminId, Now.UtcDateTime);
 
-        var ex = await ConflictOf(() => Archive().Handle(new ArchiveTemplateVersionCommand(template.Id, draft.Id, Token), default));
+        var ex = await ConflictOf(() => Archive().Handle(new ArchiveTemplateVersionCommand(template.Id, draft.Id, Token), TestContext.Current.CancellationToken));
 
         ex.Reason.Should().Be(TemplateConflictReason.VersionArchived);
     }
@@ -227,7 +227,7 @@ public sealed class NotificationTemplateHandlerTests
         var template = Template();
         _directory.GetAsync(Arg.Any<IReadOnlyCollection<string>>(), Arg.Any<CancellationToken>()).Returns(new Dictionary<string, NotificationRecipientInfo>());
 
-        var dto = await new GetNotificationTemplateQueryHandler(_templates, _directory).Handle(new GetNotificationTemplateQuery(template.Id), default);
+        var dto = await new GetNotificationTemplateQueryHandler(_templates, _directory).Handle(new GetNotificationTemplateQuery(template.Id), TestContext.Current.CancellationToken);
 
         dto.IsShippedDefault.Should().BeTrue();
         dto.Versions.Should().ContainSingle().Which.CreatedBy.Should().BeNull();
@@ -245,7 +245,7 @@ public sealed class NotificationTemplateHandlerTests
             .Returns(new RenderedEmail("Subject", "<p>Hi</p>", "Hi", Guid.NewGuid(), "en"));
 
         var dto = await new PreviewTemplateVersionQueryHandler(_templates, renderer).Handle(
-            new PreviewTemplateVersionQuery(template.Id, template.Versions.Single().Id, new Dictionary<string, string?> { ["workflowName"] = "Demo", ["nope"] = "x" }), default);
+            new PreviewTemplateVersionQuery(template.Id, template.Versions.Single().Id, new Dictionary<string, string?> { ["workflowName"] = "Demo", ["nope"] = "x" }), TestContext.Current.CancellationToken);
 
         dto.Html.Should().Be("<p>Hi</p>");
         seen!["workflowName"].Should().Be("Demo");
@@ -267,7 +267,7 @@ public sealed class NotificationTemplateHandlerTests
         _publisher.When(p => p.Publish(Arg.Any<NotificationRequest>())).Do(c => sent = c.Arg<NotificationRequest>());
 
         var result = await new SendTemplateTestCommandHandler(_templates, _directory, _publisher, _audit, _unitOfWork, _currentUser, _time)
-            .Handle(new SendTemplateTestCommand(template.Id, version.Id), default);
+            .Handle(new SendTemplateTestCommand(template.Id, version.Id), TestContext.Current.CancellationToken);
 
         sent!.Type.Should().Be(NotificationTypeKeys.TemplateTest);
         sent.Recipient.Should().Be(new NotificationRecipient.User(AdminId));
@@ -287,7 +287,7 @@ public sealed class NotificationTemplateHandlerTests
         });
 
         var act = () => new SendTemplateTestCommandHandler(_templates, _directory, _publisher, _audit, _unitOfWork, _currentUser, _time)
-            .Handle(new SendTemplateTestCommand(template.Id, template.Versions.Single().Id), default);
+            .Handle(new SendTemplateTestCommand(template.Id, template.Versions.Single().Id), TestContext.Current.CancellationToken);
 
         await act.Should().ThrowAsync<NotificationTemplateRejectedException>();
         _publisher.DidNotReceive().Publish(Arg.Any<NotificationRequest>());

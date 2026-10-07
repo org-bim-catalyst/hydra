@@ -9,11 +9,11 @@ using AskLucy.Application.Notifications.Queries.GetNotifications;
 using AskLucy.Application.Notifications.Queries.GetUnreadNotificationCount;
 using AskLucy.Domain.Notifications;
 using AskLucy.Web.Contracts;
+using AskLucy.Web.Localization;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
-using AskLucy.Web.Localization;
 
 namespace AskLucy.Web.Controllers.v1;
 

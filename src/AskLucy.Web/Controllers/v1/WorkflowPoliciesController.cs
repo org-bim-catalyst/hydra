@@ -6,10 +6,10 @@ using AskLucy.Application.Workflows.Commands.UpdateWorkflowPolicy;
 using AskLucy.Application.Workflows.Queries.ListWorkflowPolicies;
 using AskLucy.Web.Auth;
 using AskLucy.Web.Contracts;
+using AskLucy.Web.Localization;
 using MediatR;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
-using AskLucy.Web.Localization;
 
 namespace AskLucy.Web.Controllers.v1;
 

@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using System.Text.RegularExpressions;
+using AskLucy.Application.Abstractions;
 using AskLucy.Application.Notifications;
 using AskLucy.Application.Notifications.Abstractions;
 using AskLucy.Domain.Notifications;
@@ -7,7 +8,6 @@ using FluentAssertions;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.DependencyInjection;
 using Xunit;
-using AskLucy.Application.Abstractions;
 
 namespace AskLucy.Web.Tests.Notifications;
 
