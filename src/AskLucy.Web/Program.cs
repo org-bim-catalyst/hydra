@@ -283,6 +283,19 @@ builder.Services.AddRateLimiter(options =>
         });
     });
 
+    // specs/067 US7: a template test sends a real email, so it is capped per administrator.
+    options.AddPolicy("notifications-test-send", context =>
+    {
+        var partitionKey = RateLimitPartitions.UserOrClientKey(context);
+
+        return RateLimitPartition.GetFixedWindowLimiter(partitionKey, _ => new FixedWindowRateLimiterOptions
+        {
+            Window = TimeSpan.FromHours(1),
+            PermitLimit = 10,
+            QueueLimit = 0,
+        });
+    });
+
     // Admin dashboard/user-management endpoints (specs/001-admin-dashboard) — a generous
     // per-user limit closes constitution §6's "every public endpoint is rate-limited"
     // gap for this feature's new endpoints, matching the ai-endpoints pattern above.

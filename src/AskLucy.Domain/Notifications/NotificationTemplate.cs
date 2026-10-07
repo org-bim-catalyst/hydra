@@ -96,6 +96,12 @@ public sealed class NotificationTemplate : BaseEntity
         var version = Find(versionId);
         var previous = PublishedVersion;
 
+        // Publish-time validation (FR-041): the draft is checked once more against the type's variables before it goes live.
+        if (version.Status == TemplateVersionStatus.Draft)
+        {
+            version.UpdateDraft(Channel, Definition, version.Content);
+        }
+
         version.MarkPublished(userId, now);
         previous?.MarkArchived(userId, now);
         PublishedVersionId = version.Id;

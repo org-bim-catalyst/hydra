@@ -128,7 +128,7 @@ Request: `{ "deliveryIds": ["…"] }` (1–200), **or** `{ "filter": { "status":
 
 ### GET `/notifications/templates/{templateId}` (V)
 
-**200**: the template, plus `versions: [{ id, versionNumber, status, createdAtUtc, createdBy, publishedAtUtc, archivedAtUtc }]`, plus `declaredVariables: [{ name, description, sample, fallback }]` from the catalogue, plus `isShippedDefault`.
+**200**: the template, plus `versions: [{ id, versionNumber, status, createdAtUtc, createdBy, publishedAtUtc, archivedAtUtc }]`, plus `declaredVariables: [{ name, sample, fallback, isStandard }]` from the catalogue (the sample is the fallback; the catalogue has no per-variable description), plus `isShippedDefault`.
 
 ### GET `/notifications/templates/{templateId}/versions/{versionId}` (V)
 
@@ -151,7 +151,8 @@ This edits a **draft** only, and requires an `If-Match` header carrying the base
 | Code | When |
 |---|---|
 | 200 | edited |
-| 409 | the version isn't a draft (`reason: VersionNotDraft`), or the concurrency check failed (`reason: ConcurrencyConflict`) |
+| 409 | the version isn't a draft (`reason: VersionNotDraft`, or `VersionArchived`), or the concurrency check failed (`reason: ConcurrencyConflict`) |
+| 428 | no `If-Match` header |
 | 422 | same validation as create |
 
 ### POST `/notifications/templates/{templateId}/versions/{versionId}/actions/preview` (V)
@@ -167,7 +168,7 @@ Request: `{ "variables": { "workflowName": "Demo" } }`. The body is optional. Mi
 
 This sends the rendered **email** version to the *calling admin's own verified address*. There is no free-form recipient. Sample variables and the sample link are used.
 
-- **202**: `{ "deliveryId": "…" }`. It goes through the normal delivery pipeline with type `template.test`, so it is visible in deliveries.
+- **202**: `{ "sentTo": "a•••@example.com" }` (the masked address). The delivery doesn't exist yet when the request returns, because the event is materialized in the background; it goes through the normal pipeline with type `template.test` and then shows in the deliveries. The event names the version under test, so the email shows that version (a draft included) in its own language, with sample values and the sample link.
 - **429**: over `notifications-test-send`.
 - **422**: the admin has no verified address.
 - The send is audited as `TemplateTestSent`.
@@ -178,14 +179,15 @@ Requires `If-Match`. **200** returns the published version and archives the prev
 
 | Code | Reason |
 |---|---|
-| 409 | `VersionNotDraft` or `ConcurrencyConflict` |
+| 409 | `VersionNotDraft`, `VersionArchived` or `ConcurrencyConflict` |
 | 422 | publish-time variable validation failed |
+| 428 | no `If-Match` header |
 
 The action is audited as `TemplateVersionPublished`, with the previous and new version numbers.
 
 ### POST `/notifications/templates/{templateId}/versions/{versionId}/actions/archive` (M)
 
-**200**. Returns **409** with `reason: LastPublishedDefault` when archiving would leave a shipped default with no published version (SC-006). The action is audited.
+Requires `If-Match`. **200**. Returns **409** with `reason: LastPublishedDefault` when archiving would leave a shipped default with no published version (SC-006). The action is audited.
 
 ---
 
