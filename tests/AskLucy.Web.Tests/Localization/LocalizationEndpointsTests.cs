@@ -22,6 +22,9 @@ public sealed class LocalizationEndpointsTests(CustomWebApplicationFactory facto
     private const string View = "admin.notifications.view";
     private const string Manage = "admin.notifications.manage";
 
+    private static readonly string[] EnglishOnly = ["en"];
+    private static readonly string[] ArabicEnglishMixed = ["ar", "en", "EN"];
+
     private readonly LocalizationTestHost _host = new(factory);
 
     public ValueTask InitializeAsync() => ValueTask.CompletedTask;
@@ -42,7 +45,7 @@ public sealed class LocalizationEndpointsTests(CustomWebApplicationFactory facto
     private static async Task<JsonDocument> JsonOf(HttpResponseMessage response) =>
         JsonDocument.Parse(await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken));
 
-    private async Task<string> RowVersionAsync(HttpClient admin)
+    private static async Task<string> RowVersionAsync(HttpClient admin)
     {
         using var doc = JsonDocument.Parse(await admin.GetStringAsync(Admin, TestContext.Current.CancellationToken));
         return doc.RootElement.GetProperty("rowVersion").GetString()!;
@@ -61,7 +64,7 @@ public sealed class LocalizationEndpointsTests(CustomWebApplicationFactory facto
 
         var viewer = _host.AdminClient(View);
         (await viewer.GetAsync(Admin, ct)).StatusCode.Should().Be(HttpStatusCode.OK);
-        (await viewer.SendAsync(Put(Admin, new { isEnabled = true, supportedLanguages = new[] { "en" } }, await RowVersionAsync(viewer)), ct))
+        (await viewer.SendAsync(Put(Admin, new { isEnabled = true, supportedLanguages = EnglishOnly }, await RowVersionAsync(viewer)), ct))
             .StatusCode.Should().Be(HttpStatusCode.Forbidden);
     }
 
@@ -91,7 +94,7 @@ public sealed class LocalizationEndpointsTests(CustomWebApplicationFactory facto
 
         (await admin.SendAsync(Put(Admin, change, token), ct)).StatusCode.Should().Be(HttpStatusCode.OK);
 
-        var stale = await admin.SendAsync(Put(Admin, new { isEnabled = false, supportedLanguages = new[] { "en" } }, token), ct);
+        var stale = await admin.SendAsync(Put(Admin, new { isEnabled = false, supportedLanguages = EnglishOnly }, token), ct);
         stale.StatusCode.Should().Be(HttpStatusCode.Conflict);
         using var problem = await JsonOf(stale);
         problem.RootElement.GetProperty("reason").GetString().Should().Be("ConcurrencyConflict");
@@ -126,7 +129,7 @@ public sealed class LocalizationEndpointsTests(CustomWebApplicationFactory facto
             before.RootElement.GetProperty("localizationEnabled").GetBoolean().Should().BeFalse();
         }
 
-        var saved = await admin.SendAsync(Put(Admin, new { isEnabled = true, supportedLanguages = new[] { "ar", "en", "EN" } }, await RowVersionAsync(admin)), ct);
+        var saved = await admin.SendAsync(Put(Admin, new { isEnabled = true, supportedLanguages = ArabicEnglishMixed }, await RowVersionAsync(admin)), ct);
 
         saved.StatusCode.Should().Be(HttpStatusCode.OK);
         using (var body = await JsonOf(saved))

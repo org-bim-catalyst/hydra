@@ -19,10 +19,10 @@ using AskLucy.Application.Mcp.Queries.ListMcpServerTools;
 using AskLucy.Domain.Mcp;
 using AskLucy.Web.Auth;
 using AskLucy.Web.Contracts;
+using AskLucy.Web.Localization;
 using MediatR;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
-using AskLucy.Web.Localization;
 
 namespace AskLucy.Web.Controllers.v1;
 

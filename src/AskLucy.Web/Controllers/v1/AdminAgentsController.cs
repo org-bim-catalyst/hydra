@@ -1,9 +1,9 @@
 using AskLucy.Application.Agents.Queries.GetSystemAgents;
 using AskLucy.Web.Auth;
+using AskLucy.Web.Localization;
 using MediatR;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
-using AskLucy.Web.Localization;
 
 namespace AskLucy.Web.Controllers.v1;
 

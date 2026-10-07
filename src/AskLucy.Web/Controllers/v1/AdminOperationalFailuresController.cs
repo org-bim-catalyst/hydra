@@ -15,11 +15,11 @@ using AskLucy.Application.Users;
 using AskLucy.Domain.Authorization;
 using AskLucy.Domain.OperationalFailures;
 using AskLucy.Web.Auth;
+using AskLucy.Web.Localization;
 using MediatR;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.ModelBinding;
 using Microsoft.AspNetCore.RateLimiting;
-using AskLucy.Web.Localization;
 
 namespace AskLucy.Web.Controllers.v1;
 

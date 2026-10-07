@@ -262,6 +262,40 @@ public sealed class NotificationRetentionTests(PersistenceTestFixture fixture)
     }
 
     [Fact(Skip = PersistenceDatabaseGate.SkipReason, SkipWhen = nameof(PersistenceDatabaseGate.NotConfigured), SkipType = typeof(PersistenceDatabaseGate))]
+    public async Task FailedOutboxEvents_AreDeletedThirtyDaysAfterTheyFailed_AndNotBefore()
+    {
+        // R20 / data-model: a Failed event stays visible to administrators for 30 days, then goes like every other finished row.
+        var ct = TestContext.Current.CancellationToken;
+        var now = DateTime.UtcNow;
+        NotificationOutboxEvent FailedAt(DateTime failedAt)
+        {
+            var e = NotificationOutboxEvent.Create(NotificationTypeKeys.WorkflowExecutionFailed, """{"kind":"User","userId":"x"}""", "{}", $"retention-{Guid.NewGuid():N}", failedAt.AddMinutes(-5));
+            for (var attempt = 0; attempt < NotificationOutboxEvent.MaxDispatchAttempts; attempt++)
+            {
+                e.Claim("w", failedAt.AddMinutes(1), failedAt);
+                e.Release("The event could not be dispatched.", failedAt.AddMinutes(1), failedAt);
+            }
+
+            return e;
+        }
+
+        var old = FailedAt(now.AddDays(-31));
+        var recent = FailedAt(now.AddDays(-29));
+        await using (var context = fixture.CreateDbContext())
+        {
+            context.NotificationOutboxEvents.AddRange(old, recent);
+            await context.SaveChangesAsync(ct);
+        }
+
+        old.Status.Should().Be(OutboxEventStatus.Failed);
+        await Service(now).RunAsync(ct);
+
+        await using var verify = fixture.CreateDbContext();
+        var remaining = await verify.NotificationOutboxEvents.Where(e => new[] { old.Id, recent.Id }.Contains(e.Id)).Select(e => e.Id).ToListAsync(ct);
+        remaining.Should().BeEquivalentTo([recent.Id]);
+    }
+
+    [Fact(Skip = PersistenceDatabaseGate.SkipReason, SkipWhen = nameof(PersistenceDatabaseGate.NotConfigured), SkipType = typeof(PersistenceDatabaseGate))]
     public async Task AuditRows_AreNeverDeleted_HoweverOld()
     {
         var ct = TestContext.Current.CancellationToken;
