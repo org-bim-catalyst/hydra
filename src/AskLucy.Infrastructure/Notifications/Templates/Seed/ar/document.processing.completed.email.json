@@ -1,0 +1,12 @@
+{
+  "name": "اكتمال معالجة المستند",
+  "subject": "{{ documentName }} جاهز",
+  "preheader": "{{ documentName }} جاهز.",
+  "greeting": "مرحبًا {{ recipientDisplayName }}،",
+  "heading": "مستندك جاهز",
+  "bodyParagraphs": [
+    "اكتملت معالجة {{ documentName }} وهو جاهز للاستخدام."
+  ],
+  "safetyNote": "تصلك هذه الرسالة لأن إشعارات البريد الإلكتروني مفعّلة لـتحديثات المستندات. يمكنك تغيير ذلك من الإعدادات › الإشعارات.",
+  "actionLabel": "فتح المستند"
+}

@@ -6,11 +6,13 @@ using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
+using AskLucy.Web.Localization;
 
 namespace AskLucy.Web.Controllers.v1;
 
 /// <summary>The caller's notification preferences (US4, contracts/notifications-api.md). Always the caller's own.</summary>
 [ApiController]
+[LocalizedSurface]
 [Authorize]
 [EnableRateLimiting("notifications-endpoints")]
 [Route("api/v1/users/me/notification-preferences")]

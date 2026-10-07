@@ -1,6 +1,8 @@
-import { Alert, Box, Button, CircularProgress, Divider, List, Popover, Snackbar, Stack, Typography } from '@mui/material'
+import { Alert, Box, Button, CircularProgress, Divider, List, Popover, Snackbar, Stack, Typography, useTheme } from '@mui/material'
 import { Link as RouterLink, useLocation, useNavigate } from 'react-router'
 import { EmptyState } from '../../../components/EmptyState'
+import { LocalizedSurface } from '../../../i18n/LocalizedSurface'
+import { useT } from '../../../i18n/useT'
 import { fromPathState } from '../../../routes/viewLandingState'
 import { overlaySurface } from '../../../theme/tokens/overlaySurface'
 import { zIndex } from '../../../theme/tokens/zIndex'
@@ -16,7 +18,19 @@ export interface NotificationPopoverProps {
 }
 
 /** T071 — the latest 10, a mark-all-read action, and a "View all" link to the full page. */
-export function NotificationPopover({ anchorEl, onClose }: NotificationPopoverProps) {
+export function NotificationPopover(props: NotificationPopoverProps) {
+  return (
+    <LocalizedSurface scope="subtree">
+      <NotificationPopoverContent {...props} />
+    </LocalizedSurface>
+  )
+}
+
+function NotificationPopoverContent({ anchorEl, onClose }: NotificationPopoverProps) {
+  const t = useT('notifications')
+  const tc = useT('common')
+  // The popover hangs from the bell at the header's end edge: the right in LTR, the left in RTL.
+  const edge = useTheme().direction === 'rtl' ? 'left' : 'right'
   const navigate = useNavigate()
   const { pathname } = useLocation()
   const open = anchorEl !== null
@@ -37,8 +51,8 @@ export function NotificationPopover({ anchorEl, onClose }: NotificationPopoverPr
       open={open}
       anchorEl={anchorEl}
       onClose={onClose}
-      anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
-      transformOrigin={{ vertical: 'top', horizontal: 'right' }}
+      anchorOrigin={{ vertical: 'bottom', horizontal: edge }}
+      transformOrigin={{ vertical: 'top', horizontal: edge }}
       // Matches UserMenu's own overlaySurface treatment exactly (offset, radius, border,
       // shadow) so the two menus anchored to the same Studio cluster — and the same AppShell
       // header — read as one family rather than two differently-chromed popups.
@@ -57,17 +71,17 @@ export function NotificationPopover({ anchorEl, onClose }: NotificationPopoverPr
             bgcolor: 'background.paper',
             backgroundImage: 'none',
             boxShadow: overlaySurface.menuShadow,
-            transformOrigin: 'top right',
+            transformOrigin: `top ${edge}`,
           },
         },
       }}
     >
       <Stack direction="row" sx={{ alignItems: 'center', justifyContent: 'space-between', px: 2, py: 1.5 }}>
         <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
-          Notifications
+          {t('center.title')}
         </Typography>
         <Button size="small" onClick={() => markAllRead.mutate(undefined)} disabled={markAllRead.isPending || items.length === 0}>
-          Mark all read
+          {t('center.markAllRead')}
         </Button>
       </Stack>
       <Divider />
@@ -78,18 +92,19 @@ export function NotificationPopover({ anchorEl, onClose }: NotificationPopoverPr
         </Box>
       ) : isError ? (
         <Alert severity="error" sx={{ m: 2 }}>
-          Couldn't load notifications.
+          {t('center.loadFailed')}
         </Alert>
       ) : items.length === 0 ? (
-        <EmptyState title="No notifications" description="You're all caught up." />
+        <EmptyState title={t('center.empty.title')} description={t('center.empty.description')} />
       ) : (
         <List disablePadding sx={{ overflowY: 'auto', maxHeight: 360, py: 0.5 }}>
           {items.map((item, index) => (
-            <Box key={item.id}>
+            // A <ul>'s children must be <li>s (axe `list`): the row, with its divider, is one list item.
+            <Box key={item.id} component="li" sx={{ listStyle: 'none' }}>
               {/* Full-width, matching the row's own full-bleed hover rectangle (no mx inset) —
                   an inset divider sitting inside a full-width hover highlight is what produced
                   the stepped corner where the two edges didn't line up. */}
-              {index > 0 && <Divider component="li" />}
+              {index > 0 && <Divider />}
               <NotificationItem item={item} onOpen={openItem} dense />
             </Box>
           ))}
@@ -106,13 +121,13 @@ export function NotificationPopover({ anchorEl, onClose }: NotificationPopoverPr
           onClick={onClose}
           sx={{ fontWeight: 600 }}
         >
-          View all
+          {t('center.viewAll')}
         </Button>
       </Box>
 
       <Snackbar open={markAllRead.isError} autoHideDuration={5000}>
         <Alert severity="error" variant="filled">
-          {markAllRead.error ? errorMessage(markAllRead.error) : null}
+          {markAllRead.error ? errorMessage(markAllRead.error, tc('errors.generic')) : null}
         </Alert>
       </Snackbar>
     </Popover>

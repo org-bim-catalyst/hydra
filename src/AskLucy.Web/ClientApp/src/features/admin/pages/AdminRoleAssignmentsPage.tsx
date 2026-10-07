@@ -8,6 +8,7 @@ import {
   Chip,
   MenuItem,
   Paper,
+  Snackbar,
   Table,
   TableBody,
   TableCell,
@@ -24,6 +25,7 @@ import { useWholeRowScroll } from '../../../hooks/useWholeRowScroll'
 import { TableEmptyRow } from '../../../components/TableEmptyRow'
 import { TableLoadingRow } from '../../../components/TableLoadingRow'
 import { ApiError } from '../../../api/httpClient'
+import { useFormat, useT } from '../../../i18n/useT'
 import { useIsSuperUser } from '../../../hooks/useIsSuperUser'
 import { isSuperUserControlledRole } from '../adminPermissions'
 import * as adminRolesApi from '../api/adminRolesApi'
@@ -40,7 +42,11 @@ const ANY_ROLE_FILTER = ''
 
 /** Role assignments screen (specs/055-role-management User Story 2) — search users, filter by role, assign/change/remove. */
 export function AdminRoleAssignmentsPage() {
+  const t = useT('admin.roleAssignments')
+  const tc = useT('common')
+  const format = useFormat()
   const [searchParams] = useSearchParams()
+  const [toastMessage, setToastMessage] = useState<string | null>(null)
   // Deep-link from UserActionMenu's "Change role…" (specs/055-role-management FR-021).
   const [search, setSearch] = useState(searchParams.get('search') ?? '')
   const [roleFilter, setRoleFilter] = useState(ANY_ROLE_FILTER)
@@ -117,19 +123,23 @@ export function AdminRoleAssignmentsPage() {
 
   async function beginBulkAssign() {
     if (pickedRoleId === null) return
-    let targetIds: string[]
-    if (selection.isAllMatching) {
-      const eligible = await queryClient.fetchQuery({
-        queryKey: ['admin', 'role-assignments', 'bulk-eligible-ids', search],
-        queryFn: () =>
-          adminRolesApi.getRoleAssignmentsEligibleIds(pickedRoleId, search || undefined),
-      })
-      targetIds = eligible.ids.filter((id) => !selection.excludedIds.has(id))
-    } else {
-      targetIds = [...selection.selectedIds]
+    try {
+      let targetIds: string[]
+      if (selection.isAllMatching) {
+        const eligible = await queryClient.fetchQuery({
+          queryKey: ['admin', 'role-assignments', 'bulk-eligible-ids', search],
+          queryFn: () =>
+            adminRolesApi.getRoleAssignmentsEligibleIds(pickedRoleId, search || undefined),
+        })
+        targetIds = eligible.ids.filter((id) => !selection.excludedIds.has(id))
+      } else {
+        targetIds = [...selection.selectedIds]
+      }
+      setPendingTargetIds(targetIds)
+      setBulkAssignOpen(true)
+    } catch (err) {
+      setToastMessage(err instanceof ApiError ? (err.detail ?? err.message) : t('errors.bulkPrepare'))
     }
-    setPendingTargetIds(targetIds)
-    setBulkAssignOpen(true)
   }
 
   async function runBulkAssign(onProgress: (done: number, total: number) => void) {
@@ -153,11 +163,14 @@ export function AdminRoleAssignmentsPage() {
   const { ref: tableRef, maxHeight: tableMaxHeight } = useWholeRowScroll()
 
   return (
-    <AdminShell title="Role assignments" subtitle={`${data?.totalCount ?? 0} users`}>
+    <AdminShell
+      title={t('title')}
+      subtitle={t('subtitle', { count: data?.totalCount ?? 0 })}
+    >
       <Box sx={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
         <div style={{ display: 'flex', gap: 16, marginBottom: 16, flexWrap: 'wrap' }}>
           <TextField
-            label="Search by name or email"
+            label={t('search')}
             size="small"
             value={search}
             onChange={(e) => {
@@ -168,7 +181,7 @@ export function AdminRoleAssignmentsPage() {
           />
           <TextField
             select
-            label="Role"
+            label={t('roleFilter')}
             size="small"
             value={roleFilter}
             onChange={(e) => {
@@ -177,11 +190,12 @@ export function AdminRoleAssignmentsPage() {
             }}
             sx={{ width: { xs: '100%', sm: 220 } }}
           >
-            <MenuItem value={ANY_ROLE_FILTER}>Any role</MenuItem>
+            <MenuItem value={ANY_ROLE_FILTER}>{t('anyRole')}</MenuItem>
             {roles?.items.map((role) => (
               <MenuItem key={role.id} value={role.id}>
-                {role.name}
-                {isLockedRole(role.id) ? ' (Super User only)' : ''}
+                {t(isLockedRole(role.id) ? 'roleOption.superUserOnly' : 'roleOption.plain', {
+                  name: role.name,
+                })}
               </MenuItem>
             ))}
           </TextField>
@@ -191,18 +205,18 @@ export function AdminRoleAssignmentsPage() {
           <Alert
             severity="error"
             sx={{ mb: 2 }}
-            action={<Button onClick={() => refetch()}>Retry</Button>}
+            action={<Button onClick={() => refetch()}>{tc('actions.retry')}</Button>}
           >
             {error instanceof ApiError
               ? (error.detail ?? error.message)
-              : 'Could not load role assignments.'}
+              : t('errors.load')}
           </Alert>
         )}
 
         {selection.selectedCount(allMatchingTotal) > 0 && (
           <Toolbar disableGutters sx={{ mb: 1, gap: 1 }}>
-            <Typography variant="body2" sx={{ mr: 1 }}>
-              {selection.selectedCount(allMatchingTotal)} selected
+            <Typography variant="body2" sx={{ marginInlineEnd: '8px' }}>
+              {t('selection.selectedCount', { count: selection.selectedCount(allMatchingTotal) })}
             </Typography>
             <Button
               size="small"
@@ -210,7 +224,7 @@ export function AdminRoleAssignmentsPage() {
               disabled={pickedRoleId === null || isLockedRole(pickedRoleId)}
               onClick={beginBulkAssign}
             >
-              Assign selected
+              {t('selection.assignSelected')}
             </Button>
           </Toolbar>
         )}
@@ -229,21 +243,21 @@ export function AdminRoleAssignmentsPage() {
                       disabled={selectableIds.length === 0}
                       onChange={handleHeaderCheckboxChange}
                       slotProps={{
-                        input: { 'aria-label': 'Select all eligible users on this page' },
+                        input: { 'aria-label': t('selection.selectAll') },
                       }}
                     />
                   </TableCell>
-                  <TableCell>Email</TableCell>
-                  <TableCell>Name</TableCell>
-                  <TableCell>Role</TableCell>
-                  <TableCell>Status</TableCell>
-                  <TableCell align="right">Actions</TableCell>
+                  <TableCell>{t('table.email')}</TableCell>
+                  <TableCell>{t('table.name')}</TableCell>
+                  <TableCell>{t('table.role')}</TableCell>
+                  <TableCell>{t('table.status')}</TableCell>
+                  <TableCell sx={{ textAlign: 'end' }}>{t('table.actions')}</TableCell>
                 </TableRow>
               </TableHead>
               <TableBody>
                 {isLoading && <TableLoadingRow colSpan={6} />}
                 {!isLoading && (data?.items ?? []).length === 0 && (
-                  <TableEmptyRow colSpan={6} message="No role assignments found." />
+                  <TableEmptyRow colSpan={6} message={t('table.empty')} />
                 )}
                 {data?.items.map((assignment) => (
                   <TableRow key={assignment.userId} hover>
@@ -252,18 +266,20 @@ export function AdminRoleAssignmentsPage() {
                         <Checkbox
                           checked={selection.isSelected(assignment.userId)}
                           onChange={() => selection.toggleOne(assignment.userId)}
-                          slotProps={{ input: { 'aria-label': `Select ${assignment.email}` } }}
+                          slotProps={{ input: { 'aria-label': t('selection.selectUser', { email: assignment.email }) } }}
                         />
                       )}
                     </TableCell>
-                    <TableCell>{assignment.email}</TableCell>
+                    <TableCell>
+                      <bdi dir="ltr">{assignment.email}</bdi>
+                    </TableCell>
                     <TableCell>
                       {[assignment.firstName, assignment.lastName].filter(Boolean).join(' ')}
                     </TableCell>
                     <TableCell>
                       <Chip
                         size="small"
-                        label={assignment.role?.name ?? adminRolesApi.DEFAULT_ROLE_NAME}
+                        label={assignment.role?.name ?? t('table.defaultRole')}
                         color={assignment.role && !adminRolesApi.isDefaultRole(assignment.role) ? 'primary' : 'default'}
                         variant="outlined"
                       />
@@ -271,18 +287,18 @@ export function AdminRoleAssignmentsPage() {
                     <TableCell>
                       <Chip
                         size="small"
-                        label={assignment.isLockedOut ? 'Locked' : 'Active'}
+                        label={assignment.isLockedOut ? t('table.locked') : t('table.active')}
                         color={assignment.isLockedOut ? 'error' : 'success'}
                         variant="outlined"
                       />
                     </TableCell>
-                    <TableCell align="right">
+                    <TableCell sx={{ textAlign: 'end' }}>
                       <Button
                         size="small"
                         disabled={assignment.isLockedOut}
                         onClick={() => setEditingAssignment(assignment)}
                       >
-                        Change role&hellip;
+                        {t('table.changeRole')}
                       </Button>
                     </TableCell>
                   </TableRow>
@@ -301,6 +317,15 @@ export function AdminRoleAssignmentsPage() {
               setPage(0)
             }}
             rowsPerPageOptions={[10, 20, 50]}
+            labelRowsPerPage={t('pagination.rowsPerPage')}
+            labelDisplayedRows={({ from, to, count }) =>
+              t('pagination.displayedRows', {
+                from: format.number(from),
+                to: format.number(to),
+                count: format.number(count),
+              })
+            }
+            getItemAriaLabel={(type) => t(`pagination.${type}`)}
           />
         </Paper>
       </Box>
@@ -331,12 +356,18 @@ export function AdminRoleAssignmentsPage() {
             setBulkAssignOpen(false)
             setPendingTargetIds(null)
           }}
-          actionLabel="Assign"
-          progressVerb="Assigning role to"
+          actionLabel={t('bulk.action')}
+          progressVerb={t('bulk.progress')}
           itemCount={pendingTargetIds.length}
           onConfirm={runBulkAssign}
         />
       )}
+
+      <Snackbar open={toastMessage !== null} autoHideDuration={6000} onClose={() => setToastMessage(null)}>
+        <Alert severity="error" variant="filled" onClose={() => setToastMessage(null)}>
+          {toastMessage}
+        </Alert>
+      </Snackbar>
     </AdminShell>
   )
 }

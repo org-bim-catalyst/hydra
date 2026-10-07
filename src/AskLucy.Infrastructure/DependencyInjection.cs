@@ -551,7 +551,8 @@ public static class DependencyInjection
         services.AddScoped<NotificationLeaseSweepJob>();
         services.AddScoped<NotificationRetentionJob>();
         services.AddSingleton<SmtpConnectionHolder>();
-        services.AddSingleton<IEffectiveLanguageResolver, EffectiveLanguageResolver>();
+        services.AddSingleton<AskLucy.Application.Localization.ILocalizationSettingsProvider, CachedLocalizationSettingsProvider>();
+        services.AddScoped<IEffectiveLanguageResolver, EffectiveLanguageResolver>();
         services.AddSingleton<INotificationLinkBuilder, NotificationLinkBuilder>();
         services.AddScoped<LogicFreeTemplateRenderer>();
         services.AddScoped<INotificationTemplateRenderer>(sp => sp.GetRequiredService<LogicFreeTemplateRenderer>());

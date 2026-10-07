@@ -1,6 +1,8 @@
 import NotificationsIcon from '@mui/icons-material/Notifications'
 import { Badge, IconButton } from '@mui/material'
 import { useState } from 'react'
+import { LocalizedSurface } from '../../../i18n/LocalizedSurface'
+import { useT } from '../../../i18n/useT'
 import { useUnreadCount } from '../hooks/useNotifications'
 import { NotificationPopover } from './NotificationPopover'
 
@@ -15,7 +17,16 @@ interface NotificationBellProps {
 }
 
 /** T071 — the aria-label includes the count so a screen reader announces it without opening the popover. */
-export function NotificationBell({ renderTrigger }: NotificationBellProps = {}) {
+export function NotificationBell(props: NotificationBellProps = {}) {
+  return (
+    <LocalizedSurface scope="subtree">
+      <NotificationBellContent {...props} />
+    </LocalizedSurface>
+  )
+}
+
+function NotificationBellContent({ renderTrigger }: NotificationBellProps) {
+  const t = useT('notifications')
   const { data } = useUnreadCount()
   const count = data?.count ?? 0
   const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null)
@@ -27,7 +38,7 @@ export function NotificationBell({ renderTrigger }: NotificationBellProps = {}) 
       ) : (
         <IconButton
           color="inherit"
-          aria-label={count > 0 ? `Notifications, ${count} unread` : 'Notifications'}
+          aria-label={count > 0 ? t('bell.labelUnread', { count }) : t('bell.label')}
           onClick={(e) => setAnchorEl(e.currentTarget)}
         >
           <Badge badgeContent={count} color="error" max={99}>

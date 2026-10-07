@@ -32,6 +32,7 @@ import { useWholeRowScroll } from '../../../hooks/useWholeRowScroll'
 import { useIsSuperUser } from '../../../hooks/useIsSuperUser'
 import { isSuperUserControlledRole } from '../adminPermissions'
 import { ApiError } from '../../../api/httpClient'
+import { useFormat, useT } from '../../../i18n/useT'
 import * as adminRolesApi from '../api/adminRolesApi'
 import { TableEmptyRow } from '../../../components/TableEmptyRow'
 import { TableLoadingRow } from '../../../components/TableLoadingRow'
@@ -55,6 +56,9 @@ const ADMINISTRATOR_CONTENT_ACCESS_QUERY_KEY = ['admin', 'roles', 'administrator
  * A Super User can duplicate any role into a new custom one.
  */
 export function AdminRolesPage() {
+  const t = useT('admin.roles')
+  const tc = useT('common')
+  const format = useFormat()
   const [search, setSearch] = useState('')
   const [page, setPage] = useState(0)
   const [pageSize, setPageSize] = useState(20)
@@ -83,7 +87,7 @@ export function AdminRolesPage() {
       return queryClient.invalidateQueries({ queryKey: ['admin', 'roles'] })
     },
     onError: (err: unknown) => {
-      setToastMessage(err instanceof ApiError ? (err.detail ?? err.message) : 'Something went wrong. Please try again.')
+      setToastMessage(err instanceof ApiError ? (err.detail ?? err.message) : tc('errors.generic'))
     },
   })
 
@@ -132,18 +136,22 @@ export function AdminRolesPage() {
   }
 
   async function beginBulkDelete() {
-    let targetIds: string[]
-    if (selection.isAllMatching) {
-      const eligible = await queryClient.fetchQuery({
-        queryKey: ['admin', 'roles', 'bulk-eligible-ids', search],
-        queryFn: () => adminRolesApi.getRolesEligibleIds(search || undefined),
-      })
-      targetIds = eligible.ids.filter((id) => !selection.excludedIds.has(id))
-    } else {
-      targetIds = [...selection.selectedIds]
+    try {
+      let targetIds: string[]
+      if (selection.isAllMatching) {
+        const eligible = await queryClient.fetchQuery({
+          queryKey: ['admin', 'roles', 'bulk-eligible-ids', search],
+          queryFn: () => adminRolesApi.getRolesEligibleIds(search || undefined),
+        })
+        targetIds = eligible.ids.filter((id) => !selection.excludedIds.has(id))
+      } else {
+        targetIds = [...selection.selectedIds]
+      }
+      setPendingTargetIds(targetIds)
+      setBulkDeleteOpen(true)
+    } catch (err) {
+      setToastMessage(err instanceof ApiError ? (err.detail ?? err.message) : t('errors.bulkPrepare'))
     }
-    setPendingTargetIds(targetIds)
-    setBulkDeleteOpen(true)
   }
 
   async function runBulkDelete(onProgress: (done: number, total: number) => void) {
@@ -179,17 +187,17 @@ export function AdminRolesPage() {
 
   return (
     <AdminShell
-      title="Roles"
-      subtitle={`${data?.totalCount ?? 0} roles`}
+      title={t('title')}
+      subtitle={t('subtitle', { count: data?.totalCount ?? 0 })}
       actions={
         <Button startIcon={<AddIcon />} variant="contained" onClick={openCreate}>
-          Create role
+          {t('createRole')}
         </Button>
       }
     >
       <Box sx={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
         <TextField
-          label="Search by name"
+          label={t('search')}
           size="small"
           value={search}
           onChange={(e) => {
@@ -204,11 +212,11 @@ export function AdminRolesPage() {
             {contentAccess.isError ? (
               <Alert
                 severity="error"
-                action={<Button onClick={() => contentAccess.refetch()}>Retry</Button>}
+                action={<Button onClick={() => contentAccess.refetch()}>{tc('actions.retry')}</Button>}
               >
                 {contentAccess.error instanceof ApiError
                   ? (contentAccess.error.detail ?? contentAccess.error.message)
-                  : 'Could not load whether Administrators may view user content.'}
+                  : t('errors.loadContentAccess')}
               </Alert>
             ) : (
               <FormControlLabel
@@ -219,7 +227,7 @@ export function AdminRolesPage() {
                     onChange={(e) => contentAccessMutation.mutate(e.target.checked)}
                   />
                 }
-                label="Administrators may view user content"
+                label={t('contentAccess.label')}
               />
             )}
           </Box>
@@ -229,19 +237,19 @@ export function AdminRolesPage() {
           <Alert
             severity="error"
             sx={{ mb: 2 }}
-            action={<Button onClick={() => refetch()}>Retry</Button>}
+            action={<Button onClick={() => refetch()}>{tc('actions.retry')}</Button>}
           >
-            {error instanceof ApiError ? (error.detail ?? error.message) : 'Could not load roles.'}
+            {error instanceof ApiError ? (error.detail ?? error.message) : t('errors.load')}
           </Alert>
         )}
 
         {selection.selectedCount(allMatchingTotal) > 0 && (
           <Toolbar disableGutters sx={{ mb: 1, gap: 1 }}>
-            <Typography variant="body2" sx={{ mr: 1 }}>
-              {selection.selectedCount(allMatchingTotal)} selected
+            <Typography variant="body2" sx={{ marginInlineEnd: '8px' }}>
+              {t('selection.selectedCount', { count: selection.selectedCount(allMatchingTotal) })}
             </Typography>
             <Button size="small" variant="outlined" color="error" onClick={beginBulkDelete}>
-              Delete selected
+              {t('selection.deleteSelected')}
             </Button>
           </Toolbar>
         )}
@@ -260,21 +268,21 @@ export function AdminRolesPage() {
                       disabled={selectableIds.length === 0}
                       onChange={handleHeaderCheckboxChange}
                       slotProps={{
-                        input: { 'aria-label': 'Select all custom roles on this page' },
+                        input: { 'aria-label': t('selection.selectAll') },
                       }}
                     />
                   </TableCell>
-                  <TableCell>Name</TableCell>
-                  <TableCell>Description</TableCell>
-                  <TableCell>Permissions</TableCell>
-                  <TableCell align="right">Users</TableCell>
-                  <TableCell align="right">Actions</TableCell>
+                  <TableCell>{t('table.name')}</TableCell>
+                  <TableCell>{t('table.description')}</TableCell>
+                  <TableCell>{t('table.permissions')}</TableCell>
+                  <TableCell sx={{ textAlign: 'end' }}>{t('table.users')}</TableCell>
+                  <TableCell sx={{ textAlign: 'end' }}>{t('table.actions')}</TableCell>
                 </TableRow>
               </TableHead>
               <TableBody>
                 {isLoading && <TableLoadingRow colSpan={6} />}
                 {!isLoading && (data?.items ?? []).length === 0 && (
-                  <TableEmptyRow colSpan={6} message="No roles found." />
+                  <TableEmptyRow colSpan={6} message={t('table.empty')} />
                 )}
                 {data?.items.map((role) => (
                   <TableRow key={role.id} hover>
@@ -283,36 +291,35 @@ export function AdminRolesPage() {
                         <Checkbox
                           checked={selection.isSelected(role.id)}
                           onChange={() => selection.toggleOne(role.id)}
-                          slotProps={{ input: { 'aria-label': `Select ${role.name}` } }}
+                          slotProps={{ input: { 'aria-label': t('selection.selectRole', { name: role.name }) } }}
                         />
                       )}
                     </TableCell>
                     <TableCell>
-                      {role.name}{' '}
+                      <bdi>{role.name}</bdi>{' '}
                       {role.isBuiltIn && (
-                        <Chip size="small" label="Built-in" variant="outlined" sx={{ ml: 0.5 }} />
+                        <Chip size="small" label={t('table.builtIn')} variant="outlined" sx={{ marginInlineStart: '4px' }} />
                       )}
                       {role.isDefault && (
-                        <Tooltip title="Every account's starting role, and where users go when their role is deleted">
-                          <Chip size="small" label="Default" color="primary" variant="outlined" sx={{ ml: 0.5 }} />
+                        <Tooltip title={t('table.defaultHint')}>
+                          <Chip size="small" label={t('table.default')} color="primary" variant="outlined" sx={{ marginInlineStart: '4px' }} />
                         </Tooltip>
                       )}
                     </TableCell>
                     <TableCell>{role.description}</TableCell>
                     <TableCell>
                       <Tooltip title={role.permissionKeys.join(', ')}>
-                        <span>
-                          {role.permissionKeys.length} permission
-                          {role.permissionKeys.length === 1 ? '' : 's'}
-                        </span>
+                        <span>{t('table.permissionCount', { count: role.permissionKeys.length })}</span>
                       </Tooltip>
                     </TableCell>
-                    <TableCell align="right">{role.userCount}</TableCell>
-                    <TableCell align="right">
-                      <Tooltip title="View permissions">
+                    <TableCell sx={{ textAlign: 'end' }}>
+                      <bdi dir="ltr">{format.number(role.userCount)}</bdi>
+                    </TableCell>
+                    <TableCell sx={{ textAlign: 'end' }}>
+                      <Tooltip title={t('table.viewPermissions')}>
                         <IconButton
                           size="small"
-                          aria-label={`View permissions for ${role.name}`}
+                          aria-label={t('table.viewPermissionsFor', { name: role.name })}
                           onClick={() => setViewingPermissionsRole(role)}
                         >
                           <VisibilityIcon fontSize="small" />
@@ -321,7 +328,7 @@ export function AdminRolesPage() {
                       {hasActions(role) && (
                         <IconButton
                           size="small"
-                          aria-label={`Actions for ${role.name}`}
+                          aria-label={t('table.actionsFor', { name: role.name })}
                           onClick={(e) => setMenuAnchor({ el: e.currentTarget, role })}
                         >
                           <MoreVertIcon fontSize="small" />
@@ -344,6 +351,15 @@ export function AdminRolesPage() {
               setPage(0)
             }}
             rowsPerPageOptions={[10, 20, 50]}
+            labelRowsPerPage={t('pagination.rowsPerPage')}
+            labelDisplayedRows={({ from, to, count }) =>
+              t('pagination.displayedRows', {
+                from: format.number(from),
+                to: format.number(to),
+                count: format.number(count),
+              })
+            }
+            getItemAriaLabel={(type) => t(`pagination.${type}`)}
           />
         </Paper>
       </Box>
@@ -354,7 +370,7 @@ export function AdminRolesPage() {
         onClose={() => setMenuAnchor(null)}
       >
         {menuAnchor !== null && canEdit(menuAnchor.role) && (
-          <MenuItem onClick={() => openEdit(menuAnchor.role)}>Edit&hellip;</MenuItem>
+          <MenuItem onClick={() => openEdit(menuAnchor.role)}>{t('menu.edit')}</MenuItem>
         )}
         {isSuperUser && (
           <MenuItem
@@ -363,7 +379,7 @@ export function AdminRolesPage() {
               setMenuAnchor(null)
             }}
           >
-            Duplicate&hellip;
+            {t('menu.duplicate')}
           </MenuItem>
         )}
         {menuAnchor !== null && !menuAnchor.role.isBuiltIn && (
@@ -374,7 +390,7 @@ export function AdminRolesPage() {
               setMenuAnchor(null)
             }}
           >
-            {isLockedRole(menuAnchor.role) ? 'Delete (Super User only)' : <>Delete&hellip;</>}
+            {isLockedRole(menuAnchor.role) ? t('menu.deleteSuperUserOnly') : t('menu.delete')}
           </MenuItem>
         )}
       </Menu>
@@ -412,8 +428,8 @@ export function AdminRolesPage() {
             setBulkDeleteOpen(false)
             setPendingTargetIds(null)
           }}
-          actionLabel="Delete"
-          progressVerb="Deleting"
+          actionLabel={t('bulk.action')}
+          progressVerb={t('bulk.progress')}
           itemCount={pendingTargetIds.length}
           onConfirm={runBulkDelete}
         />

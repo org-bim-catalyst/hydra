@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import {
   Alert,
   Box,
@@ -17,9 +17,11 @@ import { useForm, useWatch } from 'react-hook-form'
 import type { UseFormRegisterReturn } from 'react-hook-form'
 import { z } from 'zod'
 import { ApiError } from '../../../../api/httpClient'
+import { useT } from '../../../../i18n/useT'
 import * as customModelsApi from '../../api/adminCustomModelsApi'
 import type { CustomModelSummary } from '../../api/adminCustomModelsApi'
 import { errorMessage } from './errorMessage'
+import type { Translate } from '../../../../i18n/useT'
 
 interface AddCustomModelDialogProps {
   open: boolean
@@ -37,14 +39,27 @@ const FIELDS = ['source', 'destination', 'name'] as const
 const PREVIEW_DEBOUNCE_MS = 400
 
 // Validated with Zod through react-hook-form's `validate` hook rather than a resolver package, as in
-// ForgotPasswordPage. The server re-validates everything; these only catch the obvious locally.
-const sourceSchema = z.string().trim().min(1, 'Enter a Hugging Face repository URL.').max(2048, 'That URL is too long.')
-const destinationSchema = z.string().trim().min(1, 'Enter a destination folder.').max(512, 'That path is too long.')
-const nameSchema = z
-  .string()
-  .trim()
-  .min(1, 'Enter a name for this model.')
-  .regex(/^[\p{L}\p{N}][\p{L}\p{N} ._-]{0,99}$/u, 'Use up to 100 letters, digits, spaces, dots, dashes or underscores.')
+// ForgotPasswordPage. The server re-validates everything; these only catch the obvious locally. The schemas are
+// built per language so their messages are the translated ones.
+function buildSchemas(t: Translate<'admin.aiProviders'>) {
+  return {
+    source: z
+      .string()
+      .trim()
+      .min(1, t('add.validation.sourceRequired'))
+      .max(2048, t('add.validation.sourceTooLong')),
+    destination: z
+      .string()
+      .trim()
+      .min(1, t('add.validation.destinationRequired'))
+      .max(512, t('add.validation.destinationTooLong')),
+    name: z
+      .string()
+      .trim()
+      .min(1, t('add.validation.nameRequired'))
+      .regex(/^[\p{L}\p{N}][\p{L}\p{N} ._-]{0,99}$/u, t('add.validation.nameInvalid')),
+  }
+}
 
 const validateWith = (schema: z.ZodType<string>) => (value: string) => {
   const result = schema.safeParse(value)
@@ -71,6 +86,8 @@ function useDebouncedValue<T>(value: T, delayMs: number) {
  * appears only when the source's own name can't be used.
  */
 export function AddCustomModelDialog({ open, onClose, onSubmitted }: AddCustomModelDialogProps) {
+  const t = useT('admin.aiProviders')
+  const schemas = useMemo(() => buildSchemas(t), [t])
   const queryClient = useQueryClient()
   const [toast, setToast] = useState<string | null>(null)
   const [nameForced, setNameForced] = useState(false)
@@ -100,7 +117,8 @@ export function AddCustomModelDialog({ open, onClose, onSubmitted }: AddCustomMo
   const preview = debouncedSource === source.trim() ? previewQuery.data : undefined
 
   const showName =
-    nameForced || (preview?.isValid === true && (preview.derivedName === null || !preview.nameAvailable))
+    nameForced ||
+    (preview?.isValid === true && (preview.derivedName === null || !preview.nameAvailable))
 
   const submitMutation = useMutation({
     mutationFn: (values: AddCustomModelFormValues) =>
@@ -124,7 +142,7 @@ export function AddCustomModelDialog({ open, onClose, onSubmitted }: AddCustomMo
         form.setError(field, { type: 'server', message })
         placed = true
       }
-      if (!placed) setToast(errorMessage(err))
+      if (!placed) setToast(errorMessage(err, t))
     },
   })
 
@@ -141,24 +159,29 @@ export function AddCustomModelDialog({ open, onClose, onSubmitted }: AddCustomMo
   const sourceHelper =
     errors.source?.message ??
     (preview && !preview.isValid ? preview.error : undefined) ??
-    (preview?.repositoryId ? `${preview.repositoryId} @ ${preview.revision ?? 'main'}` : 'e.g. https://huggingface.co/Supertone/supertonic-3')
+    (preview?.repositoryId
+      ? t('add.sourceResolved', {
+          repository: preview.repositoryId,
+          revision: preview.revision ?? 'main',
+        })
+      : t('add.sourceExample', { example: 'https://huggingface.co/Supertone/supertonic-3' }))
   const prefixes = status?.allowedDestinationPrefixes ?? []
   const destinationHelper =
     errors.destination?.message ??
     (prefixes.length > 0
-      ? `Relative to the deployment root. Must start with ${prefixes.map((p) => `${p}/`).join(' or ')}`
-      : 'Relative to the deployment root.')
+      ? t('add.destinationHelperPrefixes', {
+          prefixes: prefixes.map((p) => `${p}/`).join(t('add.prefixSeparator')),
+        })
+      : t('add.destinationHelper'))
 
   return (
     <>
       <Dialog open={open} onClose={close} maxWidth="sm" fullWidth>
         <Box component="form" onSubmit={onSubmit} noValidate>
-          <DialogTitle>Add custom model</DialogTitle>
+          <DialogTitle>{t('add.title')}</DialogTitle>
           <DialogContent>
             <DialogContentText sx={{ mb: 2 }}>
-              The server downloads the repository from Hugging Face (or only the file a /resolve/ or /blob/ URL
-              names) and uploads it to the destination folder.
-              You can close this page while it runs.
+              {t('add.description', { resolve: '/resolve/', blob: '/blob/' })}
             </DialogContentText>
             <Stack spacing={2}>
               {statusQuery.isError && (
@@ -166,74 +189,74 @@ export function AddCustomModelDialog({ open, onClose, onSubmitted }: AddCustomMo
                   severity="error"
                   action={
                     <Button color="inherit" size="small" onClick={() => void statusQuery.refetch()}>
-                      Retry
+                      {t('shared.retry')}
                     </Button>
                   }
                 >
-                  {errorMessage(statusQuery.error)}
+                  {errorMessage(statusQuery.error, t)}
                 </Alert>
               )}
-              {notConfigured && (
-                <Alert severity="warning">
-                  Deployment not configured. Ask whoever runs this server to set up the deployment target first.
-                </Alert>
-              )}
+              {notConfigured && <Alert severity="warning">{t('customModels.notConfigured')}</Alert>}
               {status?.transport === 'FTP' && (
-                <Alert severity="warning">
-                  This server deploys over plain FTP, so files and credentials travel unencrypted.
-                </Alert>
+                <Alert severity="warning">{t('add.plainFtpWarning')}</Alert>
               )}
               <TextField
                 id="custom-model-source"
-                label="Source"
+                label={t('add.sourceLabel')}
                 required
                 fullWidth
                 error={Boolean(errors.source) || preview?.isValid === false}
                 helperText={sourceHelper}
-                {...fieldProps(form.register('source', { validate: validateWith(sourceSchema) }))}
+                slotProps={{ htmlInput: { dir: 'ltr' } }}
+                {...fieldProps(form.register('source', { validate: validateWith(schemas.source) }))}
               />
               {previewQuery.isError && debouncedSource === source.trim() && (
-                <Alert severity="error">We couldn&apos;t check that URL. {errorMessage(previewQuery.error)}</Alert>
+                <Alert severity="error">
+                  {t('add.previewFailed', { detail: errorMessage(previewQuery.error, t) })}
+                </Alert>
               )}
               {preview?.filePath && (
-                <Alert severity="info">Only {preview.filePath} will be deployed.</Alert>
+                <Alert severity="info">{t('add.onlyFile', { path: preview.filePath })}</Alert>
               )}
               <TextField
                 id="custom-model-destination"
-                label="Destination"
+                label={t('add.destinationLabel')}
                 required
                 fullWidth
                 placeholder="Models/supertonic-3"
                 error={Boolean(errors.destination)}
                 helperText={destinationHelper}
-                {...fieldProps(form.register('destination', { validate: validateWith(destinationSchema) }))}
+                slotProps={{ htmlInput: { dir: 'ltr' } }}
+                {...fieldProps(
+                  form.register('destination', { validate: validateWith(schemas.destination) }),
+                )}
               />
               {showName && (
                 <TextField
                   id="custom-model-name"
-                  label="Name"
+                  label={t('add.nameLabel')}
                   required
                   fullWidth
                   error={Boolean(errors.name)}
                   helperText={
                     errors.name?.message ??
                     (preview?.derivedName && !preview.nameAvailable
-                      ? `A model called ${preview.derivedName} already exists. Choose another name.`
-                      : 'The name couldn’t be taken from the URL.')
+                      ? t('add.nameExists', { name: preview.derivedName })
+                      : t('add.nameNotDerived'))
                   }
-                  {...fieldProps(form.register('name', { validate: validateWith(nameSchema) }))}
+                  {...fieldProps(form.register('name', { validate: validateWith(schemas.name) }))}
                 />
               )}
             </Stack>
           </DialogContent>
           <DialogActions>
-            <Button onClick={close}>Cancel</Button>
+            <Button onClick={close}>{t('shared.cancel')}</Button>
             <Button
               type="submit"
               variant="contained"
               disabled={notConfigured || !status || submitMutation.isPending}
             >
-              Deploy
+              {t('add.deploy')}
             </Button>
           </DialogActions>
         </Box>

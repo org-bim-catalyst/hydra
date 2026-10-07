@@ -1,0 +1,6 @@
+{
+  "name": "فشل معالجة المستند",
+  "title": "فشلت معالجة المستند",
+  "message": "فشلت معالجة \"{{ documentName }}\": {{ failureSummary }}",
+  "actionLabel": "فتح المستند"
+}

@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <resheader name="resmimetype"><value>text/microsoft-resx</value></resheader>
+  <resheader name="version"><value>2.0</value></resheader>
+  <resheader name="reader"><value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value></resheader>
+  <resheader name="writer"><value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value></resheader>
+  <data name="Problem.validation-failed.Title" xml:space="preserve"><value>Validation failed</value></data>
+  <data name="Problem.validation-failed.Detail" xml:space="preserve"><value>One or more fields are invalid.</value></data>
+  <data name="Problem.concurrency-conflict.Title" xml:space="preserve"><value>Concurrency conflict</value></data>
+  <data name="Problem.concurrency-conflict.Detail" xml:space="preserve"><value>This item was modified by another request. Please reload and try again.</value></data>
+  <data name="Problem.forbidden.Title" xml:space="preserve"><value>Forbidden</value></data>
+  <data name="Problem.forbidden.Detail" xml:space="preserve"><value>You do not have permission to perform this action.</value></data>
+  <data name="Problem.not-found.Title" xml:space="preserve"><value>Not found</value></data>
+  <data name="Problem.not-found.Detail" xml:space="preserve"><value>The requested item was not found.</value></data>
+  <data name="Problem.internal-server-error.Title" xml:space="preserve"><value>An unexpected error occurred</value></data>
+  <data name="Problem.internal-server-error.Detail" xml:space="preserve"><value>An unexpected error occurred. Please try again.</value></data>
+  <data name="Problem.domain-rule-violation.Title" xml:space="preserve"><value>Request violates a business rule</value></data>
+  <data name="Problem.delivery-not-retryable.Title" xml:space="preserve"><value>Delivery can't be retried</value></data>
+  <data name="Problem.delivery-not-retryable.Detail.NotFailed" xml:space="preserve"><value>This delivery hasn't failed, so it can't be retried.</value></data>
+  <data name="Problem.delivery-not-retryable.Detail.NotificationDeleted" xml:space="preserve"><value>The notification was deleted by its owner.</value></data>
+  <data name="Problem.delivery-not-retryable.Detail.NotificationExpired" xml:space="preserve"><value>The notification has expired.</value></data>
+  <data name="Problem.delivery-not-retryable.Detail.RecipientDeleted" xml:space="preserve"><value>The recipient's account was deleted.</value></data>
+  <data name="Problem.notification-template-conflict.Title" xml:space="preserve"><value>Template version conflict</value></data>
+  <data name="Problem.notification-template-conflict.Detail.VersionNotDraft" xml:space="preserve"><value>Only a draft can be changed. Create a new version instead.</value></data>
+  <data name="Problem.notification-template-conflict.Detail.VersionArchived" xml:space="preserve"><value>This version is archived and can no longer be changed.</value></data>
+  <data name="Problem.notification-template-conflict.Detail.ConcurrencyConflict" xml:space="preserve"><value>This template version was changed by someone else. Reload it and try again.</value></data>
+  <data name="Problem.notification-template-conflict.Detail.LastPublishedDefault" xml:space="preserve"><value>This template must always have a published version. Publish a replacement instead.</value></data>
+  <data name="Problem.notification-template-rejected.Title" xml:space="preserve"><value>Template rejected</value></data>
+  <data name="Problem.notification-preference-locked.Title" xml:space="preserve"><value>Notification preference locked</value></data>
+  <data name="Problem.notification-preference-locked.Detail" xml:space="preserve"><value>Some notifications are mandatory and cannot be turned off.</value></data>
+  <data name="Problem.localization-rejected.Title" xml:space="preserve"><value>Language change rejected</value></data>
+</root>

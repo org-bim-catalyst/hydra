@@ -12,6 +12,7 @@ using AskLucy.Domain.CustomModels;
 using AskLucy.Domain.Documents;
 using AskLucy.Domain.KnowledgeBases;
 using AskLucy.Domain.Mcp;
+using AskLucy.Domain.Localization;
 using AskLucy.Domain.Notifications;
 using AskLucy.Domain.OperationalFailures;
 using AskLucy.Domain.Panels;
@@ -79,6 +80,8 @@ public sealed class AskLucyDbContext(DbContextOptions<AskLucyDbContext> options,
     public DbSet<DictationEngineSetting> DictationEngineSettings => Set<DictationEngineSetting>();
 
     public DbSet<PresenceSphereSettings> PresenceSphereSettings => Set<PresenceSphereSettings>();
+
+    public DbSet<LocalizationSetting> LocalizationSettings => Set<LocalizationSetting>();
 
     public DbSet<KnowledgeBase> KnowledgeBases => Set<KnowledgeBase>();
 

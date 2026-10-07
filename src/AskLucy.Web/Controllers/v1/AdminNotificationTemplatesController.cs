@@ -14,6 +14,7 @@ using AskLucy.Web.Contracts;
 using MediatR;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
+using AskLucy.Web.Localization;
 
 namespace AskLucy.Web.Controllers.v1;
 
@@ -23,6 +24,7 @@ namespace AskLucy.Web.Controllers.v1;
 /// Edits are guarded by <c>If-Match</c>, the base64 row version of the version as last read.
 /// </summary>
 [ApiController]
+[LocalizedSurface]
 [EnableRateLimiting("admin-endpoints")]
 [Route("api/v1/admin/notifications/templates")]
 public sealed class AdminNotificationTemplatesController(ISender mediator) : ControllerBase

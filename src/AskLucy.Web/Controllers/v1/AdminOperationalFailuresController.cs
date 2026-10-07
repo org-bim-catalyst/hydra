@@ -19,6 +19,7 @@ using MediatR;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.ModelBinding;
 using Microsoft.AspNetCore.RateLimiting;
+using AskLucy.Web.Localization;
 
 namespace AskLucy.Web.Controllers.v1;
 
@@ -28,6 +29,7 @@ namespace AskLucy.Web.Controllers.v1;
 /// them (FR-016b), and whether a transcript is included is decided by the handler, never the client.
 /// </summary>
 [ApiController]
+[LocalizedSurface]
 [EnableRateLimiting("admin-endpoints")]
 [Route("api/v1/admin/operational-failures")]
 public sealed class AdminOperationalFailuresController(ISender mediator) : ControllerBase

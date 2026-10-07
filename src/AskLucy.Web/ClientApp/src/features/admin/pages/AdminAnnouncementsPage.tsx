@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import {
   Alert,
   Box,
@@ -33,21 +33,16 @@ import {
 import { useQuery } from '@tanstack/react-query'
 import { Controller, useForm, useWatch } from 'react-hook-form'
 import { z } from 'zod'
-import { ApiError } from '../../../api/httpClient'
+import { useFormat, useT } from '../../../i18n/useT'
 import type { AnnouncementAudience, AnnouncementKind, PublishedAnnouncement } from '../api/adminNotificationsApi'
 import { getRoles } from '../api/adminRolesApi'
 import { AdminShell } from '../components/AdminShell'
 import { zodResolver } from '../forms/zodResolver'
 import { useCanManageNotifications, useNotificationAnnouncements, usePublishNotificationAnnouncement } from '../hooks/useAdminNotifications'
+import { useOuterT } from '../hooks/useOuterT'
+import { DATE_TIME, errorText, PLAIN_NUMBER, type NotificationAdminT } from '../notificationAdminText'
 
-const errorMessage = (err: unknown) =>
-  err instanceof ApiError ? (err.detail ?? err.message) : 'Something went wrong. Please try again.'
-
-const KIND_LABEL: Record<AnnouncementKind, string> = {
-  Maintenance: 'Maintenance',
-  ServiceDegradation: 'Service degradation',
-  ImportantAnnouncement: 'Important announcement',
-}
+const KINDS: AnnouncementKind[] = ['Maintenance', 'ServiceDegradation', 'ImportantAnnouncement']
 
 const NO_HTML_OR_LINKS = /<[^>]*>|https?:\/\/|www\./i
 
@@ -55,19 +50,20 @@ const NO_HTML_OR_LINKS = /<[^>]*>|https?:\/\/|www\./i
  * The same rules the server applies (FR-004a): plain text only, a bounded length, roles when the audience is roles, and an end time
  * in the future. The server stays the authority; this only saves a round trip.
  */
-const announcementSchema = z
+const buildAnnouncementSchema = (t: NotificationAdminT) =>
+  z
   .object({
     kind: z.enum(['Maintenance', 'ServiceDegradation', 'ImportantAnnouncement']),
-    title: z.string().trim().min(1, 'Enter a title.').max(150, 'The title can be at most 150 characters.').refine((t) => !NO_HTML_OR_LINKS.test(t), 'Links and HTML are not allowed.'),
-    message: z.string().trim().min(1, 'Enter a message.').max(2000, 'The message can be at most 2,000 characters.').refine((m) => !NO_HTML_OR_LINKS.test(m), 'Links and HTML are not allowed.'),
+    title: z.string().trim().min(1, t('announcements.validation.titleRequired')).max(150, t('announcements.validation.titleMax')).refine((value) => !NO_HTML_OR_LINKS.test(value), t('announcements.validation.noLinks')),
+    message: z.string().trim().min(1, t('announcements.validation.messageRequired')).max(2000, t('announcements.validation.messageMax')).refine((value) => !NO_HTML_OR_LINKS.test(value), t('announcements.validation.noLinks')),
     audience: z.enum(['AllActiveUsers', 'Roles']),
     targetRoleIds: z.array(z.string()),
     isCritical: z.boolean(),
-    endsAtLocal: z.string().refine((v) => v === '' || new Date(v).getTime() > Date.now(), 'The end time must be in the future.'),
+    endsAtLocal: z.string().refine((v) => v === '' || new Date(v).getTime() > Date.now(), t('announcements.validation.endsFuture')),
   })
-  .refine((v) => v.audience !== 'Roles' || v.targetRoleIds.length > 0, { path: ['targetRoleIds'], message: 'Choose at least one role.' })
+  .refine((v) => v.audience !== 'Roles' || v.targetRoleIds.length > 0, { path: ['targetRoleIds'], message: t('announcements.validation.rolesRequired') })
 
-type AnnouncementForm = z.infer<typeof announcementSchema>
+type AnnouncementForm = z.infer<ReturnType<typeof buildAnnouncementSchema>>
 
 const DEFAULTS: AnnouncementForm = {
   kind: 'Maintenance',
@@ -80,10 +76,12 @@ const DEFAULTS: AnnouncementForm = {
 }
 
 function PublishDialog({ onClose, onPublished }: { onClose: () => void; onPublished: (result: PublishedAnnouncement) => void }) {
+  const t = useT('admin.notifications')
+  const schema = useMemo(() => buildAnnouncementSchema(t), [t])
   const publish = usePublishNotificationAnnouncement()
   const [confirming, setConfirming] = useState<AnnouncementForm | null>(null)
   const { control, handleSubmit, formState } = useForm<AnnouncementForm>({
-    resolver: zodResolver(announcementSchema),
+    resolver: zodResolver(schema),
     defaultValues: DEFAULTS,
     mode: 'onTouched',
   })
@@ -109,13 +107,16 @@ function PublishDialog({ onClose, onPublished }: { onClose: () => void; onPublis
 
   return (
     <Dialog open onClose={publish.isPending ? undefined : onClose} fullWidth maxWidth="sm" aria-labelledby="publish-announcement-title">
-      <DialogTitle id="publish-announcement-title">{confirming ? 'Send this to everyone?' : 'New announcement'}</DialogTitle>
+      <DialogTitle id="publish-announcement-title">{confirming ? t('announcements.dialog.titleConfirm') : t('announcements.dialog.titleNew')}</DialogTitle>
       <DialogContent>
         {confirming ? (
           <Stack spacing={2} sx={{ pt: 1 }}>
             <Alert severity="warning">
-              This is a critical announcement. It reaches {confirming.audience === 'Roles' ? 'everyone in the chosen roles' : 'every active user'} in the app{' '}
-              <strong>and by email</strong>. Once published it can't be edited or taken back.
+              {t('announcements.dialog.criticalLead', {
+                audience: t(confirming.audience === 'Roles' ? 'announcements.dialog.reachRoles' : 'announcements.dialog.reachAll'),
+              })}{' '}
+              <strong>{t('announcements.dialog.criticalEmphasis')}</strong>
+              {t('announcements.dialog.criticalTail')}
             </Alert>
             <Typography variant="subtitle2">{confirming.title}</Typography>
             <Typography variant="body2" sx={{ whiteSpace: 'pre-wrap' }}>
@@ -128,10 +129,10 @@ function PublishDialog({ onClose, onPublished }: { onClose: () => void; onPublis
               name="kind"
               control={control}
               render={({ field }) => (
-                <TextField select label="Kind" size="small" {...field}>
-                  {Object.entries(KIND_LABEL).map(([value, label]) => (
-                    <MenuItem key={value} value={value}>
-                      {label}
+                <TextField select label={t('announcements.dialog.kind')} size="small" {...field}>
+                  {KINDS.map((kind) => (
+                    <MenuItem key={kind} value={kind}>
+                      {t(`announcements.kinds.${kind}`)}
                     </MenuItem>
                   ))}
                 </TextField>
@@ -141,23 +142,23 @@ function PublishDialog({ onClose, onPublished }: { onClose: () => void; onPublis
               name="title"
               control={control}
               render={({ field, fieldState }) => (
-                <TextField label="Title" size="small" required error={!!fieldState.error} helperText={fieldState.error?.message ?? 'Plain text, no links.'} {...field} />
+                <TextField label={t('announcements.dialog.title')} size="small" required error={!!fieldState.error} helperText={fieldState.error?.message ?? t('announcements.dialog.plainText')} {...field} />
               )}
             />
             <Controller
               name="message"
               control={control}
               render={({ field, fieldState }) => (
-                <TextField label="Message" size="small" required multiline minRows={3} error={!!fieldState.error} helperText={fieldState.error?.message ?? 'Plain text, no links.'} {...field} />
+                <TextField label={t('announcements.dialog.message')} size="small" required multiline minRows={3} error={!!fieldState.error} helperText={fieldState.error?.message ?? t('announcements.dialog.plainText')} {...field} />
               )}
             />
             <Controller
               name="audience"
               control={control}
               render={({ field }) => (
-                <TextField select label="Audience" size="small" {...field}>
-                  <MenuItem value="AllActiveUsers">All active users</MenuItem>
-                  <MenuItem value="Roles">Specific roles</MenuItem>
+                <TextField select label={t('announcements.dialog.audience')} size="small" {...field}>
+                  <MenuItem value="AllActiveUsers">{t('announcements.audiences.AllActiveUsers')}</MenuItem>
+                  <MenuItem value="Roles">{t('announcements.audiences.Roles')}</MenuItem>
                 </TextField>
               )}
             />
@@ -167,14 +168,19 @@ function PublishDialog({ onClose, onPublished }: { onClose: () => void; onPublis
                 control={control}
                 render={({ field, fieldState }) => (
                   <FormControl size="small" error={!!fieldState.error}>
-                    <InputLabel id="roles-label">Roles</InputLabel>
+                    <InputLabel id="roles-label">{t('announcements.dialog.roles')}</InputLabel>
                     <Select
                       labelId="roles-label"
-                      label="Roles"
+                      label={t('announcements.dialog.roles')}
                       multiple
                       value={field.value}
                       onChange={field.onChange}
-                      renderValue={(ids) => (roles.data?.items ?? []).filter((r) => ids.includes(r.id)).map((r) => r.name).join(', ')}
+                      renderValue={(ids) =>
+                        (roles.data?.items ?? [])
+                          .filter((r) => ids.includes(r.id))
+                          .map((r) => r.name)
+                          .join(t('deliveries.filters.listSeparator'))
+                      }
                     >
                       {(roles.data?.items ?? []).map((r) => (
                         <MenuItem key={r.id} value={r.id}>
@@ -184,7 +190,9 @@ function PublishDialog({ onClose, onPublished }: { onClose: () => void; onPublis
                       ))}
                     </Select>
                     <FormHelperText>
-                      {roles.isError ? `The roles couldn't be loaded. ${errorMessage(roles.error)}` : (fieldState.error?.message ?? ' ')}
+                      {roles.isError
+                        ? t('announcements.dialog.rolesLoadFailed', { detail: errorText(t, roles.error) })
+                        : (fieldState.error?.message ?? ' ')}
                     </FormHelperText>
                   </FormControl>
                 )}
@@ -195,11 +203,11 @@ function PublishDialog({ onClose, onPublished }: { onClose: () => void; onPublis
               control={control}
               render={({ field, fieldState }) => (
                 <TextField
-                  label="Ends (optional)"
+                  label={t('announcements.dialog.ends')}
                   type="datetime-local"
                   size="small"
                   error={!!fieldState.error}
-                  helperText={fieldState.error?.message ?? 'After this time the announcement, and any email still waiting, are withdrawn.'}
+                  helperText={fieldState.error?.message ?? t('announcements.dialog.endsHelp')}
                   slotProps={{ inputLabel: { shrink: true } }}
                   {...field}
                 />
@@ -209,15 +217,15 @@ function PublishDialog({ onClose, onPublished }: { onClose: () => void; onPublis
               name="isCritical"
               control={control}
               render={({ field }) => (
-                <FormControlLabel control={<Switch checked={field.value} onChange={(_, checked) => field.onChange(checked)} />} label="Critical: also send by email" />
+                <FormControlLabel control={<Switch checked={field.value} onChange={(_, checked) => field.onChange(checked)} />} label={t('announcements.dialog.critical')} />
               )}
             />
-            {formState.isSubmitted && !formState.isValid && <Alert severity="error">Fix the highlighted fields to continue.</Alert>}
+            {formState.isSubmitted && !formState.isValid && <Alert severity="error">{t('announcements.dialog.fixFields')}</Alert>}
           </Stack>
         )}
         {publish.isError && (
           <Alert severity="error" sx={{ mt: 2 }}>
-            {`The announcement wasn't published. ${errorMessage(publish.error)}`}
+            {t('announcements.dialog.publishFailed', { detail: errorText(t, publish.error) })}
           </Alert>
         )}
       </DialogContent>
@@ -225,19 +233,19 @@ function PublishDialog({ onClose, onPublished }: { onClose: () => void; onPublis
         {confirming ? (
           <>
             <Button onClick={() => setConfirming(null)} disabled={publish.isPending}>
-              Back
+              {t('announcements.dialog.back')}
             </Button>
             <Button variant="contained" color="warning" onClick={() => send(confirming)} disabled={publish.isPending}>
-              {publish.isPending ? 'Publishing…' : 'Publish to everyone'}
+              {publish.isPending ? t('announcements.dialog.publishing') : t('announcements.dialog.publishEveryone')}
             </Button>
           </>
         ) : (
           <>
             <Button onClick={onClose} disabled={publish.isPending}>
-              Cancel
+              {t('announcements.dialog.cancel')}
             </Button>
             <Button type="submit" form="announcement-form" variant="contained" disabled={publish.isPending}>
-              {publish.isPending ? 'Publishing…' : 'Publish'}
+              {publish.isPending ? t('announcements.dialog.publishing') : t('announcements.dialog.publish')}
             </Button>
           </>
         )}
@@ -246,40 +254,51 @@ function PublishDialog({ onClose, onPublished }: { onClose: () => void; onPublis
   )
 }
 
-/**
- * specs/067 US6 (FR-004a) — system announcements. They are immutable once published, so this page has no edit or delete, and a
- * critical one asks for a second confirmation because it also goes out by email.
- */
-export function AdminAnnouncementsPage() {
-  const canManage = useCanManageNotifications()
+function AnnouncementsContent({
+  dialogOpen,
+  onCloseDialog,
+}: {
+  dialogOpen: boolean
+  onCloseDialog: () => void
+}) {
+  const t = useT('admin.notifications')
+  const format = useFormat()
   const announcements = useNotificationAnnouncements()
-  const [dialogOpen, setDialogOpen] = useState(false)
   const [published, setPublished] = useState<PublishedAnnouncement | null>(null)
   const items = announcements.data?.pages.flatMap((p) => p.items) ?? []
+  const when = (iso: string) => format.date(iso, DATE_TIME)
+  const publishedText = (result: PublishedAnnouncement) =>
+    t(result.emailEstimatedMinutes > 0 ? 'announcements.publishedWithEmail' : 'announcements.published', {
+      count: result.estimatedRecipients,
+      minutes: format.number(result.emailEstimatedMinutes, PLAIN_NUMBER),
+    })
 
   return (
-    <AdminShell
-      title="Announcements"
-      subtitle="Messages to everyone, or to chosen roles"
-      actions={canManage ? <Button variant="contained" onClick={() => setDialogOpen(true)}>New announcement</Button> : undefined}
-    >
+    <>
       <Paper elevation={1} sx={{ p: 2, display: 'flex', flexDirection: 'column', gap: 2 }}>
         {announcements.isError && (
-          <Alert severity="error" action={<Button color="inherit" size="small" onClick={() => void announcements.refetch()}>Retry</Button>}>
-            {errorMessage(announcements.error)}
+          <Alert
+            severity="error"
+            action={
+              <Button color="inherit" size="small" onClick={() => void announcements.refetch()}>
+                {t('actions.retry')}
+              </Button>
+            }
+          >
+            {errorText(t, announcements.error)}
           </Alert>
         )}
         <TableContainer>
-          <Table size="small" aria-label="Announcements">
+          <Table size="small" aria-label={t('announcements.table.aria')}>
             <TableHead>
               <TableRow>
-                <TableCell>Title</TableCell>
-                <TableCell>Kind</TableCell>
-                <TableCell>Audience</TableCell>
-                <TableCell>Published</TableCell>
-                <TableCell>Ends</TableCell>
-                <TableCell align="right">Recipients</TableCell>
-                <TableCell>Email</TableCell>
+                <TableCell>{t('announcements.table.title')}</TableCell>
+                <TableCell>{t('announcements.table.kind')}</TableCell>
+                <TableCell>{t('announcements.table.audience')}</TableCell>
+                <TableCell>{t('announcements.table.published')}</TableCell>
+                <TableCell>{t('announcements.table.ends')}</TableCell>
+                <TableCell sx={{ textAlign: 'end' }}>{t('announcements.table.recipients')}</TableCell>
+                <TableCell>{t('announcements.table.email')}</TableCell>
               </TableRow>
             </TableHead>
             <TableBody>
@@ -288,29 +307,45 @@ export function AdminAnnouncementsPage() {
                   <TableCell>
                     <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
                       <span>{a.title}</span>
-                      {a.isCritical && <Chip size="small" color="warning" label="Critical" />}
+                      {a.isCritical && <Chip size="small" color="warning" label={t('announcements.table.critical')} />}
                     </Stack>
                   </TableCell>
-                  <TableCell>{KIND_LABEL[a.kind]}</TableCell>
-                  <TableCell>{a.audience === 'AllActiveUsers' ? 'All active users' : a.targetRoles.map((r) => r.name).join(', ')}</TableCell>
+                  <TableCell>{t(`announcements.kinds.${a.kind}`)}</TableCell>
                   <TableCell>
-                    {new Date(a.publishedAtUtc).toLocaleString()}
+                    {a.audience === 'AllActiveUsers'
+                      ? t('announcements.audiences.AllActiveUsers')
+                      : a.targetRoles.map((r) => r.name).join(t('deliveries.filters.listSeparator'))}
+                  </TableCell>
+                  <TableCell>
+                    {when(a.publishedAtUtc)}
                     <Typography variant="caption" color="text.secondary" component="div">
-                      by {a.publishedBy}
+                      {t('announcements.table.publishedBy', { name: a.publishedBy })}
                     </Typography>
                   </TableCell>
-                  <TableCell>{a.endsAtUtc ? new Date(a.endsAtUtc).toLocaleString() : '—'}</TableCell>
-                  <TableCell align="right">
-                    {a.fanOutStatus === 'InProgress' ? <Chip size="small" label="Sending…" /> : (a.recipientCount ?? 0)}
+                  <TableCell>{a.endsAtUtc ? when(a.endsAtUtc) : '—'}</TableCell>
+                  <TableCell sx={{ textAlign: 'end' }}>
+                    {a.fanOutStatus === 'InProgress' ? (
+                      <Chip size="small" label={t('announcements.table.sending')} />
+                    ) : (
+                      format.number(a.recipientCount ?? 0, PLAIN_NUMBER)
+                    )}
                   </TableCell>
-                  <TableCell>{a.isCritical ? `${a.emailSent} sent · ${a.emailQueued} queued · ${a.emailExpired} expired` : 'In-app only'}</TableCell>
+                  <TableCell>
+                    {a.isCritical
+                      ? t('announcements.table.emailSummary', {
+                          sent: format.number(a.emailSent, PLAIN_NUMBER),
+                          queued: format.number(a.emailQueued, PLAIN_NUMBER),
+                          expired: format.number(a.emailExpired, PLAIN_NUMBER),
+                        })
+                      : t('announcements.table.inAppOnly')}
+                  </TableCell>
                 </TableRow>
               ))}
               {!announcements.isLoading && items.length === 0 && (
                 <TableRow>
                   <TableCell colSpan={7}>
                     <Typography variant="body2" color="text.secondary">
-                      No announcements yet.
+                      {t('announcements.table.empty')}
                     </Typography>
                   </TableCell>
                 </TableRow>
@@ -318,11 +353,11 @@ export function AdminAnnouncementsPage() {
             </TableBody>
           </Table>
         </TableContainer>
-        {announcements.isLoading && <CircularProgress size={24} aria-label="Loading announcements" />}
+        {announcements.isLoading && <CircularProgress size={24} aria-label={t('announcements.table.loading')} />}
         {announcements.hasNextPage && (
           <Box>
             <Button onClick={() => void announcements.fetchNextPage()} disabled={announcements.isFetchingNextPage}>
-              Load more
+              {t('actions.loadMore')}
             </Button>
           </Box>
         )}
@@ -330,9 +365,9 @@ export function AdminAnnouncementsPage() {
 
       {dialogOpen && (
         <PublishDialog
-          onClose={() => setDialogOpen(false)}
+          onClose={onCloseDialog}
           onPublished={(result) => {
-            setDialogOpen(false)
+            onCloseDialog()
             setPublished(result)
           }}
         />
@@ -340,13 +375,31 @@ export function AdminAnnouncementsPage() {
 
       <Snackbar open={published !== null} autoHideDuration={12000} onClose={() => setPublished(null)} anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}>
         {published ? (
-          <Alert severity="success" variant="filled" onClose={() => setPublished(null)}>
-            {`Published. It reaches about ${published.estimatedRecipients} ${published.estimatedRecipients === 1 ? 'person' : 'people'}${
-              published.emailEstimatedMinutes > 0 ? `, and the emails take about ${published.emailEstimatedMinutes} min to go out` : ''
-            }.`}
+          <Alert severity="success" variant="filled" closeText={t('actions.close')} onClose={() => setPublished(null)}>
+            {publishedText(published)}
           </Alert>
         ) : undefined}
       </Snackbar>
+    </>
+  )
+}
+
+/**
+ * specs/067 US6 (FR-004a) — system announcements. They are immutable once published, so this page has no edit or delete, and a
+ * critical one asks for a second confirmation because it also goes out by email.
+ */
+export function AdminAnnouncementsPage() {
+  const t = useOuterT('admin.notifications')
+  const canManage = useCanManageNotifications()
+  const [dialogOpen, setDialogOpen] = useState(false)
+
+  return (
+    <AdminShell
+      title={t('announcements.title')}
+      subtitle={t('announcements.subtitle')}
+      actions={canManage ? <Button variant="contained" onClick={() => setDialogOpen(true)}>{t('announcements.newAnnouncement')}</Button> : undefined}
+    >
+      <AnnouncementsContent dialogOpen={dialogOpen} onCloseDialog={() => setDialogOpen(false)} />
     </AdminShell>
   )
 }

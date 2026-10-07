@@ -1,4 +1,5 @@
 import { useQuery } from '@tanstack/react-query'
+import { useT } from '../../../i18n/useT'
 import * as adminAiProvidersApi from '../api/adminAiProvidersApi'
 import { AdminShell } from '../components/AdminShell'
 import { CapabilityAssignmentsSection } from '../components/CapabilityAssignmentsSection'
@@ -13,18 +14,17 @@ const ADMIN_AI_PROVIDERS_QUERY_KEY = ['admin', 'ai-providers']
  * it read as a footnote to the provider table rather than the routing decision it is.
  */
 export function AdminAiCapabilitiesPage() {
+  const t = useT('admin.aiCapabilities')
   const { data: providers } = useQuery({
     queryKey: ADMIN_AI_PROVIDERS_QUERY_KEY,
     queryFn: adminAiProvidersApi.getProviders,
   })
 
   return (
-    <AdminShell
-      title="AI capabilities"
-      subtitle="Choose which provider and model serves each capability"
-
-    >
-      <CapabilityAssignmentsSection providers={(providers ?? []).filter(adminAiProvidersApi.isLanguageProvider)} />
+    <AdminShell title={t('title')} subtitle={t('subtitle')}>
+      <CapabilityAssignmentsSection
+        providers={(providers ?? []).filter(adminAiProvidersApi.isLanguageProvider)}
+      />
     </AdminShell>
   )
 }

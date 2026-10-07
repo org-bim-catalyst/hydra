@@ -1,0 +1,53 @@
+// specs/067 Phase 13 (T213) — admin 'roleAssignments' catalog (English): the Role assignments screen and its dialog.
+export const enAdminRoleAssignments = {
+  title: 'Role assignments',
+  subtitle: { one: '{count} user', other: '{count} users' },
+  bulk: { action: 'Assign', progress: 'Assigning role to' },
+  search: 'Search by name or email',
+  roleFilter: 'Role',
+  anyRole: 'Any role',
+  errors: {
+    load: 'Could not load role assignments.',
+    bulkPrepare: 'Could not prepare the bulk assignment. Please try again.',
+  },
+  selection: {
+    selectedCount: '{count} selected',
+    assignSelected: 'Assign selected',
+    selectAll: 'Select all eligible users on this page',
+    selectUser: 'Select {email}',
+  },
+  table: {
+    email: 'Email',
+    name: 'Name',
+    role: 'Role',
+    status: 'Status',
+    actions: 'Actions',
+    empty: 'No role assignments found.',
+    locked: 'Locked',
+    active: 'Active',
+    changeRole: 'Change role…',
+    defaultRole: 'User',
+  },
+  pagination: {
+    rowsPerPage: 'Rows per page:',
+    displayedRows: '{from}–{to} of {count}',
+    first: 'Go to first page',
+    previous: 'Go to previous page',
+    next: 'Go to next page',
+    last: 'Go to last page',
+  },
+  roleOption: {
+    plain: '{name}',
+    builtIn: '{name} (built-in)',
+    superUserOnly: '{name} (Super User only)',
+    builtInSuperUserOnly: '{name} (built-in) (Super User only)',
+  },
+  dialog: {
+    title: 'Change role for {email}',
+    replaces: "Assigning a role replaces this user's current role — a user holds at most one role.",
+    locked: "This user's role includes View user content. Only a Super User can change it.",
+    role: 'Role',
+    cancel: 'Cancel',
+    save: 'Save',
+  },
+} as const

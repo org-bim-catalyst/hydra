@@ -25,6 +25,7 @@ import EditIcon from '@mui/icons-material/Edit'
 import RefreshIcon from '@mui/icons-material/Refresh'
 import NetworkCheckIcon from '@mui/icons-material/NetworkCheck'
 import KeyIcon from '@mui/icons-material/Key'
+import { useT } from '../../../i18n/useT'
 import { AdminSectionActions } from '../../admin/components/AdminSectionActions'
 import { TableEmptyRow } from '../../../components/TableEmptyRow'
 import { TableLoadingRow } from '../../../components/TableLoadingRow'
@@ -56,6 +57,8 @@ interface McpServerListProps {
 
 /** spec.md User Story 1 — MCP server registry administration (register/edit/enable/disable/remove/test/refresh). */
 export function McpServerList({ selectedServerId, onSelectServer, fillHeight = false }: McpServerListProps) {
+  const t = useT('admin.mcpServers')
+  const tc = useT('common')
   const { data: servers, isLoading } = useMcpServers()
 
   const [formOpen, setFormOpen] = useState(false)
@@ -72,6 +75,10 @@ export function McpServerList({ selectedServerId, onSelectServer, fillHeight = f
   const testConnection = useTestMcpServerConnection()
   const refreshCapabilities = useRefreshMcpCapabilities()
   const rotateCredential = useRotateMcpServerCredential()
+
+  // A transport the catalog does not know (a newer server) is shown as returned.
+  const transportLabel = (transport: string) =>
+    transport === 'StreamableHttp' || transport === 'Stdio' ? t(`transports.${transport}`) : transport
 
   const onMutationError = (fallback: string) => (err: unknown) =>
     setErrorMessage(err instanceof Error ? err.message : fallback)
@@ -98,12 +105,12 @@ export function McpServerList({ selectedServerId, onSelectServer, fillHeight = f
     if (!rotatingServer) return
     rotateCredential.mutate(
       { id: rotatingServer.id, credential: newCredential },
-      { onSuccess: () => setRotatingServer(undefined), onError: onMutationError('Could not rotate the credential. Please try again.') },
+      { onSuccess: () => setRotatingServer(undefined), onError: onMutationError(t('list.errors.rotate')) },
     )
   }
 
   const handleSubmit = (input: RegisterMcpServerInput) => {
-    const onError = onMutationError('Could not save the server. Please try again.')
+    const onError = onMutationError(t('list.errors.save'))
 
     if (editingServer) {
       const { name, description, endpoint, transport, authenticationType, requiresUnauthenticatedConfirmation,
@@ -139,12 +146,12 @@ export function McpServerList({ selectedServerId, onSelectServer, fillHeight = f
     <Box sx={{ display: 'flex', flexDirection: 'column', minHeight: 0, ...(fillHeight && { flex: 1 }) }}>
       <AdminSectionActions>
         <Button variant="contained" onClick={openRegisterForm}>
-          Register server
+          {t('list.register')}
         </Button>
       </AdminSectionActions>
 
       {errorMessage && (
-        <Alert severity="error" sx={{ mb: 2 }} onClose={() => setErrorMessage(null)}>
+        <Alert severity="error" sx={{ mb: 2 }} closeText={tc('actions.close')} onClose={() => setErrorMessage(null)}>
           {errorMessage}
         </Alert>
       )}
@@ -161,17 +168,17 @@ export function McpServerList({ selectedServerId, onSelectServer, fillHeight = f
         <Table sx={{ '& tr:last-child td': { border: 0 }, height: showsStatusRow ? '100%' : undefined }}>
           <TableHead>
             <TableRow>
-              <TableCell>Name</TableCell>
-              <TableCell>Endpoint</TableCell>
-              <TableCell>Transport</TableCell>
-              <TableCell>Enabled</TableCell>
-              <TableCell align="right">Actions</TableCell>
+              <TableCell>{t('list.columns.name')}</TableCell>
+              <TableCell>{t('list.columns.endpoint')}</TableCell>
+              <TableCell>{t('list.columns.transport')}</TableCell>
+              <TableCell>{t('list.columns.enabled')}</TableCell>
+              <TableCell sx={{ textAlign: 'end' }}>{t('list.columns.actions')}</TableCell>
             </TableRow>
           </TableHead>
           <TableBody>
             {isLoading && <TableLoadingRow colSpan={5} />}
             {!isLoading && (servers?.items ?? []).length === 0 && (
-              <TableEmptyRow colSpan={5} message="No MCP servers registered yet." />
+              <TableEmptyRow colSpan={5} message={t('list.empty')} />
             )}
             {(servers?.items ?? []).map((server) => (
               <TableRow
@@ -183,52 +190,56 @@ export function McpServerList({ selectedServerId, onSelectServer, fillHeight = f
               >
                 <TableCell>{server.name}</TableCell>
                 <TableCell>
-                  <Chip label={server.endpoint} size="small" />
+                  <Chip label={<bdi dir="ltr">{server.endpoint}</bdi>} size="small" />
                 </TableCell>
-                <TableCell>{server.transport}</TableCell>
+                <TableCell>{transportLabel(server.transport)}</TableCell>
                 <TableCell>
                   <Switch
                     checked={server.isEnabled}
-                    slotProps={{ input: { 'aria-label': `${server.isEnabled ? 'Disable' : 'Enable'} ${server.name}` } }}
+                    slotProps={{
+                      input: {
+                        'aria-label': t(server.isEnabled ? 'list.disableAria' : 'list.enableAria', { name: server.name }),
+                      },
+                    }}
                     onClick={(e) => e.stopPropagation()}
                     onChange={() =>
                       (server.isEnabled ? disableServer : enableServer).mutate(server.id, {
-                        onError: onMutationError(`Could not ${server.isEnabled ? 'disable' : 'enable'} the server. Please try again.`),
+                        onError: onMutationError(t(server.isEnabled ? 'list.errors.disable' : 'list.errors.enable')),
                       })
                     }
                     disabled={enableServer.isPending || disableServer.isPending}
                   />
                 </TableCell>
-                <TableCell align="right" onClick={(e) => e.stopPropagation()}>
-                  <Tooltip title="Test connection">
+                <TableCell sx={{ textAlign: 'end' }} onClick={(e) => e.stopPropagation()}>
+                  <Tooltip title={t('list.testTooltip')}>
                     <IconButton
-                      aria-label={`Test connection to ${server.name}`}
-                      onClick={() => testConnection.mutate(server.id, { onError: onMutationError('Could not test the connection. Please try again.') })}
+                      aria-label={t('list.testAria', { name: server.name })}
+                      onClick={() => testConnection.mutate(server.id, { onError: onMutationError(t('list.errors.test')) })}
                       disabled={testConnection.isPending}
                     >
                       <NetworkCheckIcon fontSize="small" />
                     </IconButton>
                   </Tooltip>
-                  <Tooltip title="Refresh capabilities">
+                  <Tooltip title={t('list.refreshTooltip')}>
                     <IconButton
-                      aria-label={`Refresh capabilities for ${server.name}`}
-                      onClick={() => refreshCapabilities.mutate(server.id, { onError: onMutationError('Could not refresh capabilities. Please try again.') })}
+                      aria-label={t('list.refreshAria', { name: server.name })}
+                      onClick={() => refreshCapabilities.mutate(server.id, { onError: onMutationError(t('list.errors.refresh')) })}
                       disabled={refreshCapabilities.isPending}
                     >
                       <RefreshIcon fontSize="small" />
                     </IconButton>
                   </Tooltip>
-                  <Tooltip title="Rotate credential">
-                    <IconButton aria-label={`Rotate credential for ${server.name}`} onClick={() => openRotateCredentialDialog(server)}>
+                  <Tooltip title={t('list.rotateTooltip')}>
+                    <IconButton aria-label={t('list.rotateAria', { name: server.name })} onClick={() => openRotateCredentialDialog(server)}>
                       <KeyIcon fontSize="small" />
                     </IconButton>
                   </Tooltip>
-                  <IconButton aria-label={`Edit ${server.name}`} onClick={() => openEditForm(server)}>
+                  <IconButton aria-label={t('list.editAria', { name: server.name })} onClick={() => openEditForm(server)}>
                     <EditIcon fontSize="small" />
                   </IconButton>
                   <IconButton
-                    aria-label={`Delete ${server.name}`}
-                    onClick={() => deleteServer.mutate(server.id, { onError: onMutationError('Could not delete the server. It may still be referenced by an agent tool.') })}
+                    aria-label={t('list.deleteAria', { name: server.name })}
+                    onClick={() => deleteServer.mutate(server.id, { onError: onMutationError(t('list.errors.delete')) })}
                     disabled={deleteServer.isPending}
                   >
                     <DeleteIcon fontSize="small" />
@@ -250,24 +261,26 @@ export function McpServerList({ selectedServerId, onSelectServer, fillHeight = f
       />
 
       <Dialog open={rotatingServer !== undefined} onClose={() => setRotatingServer(undefined)} maxWidth="sm" fullWidth>
-        <DialogTitle>Rotate credential{rotatingServer ? ` for ${rotatingServer.name}` : ''}</DialogTitle>
+        <DialogTitle>
+          {rotatingServer ? t('list.rotateDialog.titleFor', { name: rotatingServer.name }) : t('list.rotateDialog.title')}
+        </DialogTitle>
         <DialogContent>
           <TextField
-            label="New credential"
+            label={t('list.rotateDialog.newCredential')}
             type="password"
             fullWidth
             autoFocus
             required
             value={newCredential}
             onChange={(e) => setNewCredential(e.target.value)}
-            helperText="The existing credential is never displayed. In-flight calls on the old connection complete or fail independently; new calls use this value immediately."
+            helperText={t('list.rotateDialog.help')}
             sx={{ mt: 1 }}
           />
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setRotatingServer(undefined)}>Cancel</Button>
+          <Button onClick={() => setRotatingServer(undefined)}>{t('list.rotateDialog.cancel')}</Button>
           <Button variant="contained" disabled={!newCredential || rotateCredential.isPending} onClick={handleRotateCredential}>
-            Rotate
+            {t('list.rotateDialog.rotate')}
           </Button>
         </DialogActions>
       </Dialog>

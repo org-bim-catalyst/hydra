@@ -12,6 +12,7 @@ import type { ReactNode } from 'react'
 import { useIsAdmin } from '../../hooks/useIsAdmin'
 import { usePermissions } from '../../features/auth/hooks/usePermissions'
 import { ADMIN_NAV } from '../../features/admin/adminNav'
+import { canSwitchLanguage, useLocalization } from '../../i18n/useLocalization'
 
 export interface AccountMenuItem {
   id: string
@@ -37,6 +38,12 @@ function firstPermittedAdminPath(permissions: string[]): string | null {
     return keys.some((key) => permissions.includes(key))
   })
   return item?.path ?? null
+}
+
+/** The language switch joins the account menu only while localization is on and offers more than one language (FR-044b). */
+export function useShowLanguageSwitch(): boolean {
+  const { data } = useLocalization()
+  return canSwitchLanguage(data)
 }
 
 export function useAccountMenuItems(): AccountMenuItem[] {

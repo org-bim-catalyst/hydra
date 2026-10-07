@@ -12,6 +12,7 @@ import {
   TableRow,
 } from '@mui/material'
 import { useMutation, useQueries, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useT } from '../../../i18n/useT'
 import { useWholeRowScroll } from '../../../hooks/useWholeRowScroll'
 import { ApiError } from '../../../api/httpClient'
 import { TableEmptyRow } from '../../../components/TableEmptyRow'
@@ -29,8 +30,12 @@ const ADMIN_AI_PROVIDERS_QUERY_KEY = ['admin', 'ai-providers']
  * a platform-wide decision look like a per-provider detail.
  */
 export function AdminDefaultModelsPage() {
+  const t = useT('admin.defaultModels')
   const queryClient = useQueryClient()
-  const [feedback, setFeedback] = useState<{ severity: 'success' | 'error'; message: string } | null>(null)
+  const [feedback, setFeedback] = useState<{
+    severity: 'success' | 'error'
+    message: string
+  } | null>(null)
 
   const { data: providers, isLoading: providersLoading } = useQuery({
     queryKey: ADMIN_AI_PROVIDERS_QUERY_KEY,
@@ -42,7 +47,9 @@ export function AdminDefaultModelsPage() {
    * cannot be used is a setting with nowhere to apply — and the Capabilities page will not offer
    * it either, so listing it here only invites configuring something inert.
    */
-  const assignableProviders = (providers ?? []).filter((p) => p.isEnabled && p.hasCredential && adminAiProvidersApi.isLanguageProvider(p))
+  const assignableProviders = (providers ?? []).filter(
+    (p) => p.isEnabled && p.hasCredential && adminAiProvidersApi.isLanguageProvider(p),
+  )
 
   /**
    * Every row's model list, fetched here rather than left to each row to discover on its own.
@@ -71,14 +78,14 @@ export function AdminDefaultModelsPage() {
       void queryClient.invalidateQueries({ queryKey: ADMIN_AI_PROVIDERS_QUERY_KEY })
       setFeedback({
         severity: 'success',
-        message: modelId === null ? 'Default model cleared.' : 'Default model saved.',
+        message: modelId === null ? t('feedback.cleared') : t('feedback.saved'),
       })
     },
     // constitution VIII: a failed save must reach the user, not just the console.
     onError: (err: unknown) => {
       setFeedback({
         severity: 'error',
-        message: err instanceof ApiError ? err.detail ?? err.message : 'Something went wrong. Please try again.',
+        message: err instanceof ApiError ? (err.detail ?? err.message) : t('feedback.failed'),
       })
     },
   })
@@ -92,25 +99,26 @@ export function AdminDefaultModelsPage() {
   const { ref: tableRef, maxHeight: tableMaxHeight } = useWholeRowScroll()
 
   return (
-    <AdminShell
-      title="Default models"
-      subtitle="The model each provider contributes — a capability assigned to a provider runs on the model chosen here"
-
-    >
+    <AdminShell title={t('title')} subtitle={t('subtitle')}>
       <Box sx={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
-        <TableContainer ref={tableRef} component={Paper} variant="outlined" sx={{ flex: 1, minHeight: 0, overflow: 'auto', maxHeight: tableMaxHeight, mb: 2 }}>
+        <TableContainer
+          ref={tableRef}
+          component={Paper}
+          variant="outlined"
+          sx={{ flex: 1, minHeight: 0, overflow: 'auto', maxHeight: tableMaxHeight, mb: 2 }}
+        >
           <Table size="small" sx={{ height: showsStatusRow ? '100%' : undefined }}>
             <TableHead>
               <TableRow>
-                <TableCell>Provider</TableCell>
-                <TableCell>Status</TableCell>
-                <TableCell>Default model</TableCell>
+                <TableCell>{t('columns.provider')}</TableCell>
+                <TableCell>{t('columns.status')}</TableCell>
+                <TableCell>{t('columns.defaultModel')}</TableCell>
               </TableRow>
             </TableHead>
             <TableBody>
               {isLoading && <TableLoadingRow colSpan={3} />}
               {!isLoading && assignableProviders.length === 0 && (
-                <TableEmptyRow colSpan={3} message="No assignable providers found." />
+                <TableEmptyRow colSpan={3} message={t('empty')} />
               )}
               {/*
                 Gated on the same flag as the skeleton, not just on having data: the provider list
@@ -123,22 +131,24 @@ export function AdminDefaultModelsPage() {
                     key={provider.id}
                     provider={provider}
                     disabled={setDefaultMutation.isPending}
-                    onChange={(modelId) => setDefaultMutation.mutate({ providerId: provider.id, modelId })}
+                    onChange={(modelId) =>
+                      setDefaultMutation.mutate({ providerId: provider.id, modelId })
+                    }
                   />
                 ))}
             </TableBody>
           </Table>
         </TableContainer>
 
-        <Alert severity="info">
-          Only providers that are enabled with a credential appear here, and only models marked
-          Available on the Providers page can be a default. A provider with no default model cannot
-          be assigned to a capability.
-        </Alert>
+        <Alert severity="info">{t('info')}</Alert>
       </Box>
 
       <Snackbar open={feedback !== null} autoHideDuration={5000} onClose={() => setFeedback(null)}>
-        <Alert severity={feedback?.severity ?? 'info'} variant="filled" onClose={() => setFeedback(null)}>
+        <Alert
+          severity={feedback?.severity ?? 'info'}
+          variant="filled"
+          onClose={() => setFeedback(null)}
+        >
           {feedback?.message}
         </Alert>
       </Snackbar>

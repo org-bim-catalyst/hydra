@@ -2,6 +2,7 @@ import { Alert, Box, Button, CircularProgress, Typography } from '@mui/material'
 import { useVirtualizer } from '@tanstack/react-virtual'
 import { useMemo, useRef } from 'react'
 import { EmptyState } from '../../../components/EmptyState'
+import { useFormat, useT } from '../../../i18n/useT'
 import type { NotificationItem as NotificationItemDto } from '../api/notificationsApi'
 import { NotificationItem } from './NotificationItem'
 
@@ -11,20 +12,26 @@ interface Row {
   item?: NotificationItemDto
 }
 
-function dayLabel(isoDateUtc: string, now: Date): string {
+interface DayLabels {
+  today: string
+  yesterday: string
+  date: (date: Date) => string
+}
+
+function dayLabel(isoDateUtc: string, now: Date, labels: DayLabels): string {
   const date = new Date(isoDateUtc)
   const startOfDay = (d: Date) => new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime()
   const diffDays = Math.round((startOfDay(now) - startOfDay(date)) / 86_400_000)
-  if (diffDays === 0) return 'Today'
-  if (diffDays === 1) return 'Yesterday'
-  return date.toLocaleDateString(undefined, { month: 'long', day: 'numeric', year: 'numeric' })
+  if (diffDays === 0) return labels.today
+  if (diffDays === 1) return labels.yesterday
+  return labels.date(date)
 }
 
-function groupByDay(items: NotificationItemDto[], now: Date): Row[] {
+function groupByDay(items: NotificationItemDto[], now: Date, labels: DayLabels): Row[] {
   const rows: Row[] = []
   let lastHeader: string | null = null
   for (const item of items) {
-    const header = dayLabel(item.createdAtUtc, now)
+    const header = dayLabel(item.createdAtUtc, now, labels)
     if (header !== lastHeader) {
       rows.push({ type: 'header', header })
       lastHeader = header
@@ -45,7 +52,10 @@ export interface NotificationListProps {
   onOpen: (item: NotificationItemDto) => void
 }
 
-/** T070 — day-grouped, virtualized (mirrors chat's `VirtualizedChatRows`), with keyboard roving between items. */
+/**
+ * T070 — day-grouped, virtualized (mirrors chat's `VirtualizedChatRows`), with keyboard roving between items.
+ * Rendered inside the popover's or the page's `LocalizedSurface`, so it reads the language from there.
+ */
 export function NotificationList({
   items,
   isLoading,
@@ -56,8 +66,19 @@ export function NotificationList({
   onFetchNextPage,
   onOpen,
 }: NotificationListProps) {
+  const t = useT('notifications')
+  const tc = useT('common')
+  const format = useFormat()
   const listParentRef = useRef<HTMLDivElement>(null)
-  const rows = useMemo(() => groupByDay(items, new Date()), [items])
+  const rows = useMemo(
+    () =>
+      groupByDay(items, new Date(), {
+        today: t('center.today'),
+        yesterday: t('center.yesterday'),
+        date: (date) => format.date(date, { month: 'long', day: 'numeric', year: 'numeric' }),
+      }),
+    [items, t, format],
+  )
   const itemIndexes = useMemo(() => rows.map((row, index) => (row.type === 'item' ? index : -1)).filter((i) => i >= 0), [rows])
 
   // eslint-disable-next-line react-hooks/incompatible-library
@@ -112,18 +133,18 @@ export function NotificationList({
         severity="error"
         action={
           <Button color="inherit" size="small" onClick={onRetry}>
-            Retry
+            {tc('actions.retry')}
           </Button>
         }
         sx={{ m: 2 }}
       >
-        Couldn't load notifications.
+        {t('center.loadFailed')}
       </Alert>
     )
   }
 
   if (items.length === 0) {
-    return <EmptyState title="No notifications" description="You're all caught up." />
+    return <EmptyState title={t('center.empty.title')} description={t('center.empty.description')} />
   }
 
   return (
@@ -135,7 +156,7 @@ export function NotificationList({
       // whatever happens to be (un)mounted at assertion time. A labeled region is accessible
       // without asserting a DOM structure the virtualization can't guarantee.
       role="region"
-      aria-label="Notifications"
+      aria-label={t('center.listLabel')}
       sx={{ overflowY: 'auto', flex: 1, minHeight: 0 }}
     >
       <Box sx={{ position: 'relative', height: virtualizer.getTotalSize() }}>
@@ -147,7 +168,7 @@ export function NotificationList({
               data-index={virtualItem.index}
               ref={virtualizer.measureElement}
               onKeyDown={(e) => handleKeyDown(e, virtualItem.index)}
-              sx={{ position: 'absolute', top: 0, left: 0, width: '100%', transform: `translateY(${virtualItem.start}px)` }}
+              sx={{ position: 'absolute', top: 0, insetInlineStart: 0, width: '100%', transform: `translateY(${virtualItem.start}px)` }}
             >
               {row.type === 'header' ? (
                 <Typography variant="overline" color="text.secondary" sx={{ px: 2, display: 'block' }}>
@@ -162,7 +183,7 @@ export function NotificationList({
       </Box>
       {isFetchingNextPage && (
         <Typography variant="caption" color="text.secondary" sx={{ px: 2, py: 1, display: 'block' }}>
-          Loading more…
+          {t('center.loadingMore')}
         </Typography>
       )}
     </Box>

@@ -12,10 +12,16 @@ import {
   Stack,
   TextField,
 } from '@mui/material'
+import { useT } from '../../../i18n/useT'
 import type { McpAuthenticationType, McpServer, McpServerTransport, RegisterMcpServerInput } from '../api/mcpServersApi'
 
-const TRANSPORTS: McpServerTransport[] = ['StreamableHttp', 'Stdio']
-const AUTH_TYPES: McpAuthenticationType[] = ['None', 'ApiKey', 'BearerToken', 'OAuth2ClientCredentials']
+const TRANSPORTS = [ 'StreamableHttp', 'Stdio'] as const satisfies readonly McpServerTransport[]
+const AUTH_TYPES = [
+  'None',
+  'ApiKey',
+  'BearerToken',
+  'OAuth2ClientCredentials',
+] as const satisfies readonly McpAuthenticationType[]
 
 interface McpServerFormProps {
   open: boolean
@@ -29,6 +35,7 @@ interface McpServerFormProps {
 
 /** spec.md FR-001-FR-010 — register/edit an MCP server. */
 export function McpServerForm({ open, server, isSaving, errorMessage, onClose, onSubmit }: McpServerFormProps) {
+  const t = useT('admin.mcpServers')
   const isEdit = server !== undefined
 
   const [name, setName] = useState(server?.name ?? '')
@@ -72,48 +79,48 @@ export function McpServerForm({ open, server, isSaving, errorMessage, onClose, o
 
   return (
     <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth>
-      <DialogTitle>{isEdit ? `Edit ${server.name}` : 'Register MCP server'}</DialogTitle>
+      <DialogTitle>{isEdit ? t('form.titleEdit', { name: server.name }) : t('form.titleRegister')}</DialogTitle>
       <DialogContent>
         <Stack spacing={2} sx={{ mt: 1 }}>
-          <TextField label="Name" required value={name} onChange={(e) => setName(e.target.value)} />
-          <TextField label="Description" multiline minRows={2} value={description} onChange={(e) => setDescription(e.target.value)} />
-          <TextField label="Endpoint" required value={endpoint} onChange={(e) => setEndpoint(e.target.value)} helperText="e.g. https://mcp.example.com or a stdio command" />
-          <TextField select label="Transport" value={transport} onChange={(e) => setTransport(e.target.value as McpServerTransport)}>
-            {TRANSPORTS.map((t) => (
-              <MenuItem key={t} value={t}>
-                {t}
+          <TextField label={t('form.name')} required value={name} onChange={(e) => setName(e.target.value)} />
+          <TextField label={t('form.description')} multiline minRows={2} value={description} onChange={(e) => setDescription(e.target.value)} />
+          <TextField label={t('form.endpoint')} required value={endpoint} onChange={(e) => setEndpoint(e.target.value)} helperText={t('form.endpointHelp')} />
+          <TextField select label={t('form.transport')} value={transport} onChange={(e) => setTransport(e.target.value as McpServerTransport)}>
+            {TRANSPORTS.map((option) => (
+              <MenuItem key={option} value={option}>
+                {t(`transports.${option}`)}
               </MenuItem>
             ))}
           </TextField>
-          <TextField select label="Authentication type" value={authenticationType} onChange={(e) => setAuthenticationType(e.target.value as McpAuthenticationType)}>
-            {AUTH_TYPES.map((t) => (
-              <MenuItem key={t} value={t}>
-                {t}
+          <TextField select label={t('form.authenticationType')} value={authenticationType} onChange={(e) => setAuthenticationType(e.target.value as McpAuthenticationType)}>
+            {AUTH_TYPES.map((option) => (
+              <MenuItem key={option} value={option}>
+                {t(`authTypes.${option}`)}
               </MenuItem>
             ))}
           </TextField>
           {!isEdit && !isUnauthenticated && (
             <TextField
-              label="Credential"
+              label={t('form.credential')}
               type="password"
               value={credential}
               onChange={(e) => setCredential(e.target.value)}
-              helperText="Stored encrypted server-side; never displayed again. Rotate credentials separately."
+              helperText={t('form.credentialHelp')}
             />
           )}
           {!isEdit && isUnauthenticated && (
             <FormControlLabel
               control={<Checkbox checked={requiresUnauthenticatedConfirmation} onChange={(e) => setRequiresUnauthenticatedConfirmation(e.target.checked)} />}
-              label="I understand this server requires no authentication and explicitly approve it"
+              label={t('form.unauthenticatedConfirmation')}
             />
           )}
           <FormControlLabel
             control={<Checkbox checked={allowInsecureTransport} onChange={(e) => setAllowInsecureTransport(e.target.checked)} />}
-            label="Allow insecure (non-TLS) transport"
+            label={t('form.allowInsecure')}
           />
           {allowInsecureTransport && (
             <TextField
-              label="Insecure transport justification"
+              label={t('form.insecureJustification')}
               required
               value={insecureTransportJustification}
               onChange={(e) => setInsecureTransportJustification(e.target.value)}
@@ -121,18 +128,18 @@ export function McpServerForm({ open, server, isSaving, errorMessage, onClose, o
           )}
           <FormControlLabel
             control={<Checkbox checked={endpointValidationOverride} onChange={(e) => setEndpointValidationOverride(e.target.checked)} />}
-            label="Override endpoint SSRF validation (private/loopback/link-local)"
+            label={t('form.endpointOverride')}
           />
           {endpointValidationOverride && (
             <TextField
-              label="Endpoint validation override justification"
+              label={t('form.endpointOverrideJustification')}
               required
               value={endpointValidationJustification}
               onChange={(e) => setEndpointValidationJustification(e.target.value)}
             />
           )}
           <TextField
-            label="Capability refresh interval (minutes)"
+            label={t('form.refreshInterval')}
             type="number"
             value={capabilityRefreshIntervalMinutes}
             onChange={(e) => setCapabilityRefreshIntervalMinutes(Number(e.target.value))}
@@ -141,9 +148,9 @@ export function McpServerForm({ open, server, isSaving, errorMessage, onClose, o
         </Stack>
       </DialogContent>
       <DialogActions>
-        <Button onClick={onClose}>Cancel</Button>
+        <Button onClick={onClose}>{t('form.cancel')}</Button>
         <Button variant="contained" disabled={!canSubmit || isSaving} onClick={handleSubmit}>
-          {isEdit ? 'Save changes' : 'Register server'}
+          {isEdit ? t('form.saveChanges') : t('form.register')}
         </Button>
       </DialogActions>
     </Dialog>

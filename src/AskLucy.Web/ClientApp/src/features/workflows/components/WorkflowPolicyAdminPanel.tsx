@@ -16,6 +16,7 @@ import {
 } from '@mui/material'
 import DeleteIcon from '@mui/icons-material/Delete'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useT } from '../../../i18n/useT'
 import { useWholeRowScroll } from '../../../hooks/useWholeRowScroll'
 import { AdminSectionActions } from '../../admin/components/AdminSectionActions'
 import { TableEmptyRow } from '../../../components/TableEmptyRow'
@@ -23,6 +24,7 @@ import { TableLoadingRow } from '../../../components/TableLoadingRow'
 import * as workflowPoliciesApi from '../api/workflowPoliciesApi'
 import type { SaveWorkflowPolicyInput, WorkflowPolicy } from '../api/workflowPoliciesApi'
 import { WorkflowPolicyFormDialog } from './WorkflowPolicyFormDialog'
+import { NODE_TYPES } from './workflowPolicyNodeTypes'
 
 const WORKFLOW_POLICIES_QUERY_KEY = ['admin', 'workflow-policies']
 
@@ -36,11 +38,18 @@ const WORKFLOW_POLICIES_QUERY_KEY = ['admin', 'workflow-policies']
  * that at least one of the two must be set).
  */
 export function WorkflowPolicyAdminPanel() {
+  const t = useT('admin.workflowPolicies')
   const queryClient = useQueryClient()
   const { data: policies, isLoading } = useQuery({ queryKey: WORKFLOW_POLICIES_QUERY_KEY, queryFn: workflowPoliciesApi.listWorkflowPolicies })
 
   const [isFormOpen, setIsFormOpen] = useState(false)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
+
+  // A node type the catalog does not know (a newer server) is shown as returned.
+  const nodeTypeLabel = (nodeType: string) =>
+    (NODE_TYPES as readonly string[]).includes(nodeType)
+      ? t(`nodeTypes.${nodeType as (typeof NODE_TYPES)[number]}`)
+      : nodeType
 
   const invalidate = () => queryClient.invalidateQueries({ queryKey: WORKFLOW_POLICIES_QUERY_KEY })
 
@@ -55,7 +64,7 @@ export function WorkflowPolicyAdminPanel() {
       setIsFormOpen(false)
       invalidate()
     },
-    onError: (err) => setErrorMessage(err instanceof Error ? err.message : 'Could not create the policy. Please try again.'),
+    onError: (err) => setErrorMessage(err instanceof Error ? err.message : t('panel.errors.create')),
   })
 
   const toggleEnabled = useMutation({
@@ -67,13 +76,13 @@ export function WorkflowPolicyAdminPanel() {
         isEnabled: !policy.isEnabled,
       }),
     onSuccess: invalidate,
-    onError: (err) => setErrorMessage(err instanceof Error ? err.message : 'Could not update the policy. Please try again.'),
+    onError: (err) => setErrorMessage(err instanceof Error ? err.message : t('panel.errors.update')),
   })
 
   const deletePolicy = useMutation({
     mutationFn: (id: string) => workflowPoliciesApi.deleteWorkflowPolicy(id),
     onSuccess: invalidate,
-    onError: (err) => setErrorMessage(err instanceof Error ? err.message : 'Could not delete the policy. Please try again.'),
+    onError: (err) => setErrorMessage(err instanceof Error ? err.message : t('panel.errors.delete')),
   })
 
   // While the body holds only the empty-state row, stretch the table over the whole container so
@@ -88,7 +97,7 @@ export function WorkflowPolicyAdminPanel() {
     <Box sx={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
       <AdminSectionActions>
         <Button variant="contained" onClick={openForm}>
-          New policy
+          {t('panel.newPolicy')}
         </Button>
       </AdminSectionActions>
 
@@ -103,30 +112,34 @@ export function WorkflowPolicyAdminPanel() {
           <Table sx={{ '& tr:last-child td': { border: 0 }, height: showsStatusRow ? '100%' : undefined }}>
             <TableHead>
               <TableRow>
-                <TableCell>Name</TableCell>
-                <TableCell>Node Type</TableCell>
-                <TableCell>Underlying Tool</TableCell>
-                <TableCell>Conditions</TableCell>
-                <TableCell>Enabled</TableCell>
-                <TableCell align="right">Actions</TableCell>
+                <TableCell>{t('panel.columns.name')}</TableCell>
+                <TableCell>{t('panel.columns.nodeType')}</TableCell>
+                <TableCell>{t('panel.columns.underlyingTool')}</TableCell>
+                <TableCell>{t('panel.columns.conditions')}</TableCell>
+                <TableCell>{t('panel.columns.enabled')}</TableCell>
+                <TableCell sx={{ textAlign: 'end' }}>{t('panel.columns.actions')}</TableCell>
               </TableRow>
             </TableHead>
             <TableBody>
               {isLoading && <TableLoadingRow colSpan={6} />}
               {!isLoading && (policies ?? []).length === 0 && (
-                <TableEmptyRow colSpan={6} message="No policies configured yet." />
+                <TableEmptyRow colSpan={6} message={t('panel.empty')} />
               )}
               {(policies ?? []).map((policy) => (
                 <TableRow key={policy.id}>
                   <TableCell>{policy.name}</TableCell>
-                  <TableCell>{policy.workflowNodeType && <Chip label={policy.workflowNodeType} size="small" />}</TableCell>
-                  <TableCell>{policy.underlyingToolName && <Chip label={policy.underlyingToolName} size="small" />}</TableCell>
-                  <TableCell>{policy.conditionsJson ?? 'Always'}</TableCell>
+                  <TableCell>{policy.workflowNodeType && <Chip label={nodeTypeLabel(policy.workflowNodeType)} size="small" />}</TableCell>
+                  <TableCell>{policy.underlyingToolName && (
+                      <Chip label={<bdi dir="ltr">{policy.underlyingToolName}</bdi>} size="small" />
+                    )}</TableCell>
+                  <TableCell>{policy.conditionsJson ?? t('panel.always')}</TableCell>
                   <TableCell>
-                    <Switch checked={policy.isEnabled} onChange={() => toggleEnabled.mutate(policy)} disabled={toggleEnabled.isPending} />
+                    <Switch
+                      checked={policy.isEnabled}
+                      slotProps={{ input: { 'aria-label': t('panel.enableAria', { name: policy.name }) } }} onChange={() => toggleEnabled.mutate(policy)} disabled={toggleEnabled.isPending} />
                   </TableCell>
-                  <TableCell align="right">
-                    <IconButton aria-label={`Delete ${policy.name}`} onClick={() => deletePolicy.mutate(policy.id)} disabled={deletePolicy.isPending}>
+                  <TableCell sx={{ textAlign: 'end' }}>
+                    <IconButton aria-label={t('panel.deleteAria', { name: policy.name })} onClick={() => deletePolicy.mutate(policy.id)} disabled={deletePolicy.isPending}>
                       <DeleteIcon fontSize="small" />
                     </IconButton>
                   </TableCell>

@@ -16,6 +16,7 @@ import {
 } from '@mui/material'
 import DeleteIcon from '@mui/icons-material/Delete'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useT } from '../../../i18n/useT'
 import { useWholeRowScroll } from '../../../hooks/useWholeRowScroll'
 import { AdminSectionActions } from '../../admin/components/AdminSectionActions'
 import { TableEmptyRow } from '../../../components/TableEmptyRow'
@@ -33,6 +34,7 @@ const AGENT_POLICIES_QUERY_KEY = ['admin', 'agent-policies']
  * enforces this regardless of what renders this component).
  */
 export function AgentPolicyAdminPanel() {
+  const t = useT('admin.agentPolicies')
   const queryClient = useQueryClient()
   const { data: policies, isLoading } = useQuery({ queryKey: AGENT_POLICIES_QUERY_KEY, queryFn: agentPoliciesApi.listAgentPolicies })
 
@@ -52,7 +54,7 @@ export function AgentPolicyAdminPanel() {
       setIsFormOpen(false)
       invalidate()
     },
-    onError: (err) => setErrorMessage(err instanceof Error ? err.message : 'Could not create the policy. Please try again.'),
+    onError: (err) => setErrorMessage(err instanceof Error ? err.message : t('panel.errors.create')),
   })
 
   const toggleEnabled = useMutation({
@@ -64,13 +66,13 @@ export function AgentPolicyAdminPanel() {
         isEnabled: !policy.isEnabled,
       }),
     onSuccess: invalidate,
-    onError: (err) => setErrorMessage(err instanceof Error ? err.message : 'Could not update the policy. Please try again.'),
+    onError: (err) => setErrorMessage(err instanceof Error ? err.message : t('panel.errors.update')),
   })
 
   const deletePolicy = useMutation({
     mutationFn: (id: string) => agentPoliciesApi.deleteAgentPolicy(id),
     onSuccess: invalidate,
-    onError: (err) => setErrorMessage(err instanceof Error ? err.message : 'Could not delete the policy. Please try again.'),
+    onError: (err) => setErrorMessage(err instanceof Error ? err.message : t('panel.errors.delete')),
   })
 
   // While the body holds only the empty-state row, stretch the table over the whole container so
@@ -85,7 +87,7 @@ export function AgentPolicyAdminPanel() {
     <Box sx={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
       <AdminSectionActions>
         <Button variant="contained" onClick={openForm}>
-          New policy
+          {t('panel.newPolicy')}
         </Button>
       </AdminSectionActions>
 
@@ -100,30 +102,32 @@ export function AgentPolicyAdminPanel() {
           <Table sx={{ '& tr:last-child td': { border: 0 }, height: showsStatusRow ? '100%' : undefined }}>
             <TableHead>
               <TableRow>
-                <TableCell>Name</TableCell>
-                <TableCell>Tool</TableCell>
-                <TableCell>Conditions</TableCell>
-                <TableCell>Enabled</TableCell>
-                <TableCell align="right">Actions</TableCell>
+                <TableCell>{t('panel.columns.name')}</TableCell>
+                <TableCell>{t('panel.columns.tool')}</TableCell>
+                <TableCell>{t('panel.columns.conditions')}</TableCell>
+                <TableCell>{t('panel.columns.enabled')}</TableCell>
+                <TableCell sx={{ textAlign: 'end' }}>{t('panel.columns.actions')}</TableCell>
               </TableRow>
             </TableHead>
             <TableBody>
               {isLoading && <TableLoadingRow colSpan={5} />}
               {!isLoading && (policies ?? []).length === 0 && (
-                <TableEmptyRow colSpan={5} message="No policies configured yet." />
+                <TableEmptyRow colSpan={5} message={t('panel.empty')} />
               )}
               {(policies ?? []).map((policy) => (
                 <TableRow key={policy.id}>
                   <TableCell>{policy.name}</TableCell>
                   <TableCell>
-                    <Chip label={policy.toolName} size="small" />
+                    <Chip label={<bdi dir="ltr">{policy.toolName}</bdi>} size="small" />
                   </TableCell>
-                  <TableCell>{policy.conditionsJson ?? 'Always'}</TableCell>
+                  <TableCell>{policy.conditionsJson ?? t('panel.always')}</TableCell>
                   <TableCell>
-                    <Switch checked={policy.isEnabled} onChange={() => toggleEnabled.mutate(policy)} disabled={toggleEnabled.isPending} />
+                    <Switch
+                      checked={policy.isEnabled}
+                      slotProps={{ input: { 'aria-label': t('panel.enableAria', { name: policy.name }) } }} onChange={() => toggleEnabled.mutate(policy)} disabled={toggleEnabled.isPending} />
                   </TableCell>
-                  <TableCell align="right">
-                    <IconButton aria-label={`Delete ${policy.name}`} onClick={() => deletePolicy.mutate(policy.id)} disabled={deletePolicy.isPending}>
+                  <TableCell sx={{ textAlign: 'end' }}>
+                    <IconButton aria-label={t('panel.deleteAria', { name: policy.name })} onClick={() => deletePolicy.mutate(policy.id)} disabled={deletePolicy.isPending}>
                       <DeleteIcon fontSize="small" />
                     </IconButton>
                   </TableCell>

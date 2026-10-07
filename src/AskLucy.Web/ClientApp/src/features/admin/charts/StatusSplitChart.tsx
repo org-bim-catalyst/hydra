@@ -2,6 +2,8 @@ import { useMemo } from 'react'
 import { Box, Stack, Typography, useTheme } from '@mui/material'
 import { scaleLinear } from 'd3'
 
+import { useT } from '../../../i18n/useT'
+
 interface StatusSplitChartProps {
   title: string
   primaryLabel: string
@@ -25,6 +27,7 @@ export function StatusSplitChart({
   secondaryCount,
 }: StatusSplitChartProps) {
   const theme = useTheme()
+  const t = useT('admin.dashboard')
   const total = primaryCount + secondaryCount
 
   const { primaryWidth, secondaryWidth } = useMemo(() => {
@@ -42,7 +45,7 @@ export function StatusSplitChart({
       </Typography>
       {total === 0 ? (
         <Typography variant="body2" color="text.secondary">
-          No registered users yet.
+          {t('noUsersYet')}
         </Typography>
       ) : (
         <>
@@ -51,12 +54,24 @@ export function StatusSplitChart({
             width="100%"
             height={BAR_HEIGHT}
             role="img"
-            aria-label={`${title}: ${primaryLabel} ${primaryCount}, ${secondaryLabel} ${secondaryCount}`}
+            direction="ltr"
+            aria-label={t('split.ariaLabel', {
+              title,
+              primaryLabel,
+              primaryCount,
+              secondaryLabel,
+              secondaryCount,
+            })}
           >
-            <rect x={0} y={0} width={primaryWidth} height={BAR_HEIGHT} fill={theme.palette.success.main} rx={4}>
-              <title>
-                {primaryLabel}: {primaryCount}
-              </title>
+            <rect
+              x={0}
+              y={0}
+              width={primaryWidth}
+              height={BAR_HEIGHT}
+              fill={theme.palette.success.main}
+              rx={4}
+            >
+              <title>{t('split.item', { label: primaryLabel, count: primaryCount })}</title>
             </rect>
             <rect
               x={primaryWidth}
@@ -66,22 +81,34 @@ export function StatusSplitChart({
               fill={theme.palette.grey[400]}
               rx={4}
             >
-              <title>
-                {secondaryLabel}: {secondaryCount}
-              </title>
+              <title>{t('split.item', { label: secondaryLabel, count: secondaryCount })}</title>
             </rect>
           </svg>
           <Stack direction="row" spacing={2} sx={{ mt: 1 }}>
             <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
-              <Box sx={{ width: 10, height: 10, borderRadius: '50%', bgcolor: theme.palette.success.main }} />
+              <Box
+                sx={{
+                  width: 10,
+                  height: 10,
+                  borderRadius: '50%',
+                  bgcolor: theme.palette.success.main,
+                }}
+              />
               <Typography variant="body2">
-                {primaryLabel}: {primaryCount}
+                {t('split.item', { label: primaryLabel, count: primaryCount })}
               </Typography>
             </Stack>
             <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
-              <Box sx={{ width: 10, height: 10, borderRadius: '50%', bgcolor: theme.palette.grey[400] }} />
+              <Box
+                sx={{
+                  width: 10,
+                  height: 10,
+                  borderRadius: '50%',
+                  bgcolor: theme.palette.grey[400],
+                }}
+              />
               <Typography variant="body2">
-                {secondaryLabel}: {secondaryCount}
+                {t('split.item', { label: secondaryLabel, count: secondaryCount })}
               </Typography>
             </Stack>
           </Stack>

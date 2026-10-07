@@ -12,6 +12,7 @@ import {
 } from '@mui/material'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { ApiError } from '../../../api/httpClient'
+import { useT } from '../../../i18n/useT'
 import * as adminRolesApi from '../api/adminRolesApi'
 import type { RoleSummary } from '../api/adminRolesApi'
 
@@ -23,9 +24,12 @@ interface DuplicateRoleDialogProps {
 
 const ROLES_QUERY_KEY = ['admin', 'roles']
 
-/** Suggests "Copy of X", trimmed to the 50-character name limit. */
-function suggestedName(roleName: string): string {
-  return `Copy of ${roleName}`.slice(0, 50)
+/**
+ * Suggests "Copy of X", trimmed to the 50-character name limit. The name is the field's value, so it is built here
+ * from the translated prefix, never through a message param (which would add direction isolates to the text).
+ */
+function suggestedName(prefix: string, roleName: string): string {
+  return `${prefix} ${roleName}`.slice(0, 50)
 }
 
 /**
@@ -34,8 +38,10 @@ function suggestedName(roleName: string): string {
  */
 export function DuplicateRoleDialog({ open, onClose, role }: DuplicateRoleDialogProps) {
   const queryClient = useQueryClient()
+  const t = useT('admin.roles')
+  const tc = useT('common')
   // Mounted fresh per open (the parent renders it conditionally), so these start from the role.
-  const [name, setName] = useState(() => suggestedName(role.name))
+  const [name, setName] = useState(() => suggestedName(t('duplicateDialog.copyPrefix'), role.name))
   const [description, setDescription] = useState(role.description ?? '')
   const [nameError, setNameError] = useState<string | null>(null)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
@@ -48,14 +54,14 @@ export function DuplicateRoleDialog({ open, onClose, role }: DuplicateRoleDialog
       onClose()
     },
     onError: (err: unknown) => {
-      setErrorMessage(err instanceof ApiError ? (err.detail ?? err.message) : 'Something went wrong. Please try again.')
+      setErrorMessage(err instanceof ApiError ? (err.detail ?? err.message) : tc('errors.generic'))
     },
   })
 
   const handleSave = () => {
     const trimmed = name.trim()
     if (trimmed.length < 2 || trimmed.length > 50) {
-      setNameError('Role name must be between 2 and 50 characters.')
+      setNameError(t('duplicateDialog.nameLength'))
       return
     }
     setNameError(null)
@@ -67,16 +73,16 @@ export function DuplicateRoleDialog({ open, onClose, role }: DuplicateRoleDialog
   return (
     <>
       <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth>
-        <DialogTitle>Duplicate {role.name}</DialogTitle>
+        <DialogTitle>{t('duplicateDialog.title', { name: role.name })}</DialogTitle>
         <DialogContent>
           <DialogContentText sx={{ mb: 2 }}>
             {permissionCount === 0
-              ? `${role.name} has no permissions to copy. Add a permission to it first, or create a new role instead.`
-              : `Saves a new custom role with ${role.name}'s ${permissionCount} permission${permissionCount === 1 ? '' : 's'}. No users are moved to it.`}
+              ? t('duplicateDialog.noPermissions', { name: role.name })
+              : t('duplicateDialog.summary', { name: role.name, count: permissionCount })}
           </DialogContentText>
           <TextField
             autoFocus
-            label="Name"
+            label={t('duplicateDialog.name')}
             fullWidth
             value={name}
             onChange={(e) => setName(e.target.value)}
@@ -86,7 +92,7 @@ export function DuplicateRoleDialog({ open, onClose, role }: DuplicateRoleDialog
             sx={{ mb: 2 }}
           />
           <TextField
-            label="Description"
+            label={t('duplicateDialog.description')}
             fullWidth
             multiline
             minRows={2}
@@ -96,13 +102,13 @@ export function DuplicateRoleDialog({ open, onClose, role }: DuplicateRoleDialog
           />
         </DialogContent>
         <DialogActions>
-          <Button onClick={onClose}>Cancel</Button>
+          <Button onClick={onClose}>{t('duplicateDialog.cancel')}</Button>
           <Button
             onClick={handleSave}
             variant="contained"
             disabled={duplicateMutation.isPending || permissionCount === 0}
           >
-            Duplicate
+            {t('duplicateDialog.confirm')}
           </Button>
         </DialogActions>
       </Dialog>

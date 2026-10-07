@@ -21,6 +21,7 @@ import { useQuery } from '@tanstack/react-query'
 import { TableEmptyRow } from '../../../../components/TableEmptyRow'
 import { TableLoadingRow } from '../../../../components/TableLoadingRow'
 import { useIsAdmin } from '../../../../hooks/useIsAdmin'
+import { useT } from '../../../../i18n/useT'
 import { useCan } from '../../../auth/hooks/usePermissions'
 import { useCustomModelDeploymentsHub } from '../../hooks/useCustomModelDeploymentsHub'
 import * as customModelsApi from '../../api/adminCustomModelsApi'
@@ -48,29 +49,33 @@ const STATE_COLOR: Record<DeploymentState, ChipProps['color']> = {
 }
 
 // Mirrors the domain's CustomModelFailureKind; a kind added server-side first is shown as it is.
-const FAILURE_KIND_LABEL: Record<string, string> = {
-  SourceNotFound: 'Source not found',
-  SourceUnavailable: 'Source unavailable',
-  SourceGatedOrPrivate: 'Gated or private',
-  SizeLimitExceeded: 'Too large',
-  UnsafeRepositoryPath: 'Unsafe file path',
-  ReservedFileName: 'Reserved file name',
-  IntegrityMismatch: 'Integrity mismatch',
-  DownloadStalled: 'Download stalled',
-  DiskSpaceExhausted: 'Out of disk space',
-  TargetNotConfigured: 'Not configured',
-  TargetAuthRejected: 'Sign-in rejected',
-  TargetTlsNotAccepted: 'TLS not accepted',
-  TargetCertificateInvalid: 'Invalid certificate',
-  TargetConnectionLost: 'Connection lost',
-  TargetWriteRejected: 'Write rejected',
-  TargetSizeMismatch: 'Size mismatch',
-  InterruptedByRestart: 'Interrupted by restart',
-  Unexpected: 'Unexpected error',
-}
+const FAILURE_KINDS = [
+  'SourceNotFound',
+  'SourceUnavailable',
+  'SourceGatedOrPrivate',
+  'SizeLimitExceeded',
+  'UnsafeRepositoryPath',
+  'ReservedFileName',
+  'IntegrityMismatch',
+  'DownloadStalled',
+  'DiskSpaceExhausted',
+  'TargetNotConfigured',
+  'TargetAuthRejected',
+  'TargetTlsNotAccepted',
+  'TargetCertificateInvalid',
+  'TargetConnectionLost',
+  'TargetWriteRejected',
+  'TargetSizeMismatch',
+  'InterruptedByRestart',
+  'Unexpected',
+] as const
+
+const isFailureKind = (kind: string): kind is (typeof FAILURE_KINDS)[number] =>
+  (FAILURE_KINDS as readonly string[]).includes(kind)
 
 /** specs/072 — Hugging Face repositories this server has deployed to the production host. */
 export function CustomModelsSection() {
+  const t = useT('admin.aiProviders')
   const isAdmin = useIsAdmin()
   const canManage = useCan('admin.custom-models.manage') || isAdmin
   const [addOpen, setAddOpen] = useState(false)
@@ -99,15 +104,15 @@ export function CustomModelsSection() {
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', p: 2 }}>
         <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
           <Typography id="custom-models-heading" variant="subtitle1" component="h2">
-            Custom models
+            {t('customModels.title')}
           </Typography>
           {statusQuery.data?.transport === 'FTP' && (
             <Chip
               size="small"
               color="warning"
               variant="outlined"
-              label="Plain FTP"
-              title="This server deploys over plain FTP, so files and credentials travel unencrypted."
+              label={t('customModels.plainFtp')}
+              title={t('customModels.plainFtpTooltip')}
             />
           )}
         </Stack>
@@ -124,13 +129,13 @@ export function CustomModelsSection() {
               '&:hover': { borderColor: 'text.secondary', bgcolor: 'action.hover' },
             }}
           >
-            Add model
+            {t('customModels.addModel')}
           </Button>
         )}
       </Box>
       {notConfigured && (
         <Alert severity="info" sx={{ mx: 2, mb: 2 }}>
-          Deployment not configured. Ask whoever runs this server to set up the deployment target first.
+          {t('customModels.notConfigured')}
         </Alert>
       )}
       {statusQuery.isError && (
@@ -139,16 +144,16 @@ export function CustomModelsSection() {
           sx={{ mx: 2, mb: 2 }}
           action={
             <Button color="inherit" size="small" onClick={() => void statusQuery.refetch()}>
-              Retry
+              {t('shared.retry')}
             </Button>
           }
         >
-          {errorMessage(statusQuery.error)}
+          {errorMessage(statusQuery.error, t)}
         </Alert>
       )}
       {connectionLost && (
         <Alert severity="warning" sx={{ mx: 2, mb: 2 }}>
-          Live updates disconnected — reconnecting…
+          {t('customModels.liveUpdatesLost')}
         </Alert>
       )}
       {listQuery.isError && (
@@ -157,54 +162,74 @@ export function CustomModelsSection() {
           sx={{ mx: 2, mb: 2 }}
           action={
             <Button color="inherit" size="small" onClick={() => void listQuery.refetch()}>
-              Retry
+              {t('shared.retry')}
             </Button>
           }
         >
-          {errorMessage(listQuery.error)}
+          {errorMessage(listQuery.error, t)}
         </Alert>
       )}
       <TableContainer sx={{ flex: 1, minHeight: 0, overflow: 'auto' }}>
         <Table size="small" stickyHeader aria-labelledby="custom-models-heading">
           <TableHead>
             <TableRow>
-              <TableCell>Name</TableCell>
-              <TableCell>Source</TableCell>
-              <TableCell>Destination</TableCell>
-              <TableCell>Size</TableCell>
-              <TableCell>State</TableCell>
-              <TableCell>Progress</TableCell>
-              <TableCell>Available</TableCell>
-              <TableCell>Actions</TableCell>
+              <TableCell>{t('customModels.columns.name')}</TableCell>
+              <TableCell>{t('customModels.columns.source')}</TableCell>
+              <TableCell>{t('customModels.columns.destination')}</TableCell>
+              <TableCell>{t('customModels.columns.size')}</TableCell>
+              <TableCell>{t('customModels.columns.state')}</TableCell>
+              <TableCell>{t('customModels.columns.progress')}</TableCell>
+              <TableCell>{t('customModels.columns.available')}</TableCell>
+              <TableCell>{t('shared.actions')}</TableCell>
             </TableRow>
           </TableHead>
           <TableBody>
             {listQuery.isLoading && <TableLoadingRow colSpan={COLUMNS} rows={3} />}
             {listQuery.isSuccess && models.length === 0 && (
-              <TableEmptyRow colSpan={COLUMNS} message="No custom models yet." />
+              <TableEmptyRow colSpan={COLUMNS} message={t('customModels.empty')} />
             )}
             {models.map((model) => (
               <TableRow key={model.id}>
                 <TableCell>
                   <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
-                    <span>{model.name}</span>
-                    {model.selectedForLocalWhisper && <Chip size="small" color="primary" label="Local Whisper" />}
+                    <bdi>{model.name}</bdi>
+                    {model.selectedForLocalWhisper && (
+                      <Chip size="small" color="primary" label={t('customModels.localWhisper')} />
+                    )}
                   </Stack>
                 </TableCell>
                 <TableCell>
-                  {model.repositoryId}@{model.revision}
+                  <bdi dir="ltr">
+                    {model.repositoryId}@{model.revision}
+                  </bdi>
                 </TableCell>
-                <TableCell>{model.destination}</TableCell>
-                <TableCell>{model.totalBytes === null ? '—' : formatBytes(model.totalBytes)}</TableCell>
+                <TableCell>
+                  <bdi dir="ltr">{model.destination}</bdi>
+                </TableCell>
+                <TableCell>
+                  {model.totalBytes === null ? (
+                    '—'
+                  ) : (
+                    <bdi dir="ltr">{formatBytes(model.totalBytes, t('shared.bytes'))}</bdi>
+                  )}
+                </TableCell>
                 <TableCell>
                   <Stack spacing={0.5} sx={{ alignItems: 'flex-start' }}>
-                    <Chip size="small" label={model.deploymentState} color={STATE_COLOR[model.deploymentState]} />
+                    <Chip
+                      size="small"
+                      label={t(`customModels.state.${model.deploymentState}`)}
+                      color={STATE_COLOR[model.deploymentState]}
+                    />
                     {model.deploymentState === 'Failed' && model.failureKind && (
                       <Chip
                         size="small"
                         variant="outlined"
                         color="error"
-                        label={FAILURE_KIND_LABEL[model.failureKind] ?? model.failureKind}
+                        label={
+                          isFailureKind(model.failureKind)
+                            ? t(`customModels.failureKind.${model.failureKind}`)
+                            : model.failureKind
+                        }
                       />
                     )}
                     {model.deploymentState === 'Failed' && model.failureReason && (
@@ -213,21 +238,31 @@ export function CustomModelsSection() {
                       </Typography>
                     )}
                     {model.overwrittenFileCount > 0 && (
-                      <Link component="button" variant="caption" onClick={() => setOverwrittenFor(model)}>
-                        {model.overwrittenFileCount === 1
-                          ? '1 file overwritten'
-                          : `${model.overwrittenFileCount} files overwritten`}
+                      <Link
+                        component="button"
+                        variant="caption"
+                        onClick={() => setOverwrittenFor(model)}
+                      >
+                        {t('customModels.filesOverwritten', { count: model.overwrittenFileCount })}
                       </Link>
                     )}
                   </Stack>
                 </TableCell>
                 <TableCell>
                   {IN_PROGRESS.includes(model.deploymentState) && (
-                    <CustomModelProgress model={model} canManage={canManage} phase={phaseById[model.id]} />
+                    <CustomModelProgress
+                      model={model}
+                      canManage={canManage}
+                      phase={phaseById[model.id]}
+                    />
                   )}
                 </TableCell>
                 <TableCell>
-                  {canManage ? <CustomModelAvailabilitySwitch model={model} /> : model.availability}
+                  {canManage ? (
+                    <CustomModelAvailabilitySwitch model={model} />
+                  ) : (
+                    t(`customModels.availability.${model.availability}`)
+                  )}
                 </TableCell>
                 <TableCell>
                   {canManage && (model.canRemove || model.selectedForLocalWhisper) && (

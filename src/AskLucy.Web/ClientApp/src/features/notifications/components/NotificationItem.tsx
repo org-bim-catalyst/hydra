@@ -1,26 +1,13 @@
 import { Box, ButtonBase, Card, CardActionArea, CardContent, Chip, Stack, Typography } from '@mui/material'
 import { useNavigate } from 'react-router'
-import type { NotificationCategory, NotificationItem as NotificationItemDto, NotificationPriority } from '../api/notificationsApi'
-import { formatRelativeTime } from '../utils/relativeTime'
+import type { NotificationItem as NotificationItemDto, NotificationPriority } from '../api/notificationsApi'
+import { useFormat, useT } from '../../../i18n/useT'
 
 const PRIORITY_COLOR: Record<NotificationPriority, 'default' | 'info' | 'warning' | 'error'> = {
   Low: 'default',
   Normal: 'info',
   High: 'warning',
   Critical: 'error',
-}
-
-const CATEGORY_LABEL: Record<NotificationCategory, string> = {
-  Security: 'Security',
-  Account: 'Account',
-  Agent: 'Agent',
-  Workflow: 'Workflow',
-  Document: 'Document',
-  KnowledgeBase: 'Knowledge base',
-  Memory: 'Memory',
-  System: 'System',
-  Billing: 'Billing',
-  Conversation: 'Conversation',
 }
 
 export interface NotificationItemProps {
@@ -32,10 +19,16 @@ export interface NotificationItemProps {
 /**
  * T069 — title and message are rendered through JSX text nodes only, never
  * `dangerouslySetInnerHTML` (contracts/notifications-api.md: they are plain text, and a `<b>`
- * payload must show up literally, not as bold).
+ * payload must show up literally, not as bold). The title and message come from the server already in the
+ * notification's own language (FR-044c); only the chrome around them is translated here.
+ *
+ * Not wrapped in its own `LocalizedSurface`: it is only ever rendered inside the popover or the page, which are.
  */
 export function NotificationItem({ item, onOpen, dense = false }: NotificationItemProps) {
   const navigate = useNavigate()
+  const t = useT('notifications')
+  const tc = useT('common')
+  const format = useFormat()
   const isUnread = item.readAtUtc === null
 
   const handleClick = () => {
@@ -57,7 +50,7 @@ export function NotificationItem({ item, onOpen, dense = false }: NotificationIt
         sx={{
           display: 'block',
           width: '100%',
-          textAlign: 'left',
+          textAlign: 'start',
           px: 2,
           py: 1.25,
           borderRadius: 0,
@@ -67,7 +60,7 @@ export function NotificationItem({ item, onOpen, dense = false }: NotificationIt
         <Stack direction="row" sx={{ alignItems: 'flex-start', gap: 1 }}>
           <Box sx={{ width: 8, flexShrink: 0, mt: 0.75 }}>
             {isUnread && (
-              <Box aria-label="Unread" role="status" sx={{ width: 8, height: 8, borderRadius: '50%', bgcolor: 'primary.main' }} />
+              <Box aria-label={t('center.unread')} role="status" sx={{ width: 8, height: 8, borderRadius: '50%', bgcolor: 'primary.main' }} />
             )}
           </Box>
           <Box sx={{ flex: 1, minWidth: 0 }}>
@@ -87,8 +80,8 @@ export function NotificationItem({ item, onOpen, dense = false }: NotificationIt
               {item.message}
             </Typography>
             <Typography variant="caption" color="text.disabled" sx={{ display: 'block', mt: 0.5 }}>
-              {formatRelativeTime(item.createdAtUtc)}
-              {item.relatedItem?.available === false && ' · No longer available'}
+              {format.relative(item.createdAtUtc, { justNow: t('center.justNow') })}
+              {item.relatedItem?.available === false && ` · ${tc('states.noLongerAvailable')}`}
             </Typography>
           </Box>
         </Stack>
@@ -103,7 +96,7 @@ export function NotificationItem({ item, onOpen, dense = false }: NotificationIt
           <Stack direction="row" sx={{ alignItems: 'flex-start', gap: 1 }}>
             {isUnread && (
               <Box
-                aria-label="Unread"
+                aria-label={t('center.unread')}
                 role="status"
                 sx={{ width: 8, height: 8, borderRadius: '50%', bgcolor: 'primary.main', mt: 0.75, flexShrink: 0 }}
               />
@@ -117,15 +110,15 @@ export function NotificationItem({ item, onOpen, dense = false }: NotificationIt
               </Typography>
 
               <Stack direction="row" spacing={1} sx={{ mt: 1.5, alignItems: 'center', flexWrap: 'wrap', gap: 1 }}>
-                <Chip size="small" variant="outlined" label={CATEGORY_LABEL[item.category]} />
+                <Chip size="small" variant="outlined" label={t(`categories.${item.category}`)} />
                 {(item.priority === 'High' || item.priority === 'Critical') && (
-                  <Chip size="small" label={item.priority} color={PRIORITY_COLOR[item.priority]} />
+                  <Chip size="small" label={t(`priorities.${item.priority}`)} color={PRIORITY_COLOR[item.priority]} />
                 )}
                 {item.relatedItem?.available === false && (
-                  <Chip size="small" variant="outlined" color="default" label="No longer available" />
+                  <Chip size="small" variant="outlined" color="default" label={tc('states.noLongerAvailable')} />
                 )}
                 <Typography variant="caption" color="text.secondary">
-                  {formatRelativeTime(item.createdAtUtc)}
+                  {format.relative(item.createdAtUtc, { justNow: t('center.justNow') })}
                 </Typography>
               </Stack>
             </Box>

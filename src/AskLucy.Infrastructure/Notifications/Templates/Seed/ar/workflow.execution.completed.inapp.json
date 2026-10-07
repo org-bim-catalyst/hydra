@@ -1,0 +1,6 @@
+{
+  "name": "اكتمال تشغيل سير العمل",
+  "title": "اكتمل سير العمل",
+  "message": "{{ workflowName }} انتهى خلال {{ duration }}.",
+  "actionLabel": "عرض النتائج"
+}

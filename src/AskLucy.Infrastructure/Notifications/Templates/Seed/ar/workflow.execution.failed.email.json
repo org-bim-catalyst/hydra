@@ -1,0 +1,12 @@
+{
+  "name": "فشل تشغيل سير العمل",
+  "subject": "فشل {{ workflowName }}",
+  "preheader": "تعذّر على {{ workflowName }} الاكتمال.",
+  "greeting": "مرحبًا {{ recipientDisplayName }}،",
+  "heading": "فشل سير عملك",
+  "bodyParagraphs": [
+    "تعذّر على {{ workflowName }} الاكتمال: {{ failureSummary }}"
+  ],
+  "safetyNote": "تصلك هذه الرسالة لأن إشعارات البريد الإلكتروني مفعّلة لـتحديثات سير العمل. يمكنك تغيير ذلك من الإعدادات › الإشعارات.",
+  "actionLabel": "عرض التشغيل"
+}

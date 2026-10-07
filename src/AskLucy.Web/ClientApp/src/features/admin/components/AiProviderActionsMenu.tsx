@@ -22,6 +22,7 @@ import VisibilityIcon from '@mui/icons-material/Visibility'
 import VisibilityOffIcon from '@mui/icons-material/VisibilityOff'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { ApiError } from '../../../api/httpClient'
+import { useT } from '../../../i18n/useT'
 import * as adminAiProvidersApi from '../api/adminAiProvidersApi'
 import type { AdminAiProvider } from '../api/adminAiProvidersApi'
 
@@ -35,27 +36,13 @@ type PendingAction = 'enable' | 'disable' | 'clearCredential' | null
 
 type Feedback = { severity: 'success' | 'error'; message: string } | null
 
-const CONFIRM_COPY: Record<Exclude<PendingAction, null>, { title: string; body: string }> = {
-  enable: {
-    title: 'Enable this provider?',
-    body: 'End users will be able to select it as soon as you confirm.',
-  },
-  disable: {
-    title: 'Disable this provider?',
-    body: 'End users will no longer be able to select it. Conversations that already used it keep their history.',
-  },
-  clearCredential: {
-    title: 'Clear this credential?',
-    body: 'This will also disable the provider — a provider can never stay enabled with no credential configured.',
-  },
-}
-
 /**
  * specs/007-admin-ai-provider-ui — enable/disable/set-credential/clear-credential actions
  * for one AI provider row, each confirm-gated (FR-010). Mirrors UserActionMenu.tsx's
  * menu + confirm-dialog composition.
  */
 export function AiProviderActionsMenu({ provider }: AiProviderActionsMenuProps) {
+  const t = useT('admin.aiProviders')
   const queryClient = useQueryClient()
   const [pendingAction, setPendingAction] = useState<PendingAction>(null)
   const [credentialDialogOpen, setCredentialDialogOpen] = useState(false)
@@ -66,7 +53,7 @@ export function AiProviderActionsMenu({ provider }: AiProviderActionsMenuProps) 
   const invalidate = () => queryClient.invalidateQueries({ queryKey: ADMIN_AI_PROVIDERS_QUERY_KEY })
 
   const onError = (err: unknown) => {
-    const message = err instanceof ApiError ? err.detail ?? err.message : 'Something went wrong. Please try again.'
+    const message = err instanceof ApiError ? err.detail ?? err.message : t('shared.genericError')
     setFeedback({ severity: 'error', message })
   }
 
@@ -74,7 +61,7 @@ export function AiProviderActionsMenu({ provider }: AiProviderActionsMenuProps) 
     mutationFn: (isEnabled: boolean) => adminAiProvidersApi.updateProvider(provider.id, { isEnabled }),
     onSuccess: (_, isEnabled) => {
       invalidate()
-      setFeedback({ severity: 'success', message: isEnabled ? 'Provider enabled.' : 'Provider disabled.' })
+      setFeedback({ severity: 'success', message: isEnabled ? t('actions.providerEnabled') : t('actions.providerDisabled') })
     },
     onError,
   })
@@ -83,7 +70,7 @@ export function AiProviderActionsMenu({ provider }: AiProviderActionsMenuProps) 
     mutationFn: (apiKey: string) => adminAiProvidersApi.setCredential(provider.id, apiKey),
     onSuccess: () => {
       invalidate()
-      setFeedback({ severity: 'success', message: 'Credential saved.' })
+      setFeedback({ severity: 'success', message: t('actions.credentialSaved') })
     },
     onError,
   })
@@ -100,12 +87,12 @@ export function AiProviderActionsMenu({ provider }: AiProviderActionsMenuProps) 
       invalidate()
       setFeedback(
         result.healthStatus === 'Healthy'
-          ? { severity: 'success', message: `${provider.displayName} is healthy.` }
+          ? { severity: 'success', message: t('actions.isHealthy', { name: provider.displayName }) }
           : {
               severity: 'error',
               // The server's own classified prose — already administrator-facing and free of
               // any vendor body or credential (FR-013).
-              message: result.healthFailureReason ?? `${provider.displayName} is unhealthy.`,
+              message: result.healthFailureReason ?? t('actions.isUnhealthy', { name: provider.displayName }),
             },
       )
     },
@@ -117,7 +104,7 @@ export function AiProviderActionsMenu({ provider }: AiProviderActionsMenuProps) 
     mutationFn: () => adminAiProvidersApi.clearCredential(provider.id),
     onSuccess: () => {
       invalidate()
-      setFeedback({ severity: 'success', message: 'Credential cleared and provider disabled.' })
+      setFeedback({ severity: 'success', message: t('actions.credentialCleared') })
     },
     onError,
   })
@@ -126,7 +113,7 @@ export function AiProviderActionsMenu({ provider }: AiProviderActionsMenuProps) 
     if (!provider.isEnabled && !provider.hasCredential) {
       // FR-003: already known client-side from the fetched row — no API call, no
       // confirmation dialog, just the explanation immediately.
-      setFeedback({ severity: 'error', message: 'This provider needs a credential before it can be enabled.' })
+      setFeedback({ severity: 'error', message: t('actions.needsCredential') })
       return
     }
     setPendingAction(provider.isEnabled ? 'disable' : 'enable')
@@ -153,29 +140,40 @@ export function AiProviderActionsMenu({ provider }: AiProviderActionsMenuProps) 
 
   const handleCredentialConfirm = () => {
     if (!apiKeyInput.trim()) {
-      setFeedback({ severity: 'error', message: 'An API key is required.' })
+      setFeedback({ severity: 'error', message: t('actions.apiKeyRequired') })
       return
     }
     setCredentialMutation.mutate(apiKeyInput);
     closeCredentialDialog()
   }
 
-  const credentialLabel = provider.hasCredential ? 'Replace credential' : 'Set credential'
-  const enableDisableLabel = provider.isEnabled ? 'Disable' : 'Enable'
-  const checkNowLabel = checkHealthMutation.isPending ? 'Checking…' : 'Check now'
+  const credentialLabel = provider.hasCredential ? t('actions.replaceCredential') : t('actions.setCredential')
+  const credentialAria = provider.hasCredential
+    ? t('actions.replaceCredentialFor', { name: provider.displayName })
+    : t('actions.setCredentialFor', { name: provider.displayName })
+  const enableDisableLabel = provider.isEnabled ? t('actions.disable') : t('actions.enable')
+  const enableDisableAria = provider.isEnabled
+    ? t('actions.disableProvider', { name: provider.displayName })
+    : t('actions.enableProvider', { name: provider.displayName })
+  const checkNowLabel = checkHealthMutation.isPending ? t('actions.checking') : t('actions.checkNow')
+  const confirmCopy = {
+    enable: { title: t('actions.confirmEnableTitle'), body: t('actions.confirmEnableBody') },
+    disable: { title: t('actions.confirmDisableTitle'), body: t('actions.confirmDisableBody') },
+    clearCredential: { title: t('actions.confirmClearTitle'), body: t('actions.confirmClearBody') },
+  }
 
   return (
     <>
       <Box sx={{ display: 'flex', gap: 0.5, justifyContent: 'flex-end' }}>
         <Tooltip title={credentialLabel}>
-          <IconButton size="small" aria-label={`${credentialLabel} for ${provider.displayName}`} onClick={openCredentialDialog}>
+          <IconButton size="small" aria-label={credentialAria} onClick={openCredentialDialog}>
             <KeyIcon fontSize="small" />
           </IconButton>
         </Tooltip>
         <Tooltip title={enableDisableLabel}>
           <IconButton
             size="small"
-            aria-label={`${enableDisableLabel} ${provider.displayName}`}
+            aria-label={enableDisableAria}
             onClick={handleEnableDisableClick}
           >
             <PowerSettingsNewIcon fontSize="small" />
@@ -185,7 +183,7 @@ export function AiProviderActionsMenu({ provider }: AiProviderActionsMenuProps) 
           <span>
             <IconButton
               size="small"
-              aria-label={`Check now for ${provider.displayName}`}
+              aria-label={t('actions.checkNowFor', { name: provider.displayName })}
               disabled={!provider.hasCredential || checkHealthMutation.isPending}
               onClick={() => checkHealthMutation.mutate()}
             >
@@ -193,11 +191,11 @@ export function AiProviderActionsMenu({ provider }: AiProviderActionsMenuProps) 
             </IconButton>
           </span>
         </Tooltip>
-        <Tooltip title="Clear credential">
+        <Tooltip title={t('actions.clearCredential')}>
           <span>
             <IconButton
               size="small"
-              aria-label={`Clear credential for ${provider.displayName}`}
+              aria-label={t('actions.clearCredentialFor', { name: provider.displayName })}
               disabled={!provider.hasCredential}
               onClick={() => setPendingAction('clearCredential')}
             >
@@ -210,14 +208,14 @@ export function AiProviderActionsMenu({ provider }: AiProviderActionsMenuProps) 
       <Dialog open={pendingAction !== null} onClose={() => setPendingAction(null)}>
         {pendingAction && (
           <>
-            <DialogTitle>{CONFIRM_COPY[pendingAction].title}</DialogTitle>
+            <DialogTitle>{confirmCopy[pendingAction].title}</DialogTitle>
             <DialogContent>
-              <DialogContentText>{CONFIRM_COPY[pendingAction].body}</DialogContentText>
+              <DialogContentText>{confirmCopy[pendingAction].body}</DialogContentText>
             </DialogContent>
             <DialogActions>
-              <Button onClick={() => setPendingAction(null)}>Cancel</Button>
+              <Button onClick={() => setPendingAction(null)}>{t('shared.cancel')}</Button>
               <Button onClick={handleConfirm} color={pendingAction === 'enable' ? 'primary' : 'error'} variant="contained" autoFocus>
-                Confirm
+                {t('shared.confirm')}
               </Button>
             </DialogActions>
           </>
@@ -226,16 +224,16 @@ export function AiProviderActionsMenu({ provider }: AiProviderActionsMenuProps) 
 
       <Dialog open={credentialDialogOpen} onClose={closeCredentialDialog} maxWidth="sm" fullWidth>
         <DialogTitle>
-          {provider.hasCredential ? 'Replace credential for' : 'Set credential for'} {provider.displayName}
+          {credentialAria}
         </DialogTitle>
         <DialogContent>
           <DialogContentText sx={{ mb: 2 }}>
-            The value is never shown again once saved.
+            {t('actions.credentialNeverShown')}
           </DialogContentText>
           <TextField
-            label="API key"
+            label={t('actions.apiKey')}
             type={showApiKey ? 'text' : 'password'}
-            placeholder="Please insert API key here"
+            placeholder={t('actions.apiKeyPlaceholder')}
             fullWidth
             autoFocus
             value={apiKeyInput}
@@ -245,7 +243,7 @@ export function AiProviderActionsMenu({ provider }: AiProviderActionsMenuProps) 
                 endAdornment: apiKeyInput.length > 0 && (
                   <InputAdornment position="end">
                     <IconButton
-                      aria-label={showApiKey ? 'Hide API key' : 'Show API key'}
+                      aria-label={showApiKey ? t('actions.hideApiKey') : t('actions.showApiKey')}
                       onClick={() => setShowApiKey((prev) => !prev)}
                       edge="end"
                     >
@@ -258,9 +256,9 @@ export function AiProviderActionsMenu({ provider }: AiProviderActionsMenuProps) 
           />
         </DialogContent>
         <DialogActions>
-          <Button onClick={closeCredentialDialog}>Cancel</Button>
+          <Button onClick={closeCredentialDialog}>{t('shared.cancel')}</Button>
           <Button onClick={handleCredentialConfirm} variant="contained">
-            Confirm
+            {t('shared.confirm')}
           </Button>
         </DialogActions>
       </Dialog>

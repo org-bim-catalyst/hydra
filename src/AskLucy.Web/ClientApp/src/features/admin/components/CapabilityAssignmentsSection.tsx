@@ -22,12 +22,18 @@ import {
 } from '@mui/material'
 import { visuallyHidden } from '@mui/utils'
 import { useMutation, useQueries, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useT } from '../../../i18n/useT'
 import { useWholeRowScroll } from '../../../hooks/useWholeRowScroll'
 import { ApiError } from '../../../api/httpClient'
 import { TableEmptyRow } from '../../../components/TableEmptyRow'
 import { TableLoadingRow } from '../../../components/TableLoadingRow'
 import * as adminAiProvidersApi from '../api/adminAiProvidersApi'
-import type { AdminAiProvider, AiCapability, AiCapabilityAssignment, AiCapabilitySettings } from '../api/adminAiProvidersApi'
+import type {
+  AdminAiProvider,
+  AiCapability,
+  AiCapabilityAssignment,
+  AiCapabilitySettings,
+} from '../api/adminAiProvidersApi'
 import { CapabilitySettingsDialog } from './CapabilitySettingsDialog'
 
 const CAPABILITY_QUERY_KEY = ['admin', 'ai-capabilities']
@@ -45,45 +51,41 @@ const SETTINGS_COLUMN_WIDTH = 96
 const COLUMN_COUNT = 4
 
 /**
- * Plain-language names and, more usefully, what breaks when the assigned provider stops working.
- * "LocationIntent" tells an administrator nothing; "the viewer never moves" tells them why they
- * are on this screen.
+ * Message keys of the plain-language names and, more usefully, what breaks when the assigned provider
+ * stops working. "LocationIntent" tells an administrator nothing; "the viewer never moves" tells them
+ * why they are on this screen. The text itself lives in the 'admin.aiCapabilities' catalog.
  */
-const CAPABILITY_COPY: Record<AiCapability, { label: string; consequence: string }> = {
-  Chat: {
-    label: 'Chat',
-    consequence: 'Answers the user in conversation. Every other capability here is background work.',
-  },
+const CAPABILITY_COPY_KEYS = {
+  Chat: { label: 'capabilities.Chat.label', consequence: 'capabilities.Chat.consequence' },
   LocationIntent: {
-    label: 'Location intent',
-    consequence: 'Decides whether a message asks to view a place. Without it the viewer never moves.',
+    label: 'capabilities.LocationIntent.label',
+    consequence: 'capabilities.LocationIntent.consequence',
   },
   MemoryExtraction: {
-    label: 'Memory extraction',
-    consequence: 'Reads finished conversations for facts worth remembering.',
+    label: 'capabilities.MemoryExtraction.label',
+    consequence: 'capabilities.MemoryExtraction.consequence',
   },
   MemoryConflictDetection: {
-    label: 'Memory conflict detection',
-    consequence: 'Decides whether a new memory contradicts a stored one.',
+    label: 'capabilities.MemoryConflictDetection.label',
+    consequence: 'capabilities.MemoryConflictDetection.consequence',
   },
   DocumentClassification: {
-    label: 'Document language and classification',
-    consequence: 'Detects the language and type of an uploaded document.',
+    label: 'capabilities.DocumentClassification.label',
+    consequence: 'capabilities.DocumentClassification.consequence',
   },
   BoundaryVision: {
-    label: 'Boundary vision',
-    consequence: 'Cross-checks a site boundary against satellite imagery. Currently requires Google Gemini.',
+    label: 'capabilities.BoundaryVision.label',
+    consequence: 'capabilities.BoundaryVision.consequence',
   },
   TurnOrchestration: {
-    label: 'Turn orchestration',
-    consequence: 'Decides what each chat turn needs — whether to act, and which capability to run.',
+    label: 'capabilities.TurnOrchestration.label',
+    consequence: 'capabilities.TurnOrchestration.consequence',
   },
   ImageGeneration: {
-    label: 'Image generation',
-    consequence:
-      'Draws images from a prompt — chat images and the site analysis map. Needs an image-capable model; it never falls back to a chat model.',
+    label: 'capabilities.ImageGeneration.label',
+    consequence: 'capabilities.ImageGeneration.consequence',
   },
-}
+} as const satisfies Record<AiCapability, { label: string; consequence: string }>
 
 type AssignVariables = { capability: AiCapability; providerId: string | null; modelId?: string }
 
@@ -102,9 +104,16 @@ interface CapabilityAssignmentsSectionProps {
  * had run out while the operator's own chat ran fine on another.
  */
 export function CapabilityAssignmentsSection({ providers }: CapabilityAssignmentsSectionProps) {
+  const t = useT('admin.aiCapabilities')
   const queryClient = useQueryClient()
-  const [feedback, setFeedback] = useState<{ severity: 'success' | 'error'; message: string } | null>(null)
-  const [configuring, setConfiguring] = useState<{ settings: AiCapabilitySettings; label: string } | null>(null)
+  const [feedback, setFeedback] = useState<{
+    severity: 'success' | 'error'
+    message: string
+  } | null>(null)
+  const [configuring, setConfiguring] = useState<{
+    settings: AiCapabilitySettings
+    label: string
+  } | null>(null)
 
   const { data: assignments, isLoading: assignmentsLoading } = useQuery({
     queryKey: CAPABILITY_QUERY_KEY,
@@ -118,7 +127,9 @@ export function CapabilityAssignmentsSection({ providers }: CapabilityAssignment
    * appear in its final shape; holding it only until the assignments arrived meant rows appeared
    * with "Loading models…" in every model dropdown and settled one by one afterwards.
    */
-  const assignedProviderIds = [...new Set((assignments ?? []).map((a) => a.providerId).filter((id) => id !== null))]
+  const assignedProviderIds = [
+    ...new Set((assignments ?? []).map((a) => a.providerId).filter((id) => id !== null)),
+  ]
   const modelQueries = useQueries({
     queries: assignedProviderIds.map((providerId) => ({
       queryKey: ['admin', 'ai-models', providerId],
@@ -140,7 +151,8 @@ export function CapabilityAssignmentsSection({ providers }: CapabilityAssignment
 
   // A failed fetch ends the wait like a successful one does; the row that needed it says so
   // itself, in the caption under its model dropdown.
-  const isLoading = assignmentsLoading || settingsLoading || modelQueries.some((query) => query.isLoading)
+  const isLoading =
+    assignmentsLoading || settingsLoading || modelQueries.some((query) => query.isLoading)
 
   const assignMutation = useMutation({
     mutationFn: ({ capability, providerId, modelId }: AssignVariables) =>
@@ -149,14 +161,14 @@ export function CapabilityAssignmentsSection({ providers }: CapabilityAssignment
         : adminAiProvidersApi.setCapabilityAssignment(capability, providerId),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: CAPABILITY_QUERY_KEY })
-      setFeedback({ severity: 'success', message: 'Capability assignment saved.' })
+      setFeedback({ severity: 'success', message: t('feedback.assignmentSaved') })
     },
     // constitution VIII: a rejected assignment must reach the user. The server explains exactly
     // why — a provider that is not enabled, or one with no usable default model.
     onError: (err: unknown) => {
       setFeedback({
         severity: 'error',
-        message: err instanceof ApiError ? err.detail ?? err.message : 'Something went wrong. Please try again.',
+        message: err instanceof ApiError ? (err.detail ?? err.message) : t('feedback.failed'),
       })
     },
   })
@@ -182,22 +194,27 @@ export function CapabilityAssignmentsSection({ providers }: CapabilityAssignment
 
   return (
     <Box sx={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
-      <TableContainer ref={tableRef} component={Paper} variant="outlined" sx={{ flex: 1, minHeight: 0, overflow: 'auto', maxHeight: tableMaxHeight, mb: 2 }}>
+      <TableContainer
+        ref={tableRef}
+        component={Paper}
+        variant="outlined"
+        sx={{ flex: 1, minHeight: 0, overflow: 'auto', maxHeight: tableMaxHeight, mb: 2 }}
+      >
         <Table size="small" sx={{ height: showsStatusRow ? '100%' : undefined }}>
           <TableHead>
             <TableRow>
-              <TableCell>Capability</TableCell>
-              <TableCell sx={{ width: PROVIDER_CONTROL_WIDTH }}>Assigned provider</TableCell>
-              <TableCell sx={{ width: MODEL_CONTROL_WIDTH }}>Model</TableCell>
+              <TableCell>{t('columns.capability')}</TableCell>
+              <TableCell sx={{ width: PROVIDER_CONTROL_WIDTH }}>{t('columns.provider')}</TableCell>
+              <TableCell sx={{ width: MODEL_CONTROL_WIDTH }}>{t('columns.model')}</TableCell>
               <TableCell align="center" sx={{ width: SETTINGS_COLUMN_WIDTH }}>
-                Settings
+                {t('columns.settings')}
               </TableCell>
             </TableRow>
           </TableHead>
           <TableBody>
             {isLoading && <TableLoadingRow colSpan={COLUMN_COUNT} />}
             {!isLoading && (assignments ?? []).length === 0 && (
-              <TableEmptyRow colSpan={COLUMN_COUNT} message="No capabilities found." />
+              <TableEmptyRow colSpan={COLUMN_COUNT} message={t('empty')} />
             )}
             {/*
               Gated on the same flag as the skeleton, not just on having data: the assignments
@@ -210,10 +227,14 @@ export function CapabilityAssignmentsSection({ providers }: CapabilityAssignment
                 // capability enum, so a capability added there before this table knows about it
                 // would otherwise throw during render and take the whole page to the error
                 // boundary. That is exactly what "Chat" did.
-                const copy = CAPABILITY_COPY[assignment.capability] ?? {
-                  label: assignment.capability,
-                  consequence: 'No description available for this capability yet.',
-                }
+                const copyKeys = CAPABILITY_COPY_KEYS[assignment.capability] as
+                  (typeof CAPABILITY_COPY_KEYS)[AiCapability] | undefined
+                const copy = copyKeys
+                  ? { label: t(copyKeys.label), consequence: t(copyKeys.consequence) }
+                  : {
+                      label: assignment.capability,
+                      consequence: t('capabilities.unknown.consequence'),
+                    }
                 return (
                   <CapabilityRow
                     key={assignment.capability}
@@ -228,7 +249,10 @@ export function CapabilityAssignmentsSection({ providers }: CapabilityAssignment
                         ? providers.filter((p) => p.isEnabled && p.hasCredential)
                         : selectable
                     }
-                    settings={capabilitySettings?.find((s) => s.capability === assignment.capability) ?? null}
+                    settings={
+                      capabilitySettings?.find((s) => s.capability === assignment.capability) ??
+                      null
+                    }
                     onConfigure={(settings) => setConfiguring({ settings, label: copy.label })}
                     disabled={assignMutation.isPending}
                     onAssign={(providerId, modelId) =>
@@ -245,12 +269,7 @@ export function CapabilityAssignmentsSection({ providers }: CapabilityAssignment
         </Table>
       </TableContainer>
 
-      <Alert severity="info">
-        Each capability runs on the provider assigned here. Leave its model on &ldquo;Provider
-        default&rdquo; to follow that provider&apos;s default model, or pick a different one of
-        its models for this capability alone. Image generation must pick an image-capable model:
-        a provider&apos;s default is a chat model and cannot draw.
-      </Alert>
+      <Alert severity="info">{t('info')}</Alert>
 
       {settingsFailed && (
         <Alert
@@ -258,23 +277,26 @@ export function CapabilityAssignmentsSection({ providers }: CapabilityAssignment
           sx={{ mt: 2 }}
           action={
             <Button color="inherit" size="small" onClick={() => void refetchSettings()}>
-              Retry
+              {t('retry')}
             </Button>
           }
         >
-          Couldn&apos;t load the capability settings, so every settings button is disabled.
+          {t('settingsLoadFailed')}
         </Alert>
       )}
 
       {selectable.length === 0 && (
         <Alert severity="warning" sx={{ mt: 2 }}>
-          No provider can be assigned yet. Enable a provider with its credential on the Providers
-          page, then give it a default model on the Default models page.
+          {t('noProviderAssignable')}
         </Alert>
       )}
 
       <Snackbar open={feedback !== null} autoHideDuration={5000} onClose={() => setFeedback(null)}>
-        <Alert severity={feedback?.severity ?? 'info'} variant="filled" onClose={() => setFeedback(null)}>
+        <Alert
+          severity={feedback?.severity ?? 'info'}
+          variant="filled"
+          onClose={() => setFeedback(null)}
+        >
           {feedback?.message}
         </Alert>
       </Snackbar>
@@ -286,7 +308,7 @@ export function CapabilityAssignmentsSection({ providers }: CapabilityAssignment
         onSaved={() => {
           setConfiguring(null)
           void queryClient.invalidateQueries({ queryKey: CAPABILITY_SETTINGS_QUERY_KEY })
-          setFeedback({ severity: 'success', message: 'Capability settings saved.' })
+          setFeedback({ severity: 'success', message: t('feedback.settingsSaved') })
         }}
       />
     </Box>
@@ -319,7 +341,17 @@ interface CapabilityRowProps {
  * there the provider choice is held locally until a model is picked, and "Provider default" is
  * not offered at all.
  */
-function CapabilityRow({ assignment, label, consequence, providers, settings, onConfigure, disabled, onAssign }: CapabilityRowProps) {
+function CapabilityRow({
+  assignment,
+  label,
+  consequence,
+  providers,
+  settings,
+  onConfigure,
+  disabled,
+  onAssign,
+}: CapabilityRowProps) {
+  const t = useT('admin.aiCapabilities')
   const needsPinnedModel = assignment.capability === 'ImageGeneration'
   const [providerId, setProviderId] = useState<string>(assignment.providerId ?? '')
 
@@ -335,7 +367,8 @@ function CapabilityRow({ assignment, label, consequence, providers, settings, on
 
   // The same two rules the server validates, plus image output where the capability demands it.
   const selectableModels = (models ?? []).filter(
-    (model) => model.status === 'Available' && (!needsPinnedModel || model.capabilities.imageOutput),
+    (model) =>
+      model.status === 'Available' && (!needsPinnedModel || model.capabilities.imageOutput),
   )
 
   // Only meaningful while the row still shows the saved provider: after switching, the saved pin
@@ -346,11 +379,13 @@ function CapabilityRow({ assignment, label, consequence, providers, settings, on
     ? ((models ?? []).find((m) => m.id === provider.defaultModelId)?.displayName ?? null)
     : null
 
-  const providerDefaultLabel = providerDefaultModel ? `Provider default · ${providerDefaultModel}` : 'Provider default'
+  const providerDefaultLabel = providerDefaultModel
+    ? t('row.providerDefaultWithModel', { model: providerDefaultModel })
+    : t('row.providerDefault')
   const modelPlaceholder = modelsLoading
-    ? 'Loading models…'
+    ? t('row.loadingModels')
     : needsPinnedModel
-      ? 'Please select image model'
+      ? t('row.selectImageModel')
       : providerDefaultLabel
 
   /**
@@ -361,12 +396,12 @@ function CapabilityRow({ assignment, label, consequence, providers, settings, on
   const unusableReason = modelsLoading
     ? null
     : modelsFailed
-      ? "Couldn't load this provider's models. Reload the page to try again."
+      ? t('row.modelsLoadFailed')
       : selectableModels.length > 0
         ? null
         : needsPinnedModel
-          ? 'This provider has no Available model marked as able to produce images. Add or enable one on the Models page.'
-          : 'This provider has no Available model. Mark one Available on the Models page.'
+          ? t('row.noImageModel')
+          : t('row.noAvailableModel')
 
   const handleProviderChange = (value: string) => {
     setProviderId(value)
@@ -391,7 +426,7 @@ function CapabilityRow({ assignment, label, consequence, providers, settings, on
         */}
         <FormControl size="small" fullWidth>
           <InputLabel id={`${assignment.capability}-label`} sx={visuallyHidden}>
-            {`Provider for ${label}`}
+            {t('row.providerFor', { capability: label })}
           </InputLabel>
           <Select
             labelId={`${assignment.capability}-label`}
@@ -406,7 +441,7 @@ function CapabilityRow({ assignment, label, consequence, providers, settings, on
             renderValue={(value) =>
               providers.find((p) => p.id === value)?.displayName ?? (
                 <Typography component="span" variant="body2" color="text.secondary">
-                  {providers.length === 0 ? 'No AI provider available' : 'Please select AI provider'}
+                  {providers.length === 0 ? t('row.noProviderAvailable') : t('row.selectProvider')}
                 </Typography>
               )
             }
@@ -422,7 +457,7 @@ function CapabilityRow({ assignment, label, consequence, providers, settings, on
       <TableCell sx={{ width: MODEL_CONTROL_WIDTH }}>
         {providerId === '' ? (
           <Typography variant="body2" color="text.secondary" sx={{ width: MODEL_CONTROL_WIDTH }}>
-            Assign a provider first
+            {t('row.assignProviderFirst')}
           </Typography>
         ) : unusableReason !== null ? (
           /*
@@ -439,10 +474,12 @@ function CapabilityRow({ assignment, label, consequence, providers, settings, on
             {unusableReason}
           </Typography>
         ) : (
-          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5, width: MODEL_CONTROL_WIDTH }}>
+          <Box
+            sx={{ display: 'flex', flexDirection: 'column', gap: 0.5, width: MODEL_CONTROL_WIDTH }}
+          >
             <FormControl size="small" fullWidth>
               <InputLabel id={`${assignment.capability}-model-label`} sx={visuallyHidden}>
-                {`Model for ${label}`}
+                {t('row.modelFor', { capability: label })}
               </InputLabel>
               <Select
                 labelId={`${assignment.capability}-model-label`}
@@ -450,7 +487,9 @@ function CapabilityRow({ assignment, label, consequence, providers, settings, on
                 value={pinnedModelId}
                 displayEmpty
                 disabled={disabled || modelsLoading}
-                onChange={(event) => onAssign(providerId, event.target.value === '' ? null : event.target.value)}
+                onChange={(event) =>
+                  onAssign(providerId, event.target.value === '' ? null : event.target.value)
+                }
                 renderValue={(value) =>
                   selectableModels.find((m) => m.id === value)?.displayName ?? (
                     <Typography component="span" variant="body2" color="text.secondary">
@@ -491,13 +530,16 @@ function SettingsButton({
   settings: AiCapabilitySettings | null
   onConfigure: (settings: AiCapabilitySettings) => void
 }) {
+  const t = useT('admin.aiCapabilities')
   const configurable = settings !== null && settings.settings.length > 0
   return (
-    <Tooltip title={configurable ? `Configure ${label}` : 'Nothing to configure'}>
+    <Tooltip
+      title={configurable ? t('row.configure', { capability: label }) : t('row.nothingToConfigure')}
+    >
       <span>
         <IconButton
           size="small"
-          aria-label={`Settings for ${label}`}
+          aria-label={t('row.settingsFor', { capability: label })}
           disabled={!configurable}
           onClick={() => configurable && onConfigure(settings)}
         >

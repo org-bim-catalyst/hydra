@@ -20,6 +20,8 @@ import { visuallyHidden } from '@mui/utils'
 import { useQuery } from '@tanstack/react-query'
 import { useSearchParams } from 'react-router'
 import { useIsAdmin } from '../../../hooks/useIsAdmin'
+import { LocalizedSurface } from '../../../i18n/LocalizedSurface'
+import { useT } from '../../../i18n/useT'
 import { useWholeRowScroll } from '../../../hooks/useWholeRowScroll'
 import { useCan } from '../../auth/hooks/usePermissions'
 import * as adminAiProvidersApi from '../api/adminAiProvidersApi'
@@ -40,6 +42,16 @@ const ADMIN_AI_PROVIDERS_QUERY_KEY = ['admin', 'ai-providers']
  * (specs/005-multi-provider-ai-engine). Mirrors AdminUsersPage.tsx's table shape.
  */
 export function AdminAiProvidersPage() {
+  // The page's own strings are resolved before AdminShell mounts its surface, so it has to sit in one too.
+  return (
+    <LocalizedSurface scope="subtree">
+      <AdminAiProvidersPageContent />
+    </LocalizedSurface>
+  )
+}
+
+function AdminAiProvidersPageContent() {
+  const t = useT('admin.aiProviders')
   // The page is reachable with any of several view permissions (adminNav.tsx), so each part asks
   // for its own rather than letting a caller without it hit a 403 (specs/072 research D11).
   const isAdmin = useIsAdmin()
@@ -78,13 +90,12 @@ export function AdminAiProvidersPage() {
 
   return (
     <AdminShell
-      title="AI providers"
-      subtitle="Enable a provider, configure its credential, and mark which of its models are available"
-
+      title={t('page.title')}
+      subtitle={t('page.subtitle')}
     >
       {selectionIsMissing && (
         <Alert severity="info" sx={{ mb: 2 }}>
-          The provider this link pointed to no longer exists.
+          {t('page.selectionMissing')}
         </Alert>
       )}
       {canViewProviders && (
@@ -96,7 +107,7 @@ export function AdminAiProvidersPage() {
           sx={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}
         >
           <Typography id="frontier-models-heading" variant="subtitle1" component="h2" sx={{ p: 2 }}>
-            Frontier models
+            {t('page.frontierModels')}
           </Typography>
           <TableContainer ref={tableRef} sx={{ flex: 1, minHeight: 0, overflow: 'auto', maxHeight: tableMaxHeight }}>
             <Table stickyHeader aria-labelledby="frontier-models-heading" sx={{ height: showsStatusRow ? '100%' : undefined }}>
@@ -104,22 +115,22 @@ export function AdminAiProvidersPage() {
                 <TableRow>
                   <TableCell>
                     <Box component="span" sx={visuallyHidden}>
-                      Expand
+                      {t('page.expand')}
                     </Box>
                   </TableCell>
-                  <TableCell>Provider</TableCell>
-                  <TableCell>Enabled</TableCell>
-                  <TableCell>Credential</TableCell>
-                  <TableCell>Health</TableCell>
-                  <TableCell>Last confirmed</TableCell>
-                  <TableCell>Credential hint</TableCell>
-                  <TableCell align="right">Actions</TableCell>
+                  <TableCell>{t('page.columns.provider')}</TableCell>
+                  <TableCell>{t('page.columns.enabled')}</TableCell>
+                  <TableCell>{t('page.columns.credential')}</TableCell>
+                  <TableCell>{t('page.columns.health')}</TableCell>
+                  <TableCell>{t('page.columns.lastConfirmed')}</TableCell>
+                  <TableCell>{t('page.columns.credentialHint')}</TableCell>
+                  <TableCell sx={{ textAlign: 'end' }}>{t('shared.actions')}</TableCell>
                 </TableRow>
               </TableHead>
               <TableBody>
                 {isLoading && <TableLoadingRow colSpan={8} />}
                 {!isLoading && (providers ?? []).length === 0 && (
-                  <TableEmptyRow colSpan={8} message="No AI providers found." />
+                  <TableEmptyRow colSpan={8} message={t('page.noProviders')} />
                 )}
                 {providers?.map((provider) => {
                   const isExpanded = expandedProviderId === provider.id
@@ -132,8 +143,8 @@ export function AdminAiProvidersPage() {
                             size="small"
                             aria-label={
                               isExpanded
-                                ? `Collapse models for ${provider.displayName}`
-                                : `Expand models for ${provider.displayName}`
+                                ? t('page.collapseModels', { name: provider.displayName })
+                                : t('page.expandModels', { name: provider.displayName })
                             }
                             onClick={() => setExpandedProviderId(isExpanded ? null : provider.id)}
                           >
@@ -144,11 +155,13 @@ export function AdminAiProvidersPage() {
                             )}
                           </IconButton>
                         </TableCell>
-                        <TableCell>{provider.displayName}</TableCell>
+                        <TableCell>
+                          <bdi>{provider.displayName}</bdi>
+                        </TableCell>
                         <TableCell>
                           <Chip
                             size="small"
-                            label={provider.isEnabled ? 'Enabled' : 'Disabled'}
+                            label={provider.isEnabled ? t('shared.enabled') : t('shared.disabled')}
                             color={provider.isEnabled ? 'success' : 'default'}
                             variant="outlined"
                           />
@@ -156,7 +169,7 @@ export function AdminAiProvidersPage() {
                         <TableCell>
                           <Chip
                             size="small"
-                            label={provider.hasCredential ? 'Configured' : 'Not configured'}
+                            label={provider.hasCredential ? t('shared.configured') : t('shared.notConfigured')}
                             color={provider.hasCredential ? 'success' : 'default'}
                             variant="outlined"
                           />
@@ -169,10 +182,14 @@ export function AdminAiProvidersPage() {
                         </TableCell>
                         <TableCell>
                           <Typography variant="body2" color={provider.credentialHint ? 'text.primary' : 'text.secondary'}>
-                            {provider.credentialHint ?? 'Not set'}
+                            {provider.credentialHint ? (
+                              <bdi dir="ltr">{provider.credentialHint}</bdi>
+                            ) : (
+                              t('shared.notSet')
+                            )}
                           </Typography>
                         </TableCell>
-                        <TableCell align="right">
+                        <TableCell sx={{ textAlign: 'end' }}>
                           <AiProviderActionsMenu provider={provider} />
                         </TableCell>
                       </TableRow>

@@ -1,0 +1,6 @@
+{
+  "name": "طلب موافقة على وكيل",
+  "title": "الموافقة مطلوبة",
+  "message": "{{ agentName }} بانتظار موافقتك على: {{ intendedAction }}.",
+  "actionLabel": "مراجعة الطلب"
+}

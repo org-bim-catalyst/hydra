@@ -1,5 +1,6 @@
 import { Chip, Tooltip } from '@mui/material'
 import WarningAmberIcon from '@mui/icons-material/WarningAmber'
+import { useT } from '../../../i18n/useT'
 import type { AdminAiProvider } from '../api/adminAiProvidersApi'
 
 interface ProviderStalenessCellProps {
@@ -14,6 +15,7 @@ interface ProviderStalenessCellProps {
  * overlaps the row below.
  */
 export function ProviderStalenessCell({ provider, now = new Date() }: ProviderStalenessCellProps) {
+  const t = useT('admin.aiProviders')
   // FR-019: computed here, against the current clock, so a page left open turns stale on its
   // own rather than showing a verdict frozen when it was rendered.
   const isStale =
@@ -24,11 +26,11 @@ export function ProviderStalenessCell({ provider, now = new Date() }: ProviderSt
   }
 
   return (
-    <Tooltip title="This result has not been confirmed recently — the background health check may not be running.">
+    <Tooltip title={t('staleness.tooltip')}>
       <Chip
         size="small"
         icon={<WarningAmberIcon fontSize="small" />}
-        label="Possibly out of date"
+        label={t('staleness.label')}
         color="warning"
         variant="outlined"
       />

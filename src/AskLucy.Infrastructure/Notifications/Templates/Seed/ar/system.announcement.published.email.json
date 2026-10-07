@@ -1,0 +1,12 @@
+{
+  "name": "إعلان النظام",
+  "subject": "{{ announcementTitle }}",
+  "preheader": "{{ announcementTitle }}",
+  "greeting": "مرحبًا {{ recipientDisplayName }}،",
+  "heading": "{{ announcementTitle }}",
+  "bodyParagraphs": [
+    "{{ announcementMessage }}"
+  ],
+  "safetyNote": "تصلك هذه الرسالة لأنه إعلان مهم لجميع مستخدمي Ask Lucy.",
+  "actionLabel": "اقرأ المزيد"
+}

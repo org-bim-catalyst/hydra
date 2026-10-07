@@ -3,6 +3,7 @@ using AskLucy.Web.Auth;
 using MediatR;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
+using AskLucy.Web.Localization;
 
 namespace AskLucy.Web.Controllers.v1;
 
@@ -16,6 +17,7 @@ namespace AskLucy.Web.Controllers.v1;
 /// view-only catalogue area, no "manage" permission exists for it.
 /// </summary>
 [ApiController]
+[LocalizedSurface]
 [RequirePermission("admin.system-agents.view")]
 [EnableRateLimiting("admin-endpoints")]
 [Route("api/v1/admin/agents")]

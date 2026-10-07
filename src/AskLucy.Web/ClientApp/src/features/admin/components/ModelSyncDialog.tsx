@@ -20,6 +20,8 @@ import {
 } from '@mui/material'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { ApiError } from '../../../api/httpClient'
+import { useT } from '../../../i18n/useT'
+import type { Translate } from '../../../i18n/useT'
 import type { ProviderFailure } from '../../../api/httpClient'
 import * as adminAiProvidersApi from '../api/adminAiProvidersApi'
 import type { AddedProviderModel, ApplyProviderModelSyncResult, ProviderModelSyncDiff, RemovedProviderModel } from '../api/adminAiProvidersApi'
@@ -37,15 +39,15 @@ type Feedback = { severity: 'success' | 'error'; message: string; providerFailur
  * specs/043 FR-011/FR-012 — what the administrator should actually do about this failure.
  * Derived from the server's classification rather than guessed from the message text.
  */
-function nextStep(failure: ProviderFailure): string {
+function nextStep(failure: ProviderFailure, t: Translate<'admin.aiProviders'>): string {
   if (failure.canAdministratorAct) {
-    return 'This needs an administrator to fix it — the provider will keep failing until then.'
+    return t('sync.needsAdministrator')
   }
 
   // FR-012: convey the vendor's own hint, and never invent one when it supplied none.
   return failure.retryAfterSeconds !== null
-    ? `Nothing to fix — try again in about ${failure.retryAfterSeconds} seconds.`
-    : 'Nothing to fix — try again later.'
+    ? t('sync.retryInSeconds', { count: failure.retryAfterSeconds })
+    : t('sync.retryLater')
 }
 
 const matchesFilter = (filterText: string) => (model: { displayName: string; modelKey: string }) => {
@@ -70,6 +72,7 @@ const matchesFilter = (filterText: string) => (model: { displayName: string; mod
  * convention for genuine request errors.
  */
 export function ModelSyncDialog({ providerId, providerDisplayName, open, onClose }: ModelSyncDialogProps) {
+  const t = useT('admin.aiProviders')
   const queryClient = useQueryClient()
   const [diff, setDiff] = useState<ProviderModelSyncDiff | null>(null)
   const [filterText, setFilterText] = useState('')
@@ -79,7 +82,7 @@ export function ModelSyncDialog({ providerId, providerDisplayName, open, onClose
   const [feedback, setFeedback] = useState<Feedback>(null)
 
   const onError = (err: unknown) => {
-    const message = err instanceof ApiError ? err.detail ?? err.message : 'Something went wrong. Please try again.'
+    const message = err instanceof ApiError ? err.detail ?? err.message : t('shared.genericError')
     // specs/043 FR-010: for an administrator the server sends the specific classified reason
     // plus a machine-readable kind, so this stops being the generic "unexpected error" that
     // told nobody anything.
@@ -192,13 +195,13 @@ export function ModelSyncDialog({ providerId, providerDisplayName, open, onClose
           },
         }}
       >
-        <DialogTitle>Sync {providerDisplayName}'s catalog from the provider</DialogTitle>
+        <DialogTitle>{t('sync.title', { name: providerDisplayName })}</DialogTitle>
         {/* The filter and selected count sit outside DialogContent, so they stay in place while
             a long model list scrolls beneath them. */}
         {isReviewing && (
           <Box sx={{ px: 3, pb: 1 }}>
             <TextField
-              label="Filter by name or key"
+              label={t('sync.filterLabel')}
               size="small"
               fullWidth
               value={filterText}
@@ -206,7 +209,7 @@ export function ModelSyncDialog({ providerId, providerDisplayName, open, onClose
               sx={{ mb: 1 }}
             />
             <Typography variant="body2" color="text.secondary">
-              {totalSelected} selected
+              {t('sync.selectedCount', { count: totalSelected })}
             </Typography>
           </Box>
         )}
@@ -215,18 +218,18 @@ export function ModelSyncDialog({ providerId, providerDisplayName, open, onClose
             <Box>
               {applyResult.appliedModelKeys.length > 0 && (
                 <Alert severity="success" sx={{ mb: 2 }}>
-                  Applied {applyResult.appliedModelKeys.length} model{applyResult.appliedModelKeys.length === 1 ? '' : 's'}.
+                  {t('sync.applied', { count: applyResult.appliedModelKeys.length })}
                 </Alert>
               )}
               {applyResult.failed.length > 0 && (
                 <Box>
                   <Typography variant="subtitle2" color="error">
-                    Could not apply {applyResult.failed.length} model{applyResult.failed.length === 1 ? '' : 's'}
+                    {t('sync.couldNotApply', { count: applyResult.failed.length })}
                   </Typography>
                   <List dense>
                     {applyResult.failed.map((failure) => (
                       <ListItem key={failure.modelKey}>
-                        <ListItemText primary={failure.displayName} secondary={failure.reason} />
+                        <ListItemText primary={<bdi>{failure.displayName}</bdi>} secondary={failure.reason} />
                       </ListItem>
                     ))}
                   </List>
@@ -238,39 +241,39 @@ export function ModelSyncDialog({ providerId, providerDisplayName, open, onClose
             <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', py: 4 }}>
               {syncMutation.isError ? (
                 <DialogContentText align="center" color="error">
-                  Could not fetch {providerDisplayName}'s model list. See the notification for details.
+                  {t('sync.fetchFailed', { name: providerDisplayName })}
                 </DialogContentText>
               ) : (
                 <>
                   <CircularProgress size={32} />
                   <Typography variant="body2" color="text.secondary" sx={{ mt: 2 }}>
-                    Fetching models … please wait
+                    {t('sync.fetching')}
                   </Typography>
                 </>
               )}
             </Box>
           )}
           {!applyResult && diff !== null && hasNothingToReview && (
-            <DialogContentText>Nothing to review — the catalog already matches the provider.</DialogContentText>
+            <DialogContentText>{t('sync.nothingToReview')}</DialogContentText>
           )}
           {isReviewing && (
             <Box>
               {diff.added.length > 0 && (
                 <Box sx={{ mb: 2 }}>
                   <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <Typography variant="subtitle2">New at the provider ({diff.added.length})</Typography>
+                    <Typography variant="subtitle2">{t('sync.newAtProvider', { count: diff.added.length })}</Typography>
                     <Box>
                       <Button size="small" onClick={selectAllAdded}>
-                        Select all
+                        {t('sync.selectAll')}
                       </Button>
                       <Button size="small" onClick={selectNoneAdded}>
-                        Select none
+                        {t('sync.selectNone')}
                       </Button>
                     </Box>
                   </Box>
                   {addedFilterHasNoMatches ? (
                     <Typography variant="body2" color="text.secondary">
-                      No rows match your search.
+                      {t('sync.noRowsMatch')}
                     </Typography>
                   ) : (
                     <List dense>
@@ -280,10 +283,13 @@ export function ModelSyncDialog({ providerId, providerDisplayName, open, onClose
                             edge="start"
                             checked={selectedAddedKeys.has(model.modelKey)}
                             onChange={() => toggleAdded(model.modelKey)}
-                            slotProps={{ input: { 'aria-label': `Select ${model.displayName}` } }}
+                            slotProps={{ input: { 'aria-label': t('sync.selectModel', { name: model.displayName }) } }}
                           />
-                          <ListItemText primary={model.displayName} secondary={model.modelKey} />
-                          <Chip size="small" label="Will be added as Unavailable" variant="outlined" />
+                          <ListItemText
+                            primary={<bdi>{model.displayName}</bdi>}
+                            secondary={<bdi dir="ltr">{model.modelKey}</bdi>}
+                          />
+                          <Chip size="small" label={t('sync.willBeAdded')} variant="outlined" />
                         </ListItem>
                       ))}
                     </List>
@@ -293,19 +299,21 @@ export function ModelSyncDialog({ providerId, providerDisplayName, open, onClose
               {diff.removedFromVendor.length > 0 && (
                 <Box>
                   <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <Typography variant="subtitle2">No longer listed by the provider ({diff.removedFromVendor.length})</Typography>
+                    <Typography variant="subtitle2">
+                      {t('sync.noLongerListed', { count: diff.removedFromVendor.length })}
+                    </Typography>
                     <Box>
                       <Button size="small" onClick={selectAllRemoved}>
-                        Select all
+                        {t('sync.selectAll')}
                       </Button>
                       <Button size="small" onClick={selectNoneRemoved}>
-                        Select none
+                        {t('sync.selectNone')}
                       </Button>
                     </Box>
                   </Box>
                   {removedFilterHasNoMatches ? (
                     <Typography variant="body2" color="text.secondary">
-                      No rows match your search.
+                      {t('sync.noRowsMatch')}
                     </Typography>
                   ) : (
                     <List dense>
@@ -315,10 +323,13 @@ export function ModelSyncDialog({ providerId, providerDisplayName, open, onClose
                             edge="start"
                             checked={selectedRemovedIds.has(model.id)}
                             onChange={() => toggleRemoved(model.id)}
-                            slotProps={{ input: { 'aria-label': `Select ${model.displayName}` } }}
+                            slotProps={{ input: { 'aria-label': t('sync.selectModel', { name: model.displayName }) } }}
                           />
-                          <ListItemText primary={model.displayName} secondary={model.modelKey} />
-                          <Chip size="small" label="Will be marked Unavailable" variant="outlined" color="warning" />
+                          <ListItemText
+                            primary={<bdi>{model.displayName}</bdi>}
+                            secondary={<bdi dir="ltr">{model.modelKey}</bdi>}
+                          />
+                          <Chip size="small" label={t('sync.willBeMarked')} variant="outlined" color="warning" />
                         </ListItem>
                       ))}
                     </List>
@@ -331,14 +342,14 @@ export function ModelSyncDialog({ providerId, providerDisplayName, open, onClose
         <DialogActions>
           {applyResult ? (
             <Button onClick={handleClose} variant="contained" autoFocus>
-              Close
+              {t('shared.close')}
             </Button>
           ) : (
             <>
-              <Button onClick={handleDismiss}>{diff === null ? 'Cancel' : 'Dismiss'}</Button>
+              <Button onClick={handleDismiss}>{diff === null ? t('shared.cancel') : t('sync.dismiss')}</Button>
               {diff === null && syncMutation.isError && (
                 <Button onClick={() => syncMutation.mutate()} variant="contained">
-                  Try again
+                  {t('sync.tryAgain')}
                 </Button>
               )}
               {diff !== null && !hasNothingToReview && (
@@ -349,7 +360,7 @@ export function ModelSyncDialog({ providerId, providerDisplayName, open, onClose
                   disabled={applyMutation.isPending || totalSelected === 0}
                   autoFocus
                 >
-                  Confirm
+                  {t('shared.confirm')}
                 </Button>
               )}
             </>
@@ -371,7 +382,7 @@ export function ModelSyncDialog({ providerId, providerDisplayName, open, onClose
           {feedback?.message}
           {feedback?.providerFailure && (
             <Box component="span" sx={{ display: 'block', mt: 0.5, fontSize: '0.8125rem', opacity: 0.9 }}>
-              {nextStep(feedback.providerFailure)}
+              {nextStep(feedback.providerFailure, t)}
             </Box>
           )}
         </Alert>

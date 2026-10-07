@@ -1,6 +1,7 @@
 import { useMemo } from 'react'
 import { Box, Typography, useTheme } from '@mui/material'
 import { max as d3Max, scaleBand, scaleLinear } from 'd3'
+import { useT } from '../../../i18n/useT'
 import type { DailyUserCount } from '../api/adminApi'
 
 interface NewUsersTrendChartProps {
@@ -18,6 +19,7 @@ const MARGIN = { top: 12, right: 12, bottom: 24, left: 28 }
  */
 export function NewUsersTrendChart({ data }: NewUsersTrendChartProps) {
   const theme = useTheme()
+  const t = useT('admin.dashboard')
 
   const { bars, yTicks, width } = useMemo(() => {
     const width = 640
@@ -53,11 +55,11 @@ export function NewUsersTrendChart({ data }: NewUsersTrendChartProps) {
   return (
     <Box>
       <Typography variant="subtitle2" sx={{ mb: 1 }}>
-        New users — last 30 days
+        {t('trend.title')}
       </Typography>
       {isEmpty && (
         <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
-          No new registrations in this period.
+          {t('trend.empty')}
         </Typography>
       )}
       <svg
@@ -65,7 +67,9 @@ export function NewUsersTrendChart({ data }: NewUsersTrendChartProps) {
         width="100%"
         height={CHART_HEIGHT}
         role="img"
-        aria-label={`New user registrations per day over the last 30 days, ${data.reduce((sum, d) => sum + d.newUsers, 0)} total`}
+        // d3 geometry is left-to-right in every language; only the text around it is translated.
+        direction="ltr"
+        aria-label={t('trend.ariaLabel', { total: data.reduce((sum, d) => sum + d.newUsers, 0) })}
       >
         <g transform={`translate(${MARGIN.left}, ${MARGIN.top})`}>
           {yTicks.map((tick) => (
@@ -89,9 +93,7 @@ export function NewUsersTrendChart({ data }: NewUsersTrendChartProps) {
               fill={theme.palette.primary.main}
               rx={2}
             >
-              <title>
-                {bar.date}: {bar.value}
-              </title>
+              <title>{t('trend.barTitle', { date: bar.date, value: bar.value })}</title>
             </rect>
           ))}
           {yTicks.map((tick) => (

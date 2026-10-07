@@ -14,6 +14,7 @@ import {
 import PowerSettingsNewIcon from '@mui/icons-material/PowerSettingsNew'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { ApiError } from '../../../api/httpClient'
+import { useT } from '../../../i18n/useT'
 import * as adminAiProvidersApi from '../api/adminAiProvidersApi'
 import type { AdminAiModel } from '../api/adminAiProvidersApi'
 
@@ -25,17 +26,6 @@ interface AiModelStatusMenuProps {
 type Feedback = { severity: 'success' | 'error'; message: string } | null
 type AvailabilityStatus = 'Available' | 'Unavailable'
 
-const CONFIRM_COPY: Record<AvailabilityStatus, { title: string; body: string }> = {
-  Available: {
-    title: 'Mark this model Available?',
-    body: 'End users will be able to select it again as soon as you confirm.',
-  },
-  Unavailable: {
-    title: 'Mark this model Unavailable?',
-    body: 'End users will no longer be able to select it. Conversations that already used it keep their history and attribution.',
-  },
-}
-
 /**
  * specs/008-ai-model-catalog-management US2 — per-model availability toggle, confirm-gated
  * per FR-010. A "Deprecated" model's toggle is disabled: re-enabling a vendor-retired model
@@ -43,6 +33,7 @@ const CONFIRM_COPY: Record<AvailabilityStatus, { title: string; body: string }> 
  * users, reassign any default-model pointer), which is not yet built.
  */
 export function AiModelStatusMenu({ model, providerId }: AiModelStatusMenuProps) {
+  const t = useT('admin.aiProviders')
   const queryClient = useQueryClient()
   const [pendingStatus, setPendingStatus] = useState<AvailabilityStatus | null>(null)
   const [feedback, setFeedback] = useState<Feedback>(null)
@@ -51,10 +42,14 @@ export function AiModelStatusMenu({ model, providerId }: AiModelStatusMenuProps)
     mutationFn: (status: AvailabilityStatus) => adminAiProvidersApi.updateModelStatus(model.id, status),
     onSuccess: (_, status) => {
       queryClient.invalidateQueries({ queryKey: ['admin', 'ai-providers', providerId, 'models'] })
-      setFeedback({ severity: 'success', message: `${model.displayName} marked ${status}.` })
+      setFeedback({ severity: 'success', message:
+          status === 'Available'
+            ? t('modelStatus.markedAvailable', { name: model.displayName })
+            : t('modelStatus.markedUnavailable', { name: model.displayName }),
+      })
     },
     onError: (err: unknown) => {
-      const message = err instanceof ApiError ? err.detail ?? err.message : 'Something went wrong. Please try again.'
+      const message = err instanceof ApiError ? err.detail ?? err.message : t('shared.genericError')
       setFeedback({ severity: 'error', message })
     },
   })
@@ -63,10 +58,25 @@ export function AiModelStatusMenu({ model, providerId }: AiModelStatusMenuProps)
   const isAvailable = model.status === 'Available'
   const nextStatus: AvailabilityStatus = isAvailable ? 'Unavailable' : 'Available'
   const toggleLabel = isDeprecated
-    ? 'Deprecated by the vendor — cannot be re-enabled from here'
+    ? t('modelStatus.deprecatedTooltip')
     : isAvailable
-      ? 'Mark unavailable'
-      : 'Mark available'
+      ? t('modelStatus.markUnavailable')
+      : t('modelStatus.markAvailable')
+  const toggleAria = isDeprecated
+    ? t('modelStatus.deprecatedFor', { name: model.displayName })
+    : isAvailable
+      ? t('modelStatus.markUnavailableFor', { name: model.displayName })
+      : t('modelStatus.markAvailableFor', { name: model.displayName })
+  const confirmCopy = {
+    Available: {
+      title: t('modelStatus.confirmAvailableTitle'),
+      body: t('modelStatus.confirmAvailableBody'),
+    },
+    Unavailable: {
+      title: t('modelStatus.confirmUnavailableTitle'),
+      body: t('modelStatus.confirmUnavailableBody'),
+    },
+  }
 
   const handleConfirm = () => {
     if (pendingStatus) mutation.mutate(pendingStatus)
@@ -79,7 +89,7 @@ export function AiModelStatusMenu({ model, providerId }: AiModelStatusMenuProps)
         <span>
           <IconButton
             size="small"
-            aria-label={`${toggleLabel} for ${model.displayName}`}
+            aria-label={toggleAria}
             disabled={isDeprecated}
             onClick={() => setPendingStatus(nextStatus)}
           >
@@ -95,14 +105,14 @@ export function AiModelStatusMenu({ model, providerId }: AiModelStatusMenuProps)
       <Dialog open={pendingStatus !== null} onClose={() => setPendingStatus(null)}>
         {pendingStatus && (
           <>
-            <DialogTitle>{CONFIRM_COPY[pendingStatus].title}</DialogTitle>
+            <DialogTitle>{confirmCopy[pendingStatus].title}</DialogTitle>
             <DialogContent>
-              <DialogContentText>{CONFIRM_COPY[pendingStatus].body}</DialogContentText>
+              <DialogContentText>{confirmCopy[pendingStatus].body}</DialogContentText>
             </DialogContent>
             <DialogActions>
-              <Button onClick={() => setPendingStatus(null)}>Cancel</Button>
+              <Button onClick={() => setPendingStatus(null)}>{t('shared.cancel')}</Button>
               <Button onClick={handleConfirm} color={pendingStatus === 'Available' ? 'primary' : 'error'} variant="contained" autoFocus>
-                Confirm
+                {t('shared.confirm')}
               </Button>
             </DialogActions>
           </>

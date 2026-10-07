@@ -17,7 +17,11 @@ import NotificationsOutlinedIcon from '@mui/icons-material/NotificationsOutlined
 import MarkEmailUnreadOutlinedIcon from '@mui/icons-material/MarkEmailUnreadOutlined'
 import CampaignOutlinedIcon from '@mui/icons-material/CampaignOutlined'
 import DescriptionOutlinedIcon from '@mui/icons-material/DescriptionOutlined'
+import TranslateOutlinedIcon from '@mui/icons-material/TranslateOutlined'
 import type { ReactNode } from 'react'
+import type { enAdminShell } from '../../i18n/messages/en/admin/shell'
+
+export type ShellNavKey = `nav.${keyof (typeof enAdminShell)['nav'] & string}`
 
 export interface AdminNavItem {
   /** Omitted for an action-triggered entry (see `id`/`onSelect`) — it never routes, so it has no location of its own. */
@@ -29,6 +33,8 @@ export interface AdminNavItem {
    */
   id?: string
   label: string
+  /** The key of this section's name in the `admin.shell` catalog; `label` stays the English text. */
+  labelKey: ShellNavKey
   icon: ReactNode
   /**
    * The permission key(s) that make this section visible (ANY-of) — omitted for a screen
@@ -63,13 +69,14 @@ export interface AdminNavItem {
  * page needs to carry links to its siblings.
  */
 export const ADMIN_NAV: AdminNavItem[] = [
-  { path: '/admin/dashboard', label: 'Dashboard', icon: <DashboardOutlinedIcon fontSize="small" />, permission: 'admin.dashboard.view' },
-  { path: '/admin/users', label: 'Users', icon: <PeopleOutlinedIcon fontSize="small" />, permission: 'admin.users.view' },
-  { path: '/admin/roles', label: 'Roles', icon: <BadgeOutlinedIcon fontSize="small" />, builtInOnly: true },
-  { path: '/admin/role-assignments', label: 'Role assignments', icon: <AssignmentIndOutlinedIcon fontSize="small" />, builtInOnly: true },
+  { path: '/admin/dashboard', label: 'Dashboard', labelKey: 'nav.dashboard', icon: <DashboardOutlinedIcon fontSize="small" />, permission: 'admin.dashboard.view' },
+  { path: '/admin/users', label: 'Users', labelKey: 'nav.users', icon: <PeopleOutlinedIcon fontSize="small" />, permission: 'admin.users.view' },
+  { path: '/admin/roles', label: 'Roles', labelKey: 'nav.roles', icon: <BadgeOutlinedIcon fontSize="small" />, builtInOnly: true },
+  { path: '/admin/role-assignments', label: 'Role assignments', labelKey: 'nav.roleAssignments', icon: <AssignmentIndOutlinedIcon fontSize="small" />, builtInOnly: true },
   {
     path: '/admin/system-agents',
     label: 'System agents',
+    labelKey: 'nav.systemAgents',
     icon: <SupportAgentOutlinedIcon fontSize="small" />,
     permission: 'admin.system-agents.view',
     dividerAfter: true,
@@ -77,6 +84,7 @@ export const ADMIN_NAV: AdminNavItem[] = [
   {
     path: '/admin/ai-providers',
     label: 'AI providers',
+    labelKey: 'nav.aiProviders',
     icon: <HubOutlinedIcon fontSize="small" />,
     permission: [
       'admin.ai-providers.view',
@@ -85,54 +93,68 @@ export const ADMIN_NAV: AdminNavItem[] = [
       'admin.custom-models.view',
     ],
   },
-  { path: '/admin/default-models', label: 'Default models', icon: <ModelTrainingOutlinedIcon fontSize="small" />, permission: 'admin.default-models.view' },
-  { path: '/admin/ai-capabilities', label: 'AI capabilities', icon: <TuneOutlinedIcon fontSize="small" />, permission: 'admin.ai-capabilities.view' },
+  { path: '/admin/default-models', label: 'Default models', labelKey: 'nav.defaultModels', icon: <ModelTrainingOutlinedIcon fontSize="small" />, permission: 'admin.default-models.view' },
+  { path: '/admin/ai-capabilities', label: 'AI capabilities', labelKey: 'nav.aiCapabilities', icon: <TuneOutlinedIcon fontSize="small" />, permission: 'admin.ai-capabilities.view' },
   {
     path: '/admin/voice',
     label: 'Voice',
+    labelKey: 'nav.voice',
     icon: <RecordVoiceOverOutlinedIcon fontSize="small" />,
     permission: 'admin.ai-providers.view',
     badgeKey: 'dictationSuspended',
   },
-  { path: '/admin/appearance', label: 'Appearance', icon: <PaletteOutlinedIcon fontSize="small" />, permission: 'admin.appearance.view' },
-  { path: '/admin/agent-policies', label: 'Agent policies', icon: <SmartToyOutlinedIcon fontSize="small" />, permission: 'admin.agent-policies.view' },
-  { path: '/admin/workflow-policies', label: 'Workflow policies', icon: <AccountTreeOutlinedIcon fontSize="small" />, permission: 'admin.workflow-policies.view' },
-  { path: '/admin/mcp-servers', label: 'MCP servers', icon: <DnsOutlinedIcon fontSize="small" />, permission: 'admin.mcp-servers.view' },
+  { path: '/admin/appearance', label: 'Appearance', labelKey: 'nav.appearance', icon: <PaletteOutlinedIcon fontSize="small" />, permission: 'admin.appearance.view' },
+  { path: '/admin/agent-policies', label: 'Agent policies', labelKey: 'nav.agentPolicies', icon: <SmartToyOutlinedIcon fontSize="small" />, permission: 'admin.agent-policies.view' },
+  { path: '/admin/workflow-policies', label: 'Workflow policies', labelKey: 'nav.workflowPolicies', icon: <AccountTreeOutlinedIcon fontSize="small" />, permission: 'admin.workflow-policies.view' },
+  { path: '/admin/mcp-servers', label: 'MCP servers', labelKey: 'nav.mcpServers', icon: <DnsOutlinedIcon fontSize="small" />, permission: 'admin.mcp-servers.view' },
   {
     path: '/admin/operational-failures',
     label: 'Operational failures',
+    labelKey: 'nav.operationalFailures',
     icon: <ReportProblemOutlinedIcon fontSize="small" />,
     permission: 'admin.operational-failures.view',
     badgeKey: 'operationalFailures',
   },
-  // specs/067 US6 — the notification hub. Localization joins this group in a later phase.
+  // specs/067 US6 — the notification hub; US8 adds Localization to the group.
   {
     path: '/admin/notifications/dashboard',
     label: 'Notifications',
+    labelKey: 'nav.notifications',
     icon: <NotificationsOutlinedIcon fontSize="small" />,
     permission: 'admin.notifications.view',
   },
   {
     path: '/admin/notifications/deliveries',
     label: 'Deliveries',
+    labelKey: 'nav.deliveries',
     icon: <MarkEmailUnreadOutlinedIcon fontSize="small" />,
     permission: 'admin.notifications.view',
   },
   {
     path: '/admin/notifications/announcements',
     label: 'Announcements',
+    labelKey: 'nav.announcements',
     icon: <CampaignOutlinedIcon fontSize="small" />,
     permission: 'admin.notifications.view',
   },
   {
     path: '/admin/notifications/templates',
     label: 'Templates',
+    labelKey: 'nav.templates',
     icon: <DescriptionOutlinedIcon fontSize="small" />,
+    permission: 'admin.notifications.view',
+  },
+  {
+    path: '/admin/notifications/localization',
+    label: 'Localization',
+    labelKey: 'nav.localization',
+    icon: <TranslateOutlinedIcon fontSize="small" />,
     permission: 'admin.notifications.view',
   },
   {
     id: 'hangfire-dashboard',
     label: 'Jobs',
+    labelKey: 'nav.jobs',
     icon: <WorkOutlineOutlinedIcon fontSize="small" />,
     builtInOnly: true,
   },

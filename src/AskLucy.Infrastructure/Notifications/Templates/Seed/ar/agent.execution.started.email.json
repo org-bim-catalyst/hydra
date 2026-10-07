@@ -1,0 +1,12 @@
+{
+  "name": "بدء تشغيل الوكيل",
+  "subject": "بدأ {{ agentName }} العمل",
+  "preheader": "بدأ {{ agentName }} العمل.",
+  "greeting": "مرحبًا {{ recipientDisplayName }}،",
+  "heading": "بدأ تشغيل الوكيل",
+  "bodyParagraphs": [
+    "بدأ {{ agentName }} العمل."
+  ],
+  "safetyNote": "تصلك هذه الرسالة لأن إشعارات البريد الإلكتروني مفعّلة لـتحديثات الوكلاء. يمكنك تغيير ذلك من الإعدادات › الإشعارات.",
+  "actionLabel": "عرض التشغيل"
+}
