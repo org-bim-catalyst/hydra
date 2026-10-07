@@ -1,0 +1,6 @@
+{
+  "name": "إنشاء إصدار جديد للمستند",
+  "title": "إصدار جديد للمستند",
+  "message": "أصبح لـ\"{{ documentName }}\" إصدار جديد ({{ versionNumber }}).",
+  "actionLabel": "فتح المستند"
+}

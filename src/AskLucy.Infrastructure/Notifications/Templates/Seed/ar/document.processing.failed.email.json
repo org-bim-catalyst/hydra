@@ -1,0 +1,12 @@
+{
+  "name": "فشل معالجة المستند",
+  "subject": "تعذّرت معالجة {{ documentName }}",
+  "preheader": "فشلت معالجة {{ documentName }}.",
+  "greeting": "مرحبًا {{ recipientDisplayName }}،",
+  "heading": "تعذّرت معالجة مستندك",
+  "bodyParagraphs": [
+    "فشلت معالجة {{ documentName }}: {{ failureSummary }}"
+  ],
+  "safetyNote": "تصلك هذه الرسالة لأن إشعارات البريد الإلكتروني مفعّلة لـتحديثات المستندات. يمكنك تغيير ذلك من الإعدادات › الإشعارات.",
+  "actionLabel": "فتح المستند"
+}

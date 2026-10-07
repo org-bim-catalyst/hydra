@@ -142,18 +142,18 @@ public sealed class BrandedAccountEmailTemplateRenderer(IOptions<AppOptions> app
         var sb = new StringBuilder();
         sb.AppendLine("Ask Lucy");
         sb.AppendLine();
-        sb.AppendLine(Decode(content.Heading));
+        sb.AppendLine(TextOf(content.Heading));
         sb.AppendLine();
 
         if (!string.IsNullOrWhiteSpace(content.Greeting))
         {
-            sb.AppendLine(Decode(content.Greeting));
+            sb.AppendLine(TextOf(content.Greeting));
             sb.AppendLine();
         }
 
         foreach (var paragraph in content.BodyParagraphs)
         {
-            sb.AppendLine(Decode(paragraph));
+            sb.AppendLine(TextOf(paragraph));
             sb.AppendLine();
         }
 
@@ -163,13 +163,13 @@ public sealed class BrandedAccountEmailTemplateRenderer(IOptions<AppOptions> app
             sb.AppendLine();
         }
 
-        sb.AppendLine(Decode(content.SafetyNote));
+        sb.AppendLine(TextOf(content.SafetyNote));
         sb.AppendLine();
         sb.AppendLine("This is an automated message, please do not reply to this email.");
 
         if (!string.IsNullOrWhiteSpace(content.FooterNote))
         {
-            sb.AppendLine(Decode(content.FooterNote));
+            sb.AppendLine(TextOf(content.FooterNote));
         }
 
         return sb.ToString().TrimEnd();
@@ -178,4 +178,11 @@ public sealed class BrandedAccountEmailTemplateRenderer(IOptions<AppOptions> app
     private static string Encode(string value) => WebUtility.HtmlEncode(value);
 
     private static string Decode(string value) => WebUtility.HtmlDecode(value);
+
+    /// <summary>
+    /// Plain text from encoded content. Right-to-left content isolates protected names in &lt;bdi&gt;;
+    /// user text can't contain a literal tag (it arrives encoded), so any tag left here is ours to drop.
+    /// </summary>
+    private static string TextOf(string value) =>
+        Decode(value.Replace("<bdi>", string.Empty, StringComparison.Ordinal).Replace("</bdi>", string.Empty, StringComparison.Ordinal));
 }

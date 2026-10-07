@@ -1,0 +1,6 @@
+{
+  "name": "طلب موافقة على سير عمل",
+  "title": "الموافقة مطلوبة",
+  "message": "{{ workflowName }} متوقف عند {{ nodeName }} بانتظار موافقتك على: {{ intendedAction }}.",
+  "actionLabel": "مراجعة الطلب"
+}

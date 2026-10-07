@@ -13,11 +13,13 @@ using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
+using AskLucy.Web.Localization;
 
 namespace AskLucy.Web.Controllers.v1;
 
 /// <summary>The notification center (US1, contracts/notifications-api.md). Every resource is scoped to the caller.</summary>
 [ApiController]
+[LocalizedSurface]
 [Authorize]
 [EnableRateLimiting("notifications-endpoints")]
 [Route("api/v1/notifications")]

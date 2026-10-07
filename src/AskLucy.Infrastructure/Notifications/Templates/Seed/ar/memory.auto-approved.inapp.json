@@ -1,0 +1,6 @@
+{
+  "name": "اعتماد ذاكرة",
+  "title": "تم اعتماد ذاكرة",
+  "message": "اعتمدت Lucy ذاكرة: {{ memorySummary }}",
+  "actionLabel": "مراجعة الذاكرة"
+}

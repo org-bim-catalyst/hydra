@@ -1,0 +1,12 @@
+{
+  "name": "اكتمال فهرسة قاعدة المعرفة",
+  "subject": "{{ knowledgeBaseName }} جاهزة",
+  "preheader": "{{ knowledgeBaseName }} جاهزة.",
+  "greeting": "مرحبًا {{ recipientDisplayName }}،",
+  "heading": "قاعدة المعرفة جاهزة",
+  "bodyParagraphs": [
+    "اكتملت فهرسة {{ knowledgeBaseName }} وهي جاهزة للبحث."
+  ],
+  "safetyNote": "تصلك هذه الرسالة لأن إشعارات البريد الإلكتروني مفعّلة لـتحديثات قواعد المعرفة. يمكنك تغيير ذلك من الإعدادات › الإشعارات.",
+  "actionLabel": "فتح قاعدة المعرفة"
+}

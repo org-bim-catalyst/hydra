@@ -17,6 +17,7 @@ using AskLucy.Web.Contracts;
 using MediatR;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
+using AskLucy.Web.Localization;
 
 namespace AskLucy.Web.Controllers.v1;
 
@@ -28,6 +29,7 @@ namespace AskLucy.Web.Controllers.v1;
 /// <para>specs/078 contracts/admin-dictation.md adds the dictation engine and Local Whisper model routes.</para>
 /// </summary>
 [ApiController]
+[LocalizedSurface]
 [EnableRateLimiting("admin-endpoints")]
 [Route("api/v1/admin/voice")]
 public sealed class AdminVoiceProvidersController(ISender mediator) : ControllerBase

@@ -289,6 +289,10 @@ The `system.announcement` type declares two variables beyond the title, message 
 
 `RetentionService` (daily Hangfire job `notification-retention`, 03:00) deletes in batches with `ExecuteDeleteAsync`: read notifications after 90 days, owner-deleted after 30 days, failed or dead-lettered deliveries 30 days after the last attempt, finished non-in-app deliveries after 90 days, and completed outbox events after 7 days. In-app deliveries are removed with their notification, and a notification that still has an active delivery is skipped. Audit rows are never deleted.
 
+### Server-side localization (implemented in Phase 12)
+
+`LocalizationSetting` is seeded by the migration with `IsEnabled=false` and `["en"]` (fixed id `0c6f4c2a-5b1e-4d3a-9a57-7a1f0b6c3e10`). `ApplicationUser.PreferredLanguage` (`nvarchar(10)`, nullable) holds the user's choice and is kept when the language stops being supported. The effective language is resolved per FR-044 and cached for 30 s with the platform setting. Server text (Problem Details `title` and `detail`) is localized only on endpoints marked `[LocalizedSurface]`, from `Application/Localization/Messages{,.ar}.resx`.
+
 ## Notification type catalogue
 
 The definitions below are code-owned in `NotificationTypeCatalog`. Routes were reconciled against `ClientApp/src/routes/router.tsx` (research R11 addendum): `{id}` is `RelatedItem.Id` and `{parentId}` is `RelatedItem.ParentId`.

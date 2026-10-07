@@ -9,11 +9,13 @@ using AskLucy.Web.Contracts;
 using MediatR;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
+using AskLucy.Web.Localization;
 
 namespace AskLucy.Web.Controllers.v1;
 
 /// <summary>Administrator-managed auto-approval policy CRUD (spec.md FR-025/FR-026, research.md Decision 1) — permission-gated (specs/055-role-management research.md Decision 5).</summary>
 [ApiController]
+[LocalizedSurface]
 [EnableRateLimiting("admin-endpoints")]
 [Route("api/v1/admin/agent-policies")]
 public sealed class AgentPoliciesController(ISender mediator) : ControllerBase

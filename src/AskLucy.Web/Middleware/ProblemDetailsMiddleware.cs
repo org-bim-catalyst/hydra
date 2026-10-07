@@ -104,6 +104,13 @@ public sealed class ProblemDetailsMiddleware(
             ProblemDetailsMiddlewareLog.AccessDenied(logger, context.Request.Path, statusCode);
         }
 
+        // specs/067 R15: on a localized surface the title and detail follow the caller's language. The culture comes from the request's
+        // items, because the middleware that set it ran inside this one and its async-local change doesn't reach back here.
+        if (context.Items.TryGetValue(LocalizedSurfaceCultureMiddleware.CultureItemKey, out var uiCulture) && uiCulture is System.Globalization.CultureInfo culture)
+        {
+            (title, detail) = ProblemTextLocalizer.Localize(type, title, detail, exception, culture);
+        }
+
         var problemDetails = new ProblemDetails
         {
             Type = type,
@@ -120,6 +127,11 @@ public sealed class ProblemDetailsMiddleware(
         if (exception is IncidentConflictException { NewerIncidentId: { } newerIncidentId })
         {
             problemDetails.Extensions["newerIncidentId"] = newerIncidentId;
+        }
+
+        if (exception is AskLucy.Domain.Common.ConcurrencyConflictException)
+        {
+            problemDetails.Extensions["reason"] = "ConcurrencyConflict";
         }
 
         if (exception is AskLucy.Application.Notifications.Admin.DeliveryRetryRefusedException retryRefused)
@@ -242,6 +254,13 @@ public sealed class ProblemDetailsMiddleware(
             "https://hydra.bimcatalyst.com/problems/delivery-not-retryable",
             "Delivery can't be retried",
             retryRefusedEx.Message),
+
+        // specs/067 FR-044b: a language choice or a localization change that can't be accepted (off, unsupported, or `en` missing).
+        AskLucy.Application.Localization.LocalizationRejectedException localizationRejectedEx => (
+            StatusCodes.Status422UnprocessableEntity,
+            "https://hydra.bimcatalyst.com/problems/localization-rejected",
+            "Language change rejected",
+            localizationRejectedEx.Message),
 
         // specs/067 US7: a template action against a version in the wrong state, or one someone else changed first.
         AskLucy.Application.Notifications.Templates.NotificationTemplateConflictException templateConflictEx => (

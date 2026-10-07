@@ -1,0 +1,12 @@
+{
+  "name": "إنشاء إصدار جديد للمستند",
+  "subject": "تم حفظ إصدار جديد من {{ documentName }}",
+  "preheader": "تم حفظ إصدار جديد.",
+  "greeting": "مرحبًا {{ recipientDisplayName }}،",
+  "heading": "تم حفظ إصدار جديد",
+  "bodyParagraphs": [
+    "أصبح لـ{{ documentName }} إصدار جديد: {{ versionNumber }}."
+  ],
+  "safetyNote": "تصلك هذه الرسالة لأن إشعارات البريد الإلكتروني مفعّلة لـتحديثات المستندات. يمكنك تغيير ذلك من الإعدادات › الإشعارات.",
+  "actionLabel": "فتح المستند"
+}

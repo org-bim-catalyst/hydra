@@ -1,0 +1,12 @@
+{
+  "name": "فشل تشغيل الوكيل",
+  "subject": "فشل {{ agentName }}",
+  "preheader": "تعذّر على {{ agentName }} إكمال مهمته.",
+  "greeting": "مرحبًا {{ recipientDisplayName }}،",
+  "heading": "فشل تشغيل الوكيل",
+  "bodyParagraphs": [
+    "تعذّر على {{ agentName }} إكمال مهمته: {{ failureSummary }}"
+  ],
+  "safetyNote": "تصلك هذه الرسالة لأن إشعارات البريد الإلكتروني مفعّلة لـتحديثات الوكلاء. يمكنك تغيير ذلك من الإعدادات › الإشعارات.",
+  "actionLabel": "عرض التشغيل"
+}

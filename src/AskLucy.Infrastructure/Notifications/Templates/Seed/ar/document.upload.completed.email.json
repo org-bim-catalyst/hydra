@@ -1,0 +1,12 @@
+{
+  "name": "رفع المستند",
+  "subject": "تم رفع {{ documentName }}",
+  "preheader": "تم رفع {{ documentName }}.",
+  "greeting": "مرحبًا {{ recipientDisplayName }}،",
+  "heading": "تم رفع مستندك",
+  "bodyParagraphs": [
+    "تم رفع {{ documentName }}."
+  ],
+  "safetyNote": "تصلك هذه الرسالة لأن إشعارات البريد الإلكتروني مفعّلة لـتحديثات المستندات. يمكنك تغيير ذلك من الإعدادات › الإشعارات.",
+  "actionLabel": "فتح المستند"
+}

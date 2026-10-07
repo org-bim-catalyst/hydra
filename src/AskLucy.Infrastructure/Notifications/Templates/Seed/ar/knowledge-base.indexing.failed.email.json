@@ -1,0 +1,12 @@
+{
+  "name": "فشل فهرسة قاعدة المعرفة",
+  "subject": "تعذّرت فهرسة {{ knowledgeBaseName }}",
+  "preheader": "فشلت فهرسة {{ knowledgeBaseName }}.",
+  "greeting": "مرحبًا {{ recipientDisplayName }}،",
+  "heading": "تعذّرت فهرسة قاعدة المعرفة",
+  "bodyParagraphs": [
+    "فشلت فهرسة {{ knowledgeBaseName }}: {{ failureSummary }}"
+  ],
+  "safetyNote": "تصلك هذه الرسالة لأن إشعارات البريد الإلكتروني مفعّلة لـتحديثات قواعد المعرفة. يمكنك تغيير ذلك من الإعدادات › الإشعارات.",
+  "actionLabel": "فتح قاعدة المعرفة"
+}

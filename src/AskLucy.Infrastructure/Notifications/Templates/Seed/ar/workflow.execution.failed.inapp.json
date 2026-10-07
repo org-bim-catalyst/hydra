@@ -1,0 +1,6 @@
+{
+  "name": "فشل تشغيل سير العمل",
+  "title": "فشل سير العمل",
+  "message": "تعذّر على {{ workflowName }} الاكتمال: {{ failureSummary }}",
+  "actionLabel": "عرض التشغيل"
+}

@@ -1,0 +1,6 @@
+{
+  "name": "فشل فهرسة المستند",
+  "title": "فشلت فهرسة المستند",
+  "message": "تعذّرت فهرسة \"{{ documentName }}\": {{ failureSummary }}",
+  "actionLabel": "فتح المستند"
+}

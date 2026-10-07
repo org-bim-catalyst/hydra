@@ -1,9 +1,10 @@
 import { Alert, Box, Button, Chip, CircularProgress, Snackbar, Stack, Typography } from '@mui/material'
 import { useNavigate } from 'react-router'
+import { LocalizedSurface } from '../../../i18n/LocalizedSurface'
+import { useFormat, useT } from '../../../i18n/useT'
 import { errorMessage } from '../api/errorMessage'
 import type { NotificationDetail, NotificationPriority } from '../api/notificationsApi'
 import { useDeleteNotification, useMarkNotificationRead } from '../hooks/useNotificationMutations'
-import { formatRelativeTime } from '../utils/relativeTime'
 
 const PRIORITY_COLOR: Record<NotificationPriority, 'default' | 'info' | 'warning' | 'error'> = {
   Low: 'default',
@@ -24,8 +25,19 @@ export interface NotificationDetailsProps {
  * nodes only. The action button navigates when the related item is still available, or shows "no
  * longer available" instead (contracts/notifications-api.md).
  */
-export function NotificationDetails({ notification, isLoading, isError, onDeleted }: NotificationDetailsProps) {
+export function NotificationDetails(props: NotificationDetailsProps) {
+  return (
+    <LocalizedSurface scope="subtree">
+      <NotificationDetailsContent {...props} />
+    </LocalizedSurface>
+  )
+}
+
+function NotificationDetailsContent({ notification, isLoading, isError, onDeleted }: NotificationDetailsProps) {
   const navigate = useNavigate()
+  const t = useT('notifications')
+  const tc = useT('common')
+  const format = useFormat()
   const markRead = useMarkNotificationRead()
   const deleteNotification = useDeleteNotification()
 
@@ -40,7 +52,7 @@ export function NotificationDetails({ notification, isLoading, isError, onDelete
   if (isError || !notification) {
     return (
       <Alert severity="error" sx={{ m: 2 }}>
-        This notification could not be loaded.
+        {t('details.loadFailed')}
       </Alert>
     )
   }
@@ -52,11 +64,11 @@ export function NotificationDetails({ notification, isLoading, isError, onDelete
     <Stack spacing={2} sx={{ p: 2 }}>
       <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
         <Typography variant="h6">{notification.title}</Typography>
-        <Chip label={notification.priority} size="small" color={PRIORITY_COLOR[notification.priority]} />
+        <Chip label={t(`priorities.${notification.priority}`)} size="small" color={PRIORITY_COLOR[notification.priority]} />
       </Stack>
       <Typography variant="body1">{notification.message}</Typography>
       <Typography variant="caption" color="text.secondary">
-        {formatRelativeTime(notification.createdAtUtc)}
+        {format.relative(notification.createdAtUtc, { justNow: t('center.justNow') })}
       </Typography>
 
       {Object.keys(notification.metadata).length > 0 && (
@@ -72,13 +84,13 @@ export function NotificationDetails({ notification, isLoading, isError, onDelete
       <Stack direction="row" spacing={1}>
         {notification.readAtUtc === null && (
           <Button size="small" onClick={() => markRead.mutate(notification.id)} disabled={markRead.isPending}>
-            Mark as read
+            {t('details.markRead')}
           </Button>
         )}
         {notification.action &&
           (isUnavailable ? (
             <Typography variant="body2" color="text.disabled">
-              No longer available
+              {tc('states.noLongerAvailable')}
             </Typography>
           ) : (
             <Button size="small" variant="contained" onClick={() => navigate(notification.action!.route)}>
@@ -91,13 +103,13 @@ export function NotificationDetails({ notification, isLoading, isError, onDelete
           disabled={deleteNotification.isPending}
           onClick={() => deleteNotification.mutate(notification.id, { onSuccess: onDeleted })}
         >
-          Delete
+          {tc('actions.delete')}
         </Button>
       </Stack>
 
       <Snackbar open={mutationError !== null} autoHideDuration={5000}>
         <Alert severity="error" variant="filled">
-          {mutationError ? errorMessage(mutationError) : null}
+          {mutationError ? errorMessage(mutationError, tc('errors.generic')) : null}
         </Alert>
       </Snackbar>
     </Stack>

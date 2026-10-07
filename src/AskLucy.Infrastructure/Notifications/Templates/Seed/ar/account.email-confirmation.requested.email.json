@@ -1,0 +1,12 @@
+{
+  "name": "تأكيد حسابك",
+  "subject": "تأكيد حسابك في Ask Lucy",
+  "preheader": "أكّد بريدك الإلكتروني لإكمال إعداد حسابك في Ask Lucy.",
+  "greeting": "مرحبًا {{ recipientDisplayName }}،",
+  "heading": "أكّد حسابك",
+  "bodyParagraphs": [
+    "يُرجى تأكيد حسابك في Ask Lucy بالضغط على الزر أدناه."
+  ],
+  "safetyNote": "إذا لم تُنشئ حسابًا في Ask Lucy، يمكنك تجاهل هذه الرسالة بأمان.",
+  "actionLabel": "تأكيد بريدي الإلكتروني"
+}

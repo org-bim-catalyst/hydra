@@ -16,6 +16,7 @@ using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
+using AskLucy.Web.Localization;
 
 namespace AskLucy.Web.Controllers.v1;
 
@@ -26,6 +27,7 @@ namespace AskLucy.Web.Controllers.v1;
 /// <c>[RequirePermission]</c> attribute.
 /// </summary>
 [ApiController]
+[LocalizedSurface]
 [Authorize(Policy = "AdministratorOrSuperUser")]
 [EnableRateLimiting("admin-endpoints")]
 [Route("api/v1/admin/roles")]

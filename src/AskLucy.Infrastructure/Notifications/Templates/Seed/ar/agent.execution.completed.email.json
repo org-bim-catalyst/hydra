@@ -1,0 +1,12 @@
+{
+  "name": "اكتمال تشغيل الوكيل",
+  "subject": "{{ agentName }} أنهى مهمته",
+  "preheader": "{{ agentName }} أنهى مهمته.",
+  "greeting": "مرحبًا {{ recipientDisplayName }}،",
+  "heading": "اكتمل تشغيل الوكيل",
+  "bodyParagraphs": [
+    "{{ agentName }} أنهى مهمته خلال {{ duration }}."
+  ],
+  "safetyNote": "تصلك هذه الرسالة لأن إشعارات البريد الإلكتروني مفعّلة لـتحديثات الوكلاء. يمكنك تغيير ذلك من الإعدادات › الإشعارات.",
+  "actionLabel": "عرض التشغيل"
+}
