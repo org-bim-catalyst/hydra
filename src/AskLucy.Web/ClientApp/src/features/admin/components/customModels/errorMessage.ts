@@ -1,5 +1,9 @@
 import { ApiError } from '../../../../api/httpClient'
+import type { Translate } from '../../../../i18n/useT'
 
-/** The Problem Details `detail` of a failed request, or a generic message when there isn't one. */
-export const errorMessage = (err: unknown) =>
-  err instanceof ApiError ? err.detail ?? err.message : 'Something went wrong. Please try again.'
+/**
+ * The Problem Details `detail` of a failed request (already localized by the server), or a generic message in the
+ * caller's language when there isn't one.
+ */
+export const errorMessage = (err: unknown, t: Translate<'admin.aiProviders'>) =>
+  err instanceof ApiError ? (err.detail ?? err.message) : t('shared.genericError')

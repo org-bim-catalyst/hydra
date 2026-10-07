@@ -1,11 +1,13 @@
 import { useState } from 'react'
 import { useSearchParams } from 'react-router'
 import {
+  Alert,
   Box,
   Button,
   Checkbox,
   Chip,
   Paper,
+  Snackbar,
   Table,
   TableBody,
   TableCell,
@@ -19,6 +21,9 @@ import {
   Typography,
 } from '@mui/material'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { ApiError } from '../../../api/httpClient'
+import { LocalizedSurface } from '../../../i18n/LocalizedSurface'
+import { useFormat, useT } from '../../../i18n/useT'
 import { useWholeRowScroll } from '../../../hooks/useWholeRowScroll'
 import * as adminApi from '../api/adminApi'
 import { TableEmptyRow } from '../../../components/TableEmptyRow'
@@ -47,6 +52,18 @@ const SELECTION_SCOPE_ACTION: UserBulkAction = 'ForceReset2fa'
  * concurrencyStamp (FR-020), unlike the legacy page this replaces.
  */
 export function AdminUsersPage() {
+  // The page body reads the language, so it must sit inside the surface; AdminShell's own surface wraps only its children.
+  return (
+    <LocalizedSurface scope="subtree">
+      <AdminUsersPageContent />
+    </LocalizedSurface>
+  )
+}
+
+function AdminUsersPageContent() {
+  const t = useT('admin.users')
+  const format = useFormat()
+  const [actionError, setActionError] = useState<string | null>(null)
   // `?search=` lets another admin page link straight to a user (specs/074 FR-017); read once.
   const [searchParams] = useSearchParams()
   const [search, setSearch] = useState(() => searchParams.get('search') ?? '')
@@ -59,7 +76,7 @@ export function AdminUsersPage() {
   const isSuperUser = useIsSuperUser()
   const queryClient = useQueryClient()
 
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ['admin', 'users', { search, sortBy, sortDescending, page, pageSize }],
     queryFn: () => adminApi.getUsers({ search, sortBy, sortDescending, page: page + 1, pageSize }),
     placeholderData: (previous) => previous,
@@ -70,7 +87,7 @@ export function AdminUsersPage() {
 
   const [scopeDialog, setScopeDialog] = useState<{ verb: 'Select' | 'Deselect' } | null>(null)
 
-  const { data: scopeTotalData } = useQuery({
+  const { data: scopeTotalData, isError: scopeTotalFailed } = useQuery({
     queryKey: ['admin', 'users', 'bulk-eligible-ids', SELECTION_SCOPE_ACTION, search],
     queryFn: () => adminApi.getUsersEligibleIds(SELECTION_SCOPE_ACTION, search || undefined),
     enabled: scopeDialog !== null || selection.isAllMatching,
@@ -118,6 +135,9 @@ export function AdminUsersPage() {
       }
       setPendingTargetIds(targetIds)
       setPendingAction(action)
+    } catch (err) {
+      // constitution VIII: a failed lookup of the eligible users must reach the admin.
+      setActionError(err instanceof ApiError ? (err.detail ?? err.message) : t('page.generalError'))
     } finally {
       setResolvingAction(false)
     }
@@ -146,16 +166,16 @@ export function AdminUsersPage() {
   }
 
   const actionLabel: Record<UserBulkAction, string> = {
-    Lock: 'Lock',
-    Unlock: 'Unlock',
-    ForceReset2fa: 'Force 2FA reset',
-    Delete: 'Delete',
+    Lock: t('bulk.action.lock'),
+    Unlock: t('bulk.action.unlock'),
+    ForceReset2fa: t('bulk.action.forceReset2fa'),
+    Delete: t('bulk.action.delete'),
   }
   const progressVerb: Record<UserBulkAction, string> = {
-    Lock: 'Locking',
-    Unlock: 'Unlocking',
-    ForceReset2fa: 'Resetting 2FA for',
-    Delete: 'Deleting',
+    Lock: t('bulk.progress.lock'),
+    Unlock: t('bulk.progress.unlock'),
+    ForceReset2fa: t('bulk.progress.forceReset2fa'),
+    Delete: t('bulk.progress.delete'),
   }
 
   const toggleSort = (column: UserSortBy) => {
@@ -180,10 +200,13 @@ export function AdminUsersPage() {
   const { ref: tableRef, maxHeight: tableMaxHeight } = useWholeRowScroll()
 
   return (
-    <AdminShell title="User management" subtitle={`${data?.totalCount ?? 0} registered users`}>
+    <AdminShell
+      title={t('page.title')}
+      subtitle={t('page.subtitle', { count: data?.totalCount ?? 0 })}
+    >
       <Box sx={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
         <TextField
-          label="Search by name or email"
+          label={t('page.searchLabel')}
           size="small"
           value={search}
           onChange={(e) => {
@@ -192,10 +215,29 @@ export function AdminUsersPage() {
           }}
           sx={{ mb: 2, width: { xs: '100%', sm: 320 } }}
         />
+        {(isError || scopeTotalFailed) && (
+          <Alert
+            severity="error"
+            sx={{ mb: 2 }}
+            action={
+              <Button
+                color="inherit"
+                size="small"
+                onClick={() => {
+                  void refetch()
+                }}
+              >
+                {t('page.retry')}
+              </Button>
+            }
+          >
+            {t('page.loadFailed')}
+          </Alert>
+        )}
         {selectedCount > 0 && (
           <Toolbar disableGutters sx={{ mb: 1, gap: 1 }}>
-            <Typography variant="body2" sx={{ mr: 1 }}>
-              {selectedCount} selected
+            <Typography variant="body2" sx={{ marginInlineEnd: '8px' }}>
+              {t('selection.count', { count: selectedCount })}
             </Typography>
             <Button
               size="small"
@@ -203,7 +245,9 @@ export function AdminUsersPage() {
               disabled={resolvingAction}
               onClick={() => beginAction(lockUnlockAction)}
             >
-              {lockUnlockAction === 'Unlock' ? 'Unlock selected' : 'Lock selected'}
+              {lockUnlockAction === 'Unlock'
+                ? t('selection.unlockSelected')
+                : t('selection.lockSelected')}
             </Button>
             <Button
               size="small"
@@ -211,7 +255,7 @@ export function AdminUsersPage() {
               disabled={resolvingAction}
               onClick={() => beginAction('ForceReset2fa')}
             >
-              Force 2FA reset
+              {t('selection.force2faReset')}
             </Button>
             <Button
               size="small"
@@ -220,7 +264,7 @@ export function AdminUsersPage() {
               disabled={resolvingAction}
               onClick={() => beginAction('Delete')}
             >
-              Delete
+              {t('selection.delete')}
             </Button>
           </Toolbar>
         )}
@@ -228,7 +272,10 @@ export function AdminUsersPage() {
           elevation={1}
           sx={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}
         >
-          <TableContainer ref={tableRef} sx={{ flex: 1, minHeight: 0, overflow: 'auto', maxHeight: tableMaxHeight }}>
+          <TableContainer
+            ref={tableRef}
+            sx={{ flex: 1, minHeight: 0, overflow: 'auto', maxHeight: tableMaxHeight }}
+          >
             <Table sx={{ height: showsStatusRow ? '100%' : undefined }}>
               <TableHead>
                 <TableRow>
@@ -239,7 +286,7 @@ export function AdminUsersPage() {
                       disabled={selectableIds.length === 0}
                       onChange={handleHeaderCheckboxChange}
                       slotProps={{
-                        input: { 'aria-label': 'Select all eligible users on this page' },
+                        input: { 'aria-label': t('table.selectAll') },
                       }}
                     />
                   </TableCell>
@@ -251,15 +298,15 @@ export function AdminUsersPage() {
                       direction={sortBy === 'email' && sortDescending ? 'desc' : 'asc'}
                       onClick={() => toggleSort('email')}
                     >
-                      Email
+                      {t('table.columns.email')}
                     </TableSortLabel>
                   </TableCell>
-                  <TableCell>First name</TableCell>
-                  <TableCell>Last name</TableCell>
-                  <TableCell>Role</TableCell>
-                  <TableCell>Status</TableCell>
-                  <TableCell>Email confirmed</TableCell>
-                  <TableCell>2FA enabled</TableCell>
+                  <TableCell>{t('table.columns.firstName')}</TableCell>
+                  <TableCell>{t('table.columns.lastName')}</TableCell>
+                  <TableCell>{t('table.columns.role')}</TableCell>
+                  <TableCell>{t('table.columns.status')}</TableCell>
+                  <TableCell>{t('table.columns.emailConfirmed')}</TableCell>
+                  <TableCell>{t('table.columns.twoFactor')}</TableCell>
                   <TableCell
                     sortDirection={
                       sortBy === 'createdAtUtc' ? (sortDescending ? 'desc' : 'asc') : false
@@ -270,16 +317,16 @@ export function AdminUsersPage() {
                       direction={sortBy === 'createdAtUtc' && sortDescending ? 'desc' : 'asc'}
                       onClick={() => toggleSort('createdAtUtc')}
                     >
-                      Registered
+                      {t('table.columns.registered')}
                     </TableSortLabel>
                   </TableCell>
-                  <TableCell align="right">Actions</TableCell>
+                  <TableCell sx={{ textAlign: 'end' }}>{t('table.columns.actions')}</TableCell>
                 </TableRow>
               </TableHead>
               <TableBody>
                 {isLoading && <TableLoadingRow colSpan={10} />}
                 {!isLoading && (data?.items ?? []).length === 0 && (
-                  <TableEmptyRow colSpan={10} message="No users found." />
+                  <TableEmptyRow colSpan={10} message={t('table.empty')} />
                 )}
                 {data?.items.map((user) => (
                   <TableRow key={user.id} hover>
@@ -288,11 +335,15 @@ export function AdminUsersPage() {
                         <Checkbox
                           checked={selection.isSelected(user.id)}
                           onChange={() => selection.toggleOne(user.id)}
-                          slotProps={{ input: { 'aria-label': `Select ${user.email}` } }}
+                          slotProps={{
+                            input: { 'aria-label': t('table.selectUser', { email: user.email }) },
+                          }}
                         />
                       )}
                     </TableCell>
-                    <TableCell>{user.email}</TableCell>
+                    <TableCell>
+                      <bdi dir="ltr">{user.email}</bdi>
+                    </TableCell>
                     <TableCell>{user.firstName}</TableCell>
                     <TableCell>{user.lastName}</TableCell>
                     <TableCell>
@@ -306,7 +357,9 @@ export function AdminUsersPage() {
                     <TableCell>
                       <Chip
                         size="small"
-                        label={user.isLockedOut ? 'Locked' : 'Active'}
+                        label={
+                          user.isLockedOut ? t('table.status.locked') : t('table.status.active')
+                        }
                         color={user.isLockedOut ? 'error' : 'success'}
                         variant="outlined"
                       />
@@ -314,7 +367,11 @@ export function AdminUsersPage() {
                     <TableCell>
                       <Chip
                         size="small"
-                        label={user.emailConfirmed ? 'Confirmed' : 'Pending'}
+                        label={
+                          user.emailConfirmed
+                            ? t('table.confirmation.confirmed')
+                            : t('table.confirmation.pending')
+                        }
                         color={user.emailConfirmed ? 'success' : 'warning'}
                         variant="outlined"
                       />
@@ -322,13 +379,23 @@ export function AdminUsersPage() {
                     <TableCell>
                       <Chip
                         size="small"
-                        label={user.twoFactorEnabled ? 'Enabled' : 'Disabled'}
+                        label={
+                          user.twoFactorEnabled
+                            ? t('table.twoFactor.enabled')
+                            : t('table.twoFactor.disabled')
+                        }
                         color={user.twoFactorEnabled ? 'success' : 'default'}
                         variant="outlined"
                       />
                     </TableCell>
-                    <TableCell>{new Date(user.createdAtUtc).toLocaleDateString()}</TableCell>
-                    <TableCell align="right">
+                    <TableCell>
+                      {/* English keeps the browser's numeric short date it always showed. */}
+                      {format.date(
+                        user.createdAtUtc,
+                        format.language === 'en' ? {} : { dateStyle: 'medium' },
+                      )}
+                    </TableCell>
+                    <TableCell sx={{ textAlign: 'end' }}>
                       <UserActionMenu
                         user={user}
                         isSelf={user.id === profile?.id}
@@ -351,6 +418,11 @@ export function AdminUsersPage() {
               setPage(0)
             }}
             rowsPerPageOptions={[10, 20, 50]}
+            labelRowsPerPage={t('pagination.rowsPerPage')}
+            labelDisplayedRows={({ from, to, count }) =>
+              t('pagination.displayedRows', { from, to, count: count === -1 ? to : count })
+            }
+            getItemAriaLabel={(type) => t(`pagination.${type}`)}
           />
         </Paper>
       </Box>
@@ -379,6 +451,16 @@ export function AdminUsersPage() {
           onConfirm={runBulkAction}
         />
       )}
+
+      <Snackbar
+        open={actionError !== null}
+        autoHideDuration={6000}
+        onClose={() => setActionError(null)}
+      >
+        <Alert severity="error" variant="filled" onClose={() => setActionError(null)}>
+          {actionError}
+        </Alert>
+      </Snackbar>
     </AdminShell>
   )
 }

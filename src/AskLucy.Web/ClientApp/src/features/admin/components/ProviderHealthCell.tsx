@@ -1,4 +1,6 @@
 import { Box, Chip, Typography } from '@mui/material'
+import { useFormat, useT } from '../../../i18n/useT'
+import type { Translate } from '../../../i18n/useT'
 import type { AdminAiProvider } from '../api/adminAiProvidersApi'
 
 interface ProviderHealthCellProps {
@@ -26,7 +28,9 @@ type Presentation = {
  * ProviderStalenessCell (specs/062 US1).
  */
 export function ProviderHealthCell({ provider }: ProviderHealthCellProps) {
-  const presentation = present(provider)
+  const t = useT('admin.aiProviders')
+  const format = useFormat()
+  const presentation = present(provider, t)
 
   return (
     <Box>
@@ -38,33 +42,42 @@ export function ProviderHealthCell({ provider }: ProviderHealthCellProps) {
       )}
       {provider.healthStatusCheckedAtUtc && (
         <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>
-          Checked {new Date(provider.healthStatusCheckedAtUtc).toLocaleString()}
+          {t('health.checked', {
+            when: format.date(provider.healthStatusCheckedAtUtc, {
+              year: 'numeric',
+              month: 'numeric',
+              day: 'numeric',
+              hour: 'numeric',
+              minute: 'numeric',
+              second: 'numeric',
+            }),
+          })}
         </Typography>
       )}
     </Box>
   )
 }
 
-function present(provider: AdminAiProvider): Presentation {
+function present(provider: AdminAiProvider, t: Translate<'admin.aiProviders'>): Presentation {
   // FR-021: nothing has been configured to check, so this is a setup step, not a failure.
   if (!provider.hasCredential) {
-    return { label: 'Not configured', color: 'default' }
+    return { label: t('health.notConfigured'), color: 'default' }
   }
 
   // A disabled provider is not checked, so reporting its last known health as current would
   // be misleading in a different direction.
   if (!provider.isEnabled) {
-    return { label: 'Not checked while disabled', color: 'default' }
+    return { label: t('health.notCheckedWhileDisabled'), color: 'default' }
   }
 
   // FR-020: never red. "We have not looked yet" is not the same claim as "we looked and it
   // is broken".
   if (provider.healthStatus === 'Unknown') {
-    return { label: 'Not yet checked', color: 'default' }
+    return { label: t('health.notYetChecked'), color: 'default' }
   }
 
   if (provider.healthStatus === 'Healthy') {
-    return { label: 'Healthy', color: 'success' }
+    return { label: t('health.healthy'), color: 'success' }
   }
 
   // FR-018: a quota or rate limit means the provider is configured correctly and working —
@@ -72,11 +85,11 @@ function present(provider: AdminAiProvider): Presentation {
   // sends an administrator to change an API key that is perfectly valid.
   if (provider.healthFailureKind === 'QuotaExhausted' || provider.healthFailureKind === 'RateLimited') {
     return {
-      label: 'Configured — temporarily limited',
+      label: t('health.temporarilyLimited'),
       color: 'warning',
       reason: provider.healthFailureReason,
     }
   }
 
-  return { label: 'Unhealthy', color: 'error', reason: provider.healthFailureReason }
+  return { label: t('health.unhealthy'), color: 'error', reason: provider.healthFailureReason }
 }

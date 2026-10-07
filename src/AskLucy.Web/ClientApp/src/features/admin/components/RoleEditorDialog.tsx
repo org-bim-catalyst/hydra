@@ -11,6 +11,7 @@ import {
 } from '@mui/material'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { ApiError } from '../../../api/httpClient'
+import { useT } from '../../../i18n/useT'
 import * as adminRolesApi from '../api/adminRolesApi'
 import type { RoleSummary } from '../api/adminRolesApi'
 import { SUPER_USER_CONTROLLED_KEYS } from '../adminPermissions'
@@ -33,6 +34,8 @@ const ROLES_QUERY_KEY = ['admin', 'roles']
  */
 export function RoleEditorDialog({ open, onClose, role }: RoleEditorDialogProps) {
   const queryClient = useQueryClient()
+  const t = useT('admin.roles')
+  const tc = useT('common')
   const isEdit = role !== undefined
   const isDefault = role?.isDefault === true
 
@@ -60,7 +63,7 @@ export function RoleEditorDialog({ open, onClose, role }: RoleEditorDialogProps)
   }
 
   const onError = (err: unknown) => {
-    setErrorMessage(err instanceof ApiError ? (err.detail ?? err.message) : 'Something went wrong. Please try again.')
+    setErrorMessage(err instanceof ApiError ? (err.detail ?? err.message) : tc('errors.generic'))
   }
 
   const createMutation = useMutation({
@@ -100,7 +103,7 @@ export function RoleEditorDialog({ open, onClose, role }: RoleEditorDialogProps)
     let valid = true
 
     if (trimmed.length < 2 || trimmed.length > 50) {
-      setNameError('Role name must be between 2 and 50 characters.')
+      setNameError(t('editor.nameLength'))
       valid = false
     } else {
       setNameError(null)
@@ -108,7 +111,7 @@ export function RoleEditorDialog({ open, onClose, role }: RoleEditorDialogProps)
 
     // The User role may hold nothing beyond its basic permissions.
     if (permissionKeys.length === 0 && !isDefault) {
-      setPermissionError('Select at least one permission.')
+      setPermissionError(t('editor.permissionRequired'))
       valid = false
     } else {
       setPermissionError(null)
@@ -126,21 +129,21 @@ export function RoleEditorDialog({ open, onClose, role }: RoleEditorDialogProps)
   return (
     <>
       <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth>
-        <DialogTitle>{isEdit ? `Edit ${role.name}` : 'Create role'}</DialogTitle>
+        <DialogTitle>{isEdit ? t('editor.editTitle', { name: role.name }) : t('editor.createTitle')}</DialogTitle>
         <DialogContent>
           <TextField
             autoFocus={!isDefault}
-            label="Name"
+            label={t('editor.name')}
             fullWidth
             value={name}
             disabled={isDefault}
             onChange={(e) => setName(e.target.value)}
             error={nameError !== null}
-            helperText={nameError ?? (isDefault ? "Every account's starting role — it can't be renamed." : undefined)}
+            helperText={nameError ?? (isDefault ? t('editor.defaultNameHint') : undefined)}
             sx={{ mt: 1, mb: 2 }}
           />
           <TextField
-            label="Description"
+            label={t('editor.description')}
             fullWidth
             multiline
             minRows={2}
@@ -161,9 +164,9 @@ export function RoleEditorDialog({ open, onClose, role }: RoleEditorDialogProps)
           )}
         </DialogContent>
         <DialogActions>
-          <Button onClick={onClose}>Cancel</Button>
+          <Button onClick={onClose}>{t('editor.cancel')}</Button>
           <Button onClick={handleSave} variant="contained" disabled={isPending}>
-            {isEdit ? 'Save' : 'Create'}
+            {isEdit ? t('editor.save') : t('editor.create')}
           </Button>
         </DialogActions>
       </Dialog>

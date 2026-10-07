@@ -1,5 +1,6 @@
 import { Box, Skeleton, TableCell, TableRow } from '@mui/material'
 import { visuallyHidden } from '@mui/utils'
+import { useT } from '../i18n/useT'
 
 interface TableLoadingRowProps {
   /** The table's column count — one skeleton cell is drawn per column. */
@@ -19,6 +20,7 @@ interface TableLoadingRowProps {
  * conveys nothing without sight.
  */
 export function TableLoadingRow({ colSpan, rows = 6 }: TableLoadingRowProps) {
+  const t = useT('common')
   return (
     <>
       {Array.from({ length: rows }, (_, row) => (
@@ -27,7 +29,7 @@ export function TableLoadingRow({ colSpan, rows = 6 }: TableLoadingRowProps) {
             <TableCell key={column}>
               {row === 0 && column === 0 && (
                 <Box component="span" role="status" sx={visuallyHidden}>
-                  Loading… please wait
+                  {t('states.loadingPleaseWait')}
                 </Box>
               )}
               <Skeleton variant="text" width={column === 0 ? '55%' : '35%'} />

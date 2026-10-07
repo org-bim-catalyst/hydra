@@ -10,6 +10,7 @@ import {
 } from '@mui/material'
 import { visuallyHidden } from '@mui/utils'
 import { useQuery } from '@tanstack/react-query'
+import { useT } from '../../../i18n/useT'
 import * as adminAiProvidersApi from '../api/adminAiProvidersApi'
 import type { AdminAiProvider } from '../api/adminAiProvidersApi'
 
@@ -27,7 +28,12 @@ interface ProviderDefaultModelRowProps {
  * Deprecated or Unavailable default would be skipped at runtime and the capability assigned to
  * this provider would quietly fall back somewhere else.
  */
-export function ProviderDefaultModelRow({ provider, disabled, onChange }: ProviderDefaultModelRowProps) {
+export function ProviderDefaultModelRow({
+  provider,
+  disabled,
+  onChange,
+}: ProviderDefaultModelRowProps) {
+  const t = useT('admin.defaultModels')
   // The page issues this exact query for every row it is about to draw, so that it can hold its
   // skeleton until all of them have settled. Sharing the key means this is that same request, not
   // a second one — and the row keeps working when its provider changes after first paint.
@@ -49,15 +55,15 @@ export function ProviderDefaultModelRow({ provider, disabled, onChange }: Provid
       </TableCell>
       <TableCell>
         {provider.isEnabled ? (
-          <Chip size="small" label="Enabled" color="success" variant="outlined" />
+          <Chip size="small" label={t('row.enabled')} color="success" variant="outlined" />
         ) : (
-          <Chip size="small" label="Disabled" variant="outlined" />
+          <Chip size="small" label={t('row.disabled')} variant="outlined" />
         )}
       </TableCell>
       <TableCell>
         <FormControl size="small" sx={{ minWidth: 260 }}>
           <InputLabel id={labelId} sx={visuallyHidden}>
-            {`Default model for ${provider.displayName}`}
+            {t('row.defaultModelFor', { provider: provider.displayName })}
           </InputLabel>
           <Select
             labelId={labelId}
@@ -68,7 +74,7 @@ export function ProviderDefaultModelRow({ provider, disabled, onChange }: Provid
             onChange={(event) => onChange(event.target.value === '' ? null : event.target.value)}
           >
             <MenuItem value="">
-              <em>No default</em>
+              <em>{t('row.noDefault')}</em>
             </MenuItem>
             {available.map((model) => (
               <MenuItem key={model.id} value={model.id}>
@@ -84,12 +90,12 @@ export function ProviderDefaultModelRow({ provider, disabled, onChange }: Provid
         */}
         {modelsFailed ? (
           <Typography variant="caption" color="error" sx={{ display: 'block', mt: 0.5 }}>
-            Couldn&apos;t load this provider&apos;s models. Reload the page to try again.
+            {t('row.modelsLoadFailed')}
           </Typography>
         ) : (
           available.length === 0 && (
             <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.5 }}>
-              No Available models — mark one Available on the Providers page first.
+              {t('row.noAvailableModels')}
             </Typography>
           )
         )}

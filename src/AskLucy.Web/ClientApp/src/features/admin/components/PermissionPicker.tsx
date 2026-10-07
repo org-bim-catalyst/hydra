@@ -1,7 +1,10 @@
 import { Box, Checkbox, FormControlLabel, Stack, Tooltip, Typography } from '@mui/material'
 import { useIsSuperUser } from '../../../hooks/useIsSuperUser'
+import { useT } from '../../../i18n/useT'
+import { usePermissionText } from '../hooks/usePermissionText'
 import { ADMIN_PERMISSION_CATALOG, SUPER_USER_CONTROLLED_KEYS, type PermissionCatalogEntry } from '../adminPermissions'
 
+/** The English hints; the picker itself reads them from the `admin.roles` catalog (`picker.*`). */
 export const SUPER_USER_ONLY_HINT = 'Only a Super User can grant this'
 export const BASIC_PERMISSION_HINT = "A basic permission — it can't be removed from this role"
 
@@ -32,13 +35,15 @@ interface PermissionPickerProps {
  */
 export function PermissionPicker({ selectedKeys, onChange, disabled, lockedKeys = [], hiddenKeys }: PermissionPickerProps) {
   const isSuperUser = useIsSuperUser()
+  const t = useT('admin.roles')
+  const text = usePermissionText()
   const selected = new Set(selectedKeys)
   const basic = new Set(lockedKeys)
 
   const catalog = ADMIN_PERMISSION_CATALOG.filter((p) => !hiddenKeys?.has(p.key))
   const areas = [...new Set(catalog.map((p) => p.area))].map((area) => ({
     area,
-    label: catalog.find((p) => p.area === area)!.areaLabel,
+    label: text.area(catalog.find((p) => p.area === area)!),
     entries: catalog.filter((p) => p.area === area),
   }))
 
@@ -82,13 +87,19 @@ export function PermissionPicker({ selectedKeys, onChange, disabled, lockedKeys 
                       disabled={disabled || locked}
                     />
                   }
-                  label={entry.key === primaryKeyFor(entry.area, entry.level) ? entry.level : entry.displayName}
-                  title={locked ? undefined : entry.description}
+                  label={
+                    entry.key === primaryKeyFor(entry.area, entry.level)
+                      ? entry.level === 'View'
+                        ? t('picker.levelView')
+                        : t('picker.levelManage')
+                      : text.name(entry)
+                  }
+                  title={locked ? undefined : text.description(entry)}
                 />
               )
 
               return locked ? (
-                <Tooltip key={entry.key} title={isBasic ? BASIC_PERMISSION_HINT : SUPER_USER_ONLY_HINT}>
+                <Tooltip key={entry.key} title={isBasic ? t('picker.basic') : t('picker.superUserOnly')}>
                   <span>{control}</span>
                 </Tooltip>
               ) : (

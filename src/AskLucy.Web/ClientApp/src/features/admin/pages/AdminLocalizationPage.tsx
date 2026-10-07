@@ -15,6 +15,7 @@ import {
 } from '@mui/material'
 import { useState } from 'react'
 import { ApiError } from '../../../api/httpClient'
+import { useT } from '../../../i18n/useT'
 import type { LocalizationSettings } from '../api/adminLocalizationApi'
 import { AdminShell } from '../components/AdminShell'
 import {
@@ -22,9 +23,8 @@ import {
   useUpdateLocalizationSettings,
 } from '../hooks/useAdminLocalization'
 import { useCanManageNotifications } from '../hooks/useAdminNotifications'
-
-const errorMessage = (err: unknown) =>
-  err instanceof ApiError ? (err.detail ?? err.message) : 'Something went wrong. Please try again.'
+import { useOuterT } from '../hooks/useOuterT'
+import { errorText } from '../notificationAdminText'
 
 const sameSet = (a: string[], b: string[]) =>
   a.length === b.length && a.every((code) => b.includes(code))
@@ -38,6 +38,7 @@ interface FormProps {
 
 /** Keyed by the row version by the page, so a reload (or a save) starts the draft again from what is stored. */
 function LocalizationForm({ settings, canManage, isSaving, onSave }: FormProps) {
+  const t = useT('admin.notifications')
   const [isEnabled, setIsEnabled] = useState(settings.isEnabled)
   const [supported, setSupported] = useState<string[]>(settings.supportedLanguages)
 
@@ -57,18 +58,16 @@ function LocalizationForm({ settings, canManage, isSaving, onSave }: FormProps) 
               onChange={(e) => setIsEnabled(e.target.checked)}
             />
           }
-          label="Enable localization"
+          label={t('localization.enable')}
         />
         <FormHelperText sx={{ marginInlineStart: 0 }}>
-          While off, every notification, email and screen is in English and users are not offered a
-          language choice. Users keep the language they chose, and get it back when localization is
-          turned on again.
+          {t('localization.enableHelp')}
         </FormHelperText>
       </Box>
 
       <Box component="fieldset" sx={{ border: 0, p: 0, m: 0 }}>
         <Typography component="legend" variant="subtitle2" sx={{ mb: 0.5 }}>
-          Supported languages
+          {t('localization.supported')}
         </Typography>
         <FormGroup>
           {settings.availableLanguages.map((language) => {
@@ -92,7 +91,7 @@ function LocalizationForm({ settings, canManage, isSaving, onSave }: FormProps) 
                       color="text.secondary"
                       sx={{ marginInlineStart: 1 }}
                     >
-                      {locked ? `${language.code} · always supported` : language.code}
+                      {locked ? t('localization.alwaysSupported', { code: language.code }) : <bdi dir="ltr">{language.code}</bdi>}
                     </Typography>
                   </span>
                 }
@@ -101,8 +100,7 @@ function LocalizationForm({ settings, canManage, isSaving, onSave }: FormProps) 
           })}
         </FormGroup>
         <FormHelperText sx={{ marginInlineStart: 0 }}>
-          Only languages the platform ships content for are listed. A user whose language is removed
-          falls back to English.
+          {t('localization.supportedHelp')}
         </FormHelperText>
       </Box>
 
@@ -115,7 +113,7 @@ function LocalizationForm({ settings, canManage, isSaving, onSave }: FormProps) 
               onSave({ isEnabled, supportedLanguages: Array.from(new Set(['en', ...supported])) })
             }
           >
-            Save
+            {t('localization.save')}
           </Button>
         </Stack>
       )}
@@ -123,8 +121,8 @@ function LocalizationForm({ settings, canManage, isSaving, onSave }: FormProps) 
   )
 }
 
-/** specs/067 US8 (FR-044a) — the platform's localization switch and supported languages. Concurrent edits are caught by `If-Match`. */
-export function AdminLocalizationPage() {
+function LocalizationContent() {
+  const t = useT('admin.notifications')
   const canManage = useCanManageNotifications()
   const settings = useLocalizationSettings()
   const update = useUpdateLocalizationSettings()
@@ -138,10 +136,7 @@ export function AdminLocalizationPage() {
   }
 
   return (
-    <AdminShell
-      title="Localization"
-      subtitle="Which languages users can choose, and whether localization is on"
-    >
+    <>
       <Stack spacing={2}>
         {update.isError && (
           <Alert
@@ -149,31 +144,31 @@ export function AdminLocalizationPage() {
             action={
               conflict ? (
                 <Button color="inherit" size="small" onClick={reload}>
-                  Reload
+                  {t('actions.reload')}
                 </Button>
               ) : undefined
             }
           >
             {conflict
-              ? `The settings were changed by someone else. Reload to see the current settings, then make your change again. ${errorMessage(update.error)}`
-              : `The settings weren't saved. ${errorMessage(update.error)}`}
+              ? t('localization.conflict', { detail: errorText(t, update.error) })
+              : t('localization.saveFailed', { detail: errorText(t, update.error) })}
           </Alert>
         )}
 
         {settings.isPending ? (
           <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
-            <CircularProgress aria-label="Loading localization settings" />
+            <CircularProgress aria-label={t('localization.loading')} />
           </Box>
         ) : settings.isError ? (
           <Alert
             severity="error"
             action={
               <Button color="inherit" size="small" onClick={() => void settings.refetch()}>
-                Retry
+                {t('actions.retry')}
               </Button>
             }
           >
-            {errorMessage(settings.error)}
+            {errorText(t, settings.error)}
           </Alert>
         ) : (
           <LocalizationForm
@@ -195,10 +190,25 @@ export function AdminLocalizationPage() {
         onClose={() => setDismissedSavedAt(Date.now())}
         anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
       >
-        <Alert severity="success" variant="filled" onClose={() => setDismissedSavedAt(Date.now())}>
-          Localization settings saved.
+        <Alert
+          severity="success"
+          variant="filled"
+          closeText={t('actions.close')}
+          onClose={() => setDismissedSavedAt(Date.now())}
+        >
+          {t('localization.saved')}
         </Alert>
       </Snackbar>
+    </>
+  )
+}
+
+/** specs/067 US8 (FR-044a) — the platform's localization switch and supported languages. Concurrent edits are caught by `If-Match`. */
+export function AdminLocalizationPage() {
+  const t = useOuterT('admin.notifications')
+  return (
+    <AdminShell title={t('localization.title')} subtitle={t('localization.subtitle')}>
+      <LocalizationContent />
     </AdminShell>
   )
 }

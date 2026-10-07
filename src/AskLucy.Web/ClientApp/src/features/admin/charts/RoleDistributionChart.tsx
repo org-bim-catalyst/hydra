@@ -1,6 +1,7 @@
 import { useMemo } from 'react'
 import { Box, Stack, Typography, useTheme } from '@mui/material'
 import { arc as d3Arc, pie as d3Pie } from 'd3'
+import { useT } from '../../../i18n/useT'
 import type { RoleCount } from '../api/adminApi'
 
 interface RoleDistributionChartProps {
@@ -16,6 +17,7 @@ const RADIUS = SIZE / 2
  */
 export function RoleDistributionChart({ data }: RoleDistributionChartProps) {
   const theme = useTheme()
+  const t = useT('admin.dashboard')
 
   const colorByRole = (roleName: string) => {
     if (roleName === 'Super User') return theme.palette.secondary.main
@@ -32,11 +34,11 @@ export function RoleDistributionChart({ data }: RoleDistributionChartProps) {
 
     const pieGenerator = d3Pie<RoleCount>()
       .value((d) => d.userCount)
-      .sort(null);
+      .sort(null)
 
     const arcGenerator = d3Arc<ReturnType<typeof pieGenerator>[number]>()
       .innerRadius(RADIUS * 0.55)
-      .outerRadius(RADIUS - 2);
+      .outerRadius(RADIUS - 2)
 
     return pieGenerator(data).map((slice) => ({
       key: slice.data.roleName,
@@ -44,18 +46,18 @@ export function RoleDistributionChart({ data }: RoleDistributionChartProps) {
       color: colorByRole(slice.data.roleName),
       roleName: slice.data.roleName,
       count: slice.data.userCount,
-    }));
+    }))
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [data, total])
 
   return (
     <Box>
       <Typography variant="subtitle2" sx={{ mb: 1 }}>
-        Role distribution
+        {t('roles.title')}
       </Typography>
       {total === 0 ? (
         <Typography variant="body2" color="text.secondary">
-          No registered users yet.
+          {t('noUsersYet')}
         </Typography>
       ) : (
         <Stack direction="row" spacing={2} sx={{ alignItems: 'center', flexWrap: 'wrap' }}>
@@ -64,14 +66,17 @@ export function RoleDistributionChart({ data }: RoleDistributionChartProps) {
             width={SIZE}
             height={SIZE}
             role="img"
-            aria-label={`Role distribution: ${data.map((d) => `${d.roleName} ${d.userCount}`).join(', ')}`}
+            direction="ltr"
+            aria-label={t('roles.ariaLabel', {
+              summary: data
+                .map((d) => t('roles.ariaItem', { role: d.roleName, count: d.userCount }))
+                .join(t('roles.listSeparator')),
+            })}
           >
             <g transform={`translate(${RADIUS}, ${RADIUS})`}>
               {slices.map((slice) => (
                 <path key={slice.key} d={slice.path} fill={slice.color}>
-                  <title>
-                    {slice.roleName}: {slice.count}
-                  </title>
+                  <title>{t('roles.item', { role: slice.roleName, count: slice.count })}</title>
                 </path>
               ))}
             </g>
@@ -79,9 +84,16 @@ export function RoleDistributionChart({ data }: RoleDistributionChartProps) {
           <Stack spacing={0.5}>
             {data.map((d) => (
               <Stack key={d.roleName} direction="row" spacing={1} sx={{ alignItems: 'center' }}>
-                <Box sx={{ width: 10, height: 10, borderRadius: '50%', bgcolor: colorByRole(d.roleName) }} />
+                <Box
+                  sx={{
+                    width: 10,
+                    height: 10,
+                    borderRadius: '50%',
+                    bgcolor: colorByRole(d.roleName),
+                  }}
+                />
                 <Typography variant="body2">
-                  {d.roleName}: {d.userCount}
+                  {t('roles.item', { role: d.roleName, count: d.userCount })}
                 </Typography>
               </Stack>
             ))}

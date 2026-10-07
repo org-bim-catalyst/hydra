@@ -14,6 +14,7 @@ import {
   ListItemText,
   Typography,
 } from '@mui/material'
+import { useFormat, useT } from '../../../i18n/useT'
 import type { BulkActionOutcome } from '../bulkRunner'
 
 export type { BulkActionOutcome, BulkActionSkip } from '../bulkRunner'
@@ -34,11 +35,22 @@ interface BulkActionConfirmDialogProps {
 }
 
 /** Shared confirm → progress → result flow for every bulk action (FR-007/FR-009). */
-export function BulkActionConfirmDialog({ open, onClose, actionLabel, progressVerb, itemCount, onConfirm }: BulkActionConfirmDialogProps) {
+export function BulkActionConfirmDialog({
+  open,
+  onClose,
+  actionLabel,
+  progressVerb,
+  itemCount,
+  onConfirm,
+}: BulkActionConfirmDialogProps) {
   const [step, setStep] = useState<Step>('confirm')
   const [progress, setProgress] = useState({ done: 0, total: itemCount })
   const [outcome, setOutcome] = useState<BulkActionOutcome | null>(null)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
+  const t = useT('admin.users')
+  const { language } = useFormat()
+  // English reads "Do you want to delete 3 items?"; the caller's label is already localized for other languages.
+  const action = language === 'en' ? actionLabel.toLowerCase() : actionLabel
 
   function reset() {
     setStep('confirm')
@@ -60,16 +72,21 @@ export function BulkActionConfirmDialog({ open, onClose, actionLabel, progressVe
       setOutcome(result)
       setStep('done')
     } catch {
-      setErrorMessage('Something went wrong. Please try again.')
+      setErrorMessage(t('bulk.failed'))
       setStep('confirm')
     }
   }
 
   return (
-    <Dialog open={open} onClose={step === 'running' ? undefined : handleClose} fullWidth maxWidth="sm">
+    <Dialog
+      open={open}
+      onClose={step === 'running' ? undefined : handleClose}
+      fullWidth
+      maxWidth="sm"
+    >
       {step === 'confirm' && (
         <>
-          <DialogTitle>{actionLabel} selected items?</DialogTitle>
+          <DialogTitle>{t('bulk.confirmTitle', { action: actionLabel })}</DialogTitle>
           <DialogContent>
             {errorMessage && (
               <Alert severity="error" sx={{ mb: 2 }}>
@@ -77,11 +94,11 @@ export function BulkActionConfirmDialog({ open, onClose, actionLabel, progressVe
               </Alert>
             )}
             <DialogContentText>
-              Do you want to {actionLabel.toLowerCase()} {itemCount} item{itemCount === 1 ? '' : 's'}?
+              {t('bulk.confirmBody', { action, count: itemCount })}
             </DialogContentText>
           </DialogContent>
           <DialogActions>
-            <Button onClick={handleClose}>Cancel</Button>
+            <Button onClick={handleClose}>{t('bulk.cancel')}</Button>
             <Button onClick={handleConfirm} color="error" variant="contained" autoFocus>
               {actionLabel}
             </Button>
@@ -94,7 +111,15 @@ export function BulkActionConfirmDialog({ open, onClose, actionLabel, progressVe
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, py: 3 }}>
             <CircularProgress size={24} />
             <Typography>
-              {progressVerb ?? `${actionLabel}ing`} {progress.done} of {progress.total}&hellip;
+              {t('bulk.running', {
+                verb:
+                  progressVerb ??
+                  (language === 'en'
+                    ? `${actionLabel}ing`
+                    : t('bulk.progress.fallback', { action: actionLabel })),
+                done: progress.done,
+                total: progress.total,
+              })}
             </Typography>
           </Box>
         </DialogContent>
@@ -102,18 +127,23 @@ export function BulkActionConfirmDialog({ open, onClose, actionLabel, progressVe
 
       {step === 'done' && outcome && (
         <>
-          <DialogTitle>{actionLabel} complete</DialogTitle>
+          <DialogTitle>{t('bulk.completeTitle', { action: actionLabel })}</DialogTitle>
           <DialogContent>
             <DialogContentText sx={{ mb: 1 }}>
-              {outcome.succeededCount} item{outcome.succeededCount === 1 ? '' : 's'} succeeded.
+              {t('bulk.succeeded', { count: outcome.succeededCount })}
             </DialogContentText>
             {outcome.skipped.length > 0 && (
               <>
-                <Typography variant="subtitle2">{outcome.skipped.length} skipped:</Typography>
+                <Typography variant="subtitle2">
+                  {t('bulk.skipped', { count: outcome.skipped.length })}
+                </Typography>
                 <List dense>
                   {outcome.skipped.map((skip) => (
                     <ListItem key={skip.id} disableGutters>
-                      <ListItemText primary={skip.id} secondary={skip.reason} />
+                      <ListItemText
+                        primary={<bdi dir="ltr">{skip.id}</bdi>}
+                        secondary={skip.reason}
+                      />
                     </ListItem>
                   ))}
                 </List>
@@ -122,7 +152,7 @@ export function BulkActionConfirmDialog({ open, onClose, actionLabel, progressVe
           </DialogContent>
           <DialogActions>
             <Button onClick={handleClose} autoFocus>
-              Done
+              {t('bulk.done')}
             </Button>
           </DialogActions>
         </>

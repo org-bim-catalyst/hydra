@@ -1057,29 +1057,37 @@ These apply to every task below, and each one assumes them:
 
 ### Tests for User Story 8 (part B)
 
-- [ ] T207 [P] [US8] Add `ar`/`rtl` cases to `ClientApp/src/features/admin/components/AdminShell.test.tsx` and `AdminShell.a11y.test.tsx`:
+- [X] T207 [P] [US8] Add `ar`/`rtl` cases to `ClientApp/src/features/admin/components/AdminShell.test.tsx` and `AdminShell.a11y.test.tsx`:
   - `<html dir="rtl" lang="ar">` while mounted, restored on unmount;
   - the collapse arrow flips;
   - sidebar labels are in Arabic.
-- [ ] T208 [P] [US8] Add an `.rtl.test.tsx` for each of the 12 admin sections. Each renders the page in `ar`/`rtl`, asserts `dir`, has no fallback-spy hits, and passes jest-axe in light and dark:
+- [X] T208 [P] [US8] Add an `.rtl.test.tsx` for each of the 12 admin sections. Each renders the page in `ar`/`rtl`, asserts `dir`, has no fallback-spy hits, and passes jest-axe in light and dark:
   - `AdminDashboardPage`, `AdminUsersPage`, `AdminRolesPage`, `AdminRoleAssignmentsPage`
   - `AdminSystemAgentsPage`, `AdminAiProvidersPage`, `AdminDefaultModelsPage`, `AdminAiCapabilitiesPage`
   - `features/agents/pages/AgentPoliciesAdminPage`, `features/workflows/pages/WorkflowPoliciesAdminPage`, `features/mcp/pages/McpAdministrationPage`
   - the Jobs entry, which is part of the shell test
-- [ ] T209 [P] [US8] Add an `.rtl.test.tsx` for each of the 5 notification admin screens: Dashboard, Deliveries, Templates (list and editor), Announcements and Localization.
+- [X] T209 [P] [US8] Add an `.rtl.test.tsx` for each of the 5 notification admin screens: Dashboard, Deliveries, Templates (list and editor), Announcements and Localization.
 
 ### Implementation for User Story 8 (part B)
 
-- [ ] T210 [US8] Add `messages/{en,ar}/admin/shell.ts`. Wrap `ClientApp/src/features/admin/components/AdminShell.tsx` in `<LocalizedSurface scope="page">`, move the shell and `adminNav.tsx` labels onto `useT('admin.shell')`, flip the directional icons, and use logical CSS properties.
-- [ ] T211 [P] [US8] Dashboard: add `messages/{en,ar}/admin/dashboard.ts`. Move `AdminDashboardPage.tsx` and `features/admin/charts/{NewUsersTrendChart, RoleDistributionChart, StatusSplitChart}.tsx` onto `useT`. The SVG roots keep `direction="ltr"`, while the legends, captions and axis labels are translated.
-- [ ] T212 [P] [US8] Users: add `messages/{en,ar}/admin/users.ts` and move `AdminUsersPage.tsx` onto `useT`. Mirror the table, and wrap identifier cells in `<bdi dir="ltr">`.
-- [ ] T213 [P] [US8] Roles and role assignments: add `messages/{en,ar}/admin/roles.ts` and `roleAssignments.ts`, and move `AdminRolesPage.tsx` and `AdminRoleAssignmentsPage.tsx` onto `useT`. Role names come from users, so they pass through as parameters only.
-- [ ] T214 [P] [US8] System agents: add `messages/{en,ar}/admin/systemAgents.ts` and move `AdminSystemAgentsPage.tsx` onto `useT`.
-- [ ] T215 [P] [US8] AI providers, default models and AI capabilities: add `messages/{en,ar}/admin/aiProviders.ts`, `defaultModels.ts` and `aiCapabilities.ts`, and move `AdminAiProvidersPage.tsx`, `AdminDefaultModelsPage.tsx` and `AdminAiCapabilitiesPage.tsx` onto `useT`. Provider and model names are protected terms and stay verbatim.
-- [ ] T216 [P] [US8] Agent and workflow policies: add `messages/{en,ar}/admin/agentPolicies.ts` and `workflowPolicies.ts`, and move `features/agents/pages/AgentPoliciesAdminPage.tsx` and `features/workflows/pages/WorkflowPoliciesAdminPage.tsx` onto `useT`.
-- [ ] T217 [P] [US8] MCP servers and jobs: add `messages/{en,ar}/admin/mcpServers.ts` and `jobs.ts`, and move `features/mcp/pages/McpAdministrationPage.tsx` and the Jobs sidebar entry's label and helper text onto `useT`. The Hangfire dashboard itself stays untranslated.
-- [ ] T218 [US8] Add `messages/{en,ar}/admin/notifications.ts`, and move the 5 notification admin screens (`AdminNotificationsDashboardPage`, `AdminNotificationDeliveriesPage`, `AdminNotificationTemplatesPage`/`EditorPage`, `AdminAnnouncementsPage` and `AdminLocalizationPage`) onto `useT` and `format.ts`.
-- [ ] T219 [US8] Slice 6 gate: run `npx tsc -b --noEmit` (catalog completeness), lint, the full `npm test`, and quickstart S9 (the admin half).
+- [X] T210 [US8] Add `messages/{en,ar}/admin/shell.ts`. Wrap `ClientApp/src/features/admin/components/AdminShell.tsx` in `<LocalizedSurface scope="page">`, move the shell and `adminNav.tsx` labels onto `useT('admin.shell')`, flip the directional icons, and use logical CSS properties.
+- [X] T211 [P] [US8] Dashboard: add `messages/{en,ar}/admin/dashboard.ts`. Move `AdminDashboardPage.tsx` and `features/admin/charts/{NewUsersTrendChart, RoleDistributionChart, StatusSplitChart}.tsx` onto `useT`. The SVG roots keep `direction="ltr"`, while the legends, captions and axis labels are translated.
+- [X] T212 [P] [US8] Users: add `messages/{en,ar}/admin/users.ts` and move `AdminUsersPage.tsx` onto `useT`. Mirror the table, and wrap identifier cells in `<bdi dir="ltr">`.
+- [X] T213 [P] [US8] Roles and role assignments: add `messages/{en,ar}/admin/roles.ts` and `roleAssignments.ts`, and move `AdminRolesPage.tsx` and `AdminRoleAssignmentsPage.tsx` onto `useT`. Role names come from users, so they pass through as parameters only.
+- [X] T214 [P] [US8] System agents: add `messages/{en,ar}/admin/systemAgents.ts` and move `AdminSystemAgentsPage.tsx` onto `useT`.
+- [X] T215 [P] [US8] AI providers, default models and AI capabilities: add `messages/{en,ar}/admin/aiProviders.ts`, `defaultModels.ts` and `aiCapabilities.ts`, and move `AdminAiProvidersPage.tsx`, `AdminDefaultModelsPage.tsx` and `AdminAiCapabilitiesPage.tsx` onto `useT`. Provider and model names are protected terms and stay verbatim.
+- [X] T216 [P] [US8] Agent and workflow policies: add `messages/{en,ar}/admin/agentPolicies.ts` and `workflowPolicies.ts`, and move `features/agents/pages/AgentPoliciesAdminPage.tsx` and `features/workflows/pages/WorkflowPoliciesAdminPage.tsx` onto `useT`.
+- [X] T217 [P] [US8] MCP servers and jobs: add `messages/{en,ar}/admin/mcpServers.ts` and `jobs.ts`, and move `features/mcp/pages/McpAdministrationPage.tsx` and the Jobs sidebar entry's label and helper text onto `useT`. The Hangfire dashboard itself stays untranslated.
+- [X] T218 [US8] Add `messages/{en,ar}/admin/notifications.ts`, and move the 5 notification admin screens (`AdminNotificationsDashboardPage`, `AdminNotificationDeliveriesPage`, `AdminNotificationTemplatesPage`/`EditorPage`, `AdminAnnouncementsPage` and `AdminLocalizationPage`) onto `useT` and `format.ts`.
+- [X] T219 [US8] Slice 6 gate: run `npx tsc -b --noEmit` (catalog completeness), lint, the full `npm test`, and quickstart S9 (the admin half).
+
+**Phase 13 implementation notes** (deviations from the task text):
+- T210: `AdminShell` still wraps itself in `<LocalizedSurface scope="page">`, and `AdminRoute` now wraps every admin route in the same surface, because a page body that calls `useT` (for its title, subtitle and state) runs above the shell. A nested surface for the same language is now a pass-through for both scopes. Pages that pass text to `AdminShell` as props use `features/admin/hooks/useOuterT.ts`. `adminNav.tsx` items carry a `labelKey` into `admin.shell`; `label` stays the English text. `useOpenHangfireDashboard` takes optional translated messages. The hidden "Loading… please wait" in `TableLoadingRow` moved to `common.states.loadingPleaseWait`.
+- T207: the shell tests are the new `AdminShell.rtl.test.tsx` beside the existing ones, which are untouched.
+- T208/T209: every `.rtl.test.tsx` renders the page in `ar`/`rtl`, asserts no `[i18n]` fallbacks and runs jest-axe in light and dark. The three notification admin pages that the contract lists (Dashboard, Deliveries, Templates list and editor, Announcements, Localization) each have one.
+- T211-T218: the screens' catalogs are `messages/{en,ar}/admin/*.ts`. `admin.jobs` is left as an empty stub because the Jobs entry's strings are all in `admin.shell`. Several screens had no error path for a failed query or mutation; they now show an inline alert with a retry or a toast, as the standing rule requires.
+- Voice, Appearance and Operational failures are admin screens that were added after this spec's list of 12 sections; they are not localized and stay English inside the Arabic frame.
+- T219: quickstart S9 (the admin half) needs a browser and was not run; Arabic wording has not had native-speaker review.
 
 **Checkpoint**: Slice 6 is deployable. The whole admin area works in Arabic.
 

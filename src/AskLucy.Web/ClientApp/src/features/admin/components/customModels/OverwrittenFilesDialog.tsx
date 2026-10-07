@@ -14,6 +14,7 @@ import {
   TableRow,
 } from '@mui/material'
 import { keepPreviousData, useQuery } from '@tanstack/react-query'
+import { useT } from '../../../../i18n/useT'
 import { TableEmptyRow } from '../../../../components/TableEmptyRow'
 import { TableLoadingRow } from '../../../../components/TableLoadingRow'
 import * as customModelsApi from '../../api/adminCustomModelsApi'
@@ -30,7 +31,13 @@ interface OverwrittenFilesDialogProps {
 }
 
 /** specs/072 FR-015 — the files a deployment replaced on the target, with their previous sizes. */
-export function OverwrittenFilesDialog({ open, modelId, modelName, onClose }: OverwrittenFilesDialogProps) {
+export function OverwrittenFilesDialog({
+  open,
+  modelId,
+  modelName,
+  onClose,
+}: OverwrittenFilesDialogProps) {
+  const t = useT('admin.aiProviders')
   const [page, setPage] = useState(1)
 
   const detailQuery = useQuery({
@@ -42,8 +49,16 @@ export function OverwrittenFilesDialog({ open, modelId, modelName, onClose }: Ov
   const files = detailQuery.data?.overwrittenFiles
 
   return (
-    <Dialog open={open} onClose={onClose} maxWidth="md" fullWidth aria-labelledby="overwritten-files-title">
-      <DialogTitle id="overwritten-files-title">Files overwritten by {modelName}</DialogTitle>
+    <Dialog
+      open={open}
+      onClose={onClose}
+      maxWidth="md"
+      fullWidth
+      aria-labelledby="overwritten-files-title"
+    >
+      <DialogTitle id="overwritten-files-title">
+        {t('overwritten.title', { name: modelName })}
+      </DialogTitle>
       <DialogContent>
         {detailQuery.isError && (
           <Alert
@@ -51,27 +66,33 @@ export function OverwrittenFilesDialog({ open, modelId, modelName, onClose }: Ov
             sx={{ mb: 2 }}
             action={
               <Button color="inherit" size="small" onClick={() => void detailQuery.refetch()}>
-                Retry
+                {t('shared.retry')}
               </Button>
             }
           >
-            {errorMessage(detailQuery.error)}
+            {errorMessage(detailQuery.error, t)}
           </Alert>
         )}
         <Table size="small" aria-labelledby="overwritten-files-title">
           <TableHead>
             <TableRow>
-              <TableCell>File</TableCell>
-              <TableCell align="right">Previous size</TableCell>
+              <TableCell>{t('overwritten.file')}</TableCell>
+              <TableCell sx={{ textAlign: 'end' }}>{t('overwritten.previousSize')}</TableCell>
             </TableRow>
           </TableHead>
           <TableBody>
             {detailQuery.isLoading && <TableLoadingRow colSpan={2} rows={3} />}
-            {files && files.items.length === 0 && <TableEmptyRow colSpan={2} message="No files were overwritten." />}
+            {files && files.items.length === 0 && (
+              <TableEmptyRow colSpan={2} message={t('overwritten.empty')} />
+            )}
             {files?.items.map((file) => (
               <TableRow key={file.relativePath}>
-                <TableCell sx={{ wordBreak: 'break-all' }}>{file.relativePath}</TableCell>
-                <TableCell align="right">{formatBytes(file.previousSizeBytes)}</TableCell>
+                <TableCell sx={{ wordBreak: 'break-all' }}>
+                  <bdi dir="ltr">{file.relativePath}</bdi>
+                </TableCell>
+                <TableCell sx={{ textAlign: 'end' }}>
+                  <bdi dir="ltr">{formatBytes(file.previousSizeBytes, t('shared.bytes'))}</bdi>
+                </TableCell>
               </TableRow>
             ))}
           </TableBody>
@@ -83,12 +104,23 @@ export function OverwrittenFilesDialog({ open, modelId, modelName, onClose }: Ov
             page={files.page - 1}
             rowsPerPage={files.pageSize}
             rowsPerPageOptions={[]}
+            labelDisplayedRows={({ from, to, count }) =>
+              t('overwritten.displayedRows', { from, to, count })
+            }
+            getItemAriaLabel={(type) =>
+              ({
+                first: t('overwritten.goToFirst'),
+                last: t('overwritten.goToLast'),
+                next: t('overwritten.goToNext'),
+                previous: t('overwritten.goToPrevious'),
+              })[type]
+            }
             onPageChange={(_, next) => setPage(next + 1)}
           />
         )}
       </DialogContent>
       <DialogActions>
-        <Button onClick={onClose}>Close</Button>
+        <Button onClick={onClose}>{t('shared.close')}</Button>
       </DialogActions>
     </Dialog>
   )

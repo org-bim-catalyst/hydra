@@ -17,6 +17,7 @@ import {
 } from '@mui/material'
 import CheckCircleIcon from '@mui/icons-material/CheckCircle'
 import CancelIcon from '@mui/icons-material/Cancel'
+import { useT } from '../../../i18n/useT'
 import { TableEmptyRow } from '../../../components/TableEmptyRow'
 import { TableLoadingRow } from '../../../components/TableLoadingRow'
 import type { AgentToolRiskLevel, McpToolActivationStatus } from '../api/mcpServersApi'
@@ -42,6 +43,8 @@ const STATUS_COLOR: Record<McpToolActivationStatus, 'default' | 'success' | 'war
  * must explicitly activate it before any agent can use it.
  */
 export function McpToolActivationPanel({ serverId }: { serverId: string }) {
+  const t = useT('admin.mcpServers')
+  const tc = useT('common')
   const { data: tools, isLoading } = useMcpServerTools(serverId)
   const activateTool = useActivateMcpTool()
   const deactivateTool = useDeactivateMcpTool()
@@ -52,11 +55,11 @@ export function McpToolActivationPanel({ serverId }: { serverId: string }) {
   return (
     <Box>
       <Typography variant="subtitle1" sx={{ mb: 1 }}>
-        Tools
+        {t('tools.title')}
       </Typography>
 
       {errorMessage && (
-        <Alert severity="error" sx={{ mb: 2 }} onClose={() => setErrorMessage(null)}>
+        <Alert severity="error" sx={{ mb: 2 }} closeText={tc('actions.close')} onClose={() => setErrorMessage(null)}>
           {errorMessage}
         </Alert>
       )}
@@ -65,17 +68,17 @@ export function McpToolActivationPanel({ serverId }: { serverId: string }) {
         <Table size="small">
           <TableHead>
             <TableRow>
-              <TableCell>Tool</TableCell>
-              <TableCell>Risk</TableCell>
-              <TableCell>Required permissions</TableCell>
-              <TableCell>Status</TableCell>
-              <TableCell align="right">Actions</TableCell>
+              <TableCell>{t('tools.columns.tool')}</TableCell>
+              <TableCell>{t('tools.columns.risk')}</TableCell>
+              <TableCell>{t('tools.columns.permissions')}</TableCell>
+              <TableCell>{t('tools.columns.status')}</TableCell>
+              <TableCell sx={{ textAlign: 'end' }}>{t('tools.columns.actions')}</TableCell>
             </TableRow>
           </TableHead>
           <TableBody>
             {isLoading && <TableLoadingRow colSpan={5} />}
             {!isLoading && (tools ?? []).length === 0 && (
-              <TableEmptyRow colSpan={5} message="No tools discovered yet. Refresh capabilities to discover them." />
+              <TableEmptyRow colSpan={5} message={t('tools.empty')} />
             )}
             {(tools ?? []).map((tool) => (
               <TableRow key={tool.id}>
@@ -85,29 +88,29 @@ export function McpToolActivationPanel({ serverId }: { serverId: string }) {
                   </Tooltip>
                 </TableCell>
                 <TableCell>
-                  <Chip label={tool.effectiveRiskLevel} color={RISK_COLOR[tool.effectiveRiskLevel]} size="small" />
+                  <Chip label={t(`tools.risk.${tool.effectiveRiskLevel}`)} color={RISK_COLOR[tool.effectiveRiskLevel]} size="small" />
                 </TableCell>
                 <TableCell>
                   <Stack direction="row" spacing={0.5} sx={{ flexWrap: 'wrap' }}>
                     {tool.requiredPermissions.map((permission) => (
-                      <Chip key={permission} label={permission} size="small" variant="outlined" />
+                      <Chip key={permission} label={<bdi dir="ltr">{permission}</bdi>} size="small" variant="outlined" />
                     ))}
                   </Stack>
                 </TableCell>
                 <TableCell>
-                  <Chip label={tool.activationStatus} color={STATUS_COLOR[tool.activationStatus]} size="small" />
+                  <Chip label={t(`tools.status.${tool.activationStatus}`)} color={STATUS_COLOR[tool.activationStatus]} size="small" />
                 </TableCell>
-                <TableCell align="right">
+                <TableCell sx={{ textAlign: 'end' }}>
                   {tool.activationStatus !== 'Active' ? (
-                    <Tooltip title="Activate">
+                    <Tooltip title={t('tools.activate')}>
                       <IconButton
-                        aria-label={`Activate ${tool.displayName}`}
+                        aria-label={t('tools.activateAria', { name: tool.displayName })}
                         color="success"
                         disabled={activateTool.isPending}
                         onClick={() =>
                           activateTool.mutate(
                             { serverId, toolId: tool.id, input: { effectiveRiskLevelOverride: null, requiredPermissionsJsonOverride: null } },
-                            { onError: onMutationError('Could not activate the tool. Please try again.') },
+                            { onError: onMutationError(t('tools.errors.activate')) },
                           )
                         }
                       >
@@ -115,15 +118,15 @@ export function McpToolActivationPanel({ serverId }: { serverId: string }) {
                       </IconButton>
                     </Tooltip>
                   ) : (
-                    <Tooltip title="Deactivate">
+                    <Tooltip title={t('tools.deactivate')}>
                       <IconButton
-                        aria-label={`Deactivate ${tool.displayName}`}
+                        aria-label={t('tools.deactivateAria', { name: tool.displayName })}
                         color="error"
                         disabled={deactivateTool.isPending}
                         onClick={() =>
                           deactivateTool.mutate(
                             { serverId, toolId: tool.id },
-                            { onError: onMutationError('Could not deactivate the tool. Please try again.') },
+                            { onError: onMutationError(t('tools.errors.deactivate')) },
                           )
                         }
                       >

@@ -25,6 +25,7 @@ import MarkEmailReadIcon from '@mui/icons-material/MarkEmailRead'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from 'react-router'
 import { ApiError } from '../../../api/httpClient'
+import { useT } from '../../../i18n/useT'
 import { ADMIN_ROLES } from '../../../hooks/useIsAdmin'
 import * as adminApi from '../api/adminApi'
 import type { UserAdmin } from '../api/adminApi'
@@ -42,20 +43,9 @@ interface UserActionMenuProps {
   isSuperUser: boolean
 }
 
-const CONFIRM_COPY: Record<Exclude<PendingAction, null>, { title: string; body: string }> = {
-  lock: { title: 'Lock this account?', body: 'The user will no longer be able to sign in until unlocked.' },
-  force2fa: {
-    title: 'Force a 2FA reset?',
-    body: "The user's existing authenticator enrollment will be cleared; they'll need to re-enroll.",
-  },
-  delete: {
-    title: 'Delete this account?',
-    body: 'The account will be deactivated and can no longer sign in. This cannot be undone from this screen.',
-  },
-}
-
 /** Lock/unlock/role-change/force-2FA-reset/delete row actions (specs/001-admin-dashboard FR-012 through FR-017). */
 export function UserActionMenu({ user, isSelf, isSuperUser }: UserActionMenuProps) {
+  const t = useT('admin.users')
   const queryClient = useQueryClient()
   const navigate = useNavigate()
   const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null)
@@ -69,26 +59,50 @@ export function UserActionMenu({ user, isSelf, isSuperUser }: UserActionMenuProp
 
   const invalidate = () => queryClient.invalidateQueries({ queryKey: USERS_QUERY_KEY })
 
-  const lockMutation = useMutation({ mutationFn: () => adminApi.lockUser(user.id), onSuccess: invalidate })
-  const unlockMutation = useMutation({ mutationFn: () => adminApi.unlockUser(user.id), onSuccess: invalidate })
-  const force2faMutation = useMutation({ mutationFn: () => adminApi.forceReset2fa(user.id), onSuccess: invalidate })
-  const deleteMutation = useMutation({ mutationFn: () => adminApi.deleteUser(user.id), onSuccess: invalidate })
-
-  // constitution VIII: a failed request must reach the admin, not just the console.
+  // constitution VIII: a failed request must reach the admin, not just the console. Server detail is shown as returned.
   const onActionError = (err: unknown) => {
-    const message = err instanceof ApiError ? (err.detail ?? err.message) : 'Something went wrong. Please try again.'
+    const message = err instanceof ApiError ? (err.detail ?? err.message) : t('menu.generalError')
     setFeedback({ severity: 'error', message })
   }
 
+  const lockMutation = useMutation({
+    mutationFn: () => adminApi.lockUser(user.id),
+    onSuccess: invalidate,
+    onError: onActionError,
+  })
+  const unlockMutation = useMutation({
+    mutationFn: () => adminApi.unlockUser(user.id),
+    onSuccess: invalidate,
+    onError: onActionError,
+  })
+  const force2faMutation = useMutation({
+    mutationFn: () => adminApi.forceReset2fa(user.id),
+    onSuccess: invalidate,
+    onError: onActionError,
+  })
+  const deleteMutation = useMutation({
+    mutationFn: () => adminApi.deleteUser(user.id),
+    onSuccess: invalidate,
+    onError: onActionError,
+  })
+
   const sendPasswordResetMutation = useMutation({
     mutationFn: () => adminApi.sendPasswordReset(user.id),
-    onSuccess: () => setFeedback({ severity: 'success', message: `Password reset link sent to ${user.email}.` }),
+    onSuccess: () =>
+      setFeedback({
+        severity: 'success',
+        message: t('menu.passwordResetSent', { email: user.email }),
+      }),
     onError: onActionError,
   })
 
   const resendConfirmationMutation = useMutation({
     mutationFn: () => adminApi.resendConfirmationEmail(user.id),
-    onSuccess: () => setFeedback({ severity: 'success', message: `Confirmation email resent to ${user.email}.` }),
+    onSuccess: () =>
+      setFeedback({
+        severity: 'success',
+        message: t('menu.confirmationResent', { email: user.email }),
+      }),
     onError: onActionError,
   })
 
@@ -103,7 +117,11 @@ export function UserActionMenu({ user, isSelf, isSuperUser }: UserActionMenuProp
 
   return (
     <>
-      <IconButton size="small" aria-label={`Actions for ${user.email}`} onClick={(e) => setAnchorEl(e.currentTarget)}>
+      <IconButton
+        size="small"
+        aria-label={t('menu.actionsFor', { email: user.email })}
+        onClick={(e) => setAnchorEl(e.currentTarget)}
+      >
         <MoreVertIcon fontSize="small" />
       </IconButton>
       <Menu anchorEl={anchorEl} open={Boolean(anchorEl)} onClose={closeMenu}>
@@ -118,7 +136,7 @@ export function UserActionMenu({ user, isSelf, isSuperUser }: UserActionMenuProp
             <ListItemIcon>
               <LockOpenIcon fontSize="small" />
             </ListItemIcon>
-            <ListItemText>Unlock account</ListItemText>
+            <ListItemText>{t('menu.unlock')}</ListItemText>
           </MenuItem>
         ) : (
           <MenuItem
@@ -131,7 +149,7 @@ export function UserActionMenu({ user, isSelf, isSuperUser }: UserActionMenuProp
             <ListItemIcon>
               <LockIcon fontSize="small" />
             </ListItemIcon>
-            <ListItemText>Lock account</ListItemText>
+            <ListItemText>{t('menu.lock')}</ListItemText>
           </MenuItem>
         )}
         {canOfferRoleChange && (
@@ -146,7 +164,7 @@ export function UserActionMenu({ user, isSelf, isSuperUser }: UserActionMenuProp
             <ListItemIcon>
               <ManageAccountsIcon fontSize="small" />
             </ListItemIcon>
-            <ListItemText>Change role&hellip;</ListItemText>
+            <ListItemText>{t('menu.changeRole')}</ListItemText>
           </MenuItem>
         )}
         <MenuItem
@@ -159,7 +177,7 @@ export function UserActionMenu({ user, isSelf, isSuperUser }: UserActionMenuProp
           <ListItemIcon>
             <SecurityIcon fontSize="small" />
           </ListItemIcon>
-          <ListItemText>Force 2FA reset</ListItemText>
+          <ListItemText>{t('menu.force2faReset')}</ListItemText>
         </MenuItem>
         <MenuItem
           disabled={isSelf}
@@ -171,7 +189,7 @@ export function UserActionMenu({ user, isSelf, isSuperUser }: UserActionMenuProp
           <ListItemIcon>
             <KeyIcon fontSize="small" />
           </ListItemIcon>
-          <ListItemText>Send password reset link</ListItemText>
+          <ListItemText>{t('menu.sendPasswordReset')}</ListItemText>
         </MenuItem>
         {!user.emailConfirmed && (
           <MenuItem
@@ -184,7 +202,7 @@ export function UserActionMenu({ user, isSelf, isSuperUser }: UserActionMenuProp
             <ListItemIcon>
               <MarkEmailReadIcon fontSize="small" />
             </ListItemIcon>
-            <ListItemText>Resend confirmation email</ListItemText>
+            <ListItemText>{t('menu.resendConfirmation')}</ListItemText>
           </MenuItem>
         )}
         <MenuItem
@@ -197,21 +215,21 @@ export function UserActionMenu({ user, isSelf, isSuperUser }: UserActionMenuProp
           <ListItemIcon>
             <DeleteIcon fontSize="small" color={isSelf ? undefined : 'error'} />
           </ListItemIcon>
-          <ListItemText>Delete account</ListItemText>
+          <ListItemText>{t('menu.delete')}</ListItemText>
         </MenuItem>
       </Menu>
 
       <Dialog open={pendingAction !== null} onClose={() => setPendingAction(null)}>
         {pendingAction && (
           <>
-            <DialogTitle>{CONFIRM_COPY[pendingAction].title}</DialogTitle>
+            <DialogTitle>{t(`menu.confirmCopy.${pendingAction}.title`)}</DialogTitle>
             <DialogContent>
-              <DialogContentText>{CONFIRM_COPY[pendingAction].body}</DialogContentText>
+              <DialogContentText>{t(`menu.confirmCopy.${pendingAction}.body`)}</DialogContentText>
             </DialogContent>
             <DialogActions>
-              <Button onClick={() => setPendingAction(null)}>Cancel</Button>
+              <Button onClick={() => setPendingAction(null)}>{t('menu.cancel')}</Button>
               <Button onClick={handleConfirm} color="error" variant="contained" autoFocus>
-                Confirm
+                {t('menu.confirm')}
               </Button>
             </DialogActions>
           </>
@@ -219,7 +237,11 @@ export function UserActionMenu({ user, isSelf, isSuperUser }: UserActionMenuProp
       </Dialog>
 
       <Snackbar open={feedback !== null} autoHideDuration={5000} onClose={() => setFeedback(null)}>
-        <Alert severity={feedback?.severity ?? 'info'} variant="filled" onClose={() => setFeedback(null)}>
+        <Alert
+          severity={feedback?.severity ?? 'info'}
+          variant="filled"
+          onClose={() => setFeedback(null)}
+        >
           {feedback?.message}
         </Alert>
       </Snackbar>

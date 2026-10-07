@@ -1,6 +1,7 @@
 import type { PropsWithChildren } from 'react'
 import { Navigate } from 'react-router'
 import { ApiError } from '../api/httpClient'
+import { LocalizedSurface } from '../i18n/LocalizedSurface'
 import { useSession } from '../features/auth/hooks/useSession'
 import { ADMIN_ROLES } from '../hooks/useIsAdmin'
 import { RouteLoading } from './RouteLoading'
@@ -40,5 +41,7 @@ export function AdminRoute({ children, permission }: AdminRouteProps) {
   const keys = permission === undefined ? [] : Array.isArray(permission) ? permission : [permission]
   const isAllowed = isBuiltInAdmin || (keys.length > 0 && keys.some((key) => data.permissions.includes(key)))
 
-  return isAllowed ? <>{children}</> : <Navigate to="/studio" replace />
+  // The surface wraps the whole page, not just its shell, so a page body that translates its own title, subtitle and state
+  // (it calls `useT` above the shell) is inside the language context too (specs/067 FR-046a).
+  return isAllowed ? <LocalizedSurface scope="page">{children}</LocalizedSurface> : <Navigate to="/studio" replace />
 }
