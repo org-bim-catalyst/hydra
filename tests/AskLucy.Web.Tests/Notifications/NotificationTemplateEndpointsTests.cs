@@ -53,9 +53,26 @@ public sealed class NotificationTemplateEndpointsTests(AdminNotificationsFactory
     {
         await using var scope = factory.Services.CreateAsyncScope();
         var db = scope.ServiceProvider.GetRequiredService<AskLucyDbContext>();
-        await db.NotificationOutboxEvents.Where(e => e.Type == NotificationTypeKeys.TemplateTest && _userIds.Any(id => e.RecipientJson.Contains(id))).ExecuteDeleteAsync();
         await db.NotificationAuditLogs.IgnoreQueryFilters().Where(a => a.ActorUserId != null && _actors.Contains(a.ActorUserId)).ExecuteDeleteAsync();
-        await db.NotificationTemplates.IgnoreQueryFilters().Where(t => t.Language == _language).ExecuteDeleteAsync();
+
+        // The host's own worker turns each test send into a notification and a delivery that points at the version under test, and it may
+        // still be doing so while this runs: remove the events first, then what they produced, and retry the template delete once, because
+        // a delivery can land between the two statements (FK_NotificationDeliveries_NotificationTemplateVersions_TemplateVersionId).
+        for (var attempt = 0; ; attempt++)
+        {
+            await db.NotificationOutboxEvents.Where(e => e.Type == NotificationTypeKeys.TemplateTest && _userIds.Any(id => e.RecipientJson.Contains(id))).ExecuteDeleteAsync();
+            await db.Notifications.IgnoreQueryFilters().Where(n => n.RecipientUserId != null && _userIds.Contains(n.RecipientUserId)).ExecuteDeleteAsync();
+            try
+            {
+                await db.NotificationTemplates.IgnoreQueryFilters().Where(t => t.Language == _language).ExecuteDeleteAsync();
+                break;
+            }
+            catch (Microsoft.Data.SqlClient.SqlException) when (attempt < 3)
+            {
+                await Task.Delay(TimeSpan.FromSeconds(2));
+            }
+        }
+
         var userManager = scope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
         foreach (var id in _userIds)
         {

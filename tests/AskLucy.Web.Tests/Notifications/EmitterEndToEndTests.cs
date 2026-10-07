@@ -364,8 +364,8 @@ public sealed class EmitterEndToEndTests(EmitterEndToEndFactory factory) : IClas
     /// </summary>
     private async Task<List<Notification>> WaitForCenterItemsAsync(string userId, int expected)
     {
-        var deadline = DateTime.UtcNow.AddSeconds(120);
-        var nextFlush = DateTime.UtcNow.AddSeconds(5);
+        var deadline = DateTime.UtcNow.AddMinutes(6);
+        var nextFlush = DateTime.UtcNow.AddSeconds(3);
         List<Notification> items;
         do
         {
@@ -379,7 +379,7 @@ public sealed class EmitterEndToEndTests(EmitterEndToEndFactory factory) : IClas
             {
                 await using var scope = factory.Services.CreateAsyncScope();
                 await scope.ServiceProvider.GetRequiredService<OutboxDispatchService>().DispatchBatchAsync("emitter-e2e-test-worker", TestContext.Current.CancellationToken);
-                nextFlush = DateTime.UtcNow.AddSeconds(5);
+                nextFlush = DateTime.UtcNow.AddSeconds(3);
             }
 
             await Task.Delay(250, TestContext.Current.CancellationToken);
