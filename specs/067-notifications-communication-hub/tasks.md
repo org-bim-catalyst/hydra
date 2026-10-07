@@ -915,32 +915,32 @@ These apply to every task below, and each one assumes them:
 
 ### Tests for User Story 7
 
-- [ ] T173 [P] [US7] `NotificationTemplateHandlerTests` in `tests/AskLucy.Application.Tests/Notifications/NotificationTemplateHandlerTests.cs`:
+- [X] T173 [P] [US7] `NotificationTemplateHandlerTests` in `tests/AskLucy.Application.Tests/Notifications/NotificationTemplateHandlerTests.cs`:
   - create and edit are allowed on drafts only (409 `VersionNotDraft`);
   - an `If-Match` mismatch returns 409 `ConcurrencyConflict`;
   - publish archives the previous version;
   - archiving the last published default returns 409 `LastPublishedDefault`;
   - an unknown variable, a malformed `{{`, or a raw URL or HTML returns 422 naming the token.
-- [ ] T174 [P] [US7] `NotificationTemplateEndpointsTests` in `tests/AskLucy.Web.Tests/Notifications/NotificationTemplateEndpointsTests.cs`:
+- [X] T174 [P] [US7] `NotificationTemplateEndpointsTests` in `tests/AskLucy.Web.Tests/Notifications/NotificationTemplateEndpointsTests.cs`:
   - preview uses the production renderer and the sample link `https://example.invalid/sample-link`;
   - send-test goes only to the caller's verified address as type `template.test`, and appears in the deliveries;
   - the 11th send-test in an hour returns 429;
   - an admin with no verified address gets 422;
   - every action is audited.
-- [ ] T175 [P] [US7] `AdminNotificationTemplatesPage.test.tsx` and `AdminNotificationTemplateEditorPage.test.tsx`, with `.a11y.test.tsx`, in `ClientApp/src/features/admin/pages/`:
+- [X] T175 [P] [US7] `AdminNotificationTemplatesPage.test.tsx` and `AdminNotificationTemplateEditorPage.test.tsx`, with `.a11y.test.tsx`, in `ClientApp/src/features/admin/pages/`:
   - the preview renders in an `<iframe sandbox="">` with `srcDoc`, never injected into the DOM;
   - the variable chips come from `declaredVariables`;
   - a 409 shows a reload prompt.
 
 ### Implementation for User Story 7
 
-- [ ] T176 [P] [US7] Add the queries `GetNotificationTemplates`, `GetNotificationTemplate` (versions, `declaredVariables` and `isShippedDefault`) and `GetNotificationTemplateVersion` in `src/AskLucy.Application/Notifications/Queries/`. They implement `IAuditedAdminView` (T230).
-- [ ] T177 [P] [US7] Add the commands `CreateTemplateDraft` and `UpdateTemplateDraft` in `src/AskLucy.Application/Notifications/Commands/`. Their validators use `TemplateTokenParser` against the catalogue's `DeclaredVariables`, and the length limits.
-- [ ] T178 [P] [US7] Add the commands `PublishTemplateVersion` and `ArchiveTemplateVersion` in `src/AskLucy.Application/Notifications/Commands/`, with `RowVersion` concurrency and audit writes (`TemplateVersionPublished` with the previous and new version numbers, and `TemplateVersionArchived`).
-- [ ] T179 [US7] Add `PreviewTemplateVersion` (a query) and `SendTemplateTest` (a command) in `src/AskLucy.Application/Notifications/`. The command publishes `template.test` to the caller, with sample variables and a sample link, and is audited as `TemplateTestSent`.
-- [ ] T180 [US7] Add `AdminNotificationTemplatesController` in `src/AskLucy.Web/Controllers/v1/AdminNotificationTemplatesController.cs`, with the `If-Match` header parsed from base64 `RowVersion`. Add the rate-limit policy `notifications-test-send` (10 per hour per admin) in `Program.cs`, applied to send-test.
-- [ ] T181 [P] [US7] Add `ClientApp/src/features/admin/pages/AdminNotificationTemplatesPage.tsx`, listing templates with filters (category, channel, language, type).
-- [ ] T182 [US7] Add `ClientApp/src/features/admin/pages/AdminNotificationTemplateEditorPage.tsx`:
+- [X] T176 [P] [US7] Add the queries `GetNotificationTemplates`, `GetNotificationTemplate` (versions, `declaredVariables` and `isShippedDefault`) and `GetNotificationTemplateVersion` in `src/AskLucy.Application/Notifications/Queries/`. They implement `IAuditedAdminView` (T230).
+- [X] T177 [P] [US7] Add the commands `CreateTemplateDraft` and `UpdateTemplateDraft` in `src/AskLucy.Application/Notifications/Commands/`. Their validators use `TemplateTokenParser` against the catalogue's `DeclaredVariables`, and the length limits.
+- [X] T178 [P] [US7] Add the commands `PublishTemplateVersion` and `ArchiveTemplateVersion` in `src/AskLucy.Application/Notifications/Commands/`, with `RowVersion` concurrency and audit writes (`TemplateVersionPublished` with the previous and new version numbers, and `TemplateVersionArchived`).
+- [X] T179 [US7] Add `PreviewTemplateVersion` (a query) and `SendTemplateTest` (a command) in `src/AskLucy.Application/Notifications/`. The command publishes `template.test` to the caller, with sample variables and a sample link, and is audited as `TemplateTestSent`.
+- [X] T180 [US7] Add `AdminNotificationTemplatesController` in `src/AskLucy.Web/Controllers/v1/AdminNotificationTemplatesController.cs`, with the `If-Match` header parsed from base64 `RowVersion`. Add the rate-limit policy `notifications-test-send` (10 per hour per admin) in `Program.cs`, applied to send-test.
+- [X] T181 [P] [US7] Add `ClientApp/src/features/admin/pages/AdminNotificationTemplatesPage.tsx`, listing templates with filters (category, channel, language, type).
+- [X] T182 [US7] Add `ClientApp/src/features/admin/pages/AdminNotificationTemplateEditorPage.tsx`:
   - a version list;
   - a draft form (RHF + Zod) with the channel-specific fields and insertable variable chips;
   - a sandboxed-iframe preview;
@@ -948,7 +948,15 @@ These apply to every task below, and each one assumes them:
   - publish and archive with confirmations, sending `If-Match`.
 
   Add both template routes and the Templates nav entry in `adminNav.tsx`.
-- [ ] T183 [US7] Run the full backend and frontend suites, then quickstart S7.
+- [X] T183 [US7] Run the full backend and frontend suites, then quickstart S7.
+
+**Phase 11 implementation notes** (deviations from the task text):
+- T177: the draft's variable, token, URL/HTML and length checks live once, in the `NotificationTemplateVersion` domain type (it also re-validates at publish). Handlers translate its `DomainRuleViolationException` to `NotificationTemplateRejectedException` (422 naming the token). The command validators check only the shape (ids, content or copy source, `If-Match`), so there is no second copy of the rules. The editor repeats them client-side in `forms/templateText.ts` to save a round trip.
+- T178/T180: `NotificationTemplateConflictException` carries the 409 `reason` (`VersionNotDraft`, `VersionArchived`, `ConcurrencyConflict`, `LastPublishedDefault`). `If-Match` is the base64 `rowVersion` of the version as last read; a missing header is 428. The handler compares it with the loaded row, and `ExpectRowVersion` also guards the save against a racing writer.
+- T179: send-test publishes `template.test` with the type's own variables and the id of the version under test. `LogicFreeTemplateRenderer` renders that version in any status, as its own type and language, with the fixed sample link. The response is `{ sentTo }` (masked), not a `deliveryId`, because the delivery is created in the background. A preview is rendered through the new `INotificationTemplatePreviewRenderer` (the same class as the production renderer).
+- T176: a variable's `sample` is its catalogue fallback and the catalogue has no per-variable description, so `declaredVariables` carries `{ name, sample, fallback, isStandard }`.
+- T182: the preview shows the saved version, so it refreshes after a save and Publish is disabled while the form has unsaved changes. The nav highlight for the Templates entry applies to the list page only (the editor route has a template id).
+- T183: quickstart S7 needs a browser and a mail server, so it was not run here; every automated suite was.
 
 **Checkpoint**: Slice 4 (US6 + US7) is deployable.
 

@@ -42,3 +42,23 @@ public sealed record PublishAnnouncementRequest(
     IReadOnlyList<string>? TargetRoleIds,
     bool IsCritical,
     DateTime? EndsAtUtc);
+
+/// <summary>
+/// contracts/admin-notifications-api.md template version fields: the email fields for an email template, title and message for an
+/// in-app one. <c>CopyFromVersionId</c> (create only) starts the draft from an existing version when no field is sent.
+/// </summary>
+public sealed record TemplateVersionRequest(
+    string? Subject = null,
+    string? Preheader = null,
+    string? Greeting = null,
+    string? Heading = null,
+    IReadOnlyList<string>? BodyParagraphs = null,
+    string? ActionLabel = null,
+    string? SafetyNote = null,
+    string? FooterNote = null,
+    string? Title = null,
+    string? Message = null,
+    Guid? CopyFromVersionId = null);
+
+/// <summary>contracts/admin-notifications-api.md `POST …/actions/preview`. The body is optional.</summary>
+public sealed record PreviewTemplateRequest(IReadOnlyDictionary<string, string?>? Variables = null);

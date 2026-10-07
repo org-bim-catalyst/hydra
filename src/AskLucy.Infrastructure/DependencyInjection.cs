@@ -553,7 +553,9 @@ public static class DependencyInjection
         services.AddSingleton<SmtpConnectionHolder>();
         services.AddSingleton<IEffectiveLanguageResolver, EffectiveLanguageResolver>();
         services.AddSingleton<INotificationLinkBuilder, NotificationLinkBuilder>();
-        services.AddScoped<INotificationTemplateRenderer, LogicFreeTemplateRenderer>();
+        services.AddScoped<LogicFreeTemplateRenderer>();
+        services.AddScoped<INotificationTemplateRenderer>(sp => sp.GetRequiredService<LogicFreeTemplateRenderer>());
+        services.AddScoped<INotificationTemplatePreviewRenderer>(sp => sp.GetRequiredService<LogicFreeTemplateRenderer>());
         services.AddScoped<INotificationRealtimePublisher, SignalRNotificationRealtimePublisher>();
         services.AddHostedService<NotificationTemplateSeeder>();
 

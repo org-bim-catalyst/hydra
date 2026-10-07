@@ -334,7 +334,7 @@ The definitions below are code-owned in `NotificationTypeCatalog`. Routes were r
 | `security.two-factor.disabled` | Security | Critical | **M** | **M** | `changedAt` | same |
 | `security.recovery-codes.regenerated` | Security | Critical | **M** | **M** | `changedAt` | same |
 | `system.announcement.published` | System | Normal, or High when critical | **M** (FR-004a: every announcement reaches its audience in-app) | on, sent only if `IsCritical` (FR-004a) | `announcementTitle`, `announcementMessage`, `announcementKind`, `endsAt` | `/notifications/{notificationId}` (the materialized notification's own id, filled by the link builder) |
-| `template.test` | System | Normal | — | **M** (the calling admin's own verified address only) | the template's own variables, sample values | — |
+| `template.test` | System | Normal | — | **M** (the calling admin's own verified address only) | the tested type's own variables (sample values) plus `templateVersionId`, which tells the renderer which version to show, in any status | — |
 | `conversation.export.completed` | Conversation | Normal | defined, **not emitted** (FR-005) | | | |
 | `billing.payment.failed`, `billing.subscription.renewed` | Billing | High / Normal | defined, **not emitted** (FR-005) | | | |
 

@@ -16,6 +16,7 @@ import PaletteOutlinedIcon from '@mui/icons-material/PaletteOutlined'
 import NotificationsOutlinedIcon from '@mui/icons-material/NotificationsOutlined'
 import MarkEmailUnreadOutlinedIcon from '@mui/icons-material/MarkEmailUnreadOutlined'
 import CampaignOutlinedIcon from '@mui/icons-material/CampaignOutlined'
+import DescriptionOutlinedIcon from '@mui/icons-material/DescriptionOutlined'
 import type { ReactNode } from 'react'
 
 export interface AdminNavItem {
@@ -104,7 +105,7 @@ export const ADMIN_NAV: AdminNavItem[] = [
     permission: 'admin.operational-failures.view',
     badgeKey: 'operationalFailures',
   },
-  // specs/067 US6 — the notification hub. Templates and Localization join this group in later phases.
+  // specs/067 US6 — the notification hub. Localization joins this group in a later phase.
   {
     path: '/admin/notifications/dashboard',
     label: 'Notifications',
@@ -121,6 +122,12 @@ export const ADMIN_NAV: AdminNavItem[] = [
     path: '/admin/notifications/announcements',
     label: 'Announcements',
     icon: <CampaignOutlinedIcon fontSize="small" />,
+    permission: 'admin.notifications.view',
+  },
+  {
+    path: '/admin/notifications/templates',
+    label: 'Templates',
+    icon: <DescriptionOutlinedIcon fontSize="small" />,
     permission: 'admin.notifications.view',
   },
   {

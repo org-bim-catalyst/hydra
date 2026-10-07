@@ -2,6 +2,7 @@ using System.Net;
 using System.Text;
 using AskLucy.Application.Abstractions;
 using AskLucy.Application.Notifications.Abstractions;
+using AskLucy.Application.Notifications.Templates;
 using AskLucy.Domain.Notifications;
 using Microsoft.Extensions.Logging;
 
@@ -17,7 +18,7 @@ namespace AskLucy.Infrastructure.Notifications.Templates;
 public sealed class LogicFreeTemplateRenderer(
     INotificationTemplateRepository templates,
     IEmailTemplateRenderer emailShell,
-    ILogger<LogicFreeTemplateRenderer> logger) : INotificationTemplateRenderer
+    ILogger<LogicFreeTemplateRenderer> logger) : INotificationTemplateRenderer, INotificationTemplatePreviewRenderer
 {
     private const string FallbackLanguage = "en";
     private const char Ellipsis = '…';
@@ -35,7 +36,16 @@ public sealed class LogicFreeTemplateRenderer(
         ArgumentNullException.ThrowIfNull(variables);
 
         var (version, renderedLanguage) = await PublishedVersionAsync(definition, NotificationChannel.InApp, language, cancellationToken);
+        return RenderInApp(definition, version, renderedLanguage, variables);
+    }
 
+    public RenderedInApp PreviewInApp(
+        NotificationTypeDefinition definition, string language, NotificationTemplateVersion version, IReadOnlyDictionary<string, string?> variables) =>
+        RenderInApp(definition, version, language, variables);
+
+    private RenderedInApp RenderInApp(
+        NotificationTypeDefinition definition, NotificationTemplateVersion version, string renderedLanguage, IReadOnlyDictionary<string, string?> variables)
+    {
         var valueFor = ValueResolver(definition, variables);
         var title = TemplateTokenParser.Substitute(version.Title, valueFor).Trim();
         var message = TemplateTokenParser.Substitute(version.Message, valueFor).Trim();
@@ -67,8 +77,44 @@ public sealed class LogicFreeTemplateRenderer(
         ArgumentNullException.ThrowIfNull(definition);
         ArgumentNullException.ThrowIfNull(variables);
 
-        var (version, renderedLanguage) = await PublishedVersionAsync(definition, NotificationChannel.Email, language, cancellationToken);
+        if (definition.Key == NotificationTypeKeys.TemplateTest)
+        {
+            // An administrator's test send: render the version they named, in any status, as its own type (research R9).
+            var (testVersion, testType, testLanguage) = await TestVersionAsync(variables, cancellationToken);
+            // The delivery has no route to build a link from, so the test shows the fixed sample link.
+            var withSampleLink = new Dictionary<string, string?>(variables, StringComparer.Ordinal)
+            {
+                [TemplateTokenParser.ActionUrlVariable] = TemplateSamples.SampleLink,
+            };
+            return RenderEmail(testType, testVersion, testLanguage, withSampleLink);
+        }
 
+        var (version, renderedLanguage) = await PublishedVersionAsync(definition, NotificationChannel.Email, language, cancellationToken);
+        return RenderEmail(definition, version, renderedLanguage, variables);
+    }
+
+    public RenderedEmail PreviewEmail(
+        NotificationTypeDefinition definition, string language, NotificationTemplateVersion version, IReadOnlyDictionary<string, string?> variables) =>
+        RenderEmail(definition, version, language, variables);
+
+    string INotificationTemplatePreviewRenderer.DirectionOf(string language) => DirectionOf(language);
+
+    private async Task<(NotificationTemplateVersion Version, NotificationTypeDefinition Type, string Language)> TestVersionAsync(
+        IReadOnlyDictionary<string, string?> variables, CancellationToken cancellationToken)
+    {
+        if (!variables.TryGetValue(TemplateSamples.TestVersionVariable, out var raw) || !Guid.TryParse(raw, out var versionId))
+        {
+            throw new NotificationRenderException("A template test names no template version to render.");
+        }
+
+        var lookup = await templates.GetVersionAsync(versionId, cancellationToken)
+            ?? throw new NotificationRenderException("The template version under test no longer exists.");
+        return (lookup.Version, NotificationTypeCatalog.Get(lookup.Type), lookup.Language);
+    }
+
+    private RenderedEmail RenderEmail(
+        NotificationTypeDefinition definition, NotificationTemplateVersion version, string renderedLanguage, IReadOnlyDictionary<string, string?> variables)
+    {
         // A minimized type (security, FR-025) renders only what it declares; anything else a caller
         // slipped into the dictionary is dropped before substitution, not merely left unreferenced.
         var allowed = definition.MinimizeSensitiveContent ? OnlyAllowed(definition, variables) : variables;

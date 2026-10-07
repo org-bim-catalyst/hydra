@@ -45,5 +45,20 @@ public interface INotificationTemplateRenderer
         CancellationToken cancellationToken);
 }
 
+/// <summary>Renders one specific version in any status, for the admin preview (research R9).</summary>
+public interface INotificationTemplatePreviewRenderer
+{
+    /// <summary>The in-app version rendered with <paramref name="variables"/> and the template's own language and direction.</summary>
+    RenderedInApp PreviewInApp(
+        NotificationTypeDefinition definition, string language, NotificationTemplateVersion version, IReadOnlyDictionary<string, string?> variables);
+
+    /// <summary>The email version rendered through the production shell.</summary>
+    RenderedEmail PreviewEmail(
+        NotificationTypeDefinition definition, string language, NotificationTemplateVersion version, IReadOnlyDictionary<string, string?> variables);
+
+    /// <summary><c>ltr</c> or <c>rtl</c> for a language.</summary>
+    string DirectionOf(string language);
+}
+
 /// <summary>A template can't be rendered; the delivery fails with <see cref="DeliveryFailureKind.RenderError"/>.</summary>
 public sealed class NotificationRenderException(string message) : Exception(message);

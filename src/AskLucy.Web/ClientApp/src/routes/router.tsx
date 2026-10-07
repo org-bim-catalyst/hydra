@@ -107,6 +107,12 @@ const AdminNotificationDeliveriesPage = lazy(() =>
 const AdminAnnouncementsPage = lazy(() =>
   import('../features/admin/pages/AdminAnnouncementsPage').then((m) => ({ default: m.AdminAnnouncementsPage })),
 )
+const AdminNotificationTemplatesPage = lazy(() =>
+  import('../features/admin/pages/AdminNotificationTemplatesPage').then((m) => ({ default: m.AdminNotificationTemplatesPage })),
+)
+const AdminNotificationTemplateEditorPage = lazy(() =>
+  import('../features/admin/pages/AdminNotificationTemplateEditorPage').then((m) => ({ default: m.AdminNotificationTemplateEditorPage })),
+)
 const ChatInvestigationPage = lazy(() =>
   import('../features/admin/pages/investigations/ChatInvestigationPage').then((m) => ({
     default: m.ChatInvestigationPage,
@@ -672,6 +678,32 @@ const router = createBrowserRouter([
         <AdminRoute permission="admin.notifications.view">
           <Lazy>
             <AdminAnnouncementsPage />
+          </Lazy>
+        </AdminRoute>
+      </ProtectedRoute>
+    ),
+    errorElement: <ErrorPage />,
+  },
+  {
+    path: '/admin/notifications/templates',
+    element: (
+      <ProtectedRoute>
+        <AdminRoute permission="admin.notifications.view">
+          <Lazy>
+            <AdminNotificationTemplatesPage />
+          </Lazy>
+        </AdminRoute>
+      </ProtectedRoute>
+    ),
+    errorElement: <ErrorPage />,
+  },
+  {
+    path: '/admin/notifications/templates/:templateId',
+    element: (
+      <ProtectedRoute>
+        <AdminRoute permission="admin.notifications.view">
+          <Lazy>
+            <AdminNotificationTemplateEditorPage />
           </Lazy>
         </AdminRoute>
       </ProtectedRoute>

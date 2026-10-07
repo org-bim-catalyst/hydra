@@ -127,6 +127,11 @@ public sealed class ProblemDetailsMiddleware(
             problemDetails.Extensions["reason"] = retryRefused.Reason.ToString();
         }
 
+        if (exception is AskLucy.Application.Notifications.Templates.NotificationTemplateConflictException templateConflict)
+        {
+            problemDetails.Extensions["reason"] = templateConflict.Reason.ToString();
+        }
+
         if (exception is AskLucy.Application.Notifications.NotificationPreferenceRejectedException preferenceRejected)
         {
             problemDetails.Extensions["errors"] = preferenceRejected.Errors;
@@ -237,6 +242,20 @@ public sealed class ProblemDetailsMiddleware(
             "https://hydra.bimcatalyst.com/problems/delivery-not-retryable",
             "Delivery can't be retried",
             retryRefusedEx.Message),
+
+        // specs/067 US7: a template action against a version in the wrong state, or one someone else changed first.
+        AskLucy.Application.Notifications.Templates.NotificationTemplateConflictException templateConflictEx => (
+            StatusCodes.Status409Conflict,
+            "https://hydra.bimcatalyst.com/problems/notification-template-conflict",
+            "Template version conflict",
+            templateConflictEx.Message),
+
+        // specs/067 FR-041/FR-047: template text with an unknown variable, a malformed token or raw HTML, or a test send with nowhere to go.
+        AskLucy.Application.Notifications.Templates.NotificationTemplateRejectedException templateRejectedEx => (
+            StatusCodes.Status422UnprocessableEntity,
+            "https://hydra.bimcatalyst.com/problems/notification-template-rejected",
+            "Template rejected",
+            templateRejectedEx.Message),
 
         // specs/067 FR-032: a preference update tried to switch off a mandatory notification. Atomic: nothing was applied.
         AskLucy.Application.Notifications.NotificationPreferenceRejectedException preferenceEx => (
