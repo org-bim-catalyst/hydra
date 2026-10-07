@@ -67,4 +67,13 @@ public sealed class NotificationRetentionRepository(AskLucyDbContext dbContext) 
 
         return ids.Count == 0 ? 0 : await dbContext.NotificationOutboxEvents.Where(e => ids.Contains(e.Id)).ExecuteDeleteAsync(cancellationToken);
     }
+
+    public async Task<int> DeleteFailedOutboxEventsAsync(DateTime cutoffUtc, int batchSize, CancellationToken cancellationToken)
+    {
+        var ids = await dbContext.NotificationOutboxEvents
+            .Where(e => e.Status == OutboxEventStatus.Failed && e.ProcessedAtUtc != null && e.ProcessedAtUtc < cutoffUtc)
+            .OrderBy(e => e.Id).Select(e => e.Id).Take(batchSize).ToListAsync(cancellationToken);
+
+        return ids.Count == 0 ? 0 : await dbContext.NotificationOutboxEvents.Where(e => ids.Contains(e.Id)).ExecuteDeleteAsync(cancellationToken);
+    }
 }
