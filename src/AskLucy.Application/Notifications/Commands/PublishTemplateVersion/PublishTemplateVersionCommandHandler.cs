@@ -10,7 +10,6 @@ namespace AskLucy.Application.Notifications.Commands.PublishTemplateVersion;
 public sealed class PublishTemplateVersionCommandHandler(
     INotificationTemplateRepository templates,
     INotificationAuditWriter audit,
-    IUnitOfWork unitOfWork,
     ICurrentUserAccessor currentUser,
     TimeProvider timeProvider) : IRequestHandler<PublishTemplateVersionCommand, TemplateVersionDto>
 {
@@ -41,7 +40,8 @@ public sealed class PublishTemplateVersionCommandHandler(
             version.Id.ToString(),
             NotificationAuditOutcome.Succeeded,
             new { templateId = template.Id, type = template.Type, channel = template.Channel.ToString(), language = template.Language, previousVersionNumber = previousNumber, newVersionNumber = version.VersionNumber });
-        await unitOfWork.SaveChangesAsync(cancellationToken);
+        // Not the unit of work's plain save: the archive of the replaced version must reach the database before this version is published.
+        await templates.SavePublishAsync(version.Id, cancellationToken);
 
         return NotificationTemplateMapper.ToDto(version);
     }

@@ -140,6 +140,31 @@ public sealed class EmailChannelSenderTests
     }
 
     [Fact]
+    public async Task Send_AServerReplyThatNamesTheRecipient_NeverPutsTheAddressInTheLog()
+    {
+        _emailSender.SendAsync(Arg.Any<EmailMessage>(), Arg.Any<CancellationToken>())
+            .Returns<Task>(_ => throw new SmtpCommandException(SmtpErrorCode.RecipientNotAccepted, SmtpStatusCode.MailboxUnavailable, "550 5.1.1 layla@example.com unknown"));
+
+        await CreateSut().SendAsync(Context(), TestContext.Current.CancellationToken);
+
+        // FR-056: a mail server's reply routinely echoes the address, and the logger writes the exception's text, so the address must not be in it.
+        var record = _logger.Collector.GetSnapshot().Should().ContainSingle(r => r.Level == LogLevel.Warning && r.Message.Contains("Sending the")).Subject;
+        record.Message.Should().NotContain("layla").And.Contain("550 5.1.1").And.Contain("[recipient]");
+        (record.Exception?.ToString() ?? string.Empty).Should().NotContain("layla");
+    }
+
+    [Fact]
+    public async Task Send_AnUnexpectedBugInOurOwnCode_StillLogsItsExceptionText()
+    {
+        _emailSender.SendAsync(Arg.Any<EmailMessage>(), Arg.Any<CancellationToken>())
+            .Returns<Task>(_ => throw new InvalidOperationException("sender wiring is broken"));
+
+        await CreateSut().SendAsync(Context(), TestContext.Current.CancellationToken);
+
+        _logger.Collector.GetSnapshot().Should().ContainSingle(r => r.Level == LogLevel.Warning && r.Message.Contains("InvalidOperationException") && r.Message.Contains("sender wiring is broken"));
+    }
+
+    [Fact]
     public async Task Send_AFiveHundredReply_IsPermanent()
     {
         _emailSender.SendAsync(Arg.Any<EmailMessage>(), Arg.Any<CancellationToken>())

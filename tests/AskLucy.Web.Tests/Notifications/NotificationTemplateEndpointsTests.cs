@@ -368,6 +368,29 @@ public sealed class NotificationTemplateEndpointsTests(AdminNotificationsFactory
     }
 
     [Fact]
+    public async Task Publish_AnOlderDraft_OverANewerPublishedVersion_ArchivesTheNewerOneFirst()
+    {
+        // The draft created first has the smaller key, and EF updates rows in key order: without the archive-first save this trips the
+        // one-published-version-per-template unique index (UX_NotificationTemplateVersions_OnePublished) and answers 500.
+        var admin = Manager();
+        var ct = TestContext.Current.CancellationToken;
+        var newer = await admin.PostAsJsonAsync($"{Base}/{_templateId}/versions", Body("Newer {{ workflowName }}"), ct);
+        newer.StatusCode.Should().Be(HttpStatusCode.Created);
+        using var newerBody = await JsonOf(newer);
+        var newerId = newerBody.RootElement.GetProperty("id").GetGuid();
+        var newerToken = newerBody.RootElement.GetProperty("rowVersion").GetString()!;
+        (await admin.SendAsync(PostWithMatch($"{Base}/{_templateId}/versions/{newerId}/actions/publish", newerToken), ct)).StatusCode.Should().Be(HttpStatusCode.OK);
+
+        var olderToken = await RowVersionAsync(admin, _draftId);
+        var response = await admin.SendAsync(PostWithMatch($"{Base}/{_templateId}/versions/{_draftId}/actions/publish", olderToken), ct);
+
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+        using var detail = JsonDocument.Parse(await admin.GetStringAsync($"{Base}/{_templateId}", ct));
+        detail.RootElement.GetProperty("publishedVersionId").GetGuid().Should().Be(_draftId);
+        detail.RootElement.GetProperty("versions").EnumerateArray().Count(v => v.GetProperty("status").GetString() == "Published").Should().Be(1);
+    }
+
+    [Fact]
     public async Task Archive_AnUnpublishedDraft_Works_AndIsAudited()
     {
         var admin = Manager();

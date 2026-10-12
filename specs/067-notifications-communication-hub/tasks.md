@@ -1036,7 +1036,7 @@ These apply to every task below, and each one assumes them:
 > - T204: the account menu shows the switch through `useShowLanguageSwitch()` in `useAccountMenuItems.tsx`, rendered by `UserMenu`. Its error toast reads the mutation cache (`LanguageSwitchErrorToast`) so it survives the menu closing. The switch is not yet on the notification preferences page (the contract also lists it there).
 > - T205: the page is English for now (Phase 13 localizes it), at `/admin/notifications/localization`.
 
-- [ ] T206 [US8] Slice 5 gate: run the full backend and frontend suites, then quickstart S9 (the user half). Confirm that with localization disabled the English rendering is unchanged, and that the existing page tests pass untouched.
+- [X] T206 [US8] Slice 5 gate: run the full backend and frontend suites, then quickstart S9 (the user half). Confirm that with localization disabled the English rendering is unchanged, and that the existing page tests pass untouched.
 
 **Phase 12 backend implementation notes** (deviations from the task text):
 - T194: the cached provider (`CachedLocalizationSettingsProvider`, 30 s, evicted by `UpdateLocalizationSettings` after its save) lives in Infrastructure beside the resolver, because Persistence has no `IMemoryCache`; it reads through `ILocalizationSettingRepository` in its own scope. `EffectiveLanguageResolver` is now scoped (it needs the user store).
@@ -1108,15 +1108,16 @@ These apply to every task below, and each one assumes them:
 - [X] T234 [P] Add `NotificationLatencyTests` in `tests/AskLucy.Web.Tests/Notifications/`, gated behind `RUN_SCALE_PERFORMANCE_TESTS=1`. Assert p95 event→`notificationCreated` push under 5 s (SC-001) and p95 event→mail hand-off under 2 min with a healthy fake mail server (SC-002), over 200 events each. Done: push observed by a real WebSocket SignalR JSON-protocol client over TestServer (no client package added); events paced at 360 ms (SC-005 rate); 1% smoke: mail passed, push p95 32 s on the remote test DB (queueing, min 2.9 s), so SC-001 is unproven until run on co-located SQL.
 - [X] T225 [P] Add `StubChannelProofTests` in `tests/AskLucy.Web.Tests/Notifications/StubChannelProofTests.cs` (SC-012). Register a `TestChannelSender` and a test catalogue entry and template, and assert delivery with **no** change to the publisher, the router or the emitters.
   - Deviation: no `TestChannelSender` catalogue entry or production enum value; the stub channel is an undefined `NotificationChannel` value (100) with a `with`-copy of a real definition, run through the real router, registry, materializer and delivery processor (see the class summary).
-- [ ] T226 Security review pass:
+- [X] T226 Security review pass:
   - every notification query and command filters by the current user id or checks permissions;
   - there is no cross-tenant path through the cursor, bulk retry filter, audit filter or preview;
   - no `dangerouslySetInnerHTML` in `features/notifications` or the admin notification pages;
   - no token or link in logs.
 
   Fix the findings and add regression tests.
-- [ ] T227 Run `dotnet format "Ask Lucy.sln" --verify-no-changes`. Tell ENDOFLINE noise apart from a real `\r\r\n`, check the migration files have no BOM and put `System` usings first, then run `dotnet build -warnaserror` and the full `dotnet test "Ask Lucy.sln"`.
-- [ ] T228 Run every scenario in [quickstart.md](quickstart.md), S1–S10, plus the §4 fault-injection run. Record the outcomes in `specs/067-notifications-communication-hub/quickstart.md` under a "Validation log" heading.
+  - Findings fixed: failed outbox events were never purged (R20); the mail-send log line carried the recipient address through the SMTP reply text (FR-056); both have regression tests (`NotificationRetentionTests`, `EmailChannelSenderTests`). Reviewed with no finding: every user handler resolves the current user, every admin action has a `RequirePermission`, the hub joins only the caller's group, no `dangerouslySetInnerHTML` in the notification or admin pages, the template preview is a `sandbox=""` iframe, and cursors are scoped by the user id in the query.
+- [X] T227 Run `dotnet format "Ask Lucy.sln" --verify-no-changes`. Tell ENDOFLINE noise apart from a real `\r\r\n`, check the migration files have no BOM and put `System` usings first, then run `dotnet build -warnaserror` and the full `dotnet test "Ask Lucy.sln"`.
+- [X] T228 Run every scenario in [quickstart.md](quickstart.md), S1–S10, plus the §4 fault-injection run. Record the outcomes in `specs/067-notifications-communication-hub/quickstart.md` under a "Validation log" heading.
 - [X] T229 Prepare the release checklist in [quickstart.md §5](quickstart.md). List for the user the keys they must hand-add to the untracked `appsettings.Production.json`: `Notifications:Email:MaxPerMinute`, `ReservedPerMinuteForMandatory` and `Retention:*`. Confirm the `/health/ready` checks after deploy. Include release notes for each slice (constitution §13), and state that knowledge-base documents uploaded before slice 1 stay un-indexed until re-uploaded.
 
 ---
