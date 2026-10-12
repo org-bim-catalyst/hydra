@@ -27,7 +27,7 @@ public sealed class EffectiveLanguageResolverTests
     {
         UserChose("ar");
 
-        (await Resolver(enabled: false, "en", "ar").ResolveAsync("u1", "ar", default)).Should().Be("en");
+        (await Resolver(enabled: false, "en", "ar").ResolveAsync("u1", "ar", TestContext.Current.CancellationToken)).Should().Be("en");
     }
 
     [Fact]
@@ -35,7 +35,7 @@ public sealed class EffectiveLanguageResolverTests
     {
         UserChose("en");
 
-        (await Resolver(true, "en", "ar").ResolveAsync("u1", "ar", default)).Should().Be("ar");
+        (await Resolver(true, "en", "ar").ResolveAsync("u1", "ar", TestContext.Current.CancellationToken)).Should().Be("ar");
     }
 
     [Fact]
@@ -43,7 +43,7 @@ public sealed class EffectiveLanguageResolverTests
     {
         UserChose("ar");
 
-        (await Resolver(true, "en", "ar").ResolveAsync("u1", null, default)).Should().Be("ar");
+        (await Resolver(true, "en", "ar").ResolveAsync("u1", null, TestContext.Current.CancellationToken)).Should().Be("ar");
     }
 
     [Fact]
@@ -51,7 +51,7 @@ public sealed class EffectiveLanguageResolverTests
     {
         UserChose("ar");
 
-        (await Resolver(true, "en", "ar").ResolveAsync("u1", "fr", default)).Should().Be("ar");
+        (await Resolver(true, "en", "ar").ResolveAsync("u1", "fr", TestContext.Current.CancellationToken)).Should().Be("ar");
     }
 
     [Fact]
@@ -59,7 +59,7 @@ public sealed class EffectiveLanguageResolverTests
     {
         UserChose("ar");
 
-        (await Resolver(true, "en").ResolveAsync("u1", null, default)).Should().Be("en");
+        (await Resolver(true, "en").ResolveAsync("u1", null, TestContext.Current.CancellationToken)).Should().Be("en");
         await _users.DidNotReceive().SetPreferredLanguageAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>());
     }
 
@@ -71,7 +71,7 @@ public sealed class EffectiveLanguageResolverTests
     {
         UserChose(chosen);
 
-        (await Resolver(true, "en", "ar").ResolveAsync("u1", null, default)).Should().Be("en");
+        (await Resolver(true, "en", "ar").ResolveAsync("u1", null, TestContext.Current.CancellationToken)).Should().Be("en");
     }
 
     [Fact]
@@ -79,8 +79,8 @@ public sealed class EffectiveLanguageResolverTests
     {
         var resolver = Resolver(true, "en", "ar");
 
-        (await resolver.ResolveAsync(null, "ar", default)).Should().Be("ar");
-        (await resolver.ResolveAsync(null, null, default)).Should().Be("en");
+        (await resolver.ResolveAsync(null, "ar", TestContext.Current.CancellationToken)).Should().Be("ar");
+        (await resolver.ResolveAsync(null, null, TestContext.Current.CancellationToken)).Should().Be("en");
         await _users.DidNotReceive().GetPreferredLanguageAsync(Arg.Any<string>(), Arg.Any<CancellationToken>());
     }
 
@@ -89,7 +89,7 @@ public sealed class EffectiveLanguageResolverTests
     {
         UserChose("AR");
 
-        (await Resolver(true, "en", "ar").ResolveAsync("u1", null, default)).Should().Be("ar");
+        (await Resolver(true, "en", "ar").ResolveAsync("u1", null, TestContext.Current.CancellationToken)).Should().Be("ar");
     }
 
     // ---- the cached provider ----
@@ -111,8 +111,8 @@ public sealed class EffectiveLanguageResolverTests
     {
         var (provider, repository) = Provider(true, "en", "ar");
 
-        var first = await provider.GetAsync(default);
-        var second = await provider.GetAsync(default);
+        var first = await provider.GetAsync(TestContext.Current.CancellationToken);
+        var second = await provider.GetAsync(TestContext.Current.CancellationToken);
 
         first.IsEnabled.Should().BeTrue();
         first.SupportedLanguages.Should().Equal("en", "ar");
@@ -124,10 +124,10 @@ public sealed class EffectiveLanguageResolverTests
     public async Task TheProvider_ReadsAgain_AfterAnUpdateEvictsTheCache()
     {
         var (provider, repository) = Provider(true, "en", "ar");
-        await provider.GetAsync(default);
+        await provider.GetAsync(TestContext.Current.CancellationToken);
 
         provider.Evict();
-        await provider.GetAsync(default);
+        await provider.GetAsync(TestContext.Current.CancellationToken);
 
         await repository.Received(2).GetAsync(Arg.Any<CancellationToken>());
     }
@@ -143,7 +143,7 @@ public sealed class EffectiveLanguageResolverTests
         var services = new ServiceCollection().AddScoped(_ => repository).BuildServiceProvider();
         var provider = new CachedLocalizationSettingsProvider(new MemoryCache(new MemoryCacheOptions()), services.GetRequiredService<IServiceScopeFactory>());
 
-        var snapshot = await provider.GetAsync(default);
+        var snapshot = await provider.GetAsync(TestContext.Current.CancellationToken);
 
         snapshot.IsEnabled.Should().BeFalse();
         snapshot.Supports("ar").Should().BeFalse();

@@ -12,9 +12,10 @@ public sealed record RetentionResult(
     int OwnerDeletedNotifications,
     int FailedDeliveries,
     int FinishedDeliveries,
-    int CompletedOutboxEvents)
+    int CompletedOutboxEvents,
+    int FailedOutboxEvents)
 {
-    public int Total => ReadNotifications + OwnerDeletedNotifications + FailedDeliveries + FinishedDeliveries + CompletedOutboxEvents;
+    public int Total => ReadNotifications + OwnerDeletedNotifications + FailedDeliveries + FinishedDeliveries + CompletedOutboxEvents + FailedOutboxEvents;
 }
 
 /// <summary>
@@ -38,9 +39,10 @@ public sealed class RetentionService(
             await DrainAsync((repo, ct) => repo.DeleteOwnerDeletedNotificationsAsync(now.AddDays(-Math.Max(1, retention.DeletedDays)), batch, ct), batch, cancellationToken),
             await DrainAsync((repo, ct) => repo.DeleteFailedDeliveriesAsync(now.AddDays(-Math.Max(1, retention.FailedDays)), batch, ct), batch, cancellationToken),
             await DrainAsync((repo, ct) => repo.DeleteFinishedDeliveriesAsync(now.AddDays(-Math.Max(1, retention.DeliveryDays)), batch, ct), batch, cancellationToken),
-            await DrainAsync((repo, ct) => repo.DeleteCompletedOutboxEventsAsync(now.AddDays(-Math.Max(1, retention.CompletedOutboxDays)), batch, ct), batch, cancellationToken));
+            await DrainAsync((repo, ct) => repo.DeleteCompletedOutboxEventsAsync(now.AddDays(-Math.Max(1, retention.CompletedOutboxDays)), batch, ct), batch, cancellationToken),
+            await DrainAsync((repo, ct) => repo.DeleteFailedOutboxEventsAsync(now.AddDays(-Math.Max(1, retention.FailedDays)), batch, ct), batch, cancellationToken));
 
-        DeliveryLog.RetentionRan(logger, result.ReadNotifications, result.OwnerDeletedNotifications, result.FailedDeliveries, result.FinishedDeliveries, result.CompletedOutboxEvents);
+        DeliveryLog.RetentionRan(logger, result.ReadNotifications, result.OwnerDeletedNotifications, result.FailedDeliveries, result.FinishedDeliveries, result.CompletedOutboxEvents, result.FailedOutboxEvents);
         return result;
     }
 

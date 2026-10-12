@@ -8,7 +8,7 @@
 >
 > **Framework:** ASP.NET Core (.NET 10)
 >
-> **Last Updated:** July 2026
+> **Last Updated:** October 2026 (added notification hub, announcements and localization endpoints, specs/067)
 
 ---
 
@@ -973,6 +973,126 @@ DELETE /admin/custom-models/{id}                                     (204; soft-
 
 All administrative endpoints require elevated authorization.
 
+## Notifications, announcements and localization (specs/067)
+
+Contracts: `specs/067-notifications-communication-hub/contracts/`. Every controller below is marked `[LocalizedSurface]`, so Problem Details `title`, `detail` and `errors` follow the caller's effective language (see Localization below). Notification ids that belong to another user, or that the owner deleted, return **404**, never 403.
+
+### User endpoints
+
+All require a signed-in user and the `notifications-endpoints` rate-limit policy (per user, 120 per minute).
+
+```
+# NotificationsController — api/v1/notifications
+GET    /notifications?cursor=&limit=&category=&state=         (keyset page, newest first; limit 1-100, default 25; category may repeat; state all|unread|read)
+GET    /notifications/unread-count                            ({ count })
+GET    /notifications/{id}                                    (the item plus non-sensitive metadata; 404 if absent, not owned or deleted)
+POST   /notifications/{id}/actions/mark-read                  (204, idempotent)
+POST   /notifications/actions/mark-all-read                   (optional { category }; 200 { updated })
+DELETE /notifications/{id}                                    (204; owner soft delete, any category)
+
+# NotificationPreferencesController — api/v1/users/me/notification-preferences
+GET    /users/me/notification-preferences                     (effective state: catalogue defaults merged with overrides, locked = true on mandatory pairs)
+PUT    /users/me/notification-preferences                     ({ changes: [{ category, channel, enabled }] }, 1-40, atomic; 422 if any change disables a mandatory pair)
+
+# UserLocalizationController — api/v1/users/me/localization
+GET    /users/me/localization                                 (localizationEnabled, supportedLanguages, preferredLanguage, effectiveLanguage, direction)
+PUT    /users/me/localization                                 ({ preferredLanguage }; 422 when localization is off or the code is unsupported)
+```
+
+`title` and `message` of a notification are **plain text**: a client must never render them as HTML. `action` is `null` for a type without a route, and `relatedItem.available` is `false` once the item was deleted, so the client shows "no longer available" instead of navigating. A notification's text keeps the language it was produced in; changing the language never retranslates it.
+
+### Admin endpoints
+
+All use the `admin-endpoints` policy (60 per minute per user). `V` is `admin.notifications.view`, `M` is `admin.notifications.manage`; the server checks each endpoint on its own.
+
+```
+# AdminNotificationsController — api/v1/admin/notifications
+GET  /admin/notifications/statistics?from=&to=                                  (V; default last 7 days, at most 90; hourly buckets up to 2 days, daily after)
+GET  /admin/notifications/channels                                              (V; enabled, provider, health Healthy|Degraded|Unhealthy, safe detail)
+GET  /admin/notifications/deliveries?status=&channel=&category=&type=&from=&to=&cursor=&limit=   (V; default Failed and DeadLettered; limit default 50, max 200)
+GET  /admin/notifications/deliveries/{deliveryId}                               (V; masked recipient, no body for Security and Account)
+POST /admin/notifications/deliveries/{deliveryId}/actions/retry                 (M; 202 { deliveryId, status: Pending }; 409 with reason)
+POST /admin/notifications/deliveries/actions/retry                              (M; { deliveryIds } 1-200, or { filter } matching at most 1,000; 200 { requested, retried, skipped[] })
+GET  /admin/notifications/audit?action=&targetType=&targetId=&actorUserId=&from=&to=&cursor=&limit=   (V; read-only, keyset)
+
+# AdminNotificationTemplatesController — api/v1/admin/notifications/templates
+GET  /admin/notifications/templates?category=&channel=&language=&type=          (V; unpaged, under 200 rows)
+GET  /admin/notifications/templates/{templateId}                                (V; versions, declared variables, isShippedDefault)
+GET  /admin/notifications/templates/{templateId}/versions/{versionId}           (V)
+POST /admin/notifications/templates/{templateId}/versions                       (M; creates a draft, optional copyFromVersionId; 201 with Location)
+PUT  /admin/notifications/templates/{templateId}/versions/{versionId}           (M; edits a draft; If-Match required)
+POST /admin/notifications/templates/{templateId}/versions/{versionId}/actions/preview     (V; { subject, html, text } or { title, message, actionLabel })
+POST /admin/notifications/templates/{templateId}/versions/{versionId}/actions/send-test   (M; 202 { sentTo: masked }; the admin's own verified address only; notifications-test-send)
+POST /admin/notifications/templates/{templateId}/versions/{versionId}/actions/publish     (M; If-Match required; archives the previous published version)
+POST /admin/notifications/templates/{templateId}/versions/{versionId}/actions/archive     (M; If-Match required)
+
+# AdminAnnouncementsController — api/v1/admin/notifications/announcements
+GET  /admin/notifications/announcements?cursor=&limit=                          (V; newest first, with fan-out status and email counts)
+POST /admin/notifications/announcements                                         (M; 201 { id, estimatedRecipients, emailEstimatedMinutes })
+
+# AdminLocalizationController — api/v1/admin/notifications/localization
+GET  /admin/notifications/localization                                          (V; isEnabled, supportedLanguages, availableLanguages, rowVersion)
+PUT  /admin/notifications/localization                                          (M; If-Match required; { isEnabled, supportedLanguages })
+```
+
+**Templates**: a draft is edited in place; a published version is immutable and a change is a new draft. A text field may use only `{{ name }}` tokens for the type's declared variables, and may not contain HTML or a raw URL, so these return **422** with the offending token in the field error. `preview` is rendered by the production renderer, and the returned `html` is for a sandboxed iframe only. A sensitive link renders as the fixed sample `https://example.invalid/sample-link`. Archiving the only published version of a shipped default is refused.
+
+**Announcements**: `kind` is `Maintenance`, `ServiceDegradation` or `ImportantAnnouncement`; `audience` is `AllActiveUsers` or `Roles` (`targetRoleIds` required and existing); title is 1-150 and message 1-2,000 characters, plain text; `endsAtUtc` must be in the future. Every announcement reaches its audience in-app, and email is queued only when `isCritical` is true. There is no PUT or DELETE: a published announcement is immutable.
+
+**Localization setting**: `en` must stay in `supportedLanguages`, and every code must be in `availableLanguages` (the languages the platform ships content for); otherwise **422**. The change takes effect without a redeploy, because the cached setting is evicted.
+
+### Status codes and Problem Details extensions
+
+Standard Problem Details with `traceId`. The notification endpoints add a machine-readable `reason` extension on **409**, and `errors` on **422**:
+
+| Status | When | Extension |
+|---|---|---|
+| 400 | malformed cursor, unknown enum value, a bulk retry filter that matches over 1,000 deliveries (nothing is retried) | `errors` for validation failures |
+| 404 | notification not found, not owned or owner-deleted | |
+| 409 | delivery retry refused | `reason`: `NotFailed`, `NotificationDeleted`, `NotificationExpired` or `RecipientDeleted` |
+| 409 | template action refused | `reason`: `VersionNotDraft`, `VersionArchived`, `ConcurrencyConflict` or `LastPublishedDefault` |
+| 409 | stale `If-Match` or `RowVersion` (templates, localization setting) | `reason`: `ConcurrencyConflict` |
+| 422 | template text with an unknown variable, malformed token, HTML or raw URL; a test send with no verified address of the admin | |
+| 422 | a preference change that disables a mandatory pair (nothing applied) | `errors["changes[i]"]` |
+| 422 | a language that is unsupported, or localization is off | |
+| 428 | `If-Match` missing on a template edit, publish or archive, or on a localization update | |
+| 429 | over `notifications-endpoints`, `admin-endpoints` or `notifications-test-send`; `Retry-After` is set | |
+
+**If-Match convention**: the `rowVersion` returned by a read (base64) goes back in the `If-Match` header of the edit, publish or archive. A missing header is **428**; a stale one is **409** `ConcurrencyConflict`, and the admin UI reloads. The header value may be quoted.
+
+### Rate-limit policies
+
+| Policy | Limit | Used by |
+|---|---|---|
+| `notifications-endpoints` | 120 per minute, per user | the user notification, preference and localization endpoints |
+| `admin-endpoints` | 60 per minute, per user | every admin notification, template, announcement and localization endpoint (existing policy) |
+| `notifications-test-send` | 10 per hour, per administrator | the template `send-test` action, on top of `admin-endpoints` |
+
+All three partition on `RateLimitPartitions.UserOrClientKey`, not `Identity.Name`, which our tokens do not carry.
+
+### SignalR hub `/hubs/notifications`
+
+Server to client only; the caller joins the group `user:{userId}` from the authenticated identity, and the hub has no client-invocable methods, so every mutation is a REST call. It uses the same cookie-delivered access token as the other hubs. Events are best effort.
+
+| Event | Payload | Sent when |
+|---|---|---|
+| `notificationCreated` | the list item shape plus `unreadCount` | a notification with `ShowInCenter = true` commits |
+| `notificationUpdated` | `{ id, change: Read\|Deleted\|Expired, unreadCount }` | read or deleted in another session, or expired |
+| `unreadCountChanged` | `{ unreadCount }` | after mark-all-read, bulk expiry or retention |
+
+On `onreconnected` the client must refetch `GET /notifications/unread-count` and invalidate the first page, because a missed push is never replayed. There is no admin group: admin screens read REST.
+
+### Removed legacy endpoints and events
+
+Removed in the same release as the hub, because the old and new channels must never both run:
+
+* The document notification list and mark-read actions on `DocumentProcessingController` (`/documents/notifications`), and the memory notification list and mark-read actions on `MemoriesController` (`/memories/notifications`). They now return 404, and `GET /notifications` replaces both.
+* The `notificationCreated` push on `DocumentProcessingHub` and the `memoryNotificationCreated` push on the memory hub. `NotificationHub.notificationCreated` replaces both. `DocumentProcessingHub` keeps its stage-progress events.
+
+### Localization
+
+An endpoint localizes its Problem Details text only when marked `[LocalizedSurface]`, from `Messages.resx` and `Messages.ar.resx`; every other endpoint stays English. The `traceId` and the machine-readable `reason` values are never translated. The effective language is the first supported of the caller's explicit language, their saved choice, then `en`, and is always `en` while localization is disabled.
+
 ---
 
 # 32. HTTP Status Codes
@@ -1001,6 +1121,8 @@ Use consistent status codes.
 412 Precondition Failed
 
 422 Unprocessable Content
+
+428 Precondition Required
 
 429 Too Many Requests
 

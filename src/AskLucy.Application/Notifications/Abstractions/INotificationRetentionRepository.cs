@@ -24,4 +24,7 @@ public interface INotificationRetentionRepository
 
     /// <summary>Outbox events completed before <paramref name="cutoffUtc"/>.</summary>
     Task<int> DeleteCompletedOutboxEventsAsync(DateTime cutoffUtc, int batchSize, CancellationToken cancellationToken);
+
+    /// <summary>Outbox events that gave up (status Failed) before <paramref name="cutoffUtc"/>: kept this long for the administrators' backlog view.</summary>
+    Task<int> DeleteFailedOutboxEventsAsync(DateTime cutoffUtc, int batchSize, CancellationToken cancellationToken);
 }

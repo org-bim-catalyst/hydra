@@ -9,10 +9,10 @@ using AskLucy.Application.Notifications.Queries.GetNotificationStatistics;
 using AskLucy.Domain.Notifications;
 using AskLucy.Web.Auth;
 using AskLucy.Web.Contracts;
+using AskLucy.Web.Localization;
 using MediatR;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
-using AskLucy.Web.Localization;
 
 namespace AskLucy.Web.Controllers.v1;
 
@@ -25,19 +25,27 @@ namespace AskLucy.Web.Controllers.v1;
 [LocalizedSurface]
 [EnableRateLimiting("admin-endpoints")]
 [Route("api/v1/admin/notifications")]
+[ProducesResponseType<ProblemDetails>(StatusCodes.Status401Unauthorized)]
+[ProducesResponseType<ProblemDetails>(StatusCodes.Status403Forbidden)]
+[ProducesResponseType<ProblemDetails>(StatusCodes.Status429TooManyRequests)]
 public sealed class AdminNotificationsController(ISender mediator) : ControllerBase
 {
+    [ProducesResponseType<NotificationStatisticsDto>(StatusCodes.Status200OK)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status400BadRequest)]
     [HttpGet("statistics")]
     [RequirePermission("admin.notifications.view")]
     public async Task<ActionResult<NotificationStatisticsDto>> GetStatistics(
         [FromQuery] DateTime? from, [FromQuery] DateTime? to, CancellationToken cancellationToken) =>
         Ok(await mediator.Send(new GetNotificationStatisticsQuery(from, to), cancellationToken));
 
+    [ProducesResponseType<IReadOnlyList<NotificationChannelDto>>(StatusCodes.Status200OK)]
     [HttpGet("channels")]
     [RequirePermission("admin.notifications.view")]
     public async Task<ActionResult<IReadOnlyList<NotificationChannelDto>>> GetChannels(CancellationToken cancellationToken) =>
         Ok(await mediator.Send(new GetNotificationChannelsQuery(), cancellationToken));
 
+    [ProducesResponseType<AdminPage<AdminDeliveryDto>>(StatusCodes.Status200OK)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status400BadRequest)]
     [HttpGet("deliveries")]
     [RequirePermission("admin.notifications.view")]
     public async Task<ActionResult<AdminPage<AdminDeliveryDto>>> GetDeliveries(
@@ -52,11 +60,16 @@ public sealed class AdminNotificationsController(ISender mediator) : ControllerB
         CancellationToken cancellationToken = default) =>
         Ok(await mediator.Send(new GetNotificationDeliveriesQuery(status, channel, category, type, from, to, cursor, limit), cancellationToken));
 
+    [ProducesResponseType<AdminDeliveryDetailDto>(StatusCodes.Status200OK)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status404NotFound)]
     [HttpGet("deliveries/{deliveryId:guid}")]
     [RequirePermission("admin.notifications.view")]
     public async Task<ActionResult<AdminDeliveryDetailDto>> GetDelivery(Guid deliveryId, CancellationToken cancellationToken) =>
         Ok(await mediator.Send(new GetNotificationDeliveryQuery(deliveryId), cancellationToken));
 
+    [ProducesResponseType<RetryDeliveryResponse>(StatusCodes.Status202Accepted)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status404NotFound)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status409Conflict)]
     [HttpPost("deliveries/{deliveryId:guid}/actions/retry")]
     [RequirePermission("admin.notifications.manage")]
     public async Task<IActionResult> RetryDelivery(Guid deliveryId, CancellationToken cancellationToken)
@@ -65,6 +78,9 @@ public sealed class AdminNotificationsController(ISender mediator) : ControllerB
         return Accepted(new RetryDeliveryResponse(result.DeliveryId, result.Status));
     }
 
+    [ProducesResponseType<BulkRetryResult>(StatusCodes.Status200OK)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status409Conflict)]
     [HttpPost("deliveries/actions/retry")]
     [RequirePermission("admin.notifications.manage")]
     public async Task<ActionResult<BulkRetryResult>> BulkRetry([FromBody] BulkRetryDeliveriesRequest request, CancellationToken cancellationToken)
@@ -75,6 +91,8 @@ public sealed class AdminNotificationsController(ISender mediator) : ControllerB
         return Ok(await mediator.Send(new BulkRetryNotificationDeliveriesCommand(request.DeliveryIds, filter), cancellationToken));
     }
 
+    [ProducesResponseType<AdminPage<AdminAuditEntryDto>>(StatusCodes.Status200OK)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status400BadRequest)]
     [HttpGet("audit")]
     [RequirePermission("admin.notifications.view")]
     public async Task<ActionResult<AdminPage<AdminAuditEntryDto>>> GetAudit(

@@ -10,7 +10,7 @@
 >
 > **Frontend:** React + TypeScript + Vite
 >
-> **Last Updated:** August 2026 (v2.1: added §29 Prompt Library & Prompt Engineering Workspace, specs/019)
+> **Last Updated:** October 2026 (v2.1: added §36 Notification Hub, specs/067; earlier: §29 Prompt Library & Prompt Engineering Workspace, specs/019)
 
 ---
 
@@ -1699,7 +1699,212 @@ cache) tells an engine which folder to load its repository from:
 `CustomModelSummaryDto.BacksEngine` names the engine a model's repository feeds, so the admin can
 see what making it Available will affect.
 
-# 36. Architecture Principles
+# 36. Notification Hub
+
+specs/067 gives every module one way to say *what happened*, and one place that decides who is told,
+on which channel, in which language and with which template. Modules never send email, write a
+notification row or push over SignalR themselves. The decision record is
+[ADR 0018](adr/0018-transactional-notification-outbox.md); the frontend language and right-to-left
+decision is [ADR 0019](adr/0019-frontend-i18n-and-rtl.md).
+
+**Flow**: a module calls `INotificationPublisher.Publish(...)` inside its own unit of work. That adds
+a `NotificationOutboxEvent` row that commits or rolls back with the module's own change, so a crash
+can neither lose a notification nor announce a change that was rolled back. After the commit,
+`NotificationWakeInterceptor` pulses `INotificationWakeSignal`. The outbox dispatcher claims the
+event, routes it, and materializes one `Notification` per recipient plus one `NotificationDelivery`
+per channel. In-app deliveries are created already `Delivered` and pushed over SignalR. Email
+deliveries are queued for the delivery worker, which renders, sends and records the result.
+
+```
+Module handler ──Publish──► NotificationOutboxEvents ──(same SaveChanges)
+                                   │  wake signal after commit
+                                   ▼
+                     NotificationOutboxDispatcher (BackgroundService)
+        claim → NotificationRouter → materialize Notification + Deliveries
+                    │ InApp: Delivered, pushed on /hubs/notifications
+                    │ Email: Pending
+                                   ▼
+                     NotificationDeliveryWorker (BackgroundService)
+       claim → resolve language, mint link → INotificationChannelSender → record result
+```
+
+## Emitting: `INotificationPublisher`
+
+`Publish` is synchronous and performs no I/O. A request names a catalogue type (a
+`NotificationTypeKeys` constant), a `NotificationRecipient`, the declared variables, an optional
+`RelatedItem` (type, id, parent id), an optional `EventKey` for de-duplication and an optional
+explicit language. It never carries a channel, template, HTML, URL or secret. It throws only for
+programming errors (an unknown type, an undeclared variable, a malformed recipient), which surface
+in tests, so a caller does not wrap it in `try/catch`; the caller commits through its own
+`IUnitOfWork.SaveChangesAsync`. Recipients are one or more users (at most 100), an announcement
+audience (all active users, or roles), an address that belongs to a user, an address to be looked up
+in the background (password reset), or the support mailbox (the address comes from server
+configuration only). The outbox row holds no display data, so a recipient's name is read at
+dispatch, not at publish.
+
+## The type catalogue
+
+`NotificationTypeCatalog` (Domain) is code-owned: one `NotificationTypeDefinition` per type, with its
+category, default priority, the default state of each channel it uses (on, off or mandatory), its
+declared variables, its route template, and flags such as `ShowInCenter`, `MinimizeSensitiveContent`,
+`SensitiveLinkKind`, `RequestValidity`, `RequiresItemAccess` and `EmailOnlyWhenCritical`.
+Administrators edit templates, never the catalogue. Types for conversation export and billing are
+defined but not emitted (`IsEmitted = false`). Every emitted type ships published `en` and `ar`
+templates on each channel it uses, and a catalogue unit test enforces it against the seed files.
+
+## Routing
+
+`NotificationRouter` is a pure Domain function (the FR-003 decision table). For each channel the type
+uses it returns send or skip, with a `DeliverySkipReason`: `ChannelDisabled` (no registered sender,
+or switched off in configuration), `NotCritical` (an announcement email without the critical flag),
+`PreferenceDisabled` (the user's saved override, or the type's default) and `NoVerifiedAddress`.
+A mandatory channel ignores preferences but is still skipped when the channel itself is unavailable.
+Preferences are sparse `(category, channel)` overrides, so a user with none gets the catalogue
+defaults.
+
+## Dispatcher and delivery worker
+
+Both are in-process `BackgroundService` loops in Infrastructure (`Notifications/Workers`). The
+logic lives in Application (`OutboxDispatchService`, `DeliveryProcessingService`,
+`DeliveryProcessor`), so it is tested with fakes and the hosts stay thin. The workers sit beside
+Hangfire, not inside it: Hangfire enqueue is not transactional with EF, and its recurring jobs have
+one-minute granularity, which cannot meet the in-app latency target. Hangfire still runs the
+recurring maintenance jobs.
+
+* **Claims and leases**: a worker claims a batch with a conditional update that stamps `LeaseOwner`
+  and `LeaseExpiresAtUtc`, so two instances never process the same row. The owner id is unique per
+  process, so a restarted host never finishes rows leased to its previous life. The lease defaults to
+  2 minutes, well above the 60 s SMTP timeout, so a live send never loses its lease.
+* **Polling**: a worker runs a pass, then waits for the wake signal or the poll interval, 1 s while
+  there is work and 5 s when idle. Each event or delivery is processed in a scope of its own, so one
+  failure leaves nothing tracked for the next. A failed pass is logged and backed off; it never ends
+  the loop.
+* **Dispatcher retry**: an event that throws is released with exponential backoff (10 s, 20 s, 40 s
+  and so on, capped at 15 minutes). After 10 attempts it becomes `Failed`, is visible in the admin
+  backlog view and is recorded on the operational failure trail (ADR 0017).
+* **Idempotent materialization**: `(RecipientUserId, EventKey)` is a unique filtered index, so a
+  replayed or duplicated event materializes once and the outcome is `Duplicate`. An announcement's
+  fan-out runs in batches and advances `FanOutCursor`, so an interrupted fan-out resumes where it
+  stopped.
+* **Retry schedule**: a transient send failure schedules the next attempt by priority. Normal and
+  lower priorities wait 1, 4, 10, 20 and 30 minutes; `Critical` waits 30 s, 1, 2, 5 and 10 minutes.
+  The default is 5 attempts, then `DeadLettered (RetryLimitReached)`. A permanent failure (5xx, a
+  render error) is `Failed` at once. Both schedules are configurable under `Notifications:Retry`.
+* **At-most-once email**: the channel sender calls `SendProgress.MarkTransmissionStarted()` right
+  before the first byte leaves the process. A delivery interrupted before that point goes safely back
+  to the queue. One interrupted after it has an unknown outcome, so `LeaseSweepService` (a Hangfire
+  job every minute) fails it as `AmbiguousOutcome` and never resends it automatically: a duplicate
+  email is worse than one an administrator retries on purpose. The email `Message-ID` is
+  `<{deliveryId}@domain>`, so a receiver can collapse a duplicate that does slip through. The sweeper
+  also returns outbox events stuck `Processing` past their lease to `Pending`.
+* **Rate-limited lane**: `EmailSendRateLimiter` is a singleton token bucket of
+  `Notifications:Email:MaxPerMinute`, with `ReservedPerMinuteForMandatory` tokens that bulk mail
+  can never use. Mandatory mail (a password reset, a security notice) draws from the reserved lane
+  first, so an announcement cannot delay it. When no token is free the sender returns `Deferred`, the
+  delivery goes back to the queue without using up an attempt, and the worker waits the returned
+  time.
+* **Shutdown**: finishing a send and recording its outcome gets a short grace period after host
+  shutdown begins, so an accepted email is not recorded ambiguous, but a hung database cannot hold
+  the shutdown for ever.
+
+## Send-time rendering and links
+
+An account email's one-time link is minted by `IAccountLinkIssuer` when the worker sends, never when
+the event is published. It goes only to the renderer, which turns it into the email's button, so no
+token is stored in an outbox row, a notification, a delivery, the audit log or a log line. A refused
+issue (`AccountLinkRefusedException`: unconfirmed, locked out, throttled) cancels the delivery with a
+safe reason. Every other type's link comes from `INotificationLinkBuilder`, which fills the type's
+route template from the related item, URL-encodes every value and rejects anything that would leave
+the app. The language is resolved at send time, so a user's change applies to mail still queued.
+Notifications that need item access (`RequiresItemAccess`) re-check through
+`INotificationAccessCheck` that the recipient can still see the item before they render.
+
+## Templates and the renderer
+
+A template row is one `(Type, Channel, Language)`; its content is versioned (`Draft`, `Published`,
+`Archived`) and immutable once published. Fields are structured (subject, preheader, greeting,
+heading, up to ten body paragraphs, safety note, footer for email; title and message for in-app) and
+the only syntax is `{{ name }}` against the type's declared variables. `LogicFreeTemplateRenderer`
+substitutes first and encodes after: in-app output is plain text that the client renders as text,
+and the email HTML part encodes every value, so a variable can never inject markup. The email is
+wrapped in the branded shell from spec 061, with `lang` and `dir` set from the language. A missing
+value takes the variable's fallback and logs a warning. `NotificationTemplateSeeder`, a hosted
+service, installs the shipped English and Arabic defaults as a published version 1 for each missing
+template and never overwrites an administrator's edit.
+
+## The channel seam
+
+Each channel is one `INotificationChannelSender` (`Channel` and `SendAsync(DeliveryContext)`). A
+sender never reads the database for the message: the context carries the resolved address, language,
+variables and link. It returns a classified `ChannelSendResult` (sent, delivered, transient failure,
+permanent failure or deferred) instead of throwing for a delivery problem, and lets only a host
+shutdown through as an exception. `NotificationChannelRegistry` reports which channels routing may
+use: in-app unless `Notifications:Channels:InApp:Enabled` is false, plus every channel with a
+registered sender that configuration has not disabled. Adding Teams, Slack or SMS means registering
+a sender and adding an enum value; the router, publisher and emitters do not change (SC-012). In-app has no sender, because it is delivered at
+materialization. `EmailChannelSender` wraps the existing MailKit STARTTLS `IEmailSender`, and
+`SmtpFailureClassifier` maps MailKit errors onto retry or give up, storing only the numeric reply and
+enhanced status code, never the exception text.
+
+## In-app delivery
+
+`NotificationHub` at `/hubs/notifications` is server to client only: the caller joins the group
+`user:{userId}`, built from the authenticated identity, and there are no client-invocable methods, so
+every mutation goes through REST with its rate limiting, validation and audit. Pushes
+(`notificationCreated`, `notificationUpdated`, `unreadCountChanged`) are best effort and happen after
+the commit. A failed push is logged at Warning with the correlation id and does not fail
+materialization, because the client refetches the unread count and first page on reconnect.
+`DocumentProcessingHub` keeps its stage-progress events, and its old `notificationCreated` push is
+gone.
+
+## Retention
+
+`RetentionService`, run by the daily Hangfire job `notification-retention` (03:00), deletes in
+batches with `ExecuteDeleteAsync`, each batch in its own scope: read notifications after 90 days,
+owner-deleted after 30 days, failed or dead-lettered deliveries 30 days after the last attempt,
+finished non-in-app deliveries after 90 days and completed outbox events after 7 days. A notification
+that still has an active delivery is skipped. `NotificationAuditLog` rows are never deleted. Windows
+are `Notifications:Retention:*`.
+
+## Health and metrics
+
+Four checks are tagged `ready` on `/health/ready`:
+
+| Check | Meaning |
+|---|---|
+| `notifications-dispatcher` | The dispatcher's heartbeat is fresh (30 s by default); a stale one is Unhealthy. |
+| `notifications-delivery-worker` | The delivery worker's heartbeat is fresh; a stale one is Unhealthy. |
+| `notifications-backlog` | The oldest due item is within 5 minutes (Degraded) and 30 minutes (Unhealthy). |
+| `notifications-smtp` | An SMTP probe, cached for 5 minutes. A failure is Degraded, never Unhealthy, so the site stays up. |
+
+The workers write heartbeats to a singleton store, and the checks read it, so neither depends on the
+other. `NotificationMetrics` exposes the `AskLucy.Notifications` meter. The admin Channels view reads
+the same cached results. The correlation id travels from the request through the outbox, the
+notification and the delivery to every log line.
+
+## Localization
+
+Localization is a platform setting, not a build option. `LocalizationSetting` is a singleton row
+(`IsEnabled`, `SupportedLanguagesJson`), seeded disabled with `["en"]`, edited by an administrator
+under `admin.notifications.manage` with `If-Match`. `ApplicationUser.PreferredLanguage` holds a
+user's choice and is kept when localization is switched off or the language is removed.
+
+`IEffectiveLanguageResolver` answers one question for the whole backend: while localization is off
+the answer is always `en`; otherwise it is the first *supported* candidate of the request's explicit
+language, the user's own choice, then English. A language that is no longer supported falls through
+without touching the user's choice. The setting is cached for 30 seconds
+(`CachedLocalizationSettingsProvider`) and evicted on change. Notifications record the language they
+were produced in and are never retranslated.
+
+Server text (Problem Details `title` and `detail`) is localized only on controllers and actions
+marked `[LocalizedSurface]`, from `Application/Localization/Messages.resx` and `Messages.ar.resx`.
+`LocalizedSurfaceCultureMiddleware` runs after authentication, sets the culture for such endpoints
+and stores it in `HttpContext.Items`, because an async-local culture does not reach the Problem
+Details middleware that wraps it. Every other endpoint stays English. The frontend side (typed
+catalogs, `useT`, scoped RTL for the notification screens and the admin area) is described in
+ADR 0019.
+
+# 37. Architecture Principles
 
 Before implementing any feature, ask:
 

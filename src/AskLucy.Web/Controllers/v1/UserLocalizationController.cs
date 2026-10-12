@@ -16,12 +16,17 @@ namespace AskLucy.Web.Controllers.v1;
 [Authorize]
 [EnableRateLimiting("notifications-endpoints")]
 [Route("api/v1/users/me/localization")]
+[ProducesResponseType<ProblemDetails>(StatusCodes.Status401Unauthorized)]
+[ProducesResponseType<ProblemDetails>(StatusCodes.Status429TooManyRequests)]
 public sealed class UserLocalizationController(ISender mediator) : ControllerBase
 {
+    [ProducesResponseType<MyLocalizationDto>(StatusCodes.Status200OK)]
     [HttpGet]
     public async Task<ActionResult<MyLocalizationDto>> Get(CancellationToken cancellationToken) =>
         Ok(await mediator.Send(new GetMyLocalizationQuery(), cancellationToken));
 
+    [ProducesResponseType<MyLocalizationDto>(StatusCodes.Status200OK)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status422UnprocessableEntity)]
     [HttpPut]
     public async Task<ActionResult<MyLocalizationDto>> Set([FromBody] SetMyLanguageRequest request, CancellationToken cancellationToken) =>
         Ok(await mediator.Send(new SetMyLanguageCommand(request.PreferredLanguage ?? string.Empty), cancellationToken));

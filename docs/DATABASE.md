@@ -10,7 +10,7 @@
 >
 > **Version:** 2.0
 >
-> **Last Updated:** July 2026
+> **Last Updated:** October 2026 (added the notification hub tables, specs/067)
 
 ---
 
@@ -898,6 +898,89 @@ Fields:
 * Standard audit columns - `ModifiedBy` and `ModifiedAtUtc` are shown on the Admin Appearance page as "last changed by/at"
 
 The limits live once, on the `PresenceSphereSettings` entity, and are enforced by its `Update` method and by the command validator. Last write wins (no concurrency check): a decorative setting does not justify a retry flow. Migration `AddPresenceSphereSettings` creates the table and seeds nothing; apply it by hand to the shared test databases (CI fails without it on the dedicated persistence database).
+
+---
+
+## Notification hub (specs/067)
+
+Nine tables and one column. Every table inherits `BaseEntity` (Guid v7 key, audit columns, `RowVersion`). Enums are stored as `nvarchar` strings, every foreign key is indexed, and all mapping is Fluent API in `AskLucy.Persistence/Configurations/Notifications/` (plus `Configurations/Localization/`). The reasoning is in [ADR 0018](adr/0018-transactional-notification-outbox.md); the full field lists are in `specs/067-notifications-communication-hub/data-model.md`.
+
+### Notifications
+
+One message for one recipient about one event. `RecipientUserId` is a nullable FK to `AspNetUsers` (null only for the support mailbox and address-only account emails). Holds the rendered plain-text `Title` and `Message`, `Category`, `Type`, `Priority`, the aggregated `Status`, the `Language` it was produced in, the related item (`RelatedItemType`/`RelatedItemId`), an app-relative `ActionRoute` and `ActionLabel`, `MetadataJson` (non-sensitive, 4 KB at most), `CorrelationId`, `EventKey`, `ShowInCenter`, `ReadAtUtc`, `ExpiresAtUtc`, and `TemplateVersionId` and `SourceEventId` (both nullable FKs; `SourceEventId` is `ON DELETE SET NULL`). Owner deletion is a soft delete with a global query filter; retention does the hard delete.
+
+Indexes:
+
+* `IX_Notifications_Recipient_Center` on `(RecipientUserId, CreatedAtUtc DESC, Id DESC)`, filtered `DeletedAtUtc IS NULL AND ShowInCenter = 1`, covering the category, read time, priority and status - keyset paging of the notification center.
+* `IX_Notifications_Recipient_Unread` on `(RecipientUserId)`, filtered to unread, undeleted, in-center rows - the unread badge count.
+* `UX_Notifications_Recipient_EventKey` (unique, `EventKey IS NOT NULL AND RecipientUserId IS NOT NULL`) and `UX_Notifications_Address_EventKey` (unique, `EventKey IS NOT NULL AND RecipientUserId IS NULL`) - de-duplication, so replaying an event materializes once.
+* `IX_Notifications_Retention_Read` (filtered `ReadAtUtc IS NOT NULL`) and `IX_Notifications_Retention_Deleted` (filtered `DeletedAtUtc IS NOT NULL`) - the retention scans.
+* `IX_Notifications_TemplateVersionId`, `IX_Notifications_SourceEventId` - the foreign keys.
+
+### NotificationDeliveries
+
+One channel's delivery stream for one notification; the row `Id` is the delivery identity and is used in the email `Message-ID`. Cascades from `Notifications`. Holds `Channel`, `Status`, denormalized `Priority`, `RecipientKind`, `RecipientAddress` (only for explicit-address recipients, never for the support mailbox; masked in every admin view), the `Language` and `TemplateVersionId` actually rendered, `AttemptCount`/`MaxAttempts`, `NextAttemptAtUtc`, `LastAttemptAtUtc`, the lease (`LeaseOwner`, `LeaseExpiresAtUtc`), `SkipReason`, `FailureKind`, `FailureReason` and `ProviderResponse` (safe text only, never a token, link or credential), `SentAtUtc`, `DeliveredAtUtc`, `ExpiresAtUtc` and `CorrelationId`.
+
+Indexes:
+
+* `IX_NotificationDeliveries_Queue` on `(Status, Priority DESC, NextAttemptAtUtc)`, filtered to `Pending`, `Retrying` and `Sending` - the worker's claim scan and the lease sweeper.
+* `IX_NotificationDeliveries_Failed` on `(Status, LastAttemptAtUtc DESC)`, filtered to `Failed` and `DeadLettered` - the admin failed view.
+* `UX_NotificationDeliveries_Notification_Channel` (unique on `(NotificationId, Channel)`) - one delivery per channel per notification; also serves the `NotificationId` foreign key.
+* `IX_NotificationDeliveries_TemplateVersionId` - the foreign key.
+
+### NotificationOutboxEvents
+
+The transactional outbox: a durable "something happened" record written in the emitter's own transaction. Holds `Type`, `EventKey` (not unique here, so a duplicate can never roll back the emitter), `RecipientJson` and `VariablesJson` (declared variables only, 16 KB at most), the related item, `ExplicitLanguage`, `CorrelationId`, `OccurredAtUtc`, `Status`, `Attempts`, the lease, `NextAttemptAtUtc`, `FanOutCursor` (the last user id of a batched announcement fan-out), `Outcome`, `LastError` (a safe summary) and `ProcessedAtUtc`. There is no soft-delete filter.
+
+Indexes: `IX_NotificationOutboxEvents_Due` on `(Status, NextAttemptAtUtc, OccurredAtUtc)` filtered to `Pending` and `Processing` (the dispatcher's claim scan); `IX_NotificationOutboxEvents_Processed` on `(ProcessedAtUtc)` filtered to `Completed` (retention); `IX_NotificationOutboxEvents_EventKey` filtered to non-null keys.
+
+### NotificationTemplates / NotificationTemplateVersions
+
+One template per `(Type, Channel, Language)` (`UX_NotificationTemplates_Type_Channel_Language`, unique), with a nullable `PublishedVersionId` pointing at the current published version (nullable to break the cycle). Versions are immutable once published and hold the structured fields: for email `Subject`, `Preheader`, `Greeting`, `Heading`, `BodyParagraphsJson` (1 to 10 paragraphs), `SafetyNote`, `FooterNote`; for in-app `Title`, `Message`; `ActionLabel` for both; `UsedVariablesJson` (computed on save and checked against the type's declared variables); and the publish and archive stamps. Version statuses are `Draft`, `Published` and `Archived`.
+
+Indexes: `UX_NotificationTemplateVersions_Template_Version` (unique on `(TemplateId, VersionNumber)`), `UX_NotificationTemplateVersions_OnePublished` (unique on `(TemplateId)` filtered to `Published`, so a template can never have two), and `IX_NotificationTemplates_PublishedVersionId`.
+
+### NotificationPreferences
+
+Sparse per-user overrides of the catalogue defaults, one row per `(UserId, Category, Channel)` with `IsEnabled` and `Frequency` (only `Immediate` is accepted). `UserId` is an FK to `AspNetUsers` with cascade delete. `UX_NotificationPreferences_User_Category_Channel` is unique. The Domain and the validator reject disabling a mandatory pair.
+
+### SystemAnnouncements
+
+Administrator announcements: `Kind`, `Title` (150) and `Message` (2,000) as plain text that is never translated, `Audience` (all active users or roles), `TargetRoleIdsJson`, `IsCritical` (enables email), `EndsAtUtc` (the expiry of the fan-out notifications and emails), `PublishedAtUtc`, `PublishedByUserId` (FK) and `RecipientCount`, set when fan-out completes. Immutable once published; a correction is a new announcement. Indexes: `IX_SystemAnnouncements_PublishedAt` and `IX_SystemAnnouncements_PublishedByUserId`.
+
+### NotificationAuditLogs
+
+Append-only audit of administrator actions and of approval-notification history, mirroring the role audit log. It has no update or delete path, and the soft-delete filter is not used. Holds `OccurredAtUtc`, `ActorUserId` (a plain string, not a foreign key, so the trail survives user deletion; null for system rows), `Action`, `TargetType`, `TargetId`, `Outcome` (`Succeeded`, `Rejected`, `Failed`), `DetailsJson` (a safe before/after summary, never a token, credential or rendered email body) and `CorrelationId`. Indexes: `IX_NotificationAuditLogs_OccurredAt` and `IX_NotificationAuditLogs_Target` on `(TargetType, TargetId)`. Retention never deletes these rows. Read-only admin views are audited as `...Viewed` rows at most once per administrator per resource per hour.
+
+### LocalizationSettings and AspNetUsers.PreferredLanguage
+
+`LocalizationSettings` is a singleton in `AskLucy.Domain.Localization`: `IsEnabled` (default false), `SupportedLanguagesJson` (`nvarchar(200)`, must contain `en`) and `RowVersion` for optimistic concurrency (a conflict returns 409). `AspNetUsers.PreferredLanguage` is `nvarchar(10)` and nullable; null means none chosen. It is kept when localization is disabled or the language stops being supported.
+
+### Retention windows
+
+The daily Hangfire job `notification-retention` (03:00, `RetentionService`) deletes in batches of 1,000 with `ExecuteDeleteAsync`. Windows are `Notifications:Retention:*`; the defaults are:
+
+| Data | Deleted after | Option |
+|---|---|---|
+| Read notifications | 90 days after `ReadAtUtc` | `ReadDays` |
+| Owner-deleted notifications | 30 days after `DeletedAtUtc` | `DeletedDays` |
+| `Failed` and `DeadLettered` deliveries | 30 days after the last attempt | `FailedDays` |
+| Finished non-in-app deliveries | 90 days | `DeliveryDays` |
+| `Completed` outbox events | 7 days | `CompletedOutboxDays` |
+| `NotificationAuditLogs` | never | |
+
+In-app deliveries are removed with their notification, and a notification that still has an active delivery is skipped. `Failed` outbox events are not purged by this job.
+
+### Legacy tables pending removal
+
+`DocumentNotifications` and `MemoryNotifications` take no new rows: their producers publish to the hub instead, and their endpoints and events are gone. Existing rows were imported idempotently at startup by `LegacyNotificationImporter` (event keys `legacy:document:{Id}` and `legacy:memory:{Id}`, language `en`, read state preserved, the legacy rows left untouched). The tables, the importer and the three `[Obsolete]` forwarding shims (`AccountEmailJob`, `PasswordEmailJob`, `PasswordResetIssuanceJob`) are removed in a follow-up release, after the import counts are verified in production. That release adds a `DropLegacyDocumentAndMemoryNotifications` migration; it is not part of specs/067.
+
+### Migration notes
+
+* `AddNotificationHub` (20260928041922) creates the eight notification tables and all their indexes in one migration. It seeds nothing.
+* `AddLocalizationSettingAndUserPreferredLanguage` (20261007050713) adds `AspNetUsers.PreferredLanguage`, creates `LocalizationSettings` and seeds the singleton row (fixed id `0c6f4c2a-5b1e-4d3a-9a57-7a1f0b6c3e10`, disabled, `["en"]`).
+* Default template content is **not** in a migration. `NotificationTemplateSeeder`, a hosted service, installs a published version 1 of each shipped English and Arabic template from embedded `Seed/{language}/{type}.{channel}.json` files at startup, only where the template does not exist yet, so administrator edits survive every deploy.
+* Both migrations are reversible, contain no UTF-8 BOM and put `System` usings first. Apply them by hand to the shared test databases before CI runs (see the repo's migration notes).
 
 ---
 

@@ -4,11 +4,11 @@ using AskLucy.Application.Authorization.Assignments.Queries.GetRoleAssignmentsEl
 using AskLucy.Application.Authorization.Assignments.Queries.ListRoleAssignments;
 using AskLucy.Application.Users;
 using AskLucy.Web.Contracts;
+using AskLucy.Web.Localization;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
-using AskLucy.Web.Localization;
 
 namespace AskLucy.Web.Controllers.v1;
 

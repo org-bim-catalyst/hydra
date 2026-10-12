@@ -609,6 +609,58 @@ Never expose email credentials.
 
 Rate limit email-triggering endpoints.
 
+## Notification hub (specs/067)
+
+Every email and in-app message now goes through the notification hub (see ARCHITECTURE.md §36 and [ADR 0018](adr/0018-transactional-notification-outbox.md)). The controls below are part of its design, not options.
+
+### One-time links are minted at send time and never stored
+
+A password reset, email confirmation or email change link is created by `IAccountLinkIssuer` at the moment the delivery worker sends, and goes only to the renderer. The token is not in an outbox row, a notification, a delivery, an audit row or a log line. The token's own record is saved before the call returns, so a link in a sent email always works. A refused link (unconfirmed, locked out, throttled) cancels the delivery with a fixed safe reason, and the real reason goes to the security log. A retried delivery mints a fresh link and is never throttled as a new request.
+
+### Anti-enumeration
+
+A password reset request publishes one outbox event addressed to an *address lookup*, and the lookup happens in the background. The response and the single outbox insert are the same whether or not the address has an account, so the response cannot reveal it. When no account matches, the outcome is `NoRecipient` and no delivery exists. An address that may belong to no account is logged only as a lowercase SHA-256 hash of the trimmed, lower-cased address (`NotificationAddressHash`), never in clear. Account emails are never shown in the notification center (`ShowInCenter = false`), so a request leaves no trace a user could probe.
+
+### Content minimization
+
+Types in the Security category (password changed, two-factor enabled or disabled, recovery codes regenerated) set `MinimizeSensitiveContent`. Their email says what happened, when, and to sign in and review. It does not carry device or location detail beyond the declared variables, and never a code, a token or a credential. A support request is sent only to the support mailbox, whose address comes from server configuration and is never stored on a delivery or returned by an API.
+
+### Masking in admin views
+
+Administrators see a recipient as the first letter and the domain (`m•••@bimcatalyst.com`) and a name as initials. Support-mailbox deliveries have no address at all. Admin delivery views contain no rendered body, token or link, and omit the message body for Security and Account notifications. Failure text is fixed wording chosen by `SmtpFailureClassifier`, and the stored provider response is the numeric SMTP status code only, because exception messages routinely carry the server banner, a recipient address or a login name.
+
+### Logic-free templates and encoding
+
+Templates cannot run code: the only syntax is `{{ name }}` against the type's declared variables, and any other brace sequence, HTML, raw URL or unknown variable is rejected on save (422). The renderer substitutes first and encodes after. In-app output is plain text that the client renders as text, never HTML, so a variable holding markup shows up literally. In the email HTML part every value is HTML-encoded for its context, so a variable cannot inject markup; the plain-text part carries the same values raw. Links in a notification are built from the type's own route template with each value URL-encoded, and a template that would leave the app is rejected. Only an administrator holding the manage permission can create or publish a template, a published version is immutable, and every change is audited.
+
+### Subject and header injection
+
+Every value that reaches a header, the subject above all, has CR, LF, every control character and the Unicode line and paragraph separators removed and runs of whitespace collapsed. The `Message-ID` is built from the delivery id, never from input.
+
+### Sandboxed template preview
+
+The preview HTML is produced by the production renderer and shown in an `<iframe sandbox="" srcdoc=...>`: the empty `sandbox` attribute disables scripts, forms, popups and same-origin access. The client never injects the returned HTML into the page. A sensitive link renders as the fixed sample `https://example.invalid/sample-link`, so a preview cannot expose a real token. A test send goes only to the calling administrator's own verified address, with sample values and the sample link, and is capped by the `notifications-test-send` policy (10 per hour).
+
+### Secrets
+
+SMTP host, credentials and the support mailbox address are read only from server configuration (`Smtp`, user secrets, the untracked `appsettings.Production.json`). They are not in the database, a response, a template, a delivery row, the audit log or a log line. The hub adds no new secret.
+
+### Ownership and real-time access
+
+A user can read, mark read or delete only their own notifications. Another user's id and an owner-deleted id both return 404, so existence is not revealed. The notification hub joins the connection to a group derived from the authenticated user id, never a client-supplied one, and has no client-invocable methods. Types that point at an item re-check at dispatch that the recipient can still see it.
+
+### Audit coverage
+
+`NotificationAuditLog` is append-only and retention never deletes it. It records every state-changing administrator action: `TemplateDraftSaved`, `TemplateVersionPublished`, `TemplateVersionArchived`, `TemplateTestSent`, `DeliveryRetried`, `DeliveriesBulkRetried`, `AnnouncementPublished` and `LocalizationSettingChanged`, plus the approval history (`ApprovalNotificationCreated`, `...Delivered`, `...Read`). Read-only admin views of delivery data are audited too (`StatisticsViewed`, `ChannelsViewed`, `DeliveriesViewed`, `DeliveryViewed`, `AuditViewed`, `TemplatesViewed`, `TemplateViewed`, `TemplateVersionViewed`), at most once per administrator per resource per hour. These rows are written by a MediatR pipeline behavior in its own scope, and if the audit write fails the view fails too: an unaudited view of delivery data is not returned. Details hold a safe before and after summary, never a token, credential or rendered body.
+
+### Permissions
+
+`admin.notifications.view` allows the read-only screens (statistics, channels, deliveries, templates, announcements, localization setting, audit). `admin.notifications.manage` allows retrying deliveries, creating, editing, publishing and archiving templates, sending a template test, publishing announcements and changing the localization setting. The server checks each endpoint independently; holding manage does not imply view on the server. Both are catalogue permissions assigned through role management, and the admin endpoints are also covered by the `admin-endpoints` rate limit.
+
+### Delivery safety
+
+Email is sent at most once per delivery: a delivery whose outcome is unknown after a crash is recorded as `AmbiguousOutcome` and never resent automatically. A send limiter caps outbound mail at the mail host's allowance and reserves capacity for account emails, so a bulk announcement cannot delay a password reset. Announcements are plain text, never HTML, and only an administrator can publish one.
+
 ---
 
 # 37. AI Provider Security

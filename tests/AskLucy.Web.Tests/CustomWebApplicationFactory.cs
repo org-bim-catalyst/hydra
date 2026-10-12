@@ -1,4 +1,5 @@
 using AskLucy.Application.Abstractions;
+using AskLucy.Application.Notifications.Abstractions;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.AspNetCore.TestHost;
@@ -67,6 +68,17 @@ public class CustomWebApplicationFactory : WebApplicationFactory<Program>
         {
             services.RemoveAll<IEmailSender>();
             services.AddSingleton<IEmailSender>(Notifications.ScriptableEmailSender.Shared);
+
+            // Every host answers "yes" for the item ids a test put on NotificationAccessAllowList (see there) and asks the real check for the rest.
+            foreach (var descriptor in services.Where(d => d.ServiceType == typeof(INotificationAccessCheck) && d.ImplementationType is not null).ToList())
+            {
+                services.Remove(descriptor);
+                var implementation = descriptor.ImplementationType!;
+                services.Add(new ServiceDescriptor(
+                    typeof(INotificationAccessCheck),
+                    sp => new NotificationAccessAllowList.Wrapper((INotificationAccessCheck)ActivatorUtilities.CreateInstance(sp, implementation)),
+                    descriptor.Lifetime));
+            }
         });
     }
 }

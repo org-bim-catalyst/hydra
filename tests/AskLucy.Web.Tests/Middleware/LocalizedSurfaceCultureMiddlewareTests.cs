@@ -1,7 +1,7 @@
 using System.Net;
 using System.Net.Http.Json;
-using System.Text.RegularExpressions;
 using System.Text.Json;
+using System.Text.RegularExpressions;
 using AskLucy.Web.Tests.Localization;
 using FluentAssertions;
 using Xunit;
