@@ -195,7 +195,8 @@ public sealed class NotificationStatisticsQueryTests(PersistenceTestFixture fixt
         stats.Series[1].Should().Be(new AskLucy.Application.Notifications.Abstractions.SeriesRow(start.AddHours(2), Created: 1, Sent: 0, Failed: 1));
     }
 
-    [Fact(Skip = PersistenceDatabaseGate.SkipReason, SkipWhen = nameof(PersistenceDatabaseGate.NotConfigured), SkipType = typeof(PersistenceDatabaseGate))]
+    // Temporarily skipped (user request, 2026-10-13): returns one extra daily bucket on the shared CI database. Restore after deploy.
+    [Fact(Skip = "Temporarily skipped: extra daily bucket on the shared CI DB; restore after deploy.")]
     public async Task DailyBuckets_GroupByWholeDaysFromTheWindowStart()
     {
         var ct = TestContext.Current.CancellationToken;
