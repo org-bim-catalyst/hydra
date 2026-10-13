@@ -1,4 +1,4 @@
-import { Box, IconButton, List, ListItem, ListItemButton, ListItemIcon, ListItemText, Menu, MenuItem, Stack } from '@mui/material'
+import { Box, ClickAwayListener, IconButton, List, ListItem, ListItemButton, ListItemIcon, ListItemText, Paper, Popper, Stack, Tooltip } from '@mui/material'
 import { useRef, useState, type KeyboardEvent, type MouseEvent, type ReactNode } from 'react'
 
 export interface ExpandableActionGroupAction {
@@ -184,25 +184,46 @@ function ToolGroupButton({ action }: { action: ExpandableActionGroupAction }) {
           transform: 'rotate(-90deg)',
         }}
       />
-      <Menu
-        anchorEl={anchor}
-        open={anchor !== null}
-        onClose={() => setAnchor(null)}
-        slotProps={{ paper: { sx: { minWidth: 200 } } }}
-      >
-        {tools.map((tool) => (
-          <MenuItem
-            key={tool.id}
-            selected={tool.id === shown?.id}
-            disabled={tool.disabled}
-            title={tool.disabled && tool.disabledReason ? tool.disabledReason : undefined}
-            onClick={() => chooseTool(tool)}
+      {/* specs/081 US6: the group's other tools slide out as icons, perpendicular to the ribbon; labels are tooltips. */}
+      <Popper open={anchor !== null} anchorEl={anchor} placement="top" disablePortal={false} style={{ zIndex: 1400 }}>
+        <ClickAwayListener onClickAway={() => setAnchor(null)}>
+          <Paper
+            elevation={6}
+            role="toolbar"
+            aria-label={action.label}
+            onKeyDown={(event) => {
+              if (event.key === 'Escape') {
+                setAnchor(null)
+                buttonRef.current?.focus()
+              }
+            }}
+            sx={{ p: 0.5, mb: 1, borderRadius: 2 }}
           >
-            {tool.icon && <ListItemIcon sx={{ minWidth: 32 }}>{tool.icon}</ListItemIcon>}
-            <ListItemText primary={tool.label} />
-          </MenuItem>
-        ))}
-      </Menu>
+            <Stack spacing={0.5}>
+              {tools.map((tool) => (
+                <Tooltip key={tool.id} describeChild title={tool.disabled && tool.disabledReason ? `${tool.label} — ${tool.disabledReason}` : tool.label} placement="left">
+                  <span>
+                    <IconButton
+                      size="small"
+                      aria-label={tool.label}
+                      aria-pressed={tool.id === shown?.id}
+                      disabled={tool.disabled}
+                      onClick={() => chooseTool(tool)}
+                      sx={{
+                        width: 40,
+                        height: 40,
+                        bgcolor: tool.id === shown?.id ? 'action.selected' : 'transparent',
+                      }}
+                    >
+                      {tool.icon}
+                    </IconButton>
+                  </span>
+                </Tooltip>
+              ))}
+            </Stack>
+          </Paper>
+        </ClickAwayListener>
+      </Popper>
     </Box>
   )
 }
