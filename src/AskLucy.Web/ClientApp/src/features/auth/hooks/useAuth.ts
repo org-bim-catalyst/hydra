@@ -3,6 +3,8 @@ import * as authApi from '../api/authApi'
 import type { SessionResponse } from '../api/authApi'
 import { migratePublicConsentToAccount } from '../../consent/hooks/usePublicCookieConsent'
 import { useAuthStore } from '../../../store/authStore'
+import { useActiveSiteBoundaryStore } from '../../../store/activeSiteBoundaryStore'
+import { useActiveConversationStore } from '../../chat/activeConversationStore'
 import { SESSION_QUERY_KEY } from './useSession'
 
 const LOGGED_OUT_SESSION: SessionResponse = { authenticated: false, userId: null, roles: [], permissions: [] }
@@ -110,6 +112,12 @@ export function useLogout() {
     mutationFn: () => authApi.logout(),
     onSettled: () => {
       clear()
+      // Everything the signed-in account left behind goes too, so the next account starts from nothing: the
+      // open conversation id (persisted in sessionStorage, so another account would load it and fail), the
+      // site outline on the map, and every cached query (chats, messages, boundaries, profile).
+      useActiveConversationStore.getState().setActiveChatId(null)
+      useActiveSiteBoundaryStore.getState().clearBoundary()
+      queryClient.clear()
       // Set the cache synchronously rather than only invalidating — invalidateQueries schedules
       // a background refetch, leaving `data` at its stale "authenticated: true" value for that
       // request's round trip. In that window ProtectedRoute still renders ConsentGate (reading
