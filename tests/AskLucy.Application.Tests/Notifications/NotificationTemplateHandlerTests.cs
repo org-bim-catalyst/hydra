@@ -63,7 +63,7 @@ public sealed class NotificationTemplateHandlerTests
 
     private UpdateTemplateDraftCommandHandler Update() => new(_templates, _audit, _unitOfWork);
 
-    private PublishTemplateVersionCommandHandler Publish() => new(_templates, _audit, _unitOfWork, _currentUser, _time);
+    private PublishTemplateVersionCommandHandler Publish() => new(_templates, _audit, _currentUser, _time);
 
     private ArchiveTemplateVersionCommandHandler Archive() => new(_templates, _audit, _unitOfWork, _currentUser, _time);
 
@@ -166,6 +166,7 @@ public sealed class NotificationTemplateHandlerTests
         dto.Status.Should().Be(TemplateVersionStatus.Published);
         v1.Status.Should().Be(TemplateVersionStatus.Archived);
         template.PublishedVersionId.Should().Be(draft.Id);
+        await _templates.Received(1).SavePublishAsync(draft.Id, Arg.Any<CancellationToken>());
         _audit.Received(1).Write(
             NotificationAuditAction.TemplateVersionPublished, "NotificationTemplateVersion", draft.Id.ToString(), NotificationAuditOutcome.Succeeded,
             Arg.Is<object?>(d => d!.ToString()!.Contains("previousVersionNumber = 1") && d.ToString()!.Contains("newVersionNumber = 2")), Arg.Any<string?>());

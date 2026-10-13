@@ -236,13 +236,14 @@ public sealed class NotificationPreferencesEndpointsTests(NotificationPreference
     {
         // The limiter is partitioned per user, so a user of its own can spend the quota without touching any other test.
         var client = ClientFor(await SeedUserAsync());
-        HttpStatusCode last = HttpStatusCode.OK;
-        for (var i = 0; i < 125 && last != HttpStatusCode.TooManyRequests; i++)
-        {
-            last = (await client.GetAsync(Endpoint, TestContext.Current.CancellationToken)).StatusCode;
-        }
+        var ct = TestContext.Current.CancellationToken;
 
-        last.Should().Be(HttpStatusCode.TooManyRequests);
+        // The quota is 120 requests in a fixed one-minute window. Sent one after another, a slow host (a remote database answers each GET in
+        // a fraction of a second) spreads them over two windows and never exceeds either; sent together they land in one.
+        var statuses = await Task.WhenAll(Enumerable.Range(0, 150).Select(async _ => (await client.GetAsync(Endpoint, ct)).StatusCode));
+
+        statuses.Should().Contain(HttpStatusCode.TooManyRequests);
+        statuses.Count(code => code == HttpStatusCode.OK).Should().BeLessThanOrEqualTo(120);
     }
 
     // --- routing ---

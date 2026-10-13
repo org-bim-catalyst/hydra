@@ -221,3 +221,31 @@ Every push to main deploys, so the feature ships as six slices (plan.md "Deliver
 ### 5.4 Follow-up release
 
 Once the S10 counts are verified in production, a separate release drops `DocumentNotifications` and `MemoryNotifications` (migration `DropLegacyDocumentAndMemoryNotifications`), the startup importer and the three `[Obsolete]` forwarding shims (research R13 and R12). It is not part of this feature.
+
+## 6. Validation log
+
+Recorded 2026-10-12 by the implementation session. This agent had no browser and no mail server, so the interactive scenarios were **not** run by hand. The table says which automated suite covers each one and what is still open.
+
+| Scenario | Result | Evidence | Still open |
+|---|---|---|---|
+| S1 In-app live delivery | Automated only | `EmitterEndToEndTests` (every emitted type, one center item, right category, priority, route, recipient); `NotificationHub` push covered by the unit and endpoint tests | SC-001 (5 s push p95) is unproven: `NotificationLatencyTests` fails it on the remote shared test DB (about 0.2 s a query), so it needs SQL Server next to the app |
+| S2 Center paging, filters, delete | Automated only | `NotificationCenterQueryTests`, notification endpoint tests, frontend page tests | SC-004 at 100k rows is gated (`NotificationCenterPerformanceTests`, measured only at 2,000 rows: p95 0.24 s) |
+| S3 Email and preferences | Automated only | `EmailChannelSenderTests`, delivery processor and preference endpoint tests, `AccountEmail*` tests | A real SMTP send |
+| S4 Approval notification | Automated only | `ApprovalNotificationAccessTests`, `ApprovalNotification*` | Manual run |
+| S5 Account emails | Automated only | `AccountEmailAntiEnumerationTests`, `AccountEmailTokenLeakTests`, `AccountEmailParityTests` | SC-014 baseline needs the gated `AccountEmailLatencyBaselineTests` |
+| S6 Failure, retry, dead letter | Automated only | `RetryDeliveryHandlerTests`, `AdminNotificationsEndpointsTests`, admin page tests | Manual run in a browser |
+| S7 Templates | Automated only | `NotificationTemplateHandlerTests`, `NotificationTemplateEndpointsTests` (16, including publish ordering), editor page tests | Manual run in a browser |
+| S8 Announcements | Automated only | `SystemAnnouncementTests`, `OutboxDispatchServiceTests` fan-out, `AdminAnnouncementsPage` tests | Manual run, including the critical-announcement confirmation |
+| S9 Localization | Automated only | `LocalizationEndpointsTests`, `LocalizedSurfaceCultureMiddlewareTests`, `EffectiveLanguageResolverTests`, Arabic seed, protected-term and RTL email tests, 358 frontend test files with an `.rtl.test.tsx` per admin screen | Manual run in an Arabic browser; native-speaker review of the Arabic text |
+| S10 Legacy migration | Not re-run | Covered when the importer shipped (`LegacyNotificationImportTests`) | Counts must be verified in production before the follow-up release |
+
+### Fault-injection run (section 4, SC-003)
+
+`DeliveryFaultInjectionTests` (1,000 deliveries) is now gated behind `RUN_SCALE_PERFORMANCE_TESTS=1`. Run alone on the remote shared test DB it reached 6 of 1,000 notifications in 5 minutes, so it did not complete. It must be run once against SQL Server next to the app before relying on SC-003.
+
+### Problems found while validating, and fixed
+
+- Failed outbox events were never purged although the data model says 30 days (`RetentionService`); fixed, with a regression test.
+- Publishing an older draft over a newer published version could return 500 because of the one-published-version unique index; the repository now archives first (`SavePublishAsync`), with a regression test.
+- The mail-send failure log line carried the recipient's address, because a mail server's reply echoes it; the exception text is now logged with the address replaced (FR-056), with a regression test.
+- `[ProducesResponseType]` was missing on the seven notification controllers; added, with `NotificationsOpenApiTests`.

@@ -75,9 +75,10 @@ public sealed class EmailChannelSender(
         {
             var failure = SmtpFailureClassifier.Classify(ex);
 
-            // The exception goes to the log (it may name the server); the delivery row gets only the
-            // classified, fixed-wording reason. The recipient address is never logged.
-            EmailChannelLog.SendFailed(logger, ex, context.Definition.Key, context.DeliveryId, context.CorrelationId, failure.Class);
+            // The exception text goes to the log (it may name the server) with the recipient's address blanked out, because a mail server's
+            // reply routinely echoes it (FR-056); the delivery row gets only the classified, fixed-wording reason.
+            var details = ex.ToString().Replace(context.RecipientAddress, "[recipient]", StringComparison.OrdinalIgnoreCase);
+            EmailChannelLog.SendFailed(logger, details, context.Definition.Key, context.DeliveryId, context.CorrelationId, failure.Class);
             return failure.Class == SmtpFailureClass.Permanent
                 ? ChannelSendResult.Permanent(DeliveryFailureKind.Permanent, failure.SafeReason, failure.ProviderResponse)
                 : ChannelSendResult.Transient(failure.SafeReason, failure.ProviderResponse, failure.RequiresAttention);
@@ -107,8 +108,8 @@ internal static partial class EmailChannelLog
     public static partial void RenderFailed(ILogger logger, Exception exception, string type, Guid deliveryId, string correlationId);
 
     [LoggerMessage(Level = LogLevel.Warning,
-        Message = "Sending the {Type} email failed (DeliveryId {DeliveryId}, CorrelationId {CorrelationId}); classified {FailureClass}.")]
-    public static partial void SendFailed(ILogger logger, Exception exception, string type, Guid deliveryId, string correlationId, SmtpFailureClass failureClass);
+        Message = "Sending the {Type} email failed (DeliveryId {DeliveryId}, CorrelationId {CorrelationId}); classified {FailureClass}. {Details}")]
+    public static partial void SendFailed(ILogger logger, string details, string type, Guid deliveryId, string correlationId, SmtpFailureClass failureClass);
 
     [LoggerMessage(Level = LogLevel.Information,
         Message = "Sent the {Type} email (DeliveryId {DeliveryId}, CorrelationId {CorrelationId}).")]

@@ -228,6 +228,8 @@ Request:
 
 ### GET `/localization` (V)
 
+> Full path: `/api/v1/admin/notifications/localization` (this and the PUT below).
+
 **200**:
 ```json
 {

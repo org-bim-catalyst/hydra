@@ -99,5 +99,27 @@ public sealed class NotificationTemplateRepository(AskLucyDbContext dbContext) :
     public void ExpectRowVersion(NotificationTemplateVersion version, byte[] rowVersion) =>
         dbContext.Entry(version).Property(v => v.RowVersion).OriginalValue = rowVersion;
 
+    public Task SavePublishAsync(Guid newPublishedVersionId, CancellationToken cancellationToken)
+    {
+        var strategy = dbContext.Database.CreateExecutionStrategy();
+        return strategy.ExecuteAsync(async () =>
+        {
+            await using var transaction = await dbContext.Database.BeginTransactionAsync(cancellationToken);
+
+            // Step 1 archives the replaced version with the new one still a draft; step 2 then makes the new one published. Doing both
+            // in one statement batch would let EF update the new version first and trip UX_NotificationTemplateVersions_OnePublished.
+            var status = dbContext.ChangeTracker.Entries<NotificationTemplateVersion>()
+                .Single(e => e.Entity.Id == newPublishedVersionId)
+                .Property(v => v.Status);
+            var published = status.CurrentValue;
+            status.CurrentValue = status.OriginalValue;
+            await dbContext.SaveChangesAsync(cancellationToken);
+
+            status.CurrentValue = published;
+            await dbContext.SaveChangesAsync(cancellationToken);
+            await transaction.CommitAsync(cancellationToken);
+        });
+    }
+
     public void Add(NotificationTemplate notificationTemplate) => dbContext.NotificationTemplates.Add(notificationTemplate);
 }
