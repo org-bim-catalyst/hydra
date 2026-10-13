@@ -1,5 +1,6 @@
-import { Box, ClickAwayListener, IconButton, List, ListItem, ListItemButton, ListItemIcon, ListItemText, Paper, Popper, Stack, Tooltip } from '@mui/material'
+import { Box, ClickAwayListener, IconButton, List, ListItem, ListItemButton, ListItemIcon, ListItemText, Paper, Stack, Tooltip } from '@mui/material'
 import { useEffect, useRef, useState, type KeyboardEvent, type MouseEvent, type ReactNode } from 'react'
+import { createPortal } from 'react-dom'
 
 export interface ExpandableActionGroupAction {
   id: string
@@ -101,15 +102,24 @@ function ToolGroupButton({ action }: { action: ExpandableActionGroupAction }) {
   const tools = action.tools ?? []
   const shown = tools.find((tool) => tool.id === action.activeToolId) ?? tools[0]
   const others = tools.filter((tool) => tool.id !== shown?.id)
-  const [anchor, setAnchor] = useState<HTMLElement | null>(null)
+  // Open, and mounted until the slide-out has finished. `flyoutPlace` pins the strip above the button.
+  const [open, setOpen] = useState(false)
+  const [mounted, setMounted] = useState(false)
+  const [flyoutPlace, setFlyoutPlace] = useState<{ left: number; bottom: number } | null>(null)
   const pressTimer = useRef<number | undefined>(undefined)
   const pressOpened = useRef(false)
   const buttonRef = useRef<HTMLButtonElement>(null)
-  // The flyout is anchored to this stable wrapper, not to whichever element raised it, so Popper always has a real box to measure.
   const wrapperRef = useRef<HTMLDivElement>(null)
 
-  const openFlyout = () => setAnchor(wrapperRef.current)
-  const closeFlyout = () => setAnchor(null)
+  // Measured from the button, so the flyout sits above it whatever clips the ribbon.
+  const openFlyout = () => {
+    const rect = wrapperRef.current?.getBoundingClientRect()
+    if (!rect) return
+    setFlyoutPlace({ left: rect.left, bottom: window.innerHeight - rect.top })
+    setMounted(true)
+    setOpen(true)
+  }
+  const closeFlyout = () => setOpen(false)
   const cancelPress = () => window.clearTimeout(pressTimer.current)
 
   const onPointerDown = () => {
@@ -156,7 +166,7 @@ function ToolGroupButton({ action }: { action: ExpandableActionGroupAction }) {
         disabled={shown?.disabled}
         aria-label={shown?.label ?? action.label}
         aria-haspopup="true"
-        aria-expanded={anchor !== null}
+        aria-expanded={open}
         title={shown?.disabled && shown.disabledReason ? `${shown.label} — ${shown.disabledReason}` : (shown?.label ?? action.label)}
         size="small"
         sx={{
@@ -191,56 +201,50 @@ function ToolGroupButton({ action }: { action: ExpandableActionGroupAction }) {
           transform: 'rotate(-90deg)',
         }}
       />
-      {/* specs/081 US6: the flyout is a branch of the group button. It slides out above it with the parent ribbon's
-          clip-path reveal, and its square bottom edge meets the trunk. Labels are tooltips. */}
-      <Popper
-        open={anchor !== null}
-        anchorEl={anchor}
-        placement="top"
-        transition
-        modifiers={[{ name: 'offset', options: { offset: [0, 0] } }]}
-        style={{ zIndex: 1400 }}
-      >
-        {({ TransitionProps }) => (
-          <FlyoutStrip
-              inProp={TransitionProps?.in ?? false}
-              onExited={TransitionProps?.onExited}
-              label={action.label}
-              onClickAway={(target) => {
-                if (!buttonRef.current?.contains(target)) closeFlyout()
-              }}
-              onEscape={() => {
-                closeFlyout()
-                buttonRef.current?.focus()
-              }}
-            >
-              {others.map((tool) => (
-                <Tooltip key={tool.id} describeChild title={tool.disabled && tool.disabledReason ? `${tool.label} — ${tool.disabledReason}` : tool.label} placement="left">
-                  <span>
-                    <IconButton
-                      size="small"
-                      aria-label={tool.label}
-                      disabled={tool.disabled}
-                      onClick={() => chooseTool(tool)}
-                      sx={{ width: 40, height: 40 }}
-                    >
-                      {tool.icon}
-                    </IconButton>
-                  </span>
-                </Tooltip>
-              ))}
-            </FlyoutStrip>
-        )}
-      </Popper>
+      {/* specs/081 US6: the flyout is a branch of the group button, rendered in the body so the ribbon's clipping
+          cannot hide it. It is fixed above the button and slides out with the parent ribbon's clip-path reveal. */}
+      {mounted && flyoutPlace && createPortal(
+        <FlyoutStrip
+          inProp={open}
+          onExited={() => setMounted(false)}
+          label={action.label}
+          place={flyoutPlace}
+          onClickAway={(target) => {
+            if (!buttonRef.current?.contains(target)) closeFlyout()
+          }}
+          onEscape={() => {
+            closeFlyout()
+            buttonRef.current?.focus()
+          }}
+        >
+          {others.map((tool) => (
+            <Tooltip key={tool.id} describeChild title={tool.disabled && tool.disabledReason ? `${tool.label} — ${tool.disabledReason}` : tool.label} placement="left">
+              <span>
+                <IconButton
+                  size="small"
+                  aria-label={tool.label}
+                  disabled={tool.disabled}
+                  onClick={() => chooseTool(tool)}
+                  sx={{ width: 40, height: 40 }}
+                >
+                  {tool.icon}
+                </IconButton>
+              </span>
+            </Tooltip>
+          ))}
+        </FlyoutStrip>,
+        document.body,
+      )}
     </Box>
   )
 }
 
 /** The flyout strip: revealed with the parent ribbon's clip-path slide, from the trunk outwards. */
-function FlyoutStrip({ inProp, onExited, label, onClickAway, onEscape, children }: {
+function FlyoutStrip({ inProp, onExited, label, place, onClickAway, onEscape, children }: {
   inProp: boolean
   onExited?: () => void
   label: string
+  place: { left: number; bottom: number }
   onClickAway: (target: Node) => void
   onEscape: () => void
   children: ReactNode
@@ -268,6 +272,10 @@ function FlyoutStrip({ inProp, onExited, label, onClickAway, onEscape, children 
         if (event.key === 'Escape') onEscape()
       }}
       sx={{
+        position: 'fixed',
+        left: place.left,
+        bottom: place.bottom,
+        zIndex: 1400,
         p: 0.5,
         // The square bottom corners are where the strip meets the trunk, so the branch reads as joined to it.
         borderRadius: '12px 12px 0 0',
