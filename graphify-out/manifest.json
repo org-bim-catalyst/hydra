@@ -11052,9 +11052,9 @@
     "semantic_hash": ""
   },
   "src/AskLucy.Web/ClientApp/src/features/auth/hooks/useAuth.ts": {
-    "mtime": 1789818350.8372557,
-    "seen": 1789818672.8066812,
-    "ast_hash": "9fde24b50ef5d0d6f33fa9061fe01167",
+    "mtime": 1791915340.957117,
+    "seen": 1791915543.0392838,
+    "ast_hash": "1e480e3bb389131343773f8c8d799c62",
     "semantic_hash": ""
   },
   "src/AskLucy.Web/ClientApp/src/features/auth/hooks/usePermissions.ts": {
@@ -11142,16 +11142,16 @@
     "semantic_hash": ""
   },
   "src/AskLucy.Web/ClientApp/src/features/chat/activeConversationStore.test.ts": {
-    "mtime": 1787141487.9238088,
-    "seen": 1789743955.934814,
-    "ast_hash": "8a080eae8ba6f42b22b98be9ecec98b5",
-    "semantic_hash": "8a080eae8ba6f42b22b98be9ecec98b5"
+    "mtime": 1791915821.6880322,
+    "seen": 1791915973.5818326,
+    "ast_hash": "adbb81aded8e2201b9181b263ee81c52",
+    "semantic_hash": ""
   },
   "src/AskLucy.Web/ClientApp/src/features/chat/activeConversationStore.ts": {
-    "mtime": 1787141487.9238088,
-    "seen": 1789743955.9348147,
-    "ast_hash": "aa4554208eea01ab638e1fc54e787ba2",
-    "semantic_hash": "aa4554208eea01ab638e1fc54e787ba2"
+    "mtime": 1791915688.1699002,
+    "seen": 1791915973.5818346,
+    "ast_hash": "2d2e60c79bac2fd9dd7d885bc11a1589",
+    "semantic_hash": ""
   },
   "src/AskLucy.Web/ClientApp/src/features/chat/api/aiApi.test.ts": {
     "mtime": 1791296164.4468749,
@@ -11472,9 +11472,9 @@
     "semantic_hash": ""
   },
   "src/AskLucy.Web/ClientApp/src/features/chat/pages/ChatPage.tsx": {
-    "mtime": 1791083171.8239505,
-    "seen": 1791083530.6024468,
-    "ast_hash": "7fee6265e3bf6ad483fbd2af207196d3",
+    "mtime": 1791915688.3374166,
+    "seen": 1791915973.581904,
+    "ast_hash": "c5b929d1932b5e193359d9c3ce6597e8",
     "semantic_hash": ""
   },
   "src/AskLucy.Web/ClientApp/src/features/chat/pdf/usePdfTextExtraction.ts": {
