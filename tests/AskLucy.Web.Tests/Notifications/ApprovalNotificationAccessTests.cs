@@ -162,7 +162,8 @@ public sealed class ApprovalNotificationAccessTests(ApprovalNotificationFactory 
                 },
                 new RelatedItem("AgentExecution", executionId.ToString(), agentId.ToString()),
                 EventKey: $"approval-access-test:{approvalId}"));
-            await scope.ServiceProvider.GetRequiredService<IUnitOfWork>().SaveChangesAsync(TestContext.Current.CancellationToken);
+            var saved = await scope.ServiceProvider.GetRequiredService<IUnitOfWork>().SaveChangesAsync(TestContext.Current.CancellationToken);
+            Console.WriteLine($"[diag] approval save returned {saved} for approval-access-test:{approvalId} at {DateTime.UtcNow:O}");
         }
 
         return await WaitForNotificationAsync(_owner, n => n.Deliveries.Count >= 2);
@@ -185,7 +186,22 @@ public sealed class ApprovalNotificationAccessTests(ApprovalNotificationFactory 
             await Task.Delay(200, TestContext.Current.CancellationToken);
         }
 
-        throw new TimeoutException($"The expected notification for {userId} didn't appear within 30 s.");
+        throw new TimeoutException($"The expected notification for {userId} didn't appear within 30 s. {await DescribeAsync(userId)}");
+    }
+
+    private async Task<string> DescribeAsync(string userId)
+    {
+        await using var scope = factory.Services.CreateAsyncScope();
+        var db = scope.ServiceProvider.GetRequiredService<AskLucyDbContext>();
+        var notifications = await db.Notifications.IgnoreQueryFilters().Include(n => n.Deliveries)
+            .Where(n => n.RecipientUserId == userId).ToListAsync(CancellationToken.None);
+        var events = await db.NotificationOutboxEvents.IgnoreQueryFilters()
+            .Where(e => e.RecipientJson.Contains(userId)).ToListAsync(CancellationToken.None);
+        var notificationText = notifications.Count == 0 ? "no notification row"
+            : string.Join("; ", notifications.Select(n => $"{n.Type} {n.Status} deliveries=[{string.Join(", ", n.Deliveries.Select(d => $"{d.Channel}:{d.Status}/{d.FailureKind}/{d.SkipReason}"))}]"));
+        var eventText = events.Count == 0 ? "no outbox event"
+            : string.Join("; ", events.Select(e => $"{e.Type} {e.Status}/{e.Outcome} attempts={e.Attempts} lease={e.LeaseOwner} error={e.LastError}"));
+        return $"Notifications: {notificationText}. Outbox: {eventText}. Now: {DateTime.UtcNow:O}.";
     }
 
     private async Task<List<NotificationAuditLog>> AuditRowsAsync(Notification notification)
