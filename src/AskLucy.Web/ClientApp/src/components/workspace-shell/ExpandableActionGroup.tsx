@@ -105,8 +105,10 @@ function ToolGroupButton({ action }: { action: ExpandableActionGroupAction }) {
   const pressTimer = useRef<number | undefined>(undefined)
   const pressOpened = useRef(false)
   const buttonRef = useRef<HTMLButtonElement>(null)
+  // The flyout is anchored to this stable wrapper, not to whichever element raised it, so Popper always has a real box to measure.
+  const wrapperRef = useRef<HTMLDivElement>(null)
 
-  const openFlyout = (element: HTMLElement) => setAnchor(element)
+  const openFlyout = () => setAnchor(wrapperRef.current)
   const closeFlyout = () => setAnchor(null)
   const cancelPress = () => window.clearTimeout(pressTimer.current)
 
@@ -115,21 +117,21 @@ function ToolGroupButton({ action }: { action: ExpandableActionGroupAction }) {
     cancelPress()
     pressTimer.current = window.setTimeout(() => {
       pressOpened.current = true
-      if (buttonRef.current) openFlyout(buttonRef.current)
+      openFlyout()
     }, LONG_PRESS_MS)
   }
 
-  const onClick = (event: MouseEvent<HTMLButtonElement>) => {
+  const onClick = () => {
     // A press that opened the flyout should not also run the tool when the pointer is released.
     if (pressOpened.current) return
-    if (action.highlighted) openFlyout(event.currentTarget)
+    if (action.highlighted) openFlyout()
     else shown?.onSelect?.()
   }
 
   const onKeyDown = (event: KeyboardEvent<HTMLButtonElement>) => {
     if (event.key === 'ArrowDown') {
       event.preventDefault()
-      openFlyout(event.currentTarget)
+      openFlyout()
     }
   }
 
@@ -139,7 +141,7 @@ function ToolGroupButton({ action }: { action: ExpandableActionGroupAction }) {
   }
 
   return (
-    <Box sx={{ position: 'relative', width: 40, height: 40 }}>
+    <Box ref={wrapperRef} sx={{ position: 'relative', width: 40, height: 40 }}>
       <IconButton
         ref={buttonRef}
         onClick={onClick}
@@ -148,7 +150,7 @@ function ToolGroupButton({ action }: { action: ExpandableActionGroupAction }) {
         onPointerLeave={cancelPress}
         onContextMenu={(event: MouseEvent<HTMLButtonElement>) => {
           event.preventDefault()
-          openFlyout(event.currentTarget)
+          openFlyout()
         }}
         onKeyDown={onKeyDown}
         disabled={shown?.disabled}
@@ -173,7 +175,7 @@ function ToolGroupButton({ action }: { action: ExpandableActionGroupAction }) {
         role="presentation"
         onClick={(event) => {
           event.stopPropagation()
-          if (buttonRef.current) openFlyout(buttonRef.current)
+          openFlyout()
         }}
         data-testid="tool-group-corner"
         sx={{
@@ -200,15 +202,13 @@ function ToolGroupButton({ action }: { action: ExpandableActionGroupAction }) {
         style={{ zIndex: 1400 }}
       >
         {({ TransitionProps }) => (
-          <ClickAwayListener
-            onClickAway={(event) => {
-              if (!buttonRef.current?.contains(event.target as Node)) closeFlyout()
-            }}
-          >
-            <FlyoutStrip
+          <FlyoutStrip
               inProp={TransitionProps?.in ?? false}
               onExited={TransitionProps?.onExited}
               label={action.label}
+              onClickAway={(target) => {
+                if (!buttonRef.current?.contains(target)) closeFlyout()
+              }}
               onEscape={() => {
                 closeFlyout()
                 buttonRef.current?.focus()
@@ -230,7 +230,6 @@ function ToolGroupButton({ action }: { action: ExpandableActionGroupAction }) {
                 </Tooltip>
               ))}
             </FlyoutStrip>
-          </ClickAwayListener>
         )}
       </Popper>
     </Box>
@@ -238,10 +237,11 @@ function ToolGroupButton({ action }: { action: ExpandableActionGroupAction }) {
 }
 
 /** The flyout strip: revealed with the parent ribbon's clip-path slide, from the trunk outwards. */
-function FlyoutStrip({ inProp, onExited, label, onEscape, children }: {
+function FlyoutStrip({ inProp, onExited, label, onClickAway, onEscape, children }: {
   inProp: boolean
   onExited?: () => void
   label: string
+  onClickAway: (target: Node) => void
   onEscape: () => void
   children: ReactNode
 }) {
@@ -259,6 +259,7 @@ function FlyoutStrip({ inProp, onExited, label, onEscape, children }: {
   }, [inProp, onExited])
 
   return (
+    <ClickAwayListener onClickAway={(event) => onClickAway(event.target as Node)}>
     <Paper
       elevation={6}
       role="toolbar"
@@ -280,5 +281,6 @@ function FlyoutStrip({ inProp, onExited, label, onEscape, children }: {
     >
       <Stack spacing={0.5}>{children}</Stack>
     </Paper>
+    </ClickAwayListener>
   )
 }
