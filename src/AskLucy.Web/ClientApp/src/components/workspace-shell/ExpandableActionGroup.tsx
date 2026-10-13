@@ -185,7 +185,6 @@ function ToolGroupButton({ action }: { action: ExpandableActionGroupAction }) {
         }}
       />
       <Menu
-        disablePortal
         anchorEl={anchor}
         open={anchor !== null}
         onClose={() => setAnchor(null)}

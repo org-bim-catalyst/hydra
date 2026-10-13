@@ -27,6 +27,7 @@ describe('ExpandableActionGroup accessibility (tool group)', () => {
       />,
     )
     fireEvent.contextMenu(document.querySelector('[aria-haspopup="menu"]')!)
-    expect(await axe(baseElement)).toHaveNoViolations()
+    // The open menu is a portal outside any landmark, so the axe region rule (page landmarks) does not apply to it.
+    expect(await axe(baseElement, { rules: { region: { enabled: false } } })).toHaveNoViolations()
   })
 })
