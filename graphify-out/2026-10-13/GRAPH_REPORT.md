@@ -1,7 +1,7 @@
 # Graph Report - Ask Lucy  (2026-10-13)
 
 ## Corpus Check
-- 5358 files · ~3,554,831 words
+- 5358 files · ~3,554,941 words
 - Verdict: corpus is large enough that graph structure adds value.
 - Unclassified: 213 file(s) not represented in the graph (top: .csv 102, .ttf 54, (none) 35)
 
@@ -11,7 +11,7 @@
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `6153b202`
+- Built from commit: `2b3436fa`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
@@ -1997,16 +1997,16 @@
 10. `Task` - 241 edges
 
 ## Surprising Connections (you probably didn't know these)
-- `Submit — `POST /api/v1/admin/custom-models`` --references--> `SubmittedCustomModelDto`  [INFERRED]
-  specs/078-restore-local-whisper/contracts/custom-models-single-file.md → src/AskLucy.Application/CustomModels/Commands/SubmitCustomModelDeployment/SubmitCustomModelDeploymentCommand.cs
-- `Summary` --references--> `NotificationRouter`  [INFERRED]
-  specs/067-notifications-communication-hub/plan.md → src/AskLucy.Domain/Notifications/NotificationRouter.cs
 - `D7: Notification types and recipients` --references--> `NotificationTypeCatalog`  [INFERRED]
   specs/069-model-deprecation-workflow/research.md → src/AskLucy.Domain/Notifications/NotificationTypeCatalog.cs
 - `Technical Context` --references--> `IUnitOfWork`  [INFERRED]
   specs/069-model-deprecation-workflow/plan.md → src/AskLucy.Application/Abstractions/IUnitOfWork.cs
 - `Repository (Application port, `IDictationEngineSettingRepository`)` --references--> `IUnitOfWork`  [INFERRED]
   specs/078-restore-local-whisper/data-model.md → src/AskLucy.Application/Abstractions/IUnitOfWork.cs
+- `1. Modules publish into the caller's unit of work` --references--> `NotificationOutboxEvent`  [INFERRED]
+  docs/adr/0018-transactional-notification-outbox.md → src/AskLucy.Domain/Notifications/NotificationOutboxEvent.cs
+- `McpTools / McpResources / McpPrompts` --references--> `Prompt`  [INFERRED]
+  docs/DATABASE.md → src/AskLucy.Domain/Prompts/Prompt.cs
 
 ## Import Cycles
 - None detected.
@@ -5619,7 +5619,7 @@ Cohesion: 0.17
 Nodes (7): DateTime, Guid, AddPresenceSphereSettings, DateTime, DateTimeOffset, Guid, ModelBuilder
 
 ## Knowledge Gaps
-- **6056 isolated node(s):** `BulkActionResult`, `BulkActionSkip`, `BulkTargetRequest`, `GetUsersParams`, `AdministratorContentAccess` (+6051 more)
+- **6056 isolated node(s):** `CorrelationIdKeys`, `ApiFetchInit`, `AdminAiModelCapabilities`, `AdminAiModelPricing`, `AdminAiModelStatus` (+6051 more)
   These have ≤1 connection - possible missing edges or undocumented components. (Counts symbols only; 15712 node(s) total have ≤1 connection when file, concept and rationale nodes are included.)
 - **1075 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
 
@@ -5627,12 +5627,12 @@ Nodes (7): DateTime, Guid, AddPresenceSphereSettings, DateTime, DateTimeOffset, 
 _Questions this graph is uniquely positioned to answer:_
 
 - **Why does `AskLucy.Application.Abstractions` connect `AskLucy.Application.Abstractions` to `microsoft_extensions_options`, `AskLucy.Domain.Common`, `AiContracts.cs`, `AskLucy.Domain.Prompts`, `microsoft_extensions_logging`, `McpTool`, `WorkflowExecutionRunner`, `asklucy_domain_operationalfailures`, `McpToolAdapter`, `AskLucy.Domain.Workflows`, `SupertonicModel`, `IncidentSummaryDto`, `PromptFolder`, `DocumentsController`, `AskLucy.Infrastructure/DependencyInjection.cs`, `AdminAiProvidersController.cs`, `fluentassertions`, `.GetByIdAsync`, `system_text_json`, `UploadAvatarCommandHandler`, `.GetByIdAsync`, `DocumentFileType`, `IRefreshTokenRepository`, `IVectorStore`, `microsoft_entityframeworkcore`, `LocalWhisperModelAdminTests`, `.GetByIdAsync`, `IAIProviderRepository`, `.GetByKeyAsync`, `.ChunkAsync`, `.Create`, `IIdentityService`, `VoiceProvider`, `McpResource`, `McpClientFactory`, `DocumentStatistics`, `BulkTarget`, `SendChatMessageCommand`, `WorkflowExecutionOrchestrator`, `.SpeakAsync`, `AskLucy.Domain.Authorization`, `IDictationEngineSettingRepository`, `.StreamAsync`, `GeneratedImageMaterializerTests`, `McpPrompt`, `.SaveChangesAsync`, `BaseEntity`, `.GetEventsAsync`, `VoiceProviderRouter`, `UserPanelPreference`, `OperationalFailureReport`, `SiteAnalysis`, `IMcpClientFactory`, `Implementation for Foundational`, `ChatInvestigationTests`, `ChatStreamChunk`, `DocumentUploadSession`, `.ValidateAsync`, `.ValidateAsync`, `UnitOfWork`, `fluentvalidation`, `PromptCategory`, `ElevenLabsTextToSpeechEngine`, `IDocumentProcessingJobRepository`, `.ListPagedByChatIdAsync`, `.Handle`, `MemoryNotification`, `ConversationRuntimeOptions`, `PresenceSphereSettingsHandlerTests`, `UserAiPreference`, `.Resolve`, `AiProviderFailureKind`, `ITokenService`, `.SearchAsync`, `.RunAsync`, `HeadingChunkingStrategy`, `GetMyCookieConsentQuery`, `ElevenLabsSpeechToTextSessionProvider`, `Exception`, `Agent`, `Research: Notifications & Communication Hub`, `UpdatePresenceSphereSettingsCommand`, `SiteAnalysisResultReceivedDto`, `DomainRuleViolationException`, `.SearchAsync`, `Memory`, `.RunAsync`, `AiCapabilitySetting`, `ApplyProviderModelSyncCommand`, `Implementation for User Story 2`, `.GetByIdAsync`, `.McpCapabilityRefreshJob_ShouldProcessManyServers_WithOneFailureNeverBlockingTheRest`, `ControllerBase`, `AIModel`, `VoiceProviderFailoverEvent`, `IRoleAssignmentRepository`, `WeatherCondition`, `.EnqueueAsync`, `.GetByUserIdAsync`, `DocumentLanguage`, `UserContracts.cs`, `UploadDocumentCommandHandler`, `WeatherSnapshotDto`, `.Handle_ShouldIssueTokens_WhenCodeIsValid`, `.ProvisionOneAsync`, `.ChunkAsync`, `.ChunkAsync`, `.SaveAsync`, `IChunkingStrategy`, `FakeEmbeddingService`, `.RunAsync`, `ICurrentUserAccessor`, `.GetByIdAsync`, `.ChunkAsync`?**
-  _High betweenness centrality (0.074) - this node is a cross-community bridge._
+  _High betweenness centrality (0.070) - this node is a cross-community bridge._
 - **Why does `BaseEntity` connect `BaseEntity` to `MemoryCategoryPreference`, `ChunkStatistics`, `UserVoicePreference`, `IndexingLog`, `.Create`, `McpTool`, `Tasks: Hand-Edit the Site Outline`, `PromptFolder`, `.AreaSquareMeters`, `McpCapabilitySnapshot`, `WorkflowExecution`, `DocumentFolder`, `CookieConsentRecord`, `DocumentChunk`, `Workflow`, `.GetByIdAsync`, `.GetByIdAsync`, `IAIProviderRepository`, `WorkflowPolicy`, `McpResource`, `DocumentRepository`, `DocumentMetadata`, `PromptAuditLog`, `McpClientFactory`, `DocumentStatistics`, `AgentExecutionOrchestrator`, `.Conflate`, `Persistence`, `RetrievalHistory`, `AgentInstructions`, `DocumentPreview`, `KnowledgeBaseCategory`, `AgentPolicy`, `McpPrompt`, `.SaveChangesAsync`, `CustomModelSummaryDto`, `WorkflowAuditLog`, `Project`, `UserPanelPreference`, `SiteAnalysis`, `Document`, `.GetByConversationAsync`, `WorkflowNode`, `Implementation for Foundational`, `RoleAuditLog`, `WorkflowExecutionNode`, `DocumentUploadSession`, `CustomModel`, `NotificationDelivery`, `PromptCategory`, `Verified Codebase Context (2026-09-25)`, `MemoryReference`, `WorkflowError`, `AgentExecutionEvent`, `WorkflowExecutionEventType`, `PromptTestCase`, `RetrievalResult`, `MemoryNotification`, `IWorkflowPolicyRepository`, `DocumentProcessingStage`, `AgentToolCall`, `IndexingJob`, `UserAiPreference`, `AiProviderFailureKind`, `Agent`, `Message`, `PromptVariable`, `DomainRuleViolationException`, `WorkflowApproval`, `AgentExecutionStep`, `Memory`, `MemoryVersion`, `DocumentProcessingLog`, `WorkflowVariableType`, `Attachment`, `AgentAuditLog`, `PromptExecution`, `SiteAnalysisResult`, `McpServer`, `Implementation for User Story 2`, `DocumentVersion`, `AIModel`, `VoiceProviderFailoverEvent`, `DocumentAuditLog`, `Citation`, `VoiceProviderTests`, `DocumentLanguage`, `DocumentProcessingJob`, `ApplicationUser`, `SearchAnalytics`, `AgentTool`, `PromptTag`, `McpServerHealth`, `.SaveAsync`, `OperationalFailureKind`, `AgentExecution`, `Tasks: Presence Sphere Admin Controls`?**
-  _High betweenness centrality (0.053) - this node is a cross-community bridge._
+  _High betweenness centrality (0.059) - this node is a cross-community bridge._
 - **Why does `Implementation for User Story 2` connect `Implementation for User Story 2` to `AskLucy.Application.Abstractions`, `Memory`, `NotificationTypeDefinition`, `MemoryCenterPage.tsx`, `.GetByIdForOwnerAsync`, `vitest`, `theme/index.ts`, `Theory`, `DocumentUploadFinalizer`, `BaseEntity`, `MemoryNotification`, `WorkflowConnectionSpec`, `CustomModelDeploymentJob`, `Document`, `Tests for Foundational (write first)`, `DuplicateDetectionTests`, `AgentApprovalWorkflowTests`, `DocumentUploadSession`, `McpHighRiskApprovalTests`, `Workflow`, `microsoft_entityframeworkcore`, `KnowledgeBaseDashboardSummaryCache`, `IIdentityService`, `Agent`, `.KnowledgeBaseCheck_ShouldReportOwnedKnowledgeBaseAvailable_AndOthersNot`, `WorkflowRetryPolicyTests`, `.CreateExecution`, `ProcessingFailureAndRetryTests`, `.SetUpExecutionWithMcpTool`, `.RunAsync`, `ICurrentUserAccessor`, `AgentExecutionOrchestratorTests`, `DomainRuleViolationException`, `WorkflowExecutionOrchestrator`?**
-  _High betweenness centrality (0.051) - this node is a cross-community bridge._
-- **What connects `BulkActionResult`, `BulkActionSkip`, `BulkTargetRequest` to the rest of the system?**
+  _High betweenness centrality (0.036) - this node is a cross-community bridge._
+- **What connects `CorrelationIdKeys`, `ApiFetchInit`, `AdminAiModelCapabilities` to the rest of the system?**
   _6056 weakly-connected nodes found - possible documentation gaps or missing edges._
 - **Should `AskLucy.Application.Abstractions` be split into smaller, more focused modules?**
   _Cohesion score 0.00555678793256433 - nodes in this community are weakly interconnected._

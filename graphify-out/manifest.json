@@ -10428,9 +10428,9 @@
     "semantic_hash": ""
   },
   "src/AskLucy.Web/ClientApp/src/components/workspace-shell/ExpandableActionGroup.tsx": {
-    "mtime": 1791906981.9025657,
-    "seen": 1791907123.08976,
-    "ast_hash": "aa8b205657b899d4fa45ab397661fb5b",
+    "mtime": 1791921792.1828353,
+    "seen": 1791921911.9355147,
+    "ast_hash": "9deab91e03208c9cc9bb0160b73ba657",
     "semantic_hash": ""
   },
   "src/AskLucy.Web/ClientApp/src/components/workspace-shell/FloatingPanel.a11y.test.tsx": {
