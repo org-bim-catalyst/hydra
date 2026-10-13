@@ -147,6 +147,7 @@
   },
   "enabledPlugins": {
     "ui-ux-pro-max@ui-ux-pro-max-skill": true,
-    "ponytail@ponytail": true
+    "ponytail@ponytail": true,
+    "claude-code-setup@anthropic-plugin-directory": true
   }
 }
