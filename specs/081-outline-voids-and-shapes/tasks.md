@@ -208,7 +208,7 @@
 
 **Independent test**: quickstart scenario 7.
 
-- [ ] T037 [US4] Confirm, with an Infrastructure test (from T009) and a client test in `useSiteBoundaryEditMode.test.tsx`, that a split returns parts in order with their voids; `[` and `]` reach every new part, and Undo restores the original single part with its voids. Fix any gap in `fromPolygon` ordering or in the client's `replaceAllRings`. Depends on T021.
+- [X] T037 [US4] Confirm, with an Infrastructure test (from T009) and a client test in `useSiteBoundaryEditMode.test.tsx`, that a split returns parts in order with their voids; `[` and `]` reach every new part, and Undo restores the original single part with its voids. Fix any gap in `fromPolygon` ordering or in the client's `replaceAllRings`. Depends on T021.
 
 ---
 
@@ -236,7 +236,7 @@
 
 **Independent test**: quickstart scenarios 13, 14 and 15.
 
-- [ ] T041 [P] [US6] Tests in `C/components/workspace-shell/ExpandableActionGroup.test.tsx`:
+- [X] T041 [P] [US6] Tests in `C/components/workspace-shell/ExpandableActionGroup.test.tsx`:
   - a group renders one button with the active tool's icon and the corner mark;
   - a click activates the shown tool;
   - a click while active, a right-click, press-and-hold (400 ms, fake timers) and the corner mark each open the menu;
@@ -246,9 +246,9 @@
   - `aria-haspopup` and `aria-expanded` are set.
 
   Add an a11y test (`ExpandableActionGroup.a11y.test.tsx`) with the menu open, using `getByText` inside the popper.
-- [ ] T042 [US6] Implement group actions in `C/components/workspace-shell/ExpandableActionGroup.tsx` (research D11): an optional `tools` array, `activeToolId` and `onChooseTool` on an action, rendered as the 40 px round button with a corner triangle and an MUI `Popper` plus a vertical `MenuList` that flips upwards when there's no room. Plain actions render exactly as today, so the other ribbons are unchanged.
-- [ ] T043 [US6] New `C/features/chat/outlineToolGroupStore.ts`: a Zustand store of the last-chosen tool per group, persisted to `localStorage` (key `outline-tool-groups`), with defaults (Edit corners, Add corner, Curve edge, Add circle, Add rectangle, Add polygon). Test it in `outlineToolGroupStore.test.ts`.
-- [ ] T044 [US6] Rebuild `C/features/chat/OutlineActionGroup.tsx` as the six groups plus Undo, Redo, Cancel, Reset and Done (spec US6 AS1), replacing the temporary flat entries from T032.
+- [X] T042 [US6] Implement group actions in `C/components/workspace-shell/ExpandableActionGroup.tsx` (research D11): an optional `tools` array, `activeToolId` and `onChooseTool` on an action, rendered as the 40 px round button with a corner triangle and an MUI `Popper` plus a vertical `MenuList` that flips upwards when there's no room. Plain actions render exactly as today, so the other ribbons are unchanged.
+- [X] T043 [US6] New `C/features/chat/outlineToolGroupStore.ts`: a Zustand store of the last-chosen tool per group, persisted to `localStorage` (key `outline-tool-groups`), with defaults (Edit corners, Add corner, Curve edge, Add circle, Add rectangle, Add polygon). Test it in `outlineToolGroupStore.test.ts`.
+- [X] T044 [US6] Rebuild `C/features/chat/OutlineActionGroup.tsx` as the six groups plus Undo, Redo, Cancel, Reset and Done (spec US6 AS1), replacing the temporary flat entries from T032.
   - Each group is highlighted when the session's active tool belongs to it.
   - One-off actions (Make part a circle, Round corner, Remove void, Delete corner) run and become the group's shown tool.
   - Existing disabled reasons are kept.
@@ -269,7 +269,7 @@
   - `dotnet build`, and `dotnet format --verify-no-changes` (ENDOFLINE noise aside);
   - Domain, Application, Infrastructure and Web tests (`PERSISTENCE_TESTS_CONNECTION_STRING` set), and Persistence tests against test2;
   - in `ClientApp`: `npx tsc -b --noEmit`, `npx eslint .`, and the full `npx vitest run` (also with `MSYS_NO_PATHCONV=1 VITE_API_BASE_URL=/api/v1`).
-- [ ] T047 Push to main, watch CI, and confirm the deploy by fetching the live bundle and searching for new strings (for example "Cut rectangle" and "already outside the site").
+- [X] T047 Push to main, watch CI, and confirm the deploy by fetching the live bundle and searching for new strings (for example "Cut rectangle" and "already outside the site").
 - [ ] T048 Walk quickstart scenarios 1 to 15 on production (hydra, Al Safa Park 2) in a tab in the Claude in Chrome group. Record pointer and box events live if anything misbehaves. Then mark the spec Implemented and record the walkthrough in `specs/081-outline-voids-and-shapes/spec.md`.
 
 ---

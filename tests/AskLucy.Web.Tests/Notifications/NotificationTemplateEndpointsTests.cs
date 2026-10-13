@@ -257,9 +257,7 @@ public sealed class NotificationTemplateEndpointsTests(AdminNotificationsFactory
             .Should().BeFalse();
     }
 
-    // Temporarily skipped (user request, 2026-10-13): fails on a DELETE blocked by NotificationDeliveries rows left
-    // in the shared CI database. Restore after deploy.
-    [Fact(Skip = "Temporarily skipped: shared CI DB FK conflict in cleanup; restore after deploy.")]
+    [Fact]
     public async Task SendTest_TheEleventhInAnHour_Is429()
     {
         var (admin, _) = await RealAdminAsync();
@@ -336,8 +334,7 @@ public sealed class NotificationTemplateEndpointsTests(AdminNotificationsFactory
 
     // ---- publish / archive ----
 
-    // Temporarily skipped (user request, 2026-10-13): returns 500 on the shared CI database. Restore after deploy.
-    [Fact(Skip = "Temporarily skipped: 500 on the shared CI DB; restore after deploy.")]
+    [Fact]
     public async Task Publish_ArchivesThePreviousVersion_AndKeepsIt_AndEveryActionIsAudited()
     {
         var admin = Manager();

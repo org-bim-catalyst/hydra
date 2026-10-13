@@ -134,7 +134,7 @@ public sealed class AdminOperationalFailuresEndpointsTests(CustomWebApplicationF
         }
     }
 
-    [Fact(Skip = "Temporarily skipped: SQL host unreachable from the CI runner; restore after deploy.")]
+    [Fact]
     public async Task GetIncident_ShouldReportWhetherTheViewerMayReadContent()
     {
         var seed = await SeedAsync();

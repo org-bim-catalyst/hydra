@@ -38,7 +38,7 @@ public sealed partial class AccountEmailTokenLeakTests(AccountEmailHubFactory fa
     [GeneratedRegex(@"https?://[^\s""<]+", RegexOptions.CultureInvariant)]
     private static partial Regex Url();
 
-    [Fact(Skip = "Temporarily skipped: account email not delivered on the shared CI host; restore after deploy.")]
+    [Fact]
     public async Task EveryAccountEmailType_LeavesNoTokenOrLinkInAnyStorageOrLogSink()
     {
         var ct = TestContext.Current.CancellationToken;
