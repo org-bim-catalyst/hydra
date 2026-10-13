@@ -6,7 +6,7 @@ import {
   RiEdit2Line,
   RiRestartLine,
   RiRoundedCorner,
-  } from '@remixicon/react'
+} from '@remixicon/react'
 import {
   ExpandableActionGroup,
   type ExpandableActionGroupAction,
@@ -15,18 +15,43 @@ import { useActiveSiteBoundaryStore } from '../../store/activeSiteBoundaryStore'
 import { useOutlineResetStore } from '../../viewer/siteBoundaryEdit/outlineResetStore'
 import { siteBoundaryEditActions } from '../../viewer/siteBoundaryEdit/siteBoundaryEditActions'
 import { useSiteBoundaryEditStore } from '../../viewer/siteBoundaryEdit/siteBoundaryEditStore'
-import { AddCircleShapeIcon, AddPolygonShapeIcon, AddRectangleShapeIcon, AddSquareShapeIcon, CutPolygonShapeIcon, CutRectangleShapeIcon, CutSquareShapeIcon, AddCornerIcon, DeleteCornerIcon, RingToCircleIcon, CurveEdgeIcon, CutCircleShapeIcon, DrawArcIcon, SelectCornersIcon } from './outlineToolIcons'
+import {
+  AddCircleShapeIcon,
+  AddCornerIcon,
+  AddPolygonShapeIcon,
+  AddRectangleShapeIcon,
+  AddSquareShapeIcon,
+  CurveEdgeIcon,
+  CutCircleShapeIcon,
+  CutPolygonShapeIcon,
+  CutRectangleShapeIcon,
+  CutSquareShapeIcon,
+  DeleteCornerIcon,
+  DrawArcIcon,
+  RingToCircleIcon,
+  SelectCornersIcon,
+} from './outlineToolIcons'
+import {
+  OUTLINE_TOOL_GROUPS,
+  rememberedTool,
+  useOutlineToolGroupStore,
+  type OutlineToolGroupId,
+} from './outlineToolGroupStore'
 
 /**
  * specs/079-site-boundary-manual-editing: the outline editor's actions in one place. Each button is
  * live only when it can act - Edit needs an outline and no open session, Add/Delete need a selected
  * corner, Done needs a change - and a greyed-out one says why in its tooltip.
+ *
+ * specs/081 US6: the drawing tools sit in six groups (Photoshop-style). A group's button shows the tool
+ * that is active, else the one last chosen from it; its menu lists the group's tools.
  */
 export function OutlineActionGroup() {
   const session = useSiteBoundaryEditStore((s) => s.session)
   const dirty = useSiteBoundaryEditStore((s) => s.isDirty())
   const hasOutline = useActiveSiteBoundaryStore((s) => s.polygon !== null)
   const isHandEdited = useActiveSiteBoundaryStore((s) => s.isHandEdited)
+  const chosen = useOutlineToolGroupStore((s) => s.chosen)
 
   const editing = session !== null
   const saving = session?.status.kind === 'saving'
@@ -34,16 +59,7 @@ export function OutlineActionGroup() {
   const selecting = session?.tool === 'select'
   const notEditing = 'Start editing the outline first'
 
-  const actions: ExpandableActionGroupAction[] = [
-    {
-      id: 'edit-outline',
-      label: editing && session.toolbarHidden ? 'Show edit bar' : 'Edit outline',
-      icon: <RiEdit2Line size={20} />,
-      // While editing with the floating bar dismissed, this brings the bar back.
-      onSelect: () => (editing ? useSiteBoundaryEditStore.getState().setToolbarHidden(false) : void siteBoundaryEditActions.start()),
-      disabled: editing ? !session.toolbarHidden : !hasOutline,
-      disabledReason: editing ? 'The edit bar is already showing' : 'Ask Lucy to outline a site first',
-    },
+  const tools: ExpandableActionGroupAction[] = [
     {
       id: 'select-corners',
       label: selecting ? 'Stop selecting corners' : 'Select corners',
@@ -113,6 +129,14 @@ export function OutlineActionGroup() {
       disabledReason: notEditing,
     },
     {
+      id: 'make-circle',
+      label: 'Make ring a circle',
+      icon: <RingToCircleIcon size={20} />,
+      onSelect: () => siteBoundaryEditActions.openShapeDialog('circle'),
+      disabled: !editing || saving,
+      disabledReason: notEditing,
+    },
+    {
       id: 'add-rectangle',
       label: 'Add rectangle',
       icon: <AddRectangleShapeIcon size={20} />,
@@ -166,14 +190,47 @@ export function OutlineActionGroup() {
       disabled: !editing || saving,
       disabledReason: notEditing,
     },
+  ]
+  const byId = new Map(tools.map((tool) => [tool.id, tool]))
+
+  // One group button: shows the active tool in it, else the remembered one; choosing a tool remembers it and runs it.
+  const group = (id: OutlineToolGroupId): ExpandableActionGroupAction => {
+    const members = OUTLINE_TOOL_GROUPS[id].tools.map((toolId) => byId.get(toolId)!)
+    const active = members.find((tool) => tool.highlighted)
+    const shownId = active?.id ?? rememberedTool(id, chosen)
+    const shown = members.find((tool) => tool.id === shownId) ?? members[0]
+    return {
+      id: `group-${id}`,
+      label: shown.label,
+      icon: shown.icon,
+      highlighted: Boolean(active),
+      disabled: shown.disabled,
+      disabledReason: shown.disabledReason,
+      tools: members,
+      activeToolId: shown.id,
+      onChooseTool: (toolId) => {
+        useOutlineToolGroupStore.getState().choose(id, toolId)
+        byId.get(toolId)?.onSelect?.()
+      },
+    }
+  }
+
+  const actions: ExpandableActionGroupAction[] = [
     {
-      id: 'make-circle',
-      label: 'Make ring a circle',
-      icon: <RingToCircleIcon size={20} />,
-      onSelect: () => siteBoundaryEditActions.openShapeDialog('circle'),
-      disabled: !editing || saving,
-      disabledReason: notEditing,
+      id: 'edit-outline',
+      label: editing && session.toolbarHidden ? 'Show edit bar' : 'Edit outline',
+      icon: <RiEdit2Line size={20} />,
+      // While editing with the floating bar dismissed, this brings the bar back.
+      onSelect: () => (editing ? useSiteBoundaryEditStore.getState().setToolbarHidden(false) : void siteBoundaryEditActions.start()),
+      disabled: editing ? !session.toolbarHidden : !hasOutline,
+      disabledReason: editing ? 'The edit bar is already showing' : 'Ask Lucy to outline a site first',
     },
+    group('edit-corners'),
+    group('add-corner'),
+    group('curve-edge'),
+    group('circle'),
+    group('rectangle'),
+    group('polygon'),
     {
       id: 'undo',
       label: 'Undo',

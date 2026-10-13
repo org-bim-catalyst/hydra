@@ -1,7 +1,7 @@
-import { render, screen } from '@testing-library/react'
+import { act, fireEvent, render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
-import { ExpandableActionGroup } from './ExpandableActionGroup'
+import { ExpandableActionGroup, type ExpandableActionGroupAction } from './ExpandableActionGroup'
 
 describe('ExpandableActionGroup', () => {
   it('renders actions as an icon-only row by default', () => {
@@ -38,5 +38,81 @@ describe('ExpandableActionGroup', () => {
       />,
     )
     expect(screen.getByRole('button', { name: 'Run' })).toBeInTheDocument()
+  })
+
+  describe('tool groups (specs/081 US6)', () => {
+    // jsdom cannot run getByRole once a MUI menu is open (it resolves styles for every node), so the open menu is
+    // read through querySelector and getByText instead.
+    const menu = () => document.querySelector<HTMLElement>('[role="menu"]')!
+    const tools = (onSelect = vi.fn()): ExpandableActionGroupAction[] => [
+      { id: 'a', label: 'Tool A', icon: <span aria-hidden="true">A</span>, onSelect },
+      { id: 'b', label: 'Tool B', icon: <span aria-hidden="true">B</span>, onSelect: vi.fn(), disabled: true, disabledReason: 'Not now' },
+    ]
+    const group = (extra: Partial<ExpandableActionGroupAction> = {}): ExpandableActionGroupAction => ({
+      id: 'g', label: 'Tool A', tools: tools(), activeToolId: 'a', onChooseTool: vi.fn(), ...extra,
+    })
+    const trigger = () => screen.getByRole('button', { name: 'Tool A' })
+
+
+    it('renders one button showing the active tool, marked as a menu button', () => {
+      render(<ExpandableActionGroup actions={[group()]} />)
+      expect(trigger()).toHaveAttribute('aria-haspopup', 'menu')
+      expect(trigger()).toHaveAttribute('aria-expanded', 'false')
+    })
+
+    it('runs the shown tool on click when the group is not active', () => {
+      const onSelect = vi.fn()
+      render(<ExpandableActionGroup actions={[group({ tools: tools(onSelect) })]} />)
+      fireEvent.click(trigger())
+      expect(onSelect).toHaveBeenCalledTimes(1)
+    })
+
+    it('opens the menu on click when the group is active, and choosing calls onChooseTool', () => {
+      const onChooseTool = vi.fn()
+      render(<ExpandableActionGroup actions={[group({ highlighted: true, onChooseTool })]} />)
+      fireEvent.click(trigger())
+      fireEvent.click(within(menu()).getByText('Tool A'))
+      expect(onChooseTool).toHaveBeenCalledWith('a')
+    })
+
+    it('opens the menu on right-click and from the corner mark', () => {
+      render(<ExpandableActionGroup actions={[group()]} />)
+      fireEvent.contextMenu(trigger())
+      expect(menu()).toBeTruthy()
+      fireEvent.keyDown(menu(), { key: 'Escape' })
+      fireEvent.click(screen.getByTestId('tool-group-corner'))
+      expect(menu()).toBeTruthy()
+    })
+
+    it('opens the menu after a 400 ms press, and not on the click that follows', async () => {
+      const onSelect = vi.fn()
+      render(<ExpandableActionGroup actions={[group({ tools: tools(onSelect) })]} />)
+      fireEvent.pointerDown(trigger())
+      await act(async () => {
+        await new Promise((resolve) => setTimeout(resolve, 450))
+      })
+      expect(document.querySelector('[role="menu"]')).not.toBeNull()
+      const button = document.querySelector<HTMLElement>('[aria-haspopup="menu"]')!
+      fireEvent.pointerUp(button)
+      fireEvent.click(button)
+      expect(onSelect).not.toHaveBeenCalled()
+    })
+
+    it('shows the reason a disabled tool cannot be chosen', () => {
+      render(<ExpandableActionGroup actions={[group()]} />)
+      fireEvent.contextMenu(trigger())
+      const item = within(menu()).getByText('Tool B').closest('[role="menuitem"]')!
+      expect(item).toHaveAttribute('aria-disabled', 'true')
+      expect(item).toHaveAttribute('title', 'Not now')
+    })
+
+    it('opens with the Down arrow, and choosing from the menu calls onChooseTool', () => {
+      const onChooseTool = vi.fn()
+      render(<ExpandableActionGroup actions={[group({ highlighted: true, onChooseTool })]} />)
+      fireEvent.keyDown(trigger(), { key: 'ArrowDown' })
+      expect(menu()).toBeTruthy()
+      fireEvent.click(within(menu()).getByText('Tool A'))
+      expect(onChooseTool).toHaveBeenCalledWith('a')
+    })
   })
 })
