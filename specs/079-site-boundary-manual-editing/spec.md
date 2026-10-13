@@ -520,9 +520,9 @@ corner, delete a corner, undo, and press Done. Repeat on a touch screen.
   button. The page's laid-out width is used instead, also for the editor's small-screen check.
 - **Google's own "Undo last edit" arrow** beside a dropped corner is left as it is: the Maps API has no
   option to turn it off, and hiding it would mean styling Google's markup.
-- **Voids (a hole inside a ring) stay out of scope.** A cut entirely inside a ring is still refused with
-  `holeNotSupported`. This is the outline model's rule, not a Google limit; supporting voids would touch
-  storage, editing, area, building membership and the analyses, so it would be a feature of its own.
+- **Voids (a hole inside a ring): superseded by spec 081.** This spec refused them with
+  `holeNotSupported`. Spec 081 keeps a cut entirely inside a ring as a void, reduces the area by it, and
+  leaves building membership unchanged. `holeNotSupported` is no longer returned by the editor's endpoints.
 
 ## API
 

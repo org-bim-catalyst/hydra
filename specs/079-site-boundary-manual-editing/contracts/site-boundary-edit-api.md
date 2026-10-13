@@ -52,6 +52,8 @@ site correction, links the chat, and appends the chat line.
 `activeBoundary` has the same shape as `ChatDetailDto.activeBoundary`, so the client stores it
 directly and draws it with `SiteBoundaryRenderer`, which gives the animated border.
 
+> **Superseded by spec 081:** `holeNotSupported` is no longer returned. A cut inside the outline becomes a void (`contracts/site-boundary-voids-api.md`).
+
 ### Errors
 
 | Status | When | Extensions |
@@ -59,7 +61,7 @@ directly and draws it with `SiteBoundaryRenderer`, which gives the animated bord
 | 400 | Validator failures | `errors` (field → messages) |
 | 404 | Chat missing or not owned, or the chat has no outline | |
 | 409 | `expectedRevision` ≠ the effective revision, or a row-version race | `currentRevision` |
-| 422 | Geometry refused: self-crossing, area ≤ 1 m², duplicate corners, a ring not intersecting the found outline grown by 25 m, or union area > 3× the found area | `ringIndex`, `reason` (`selfCrossing` \| `degenerate` \| `duplicateCorner` \| `driftedAway` \| `tooLarge` \| `holeNotSupported` \| `nothingLeft` \| `tooManyRings`) |
+| 422 | Geometry refused: self-crossing, area ≤ 1 m², duplicate corners, a ring not intersecting the found outline grown by 25 m, or union area > 3× the found area | `ringIndex`, `reason` (`selfCrossing` \| `degenerate` \| `duplicateCorner` \| `driftedAway` \| `tooLarge` \| `nothingLeft` \| `tooManyRings`) |
 | 429 | Rate limit | |
 
 ---
@@ -84,8 +86,7 @@ yields two rings.
 
 ### Errors
 
-400 validator; 404 chat missing or not owned; 422 with `reason` `holeNotSupported` (the result would contain a hole),
-`nothingLeft` (the cut removes everything), `tooManyRings`, or any geometry reason of the save endpoint.
+400 validator; 404 chat missing or not owned; 422 with `reason` `nothingLeft` (the cut removes everything), `tooManyRings`, or any geometry reason of the save endpoint.
 
 ---
 

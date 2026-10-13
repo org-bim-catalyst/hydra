@@ -261,11 +261,11 @@
 
 ## Phase 9: Polish and cross-cutting
 
-- [ ] T045 [P] Docs:
+- [X] T045 [P] Docs:
   - `docs/DATABASE.md`: `EditedVoidsJson`.
   - `docs/API_GUIDELINES.md` or the 079 contract `specs/079-site-boundary-manual-editing/contracts/site-boundary-edit-api.md`: superseded notes pointing to `specs/081-outline-voids-and-shapes/contracts/site-boundary-voids-api.md` (holeNotSupported is no longer produced by the editor; `shape` and `voids` were added).
   - `specs/079-site-boundary-manual-editing/spec.md` Decisions: "voids were added by 081".
-- [ ] T046 Full verification:
+- [X] T046 Full verification:
   - `dotnet build`, and `dotnet format --verify-no-changes` (ENDOFLINE noise aside);
   - Domain, Application, Infrastructure and Web tests (`PERSISTENCE_TESTS_CONNECTION_STRING` set), and Persistence tests against test2;
   - in `ClientApp`: `npx tsc -b --noEmit`, `npx eslint .`, and the full `npx vitest run` (also with `MSYS_NO_PATHCONV=1 VITE_API_BASE_URL=/api/v1`).

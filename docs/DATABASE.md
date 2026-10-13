@@ -986,6 +986,13 @@ In-app deliveries are removed with their notification, and a notification that s
 
 # 16. Audit Context
 
+### SiteBoundaryCorrections: voids (spec 081)
+
+Migration `20261006104108_AddSiteBoundaryVoids` adds `EditedVoidsJson` (`nvarchar(max)`, `NOT NULL`,
+default `'[]'`). It holds, per part, the list of hole rings (`voids[i]` belongs to `EditedRings[i]`), in the
+same JSON shape as `EditedRingsJson`. Rows written before the migration read as no voids. Each void is
+at most 2,000 corners and each part at most 50 voids; a void is only ever inside its outer edge.
+
 ## AuditLogs
 
 Stores:
