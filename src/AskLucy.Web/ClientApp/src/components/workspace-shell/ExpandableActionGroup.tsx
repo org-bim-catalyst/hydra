@@ -1,5 +1,5 @@
 import { Box, ClickAwayListener, IconButton, List, ListItem, ListItemButton, ListItemIcon, ListItemText, Paper, Stack, Tooltip } from '@mui/material'
-import { useEffect, useRef, useState, type KeyboardEvent, type MouseEvent, type ReactNode } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState, type KeyboardEvent, type MouseEvent, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
 
 export interface ExpandableActionGroupAction {
@@ -114,17 +114,38 @@ function ToolGroupButton({ action }: { action: ExpandableActionGroupAction }) {
   const buttonRef = useRef<HTMLButtonElement>(null)
   const wrapperRef = useRef<HTMLDivElement>(null)
 
-  // Measured from the button, so the flyout sits above it whatever clips the ribbon.
-  const openFlyout = () => {
+  // The button's place on screen, centred above it. Read from the live rectangle, never cached.
+  const measure = () => {
     const rect = wrapperRef.current?.getBoundingClientRect()
-    if (!rect) return
+    return rect ? { left: rect.left + rect.width / 2, bottom: window.innerHeight - rect.top } : null
+  }
+
+  const openFlyout = () => {
+    const place = measure()
+    if (!place) return
     closeOpenFlyout?.()
     closeOpenFlyout = closeFlyout
-    // Centred on the button, above it.
-    setFlyoutPlace({ left: rect.left + rect.width / 2, bottom: window.innerHeight - rect.top })
+    setFlyoutPlace(place)
     setMounted(true)
     setOpen(true)
   }
+
+  // While open, the strip follows the button: the ribbon can still be sliding or the page can scroll or resize
+  // after the click, and a place read once at the click would leave the strip where the button used to be.
+  useLayoutEffect(() => {
+    if (!open) return
+    let frame = 0
+    const follow = () => {
+      const place = measure()
+      setFlyoutPlace((current) =>
+        place && (!current || current.left !== place.left || current.bottom !== place.bottom) ? place : current,
+      )
+      frame = requestAnimationFrame(follow)
+    }
+    frame = requestAnimationFrame(follow)
+    return () => cancelAnimationFrame(frame)
+    // measure only reads refs, so the loop needs to start and stop with `open`.
+  }, [open])
   const closeFlyout = () => setOpen(false)
   const cancelPress = () => window.clearTimeout(pressTimer.current)
 
