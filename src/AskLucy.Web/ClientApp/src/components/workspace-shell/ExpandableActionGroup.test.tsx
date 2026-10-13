@@ -47,6 +47,7 @@ describe('ExpandableActionGroup', () => {
     const tools = (onSelect = vi.fn()): ExpandableActionGroupAction[] => [
       { id: 'a', label: 'Tool A', icon: <span aria-hidden="true">A</span>, onSelect },
       { id: 'b', label: 'Tool B', icon: <span aria-hidden="true">B</span>, onSelect: vi.fn(), disabled: true, disabledReason: 'Not now' },
+      { id: 'c', label: 'Tool C', icon: <span aria-hidden="true">C</span>, onSelect: vi.fn() },
     ]
     const group = (extra: Partial<ExpandableActionGroupAction> = {}): ExpandableActionGroupAction => ({
       id: 'g', label: 'Tool A', tools: tools(), activeToolId: 'a', onChooseTool: vi.fn(), ...extra,
@@ -56,7 +57,7 @@ describe('ExpandableActionGroup', () => {
 
     it('renders one button showing the active tool, marked as a menu button', () => {
       render(<ExpandableActionGroup actions={[group()]} />)
-      expect(trigger()).toHaveAttribute('aria-haspopup', 'menu')
+      expect(trigger()).toHaveAttribute('aria-haspopup', 'true')
       expect(trigger()).toHaveAttribute('aria-expanded', 'false')
     })
 
@@ -71,8 +72,8 @@ describe('ExpandableActionGroup', () => {
       const onChooseTool = vi.fn()
       render(<ExpandableActionGroup actions={[group({ highlighted: true, onChooseTool })]} />)
       fireEvent.click(trigger())
-      fireEvent.click(menu().querySelector<HTMLElement>('[aria-label="Tool A"]')!)
-      expect(onChooseTool).toHaveBeenCalledWith('a')
+      fireEvent.click(menu().querySelector<HTMLElement>('[aria-label="Tool C"]')!)
+      expect(onChooseTool).toHaveBeenCalledWith('c')
     })
 
     it('opens the menu on right-click and from the corner mark', () => {
@@ -92,7 +93,7 @@ describe('ExpandableActionGroup', () => {
         await new Promise((resolve) => setTimeout(resolve, 450))
       })
       expect(document.querySelector('[role="toolbar"]')).not.toBeNull()
-      const button = document.querySelector<HTMLElement>('[aria-haspopup="menu"]')!
+      const button = document.querySelector<HTMLElement>('[aria-haspopup="true"]')!
       fireEvent.pointerUp(button)
       fireEvent.click(button)
       expect(onSelect).not.toHaveBeenCalled()
@@ -110,8 +111,8 @@ describe('ExpandableActionGroup', () => {
       render(<ExpandableActionGroup actions={[group({ highlighted: true, onChooseTool })]} />)
       fireEvent.keyDown(trigger(), { key: 'ArrowDown' })
       expect(menu()).toBeTruthy()
-      fireEvent.click(menu().querySelector<HTMLElement>('[aria-label="Tool A"]')!)
-      expect(onChooseTool).toHaveBeenCalledWith('a')
+      fireEvent.click(menu().querySelector<HTMLElement>('[aria-label="Tool C"]')!)
+      expect(onChooseTool).toHaveBeenCalledWith('c')
     })
   })
 })

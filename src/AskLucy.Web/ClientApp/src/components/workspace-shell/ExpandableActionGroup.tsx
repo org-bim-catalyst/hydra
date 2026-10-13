@@ -1,5 +1,5 @@
 import { Box, ClickAwayListener, IconButton, List, ListItem, ListItemButton, ListItemIcon, ListItemText, Paper, Popper, Stack, Tooltip } from '@mui/material'
-import { useRef, useState, type KeyboardEvent, type MouseEvent, type ReactNode } from 'react'
+import { useEffect, useRef, useState, type KeyboardEvent, type MouseEvent, type ReactNode } from 'react'
 
 export interface ExpandableActionGroupAction {
   id: string
@@ -12,10 +12,12 @@ export interface ExpandableActionGroupAction {
   /** Not usable right now. `disabledReason` (shown as the tooltip) says why, so a greyed-out button is never a mystery. */
   disabled?: boolean
   disabledReason?: string
+  /** specs/081 US6: choosing this tool from a group only swaps it into the group button; it runs when that button is pressed. */
+  swapOnly?: boolean
   /**
-   * specs/081 US6: a group of tools. The button shows `activeToolId`'s icon (else the first tool's); a click
-   * runs that tool when the group isn't active, and opens the menu when it is. Right-click, a 400 ms press
-   * and the corner mark also open the menu. Choosing a tool calls `onChooseTool`.
+   * specs/081 US6: a group of tools. The button shows `activeToolId`'s icon (else the first tool's). A press runs the
+   * shown tool when the group isn't active, and opens the flyout when it is. Right-click, a 400 ms press, the corner
+   * mark and Down arrow also open the flyout. Choosing a tool from it calls `onChooseTool`.
    */
   tools?: ExpandableActionGroupAction[]
   activeToolId?: string
@@ -92,17 +94,20 @@ export function ExpandableActionGroup({ actions, layout = 'row' }: ExpandableAct
 }
 
 const LONG_PRESS_MS = 400
+const FLYOUT_MS = 220
 
-/** specs/081 US6 (T042): a ribbon button for a group of tools, with a menu of the group's tools. */
+/** specs/081 US6 (T042): a ribbon button for a group of tools. The group's other tools slide out above it as icons. */
 function ToolGroupButton({ action }: { action: ExpandableActionGroupAction }) {
   const tools = action.tools ?? []
   const shown = tools.find((tool) => tool.id === action.activeToolId) ?? tools[0]
+  const others = tools.filter((tool) => tool.id !== shown?.id)
   const [anchor, setAnchor] = useState<HTMLElement | null>(null)
   const pressTimer = useRef<number | undefined>(undefined)
   const pressOpened = useRef(false)
-
   const buttonRef = useRef<HTMLButtonElement>(null)
-  const openMenu = (element: HTMLElement) => setAnchor(element)
+
+  const openFlyout = (element: HTMLElement) => setAnchor(element)
+  const closeFlyout = () => setAnchor(null)
   const cancelPress = () => window.clearTimeout(pressTimer.current)
 
   const onPointerDown = () => {
@@ -110,26 +115,26 @@ function ToolGroupButton({ action }: { action: ExpandableActionGroupAction }) {
     cancelPress()
     pressTimer.current = window.setTimeout(() => {
       pressOpened.current = true
-      if (buttonRef.current) openMenu(buttonRef.current)
+      if (buttonRef.current) openFlyout(buttonRef.current)
     }, LONG_PRESS_MS)
   }
 
   const onClick = (event: MouseEvent<HTMLButtonElement>) => {
-    // A press that opened the menu should not also run the tool when the pointer is released.
+    // A press that opened the flyout should not also run the tool when the pointer is released.
     if (pressOpened.current) return
-    if (action.highlighted) openMenu(event.currentTarget)
+    if (action.highlighted) openFlyout(event.currentTarget)
     else shown?.onSelect?.()
   }
 
   const onKeyDown = (event: KeyboardEvent<HTMLButtonElement>) => {
     if (event.key === 'ArrowDown') {
       event.preventDefault()
-      openMenu(event.currentTarget)
+      openFlyout(event.currentTarget)
     }
   }
 
   const chooseTool = (tool: ExpandableActionGroupAction) => {
-    setAnchor(null)
+    closeFlyout()
     if (!tool.disabled) action.onChooseTool?.(tool.id)
   }
 
@@ -141,14 +146,14 @@ function ToolGroupButton({ action }: { action: ExpandableActionGroupAction }) {
         onPointerDown={onPointerDown}
         onPointerUp={cancelPress}
         onPointerLeave={cancelPress}
-        onContextMenu={(event) => {
+        onContextMenu={(event: MouseEvent<HTMLButtonElement>) => {
           event.preventDefault()
-          openMenu(event.currentTarget)
+          openFlyout(event.currentTarget)
         }}
         onKeyDown={onKeyDown}
         disabled={shown?.disabled}
         aria-label={shown?.label ?? action.label}
-        aria-haspopup="menu"
+        aria-haspopup="true"
         aria-expanded={anchor !== null}
         title={shown?.disabled && shown.disabledReason ? `${shown.label} — ${shown.disabledReason}` : (shown?.label ?? action.label)}
         size="small"
@@ -162,13 +167,13 @@ function ToolGroupButton({ action }: { action: ExpandableActionGroupAction }) {
       >
         {shown?.icon}
       </IconButton>
-      {/* The corner mark: a click on it opens the menu, the same as a right-click or a long press. */}
+      {/* The corner mark: a click on it opens the flyout, the same as a right-click or a long press. */}
       <Box
         component="span"
         role="presentation"
         onClick={(event) => {
           event.stopPropagation()
-          if (buttonRef.current) openMenu(buttonRef.current)
+          if (buttonRef.current) openFlyout(buttonRef.current)
         }}
         data-testid="tool-group-corner"
         sx={{
@@ -184,46 +189,96 @@ function ToolGroupButton({ action }: { action: ExpandableActionGroupAction }) {
           transform: 'rotate(-90deg)',
         }}
       />
-      {/* specs/081 US6: the group's other tools slide out as icons, perpendicular to the ribbon; labels are tooltips. */}
-      <Popper open={anchor !== null} anchorEl={anchor} placement="top" disablePortal={false} style={{ zIndex: 1400 }}>
-        <ClickAwayListener onClickAway={() => setAnchor(null)}>
-          <Paper
-            elevation={6}
-            role="toolbar"
-            aria-label={action.label}
-            onKeyDown={(event) => {
-              if (event.key === 'Escape') {
-                setAnchor(null)
-                buttonRef.current?.focus()
-              }
+      {/* specs/081 US6: the flyout is a branch of the group button. It slides out above it with the parent ribbon's
+          clip-path reveal, and its square bottom edge meets the trunk. Labels are tooltips. */}
+      <Popper
+        open={anchor !== null}
+        anchorEl={anchor}
+        placement="top"
+        transition
+        modifiers={[{ name: 'offset', options: { offset: [0, 0] } }]}
+        style={{ zIndex: 1400 }}
+      >
+        {({ TransitionProps }) => (
+          <ClickAwayListener
+            onClickAway={(event) => {
+              if (!buttonRef.current?.contains(event.target as Node)) closeFlyout()
             }}
-            sx={{ p: 0.5, mb: 1, borderRadius: 2 }}
           >
-            <Stack spacing={0.5}>
-              {tools.map((tool) => (
+            <FlyoutStrip
+              inProp={TransitionProps?.in ?? false}
+              onExited={TransitionProps?.onExited}
+              label={action.label}
+              onEscape={() => {
+                closeFlyout()
+                buttonRef.current?.focus()
+              }}
+            >
+              {others.map((tool) => (
                 <Tooltip key={tool.id} describeChild title={tool.disabled && tool.disabledReason ? `${tool.label} — ${tool.disabledReason}` : tool.label} placement="left">
                   <span>
                     <IconButton
                       size="small"
                       aria-label={tool.label}
-                      aria-pressed={tool.id === shown?.id}
                       disabled={tool.disabled}
                       onClick={() => chooseTool(tool)}
-                      sx={{
-                        width: 40,
-                        height: 40,
-                        bgcolor: tool.id === shown?.id ? 'action.selected' : 'transparent',
-                      }}
+                      sx={{ width: 40, height: 40 }}
                     >
                       {tool.icon}
                     </IconButton>
                   </span>
                 </Tooltip>
               ))}
-            </Stack>
-          </Paper>
-        </ClickAwayListener>
+            </FlyoutStrip>
+          </ClickAwayListener>
+        )}
       </Popper>
     </Box>
+  )
+}
+
+/** The flyout strip: revealed with the parent ribbon's clip-path slide, from the trunk outwards. */
+function FlyoutStrip({ inProp, onExited, label, onEscape, children }: {
+  inProp: boolean
+  onExited?: () => void
+  label: string
+  onEscape: () => void
+  children: ReactNode
+}) {
+  const [revealed, setRevealed] = useState(false)
+
+  useEffect(() => {
+    const frame = requestAnimationFrame(() => setRevealed(inProp))
+    if (inProp) return () => cancelAnimationFrame(frame)
+    // Closing: keep the strip mounted until its slide-out has finished, then let the Popper unmount it.
+    const done = window.setTimeout(() => onExited?.(), FLYOUT_MS + 40)
+    return () => {
+      cancelAnimationFrame(frame)
+      window.clearTimeout(done)
+    }
+  }, [inProp, onExited])
+
+  return (
+    <Paper
+      elevation={6}
+      role="toolbar"
+      aria-label={label}
+      onKeyDown={(event) => {
+        if (event.key === 'Escape') onEscape()
+      }}
+      sx={{
+        p: 0.5,
+        // The square bottom corners are where the strip meets the trunk, so the branch reads as joined to it.
+        borderRadius: '12px 12px 0 0',
+        clipPath: revealed ? 'inset(0 0 0 0 round 12px 12px 0 0)' : 'inset(100% 0 0 0 round 12px 12px 0 0)',
+        transition: `clip-path ${FLYOUT_MS}ms cubic-bezier(0.4, 0, 0.2, 1)`,
+        backdropFilter: 'blur(12px)',
+        bgcolor: (t) => (t.palette.mode === 'dark' ? 'oklch(0.18 0.02 280 / 0.97)' : 'rgba(255,255,255,0.96)'),
+        border: (t) => (t.palette.mode === 'dark' ? '1px solid oklch(0.34 0.02 280 / 0.6)' : '1px solid rgba(0,0,0,0.12)'),
+        borderBottom: 'none',
+      }}
+    >
+      <Stack spacing={0.5}>{children}</Stack>
+    </Paper>
   )
 }

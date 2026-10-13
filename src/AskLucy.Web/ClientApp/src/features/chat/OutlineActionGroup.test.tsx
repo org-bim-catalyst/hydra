@@ -25,7 +25,7 @@ beforeEach(() => {
     openShapeDialog: () => {},
   } as unknown as SiteBoundaryEditRuntime)
   localStorage.clear()
-  useOutlineToolGroupStore.setState({ chosen: {} })
+  useOutlineToolGroupStore.setState({ order: {} })
   useActiveSiteBoundaryStore.setState({ polygon: [P(0, 0), P(100, 0), P(100, 100), P(0, 100)] } as never)
   store().enter({ chatId: 'chat-1', siteName: 'Muscat Grand Mall', revision: 'rev-1', rings: [[P(0, 0), P(100, 0), P(100, 100), P(0, 100)]], viewState })
 })
@@ -60,7 +60,7 @@ describe('OutlineActionGroup', () => {
     render(<OutlineActionGroup />)
     fireEvent.contextMenu(screen.getByRole('button', { name: 'Add circle' }))
     fireEvent.click(menu().querySelector<HTMLElement>('[aria-label="Make ring a circle"]')!)
-    expect(useOutlineToolGroupStore.getState().chosen.circle).toBe('make-circle')
+    expect(useOutlineToolGroupStore.getState().order.circle?.[0]).toBe('make-circle')
   })
 
   it('restores the remembered tool after a remount', () => {

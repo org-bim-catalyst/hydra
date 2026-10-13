@@ -2,8 +2,9 @@ import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 
 /**
- * specs/081 US6 (T043): the outline editor's ribbon groups their tools, and each group remembers the tool
- * last chosen from it, so the group button keeps showing that tool's icon. Persisted per device.
+ * specs/081 US6 (T043): the outline editor's ribbon groups its tools. Each group keeps its tools in display
+ * order; the first is the one its button shows. Choosing a tool from a group's flyout swaps it with the button's
+ * tool, so the two trade places. Persisted per device.
  */
 export const OUTLINE_TOOL_GROUPS = {
   'edit-corners': { defaultTool: 'select-corners', tools: ['select-corners', 'delete-corner'] },
@@ -17,22 +18,30 @@ export const OUTLINE_TOOL_GROUPS = {
 export type OutlineToolGroupId = keyof typeof OUTLINE_TOOL_GROUPS
 
 interface OutlineToolGroupState {
-  /** The last tool chosen from each group, by group id. Missing means the group's default. */
-  chosen: Partial<Record<OutlineToolGroupId, string>>
+  /** Each group's tools in display order, by group id. Missing means the group's defaults. */
+  order: Partial<Record<OutlineToolGroupId, string[]>>
+  /** Swaps `tool` with the group button's tool. Choosing the button's own tool changes nothing. */
   choose: (group: OutlineToolGroupId, tool: string) => void
 }
 
 export const useOutlineToolGroupStore = create<OutlineToolGroupState>()(
   persist(
     (set, get) => ({
-      chosen: {},
-      choose: (group, tool) => set({ chosen: { ...get().chosen, [group]: tool } }),
+      order: {},
+      choose: (group, tool) => {
+        const current = orderOf(group, get().order)
+        const index = current.indexOf(tool)
+        if (index <= 0) return
+        const next = [...current]
+        ;[next[0], next[index]] = [next[index], next[0]]
+        set({ order: { ...get().order, [group]: next } })
+      },
     }),
-    { name: 'outline-tool-groups', partialize: (state) => ({ chosen: state.chosen }) },
+    { name: 'outline-tool-groups', partialize: (state) => ({ order: state.order }) },
   ),
 )
 
-/** The tool a group shows when nothing in it is active: the one last chosen, else its default. */
-export function rememberedTool(group: OutlineToolGroupId, chosen: Partial<Record<OutlineToolGroupId, string>>): string {
-  return chosen[group] ?? OUTLINE_TOOL_GROUPS[group].defaultTool
+/** A group's tools in display order: the first is the button's. */
+export function orderOf(group: OutlineToolGroupId, order: Partial<Record<OutlineToolGroupId, string[]>>): string[] {
+  return order[group] ?? [...OUTLINE_TOOL_GROUPS[group].tools]
 }
