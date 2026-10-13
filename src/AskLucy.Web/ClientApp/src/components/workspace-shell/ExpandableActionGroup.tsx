@@ -95,6 +95,9 @@ export function ExpandableActionGroup({ actions, layout = 'row' }: ExpandableAct
 }
 
 const LONG_PRESS_MS = 400
+
+// specs/081 US6: only one group flyout is open at a time; opening one closes whichever was open.
+let closeOpenFlyout: (() => void) | null = null
 const FLYOUT_MS = 220
 
 /** specs/081 US6 (T042): a ribbon button for a group of tools. The group's other tools slide out above it as icons. */
@@ -115,7 +118,10 @@ function ToolGroupButton({ action }: { action: ExpandableActionGroupAction }) {
   const openFlyout = () => {
     const rect = wrapperRef.current?.getBoundingClientRect()
     if (!rect) return
-    setFlyoutPlace({ left: rect.left, bottom: window.innerHeight - rect.top })
+    closeOpenFlyout?.()
+    closeOpenFlyout = closeFlyout
+    // Centred on the button, above it.
+    setFlyoutPlace({ left: rect.left + rect.width / 2, bottom: window.innerHeight - rect.top })
     setMounted(true)
     setOpen(true)
   }
@@ -275,6 +281,7 @@ function FlyoutStrip({ inProp, onExited, label, place, onClickAway, onEscape, ch
         position: 'fixed',
         left: place.left,
         bottom: place.bottom,
+        transform: 'translateX(-50%)',
         zIndex: 1400,
         p: 0.5,
         // The square bottom corners are where the strip meets the trunk, so the branch reads as joined to it.
