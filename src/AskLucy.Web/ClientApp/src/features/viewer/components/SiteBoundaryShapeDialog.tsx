@@ -54,19 +54,20 @@ const DEFAULT_VALUE: Record<Exclude<NumberTool, 'circle'>, number> = { round: 10
  * outline over itself), so the user can adjust the number and try again.
  */
 export function SiteBoundaryShapeDialog() {
-  const tool = useSiteBoundaryEditStore((s) => s.shapeDialog)
-  if (!tool) return null
-
-  // Keyed by the tool, so each opening starts from that tool's own starting value.
-  if (tool === 'rectangle' || tool === 'square') return <TypedShapeForm key={tool} kind={tool} />
-  return <ShapeForm key={tool} tool={tool} />
+  const open = useSiteBoundaryEditStore((s) => s.shapeDialog) !== null
+  const last = useSiteBoundaryEditStore((s) => s.shapeDialogHistory)
+  // Stays mounted after it closes: MUI runs its exit and gives the page back. Unmounting at once left the editor inert.
+  // Keyed by the opening, so each opening starts from that tool's own starting value.
+  if (!last) return null
+  if (last.tool === 'rectangle' || last.tool === 'square') return <TypedShapeForm key={last.seq} kind={last.tool} open={open} />
+  return <ShapeForm key={last.seq} tool={last.tool} open={open} />
 }
 
 /**
  * specs/081 (FR-020): a rectangle or square of typed size, for the keyboard and touch, which have no drag.
  * It is placed on the centre of the ring being edited, then added to the outline or cut out of it.
  */
-function TypedShapeForm({ kind }: { kind: 'rectangle' | 'square' }) {
+function TypedShapeForm({ kind, open }: { kind: 'rectangle' | 'square'; open: boolean }) {
   const setShapeDialog = useSiteBoundaryEditStore((s) => s.setShapeDialog)
   const refusal = useSiteBoundaryEditStore((s) => s.session?.refusal ?? null)
   const [width, setWidth] = useState('20')
@@ -90,7 +91,7 @@ function TypedShapeForm({ kind }: { kind: 'rectangle' | 'square' }) {
 
   const title = kind === 'square' ? 'Add or cut a square' : 'Add or cut a rectangle'
   return (
-    <Dialog open onClose={() => setShapeDialog(null)} aria-labelledby="shape-dialog-title" maxWidth="xs" fullWidth>
+    <Dialog open={open} onClose={() => setShapeDialog(null)} aria-labelledby="shape-dialog-title" maxWidth="xs" fullWidth>
       <form onSubmit={(event) => void apply(event)}>
         <DialogTitle id="shape-dialog-title">{title}</DialogTitle>
         <DialogContent>
@@ -147,7 +148,7 @@ function TypedShapeForm({ kind }: { kind: 'rectangle' | 'square' }) {
   )
 }
 
-function ShapeForm({ tool }: { tool: NumberTool }) {
+function ShapeForm({ tool, open }: { tool: NumberTool; open: boolean }) {
   const setShapeDialog = useSiteBoundaryEditStore((s) => s.setShapeDialog)
   const refusal = useSiteBoundaryEditStore((s) => s.session?.refusal ?? null)
   // Read once, when the dialog opens: the area moves as the user edits, but the number they typed must not.
@@ -170,7 +171,7 @@ function ShapeForm({ tool }: { tool: NumberTool }) {
   }
 
   return (
-    <Dialog open onClose={() => setShapeDialog(null)} aria-labelledby="shape-dialog-title" maxWidth="xs" fullWidth>
+    <Dialog open={open} onClose={() => setShapeDialog(null)} aria-labelledby="shape-dialog-title" maxWidth="xs" fullWidth>
       <form onSubmit={apply}>
         <DialogTitle id="shape-dialog-title">{copy.title}</DialogTitle>
         <DialogContent>
