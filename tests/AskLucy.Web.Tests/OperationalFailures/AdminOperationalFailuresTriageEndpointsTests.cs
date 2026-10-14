@@ -145,7 +145,7 @@ public sealed class AdminOperationalFailuresTriageEndpointsTests(CustomWebApplic
         response.StatusCode.Should().Be(HttpStatusCode.Forbidden);
     }
 
-    [Fact(Skip = "Temporarily skipped: SQL host unreachable from the CI runner; the notifications session re-enables it.")]
+    [Fact]
     public async Task Related_ShouldListTheOtherUnresolvedIncidentsSharingTheCause()
     {
         var ids = await SeedAsync(3);
