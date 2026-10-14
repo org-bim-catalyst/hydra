@@ -122,6 +122,15 @@ describe('ExpandableActionGroup', () => {
       expect(document.activeElement).toBe(trigger())
     })
 
+    it('with the flyout open from the mouse, Escape on the group button closes only the flyout', () => {
+      const ribbonKeyDown = vi.fn()
+      render(<div onKeyDown={ribbonKeyDown}><ExpandableActionGroup actions={[group({ highlighted: true })]} /></div>)
+      fireEvent.contextMenu(trigger())
+      fireEvent.keyDown(trigger(), { key: 'Escape' })
+      expect(trigger()).toHaveAttribute('aria-expanded', 'false')
+      expect(ribbonKeyDown).not.toHaveBeenCalled()
+    })
+
     it('a Down arrow moves focus to the first enabled tool, so the keyboard can reach the flyout', () => {
       render(<ExpandableActionGroup actions={[group({ highlighted: true })]} />)
       fireEvent.keyDown(trigger(), { key: 'ArrowDown' })

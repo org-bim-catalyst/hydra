@@ -99,6 +99,12 @@ const LONG_PRESS_MS = 400
 
 // specs/081 US6: only one group flyout is open at a time; opening one closes whichever was open.
 let closeOpenFlyout: (() => void) | null = null
+
+// Opening a flyout closes whichever was open.
+function claimOpenFlyout(close: () => void) {
+  if (closeOpenFlyout !== close) closeOpenFlyout?.()
+  closeOpenFlyout = close
+}
 const FLYOUT_MS = 220
 
 
@@ -130,8 +136,7 @@ function ToolGroupButton({ action }: { action: ExpandableActionGroupAction }) {
     const place = measure()
     if (!place) return
     setFocusFirst(fromKeyboard)
-    closeOpenFlyout?.()
-    closeOpenFlyout = closeFlyout
+    claimOpenFlyout(closeFlyout)
     setFlyoutPlace(place)
     setMounted(true)
     setOpen(true)
@@ -181,6 +186,12 @@ function ToolGroupButton({ action }: { action: ExpandableActionGroupAction }) {
   }
 
   const onKeyDown = (event: KeyboardEvent<HTMLButtonElement>) => {
+    // With the flyout open, Escape here closes it and keeps the ribbon open; the next Escape reaches the ribbon.
+    if (event.key === 'Escape' && open) {
+      event.stopPropagation()
+      closeFlyout()
+      return
+    }
     if (event.key === 'ArrowDown') {
       event.preventDefault()
       openFlyout(true)
