@@ -118488,7 +118488,7 @@
       "file_type": "code",
       "norm_label": "handlekey()",
       "source_file": "src/AskLucy.Web/ClientApp/src/features/viewer/components/SiteBoundaryCornerNavigator.tsx",
-      "source_location": "L66"
+      "source_location": "L68"
     },
     {
       "id": "src_asklucy_web_clientapp_src_features_viewer_components_siteboundarycornernavigator_keylike_preventdefault",
@@ -118512,7 +118512,7 @@
       "file_type": "code",
       "norm_label": "siteboundarycornernavigator()",
       "source_file": "src/AskLucy.Web/ClientApp/src/features/viewer/components/SiteBoundaryCornerNavigator.tsx",
-      "source_location": "L178"
+      "source_location": "L180"
     },
     {
       "id": "src_asklucy_web_clientapp_src_features_viewer_components_siteboundarycornernavigator_where",
@@ -148990,7 +148990,7 @@
       "file_type": "code",
       "norm_label": "flyoutstrip()",
       "source_file": "src/AskLucy.Web/ClientApp/src/components/workspace-shell/ExpandableActionGroup.tsx",
-      "source_location": "L297"
+      "source_location": "L307"
     },
     {
       "id": "src_asklucy_web_clientapp_src_components_workspace_shell_expandableactiongroup_toolgroupbutton",
@@ -769453,7 +769453,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "src/AskLucy.Web/ClientApp/src/features/viewer/components/SiteBoundaryCornerNavigator.tsx",
-      "source_location": "L104",
+      "source_location": "L106",
       "weight": 1.0
     },
     {
@@ -769465,7 +769465,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "src/AskLucy.Web/ClientApp/src/features/viewer/components/SiteBoundaryCornerNavigator.tsx",
-      "source_location": "L78",
+      "source_location": "L80",
       "weight": 1.0
     },
     {
@@ -769477,7 +769477,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "src/AskLucy.Web/ClientApp/src/features/viewer/components/SiteBoundaryCornerNavigator.tsx",
-      "source_location": "L84",
+      "source_location": "L86",
       "weight": 1.0
     },
     {
@@ -769489,7 +769489,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "src/AskLucy.Web/ClientApp/src/features/viewer/components/SiteBoundaryCornerNavigator.tsx",
-      "source_location": "L85",
+      "source_location": "L87",
       "weight": 1.0
     },
     {
@@ -769501,7 +769501,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "src/AskLucy.Web/ClientApp/src/features/viewer/components/SiteBoundaryCornerNavigator.tsx",
-      "source_location": "L179",
+      "source_location": "L181",
       "weight": 1.0
     },
     {
@@ -769513,7 +769513,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "src/AskLucy.Web/ClientApp/src/features/viewer/components/SiteBoundaryCornerNavigator.tsx",
-      "source_location": "L187",
+      "source_location": "L189",
       "weight": 1.0
     },
     {
@@ -769525,7 +769525,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "src/AskLucy.Web/ClientApp/src/features/viewer/components/SiteBoundaryCornerNavigator.tsx",
-      "source_location": "L188",
+      "source_location": "L190",
       "weight": 1.0
     },
     {
@@ -769537,7 +769537,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "src/AskLucy.Web/ClientApp/src/features/viewer/components/SiteBoundaryCornerNavigator.tsx",
-      "source_location": "L197",
+      "source_location": "L199",
       "weight": 1.0
     },
     {
@@ -769549,7 +769549,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "src/AskLucy.Web/ClientApp/src/features/viewer/components/SiteBoundaryCornerNavigator.tsx",
-      "source_location": "L203",
+      "source_location": "L205",
       "weight": 1.0
     },
     {
@@ -1756034,7 +1756034,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "src/AskLucy.Web/ClientApp/src/components/workspace-shell/ExpandableActionGroup.tsx",
-      "source_location": "L297",
+      "source_location": "L307",
       "weight": 1.0
     },
     {
@@ -1779750,7 +1779750,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "src/AskLucy.Web/ClientApp/src/features/viewer/components/SiteBoundaryCornerNavigator.tsx",
-      "source_location": "L178",
+      "source_location": "L180",
       "weight": 1.0
     },
     {
@@ -1779794,7 +1779794,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "src/AskLucy.Web/ClientApp/src/features/viewer/components/SiteBoundaryCornerNavigator.tsx",
-      "source_location": "L66",
+      "source_location": "L68",
       "weight": 1.0
     },
     {
@@ -2048583,5 +2048583,5 @@
       "source_file": "docs/UI_GUIDELINES.md"
     }
   ],
-  "built_at_commit": "38c1512640a40ed6eebf769ebfff10c0daa1612c"
+  "built_at_commit": "859e85a65030b98119b51cfb2c82f6545d382610"
 }

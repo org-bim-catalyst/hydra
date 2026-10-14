@@ -1,7 +1,7 @@
 # Graph Report - Ask Lucy  (2026-10-14)
 
 ## Corpus Check
-- 5359 files · ~3,556,322 words
+- 5359 files · ~3,556,533 words
 - Verdict: corpus is large enough that graph structure adds value.
 - Unclassified: 213 file(s) not represented in the graph (top: .csv 102, .ttf 54, (none) 35)
 
@@ -11,7 +11,7 @@
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `38c15126`
+- Built from commit: `859e85a6`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
@@ -5709,7 +5709,7 @@ Cohesion: 0.40
 Nodes (4): DateTime, DateTimeOffset, Guid, ModelBuilder
 
 ## Knowledge Gaps
-- **6056 isolated node(s):** `ExpandableActionGroupProps`, `visuallyHidden`, `ApiFetchInit`, `BulkActionResult`, `BulkActionSkip` (+6051 more)
+- **6056 isolated node(s):** `ExpandableActionGroupProps`, `visuallyHidden`, `AdminAiModelCapabilities`, `AdminAiModelPricing`, `AdminAiModelStatus` (+6051 more)
   These have ≤1 connection - possible missing edges or undocumented components. (Counts symbols only; 15721 node(s) total have ≤1 connection when file, concept and rationale nodes are included.)
 - **1086 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
 
@@ -5717,12 +5717,12 @@ Nodes (4): DateTime, DateTimeOffset, Guid, ModelBuilder
 _Questions this graph is uniquely positioned to answer:_
 
 - **Why does `AskLucy.Application.Abstractions` connect `AskLucy.Application.Abstractions` to `mediatr`, `ITokenService`, `nsubstitute`, `IAIProviderRepository`, `asklucy_domain_operationalfailures`, `.SearchAsync`, `AdminAiProvidersController.cs`, `CreateSpeechToTextSessionCommandHandler`, `AiContracts.cs`, `fluentassertions`, `IWorkflowExecutionNotifier`, `.StreamAsync`, `AiCapabilitySetting`, `SmtpEmailSender.cs`, `.OnModelCreating`, `GeneratedImageMaterializerTests`, `IDocumentProcessingJobRepository`, `.GetByIdAsync`, `ICorrelationIdAccessor`, `.RunAsync_ShouldPropagateAProviderFailure_RatherThanSwallowingIt_SoHangfireCanRetry`, `McpToolAdapter`, `.SaveAsync`, `GetChatMessagesQueryHandler`, `.Handle`, `.RunAsync`, `SiteAnalysis`, `DocumentsController`, `GetMyCookieConsentQuery`, `AskLucy.Domain.Prompts`, `PresenceSphereSettingsHandlerTests`, `AskLucy.Infrastructure/DependencyInjection.cs`, `system_text_json`, `DocumentLanguage`, `Exception`, `AskLucy.Domain.Authorization`, `OpenRouterProvider`, `.GetByIdAsync`, `DocumentUploadSession`, `xunit`, `.Handle_ShouldIssueTokens_WhenCodeIsValid`, `.RunAsync`, `.SearchAsync`, `Research: Restore Local Whisper as the Primary Dictation Engine`, `IRefreshTokenRepository`, `IVectorStore`, `microsoft_entityframeworkcore`, `UploadAvatarCommandHandler`, `IMemoryRepository`, `IIdentityService`, `.ValidateAsync`, `ISystemAccountProvisioner`, `BrandedAccountEmailTemplateRenderer`, `UploadDocumentCommandHandlerTests`, `IChunkingStrategy`, `Agent`, `Tasks: Notifications & Communication Hub`, `McpServerCredential`, `DocumentStatistics`, `IAIProvider`, `IWorkflowPolicyRepository`, `ICurrentUserAccessor`, `Task`, `LoggerMessage`, `.GetByIdAsync`, `IRoleAssignmentRepository`, `.NotifyIndexStatusChangedAsync`?**
-  _High betweenness centrality (0.076) - this node is a cross-community bridge._
+  _High betweenness centrality (0.111) - this node is a cross-community bridge._
 - **Why does `BaseEntity` connect `IEntityTypeConfiguration` to `IndexingLog`, `.Create`, `.RunAsync_ShouldPropagateAProviderFailure_RatherThanSwallowingIt_SoHangfireCanRetry`, `AskLucy.Application.Abstractions`, `IProcessingNotifier`, `Prompt`, `UserVoicePreference`, `WorkflowAuditLog`, `DocumentFolder`, `CookieConsentRecord`, `AgentExecutionError`, `McpCapabilitySnapshot`, `DocumentMetadata`, `AgentApproval`, `.Create`, `McpServerHealth`, `AiCapability`, `IMemoryRepository`, `WorkflowPolicy`, `McpServer`, `McpResource`, `McpServerCredential`, `DocumentStatistics`, `IAIProvider`, `Notification hub (specs/067)`, `McpPrompt`, `Persistence`, `RetrievalHistory`, `KnowledgeBase`, `DocumentPreview`, `.SaveChangesAsync`, `AgentPolicy`, `Contract: Edit Mode in the Studio Viewer`, `Implementation for Foundational`, `SiteAnalysis`, `Document`, `McpTool`, `WorkflowNode`, `VoiceProviderFailoverEvent`, `RoleAuditLog`, `WorkflowExecutionNode`, `KnowledgeBaseCategory`, `DocumentUploadSession`, `CustomModel`, `Agent`, `NotificationDelivery`, `PromptCategory`, `WorkflowConnection`, `MemoryReference`, `AgentExecutionEvent`, `CustomModelSummaryDto`, `WorkflowExecutionEventType`, `PromptTestCase`, `.Validate`, `.Model`, `DocumentProcessingJob`, `EmbeddingProvider`, `MemoryNotification`, `.AreaSquareMeters`, `DomainRuleViolationException`, `DocumentProcessingStage`, `PresenceSphereSettingsHandlerTests`, `IndexingJob`, `PromptVariable`, `UserAiPreference`, `ProviderHealthCheck`, `AgentExecutionCost`, `DocumentChunk`, `PromptExecutionResult`, `AgentExecutionUsage`, `IWorkflowPolicyRepository`, `KnowledgeBaseAuditLog`, `WorkflowApproval`, `AgentExecutionStep`, `AiProviderFailureKind`, `DocumentProcessingLog`, `PromptFolder`, `SiteAnalysisResult`, `PromptExecution`, `DocumentVersion`, `.SaveAsync`, `WorkflowError`, `AIModel`, `UserPanelPreference`, `WorkflowExecutionUsage`, `Citation`, `ITextToSpeechEngine`, `DocumentLanguage`, `SearchAnalytics`, `WorkflowExecution`, `DocumentNotification`, `PromptRating`, `Task`, `Project`, `MemoryRepository`?**
-  _High betweenness centrality (0.056) - this node is a cross-community bridge._
-- **Why does `Implementation for User Story 2` connect `.Create` to `KnowledgeBase`, `.RunAsync_ShouldWrapMcpToolOutput_InTheGenericToolResultFraming_BeforeItReachesTheNextModelCall`, `NotificationTypeDefinition`, `ChatSidebar.tsx`, `Tests for Foundational (write first)`, `AgentNodeExecutorTests`, `DocumentWorkspacePage.tsx`, `Application abstractions and core services`, `IProcessingNotifier`, `CustomModelDeploymentJob`, `DomainRuleViolationException`, `Document`, `.RunAsync_ShouldFailCleanlyWithARecordedError_WhenSavingAConflictingWriteThrows`, `.RunAsync_ShouldFailTheExecutionWithARecordedError_RatherThanCallTheTool_WhenThePlanReferencesATool_NotInTheActiveCatalog`, `AgentApprovalWorkflowTests`, `DocumentUploadSession`, `.ValidateAsync`, `PauseWorkflowExecutionCommandHandler`, `.RunAsync`, `McpHighRiskApprovalTests`, `DocumentChunk`, `.RunAsync_ShouldNeverExecuteAMutatingTool_AndShouldRecordTheStepSkipped_ForATestExecution`, `.NoOpAuditLogRepository`, `IMemoryRepository`, `DocumentNotification`, `IIdentityService`, `.KnowledgeBaseCheck_ShouldReportOwnedKnowledgeBaseAvailable_AndOthersNot`, `.CreateExecution`, `ProcessingFailureAndRetryTests`, `Agent`, `Tasks: Notifications & Communication Hub`, `.SetUpExecutionWithMcpTool`, `AgentExecutionOrchestratorTests`, `ICurrentUserAccessor`, `Task`, `KnowledgeBaseAuditLog`, `WorkflowExecutionOrchestrator`?**
-  _High betweenness centrality (0.038) - this node is a cross-community bridge._
-- **What connects `ExpandableActionGroupProps`, `visuallyHidden`, `ApiFetchInit` to the rest of the system?**
+  _High betweenness centrality (0.054) - this node is a cross-community bridge._
+- **Why does `vitest` connect `vitest` to `apiFetch`, `AppShell.tsx`, `SettingsPage.tsx`, `ChatSidebar.tsx`, `blocks.ts`, `aiApi.ts`, `siteBoundaryEditStore.test.ts`, `ChatPage.tsx`, `solarFiguresContent.ts`, `@mui/material`, `SiteBoundaryEditToolbar.a11y.test.tsx`, `AdminAppearancePage.tsx`, `floatingPanelStore.ts`, `ringGeometry.ts`, `solarAnalysisExtension.tsx`, `theme/index.ts`, `agentExecutionsApi.ts`, `CameraRestoreGuard`, `viewStateCapture.ts`, `ViewerSurface.tsx`, `adminVoiceApi.ts`, `PromptTestingConsole.tsx`, `ViewerEngine.ts`, `FloatingPanelHost.tsx`, `workflowExecutionsApi.ts`, `activeSiteBoundaryStore.ts`, `ClientApp/package.json`, `ringShapes.ts`, `SiteBoundaryConfidenceBadge.tsx`, `GoogleMapsGisLayer.ts`, `DrawingSpaceRegistry.ts`, `useAuthStore`, `useSiteBoundaryEditMode.ts`, `three`, `WorkflowDesignerPage.tsx`, `resolveElementOverlap.ts`, `resolveSelection.ts`, `editablePolygonController.test.ts`, `OutlineActionGroup.tsx`, `siteBoundaryEditStore.ts`, `panelPreferencesStore.ts`?**
+  _High betweenness centrality (0.042) - this node is a cross-community bridge._
+- **What connects `ExpandableActionGroupProps`, `visuallyHidden`, `AdminAiModelCapabilities` to the rest of the system?**
   _6056 weakly-connected nodes found - possible documentation gaps or missing edges._
 - **Should `mediatr` be split into smaller, more focused modules?**
   _Cohesion score 0.004496702418226634 - nodes in this community are weakly interconnected._
