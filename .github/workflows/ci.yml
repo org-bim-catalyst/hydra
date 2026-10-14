@@ -5,6 +5,13 @@ on:
     branches: [main]
   push:
     branches: [main]
+  # Single-test investigation runs: dispatch with a dotnet test filter so exactly one test runs.
+  workflow_dispatch:
+    inputs:
+      test_filter:
+        description: "dotnet test --filter expression (empty runs everything)"
+        required: false
+        default: ""
 
 jobs:
   backend-build-and-test:
@@ -63,7 +70,7 @@ jobs:
 
       - name: Test
         working-directory: .
-        run: dotnet test "Ask Lucy.sln" --no-build --configuration Release --logger "trx" --results-directory TestResults
+        run: dotnet test "Ask Lucy.sln" --no-build --configuration Release --logger "trx" --results-directory TestResults ${{ inputs.test_filter && format('--filter "{0}"', inputs.test_filter) || '' }}
         env:
           # Web.Tests' app host: the shared test DB, never wiped.
           PERSISTENCE_TESTS_CONNECTION_STRING: ${{ secrets.PERSISTENCE_TESTS_CONNECTION_STRING }}
@@ -80,6 +87,7 @@ jobs:
 
   frontend-build-lint-and-test:
     name: Frontend build, lint, and test (React 19 + Vite)
+    if: github.event_name != 'workflow_dispatch'
     runs-on: ubuntu-24.04
     defaults:
       run:
