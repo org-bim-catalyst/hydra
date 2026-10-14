@@ -232,7 +232,7 @@ function ToolGroupButton({ action }: { action: ExpandableActionGroupAction }) {
       >
         {shown?.icon}
       </IconButton>
-      {/* The corner mark: a small circle centred on the button's bottom edge, with an arrow turned to point down. A click on it opens the flyout, the same as a right-click or a long press. */}
+      {/* The corner mark: a small anchor on the button's bottom edge, pointing down. It takes the button's own look: no circle where the button has none, and a different colour on hover when it can be clicked. A click opens the flyout, the same as a right-click or a long press. */}
       <Box
         component="span"
         role="presentation"
@@ -252,16 +252,18 @@ function ToolGroupButton({ action }: { action: ExpandableActionGroupAction }) {
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          cursor: 'pointer',
           color: 'inherit',
-          bgcolor: (t) => (t.palette.mode === 'dark' ? 'rgba(30,30,40,0.95)' : 'rgba(255,255,255,0.95)'),
-          border: (t) => `1px solid ${t.palette.divider}`,
+          bgcolor: shown?.disabled ? 'transparent' : action.highlighted ? '#9C62DE' : (t) => (t.palette.mode === 'dark' ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)'),
+          pointerEvents: shown?.disabled ? 'none' : 'auto',
+          cursor: 'pointer',
+          transition: 'background-color 120ms, color 120ms',
+          '&:hover': { bgcolor: (t) => t.palette.primary.main, color: '#fff' },
         }}
       >
         <Box
           component="span"
           aria-hidden="true"
-          sx={{ width: 0, height: 0, borderLeft: '4px solid transparent', borderBottom: '4px solid currentColor', transform: 'rotate(135deg)' }}
+          sx={{ width: 0, height: 0, borderLeft: '4px solid transparent', borderBottom: '4px solid currentColor', transform: 'rotate(45deg)' }}
         />
       </Box>
       {/* specs/081 US6: the flyout is a branch of the group button, rendered in the body so the ribbon's clipping
