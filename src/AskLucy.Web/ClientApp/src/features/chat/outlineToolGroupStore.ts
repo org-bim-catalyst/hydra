@@ -11,7 +11,10 @@ export const OUTLINE_TOOL_GROUPS = {
   'add-corner': { defaultTool: 'add-corner', tools: ['add-corner', 'round-corner'] },
   'curve-edge': { defaultTool: 'curve-edge', tools: ['curve-edge', 'draw-arc'] },
   circle: { defaultTool: 'add-circle', tools: ['add-circle', 'cut-circle', 'make-circle'] },
-  rectangle: { defaultTool: 'add-rectangle', tools: ['add-rectangle', 'cut-rectangle', 'add-square', 'cut-square'] },
+  rectangle: {
+    defaultTool: 'add-rectangle',
+    tools: ['add-rectangle', 'cut-rectangle', 'add-square', 'cut-square', 'typed-rectangle', 'typed-square'],
+  },
   polygon: { defaultTool: 'add-polygon', tools: ['add-polygon', 'cut-polygon'] },
 } as const
 

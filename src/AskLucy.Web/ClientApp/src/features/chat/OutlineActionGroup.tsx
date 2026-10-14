@@ -6,6 +6,7 @@ import {
   RiEdit2Line,
   RiRestartLine,
   RiRoundedCorner,
+  RiRulerLine,
 } from '@remixicon/react'
 import {
   ExpandableActionGroup,
@@ -172,6 +173,25 @@ export function OutlineActionGroup() {
       icon: <CutSquareShapeIcon size={20} />,
       onSelect: () => siteBoundaryEditActions.startShape('square', 'cut'),
       highlighted: session?.tool === 'circle' && session.shapeKind === 'square' && session.circleOperation === 'cut',
+      disabled: !editing || saving,
+      disabledReason: notEditing,
+    },
+    // specs/081 FR-020: a typed size, for the keyboard and touch. It opens the size dialog, so it is swap-only.
+    {
+      id: 'typed-rectangle',
+      swapOnly: true,
+      label: 'Rectangle of typed size',
+      icon: <RiRulerLine size={20} />,
+      onSelect: () => siteBoundaryEditActions.openShapeDialog('rectangle'),
+      disabled: !editing || saving,
+      disabledReason: notEditing,
+    },
+    {
+      id: 'typed-square',
+      swapOnly: true,
+      label: 'Square of typed size',
+      icon: <RiRulerLine size={20} />,
+      onSelect: () => siteBoundaryEditActions.openShapeDialog('square'),
       disabled: !editing || saving,
       disabledReason: notEditing,
     },

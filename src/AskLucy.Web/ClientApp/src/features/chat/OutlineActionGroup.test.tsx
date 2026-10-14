@@ -22,7 +22,7 @@ beforeEach(() => {
     startCircle: (operation: 'add' | 'cut') => store().beginCircle(operation),
     startShape: (kind: 'rectangle' | 'square', operation: 'add' | 'cut') => store().beginCircle(operation, kind),
     startPolygon: (operation: 'add' | 'cut') => store().beginPolygon(operation),
-    openShapeDialog: () => {},
+    openShapeDialog: (tool: 'round' | 'curve' | 'circle' | 'rectangle' | 'square') => store().setShapeDialog(tool),
   } as unknown as SiteBoundaryEditRuntime)
   localStorage.clear()
   useOutlineToolGroupStore.setState({ order: {} })
@@ -67,5 +67,16 @@ describe('OutlineActionGroup', () => {
     useOutlineToolGroupStore.getState().choose('circle', 'cut-circle')
     render(<OutlineActionGroup />)
     expect(byLabel('Cut circle')).toBeInTheDocument()
+  })
+
+  // specs/081 FR-020: the typed rectangle and square are reachable from the ribbon, and open the size dialog.
+  it.each([
+    ['typed-rectangle', 'Rectangle of typed size', 'rectangle'],
+    ['typed-square', 'Square of typed size', 'square'],
+  ] as const)('pressing the group after choosing %s opens the typed-size dialog', (toolId, label, kind) => {
+    useOutlineToolGroupStore.getState().choose('rectangle', toolId)
+    render(<OutlineActionGroup />)
+    fireEvent.click(screen.getByRole('button', { name: label }))
+    expect(store().shapeDialog).toBe(kind)
   })
 })
