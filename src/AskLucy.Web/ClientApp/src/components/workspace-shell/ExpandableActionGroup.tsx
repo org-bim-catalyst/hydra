@@ -308,6 +308,23 @@ function FlyoutStrip({ inProp, focusFirst, onExited, label, place, onClickAway, 
   const [revealed, setRevealed] = useState(false)
   const stripRef = useRef<HTMLDivElement>(null)
 
+  // While open, the flyout takes Escape wherever focus is (the map, the page, or the flyout), and closes; the editor and the ribbon never see it.
+  const escapeRef = useRef(onEscape)
+  useEffect(() => {
+    escapeRef.current = onEscape
+  })
+  useEffect(() => {
+    if (!inProp) return
+    const onKey = (event: globalThis.KeyboardEvent) => {
+      if (event.key !== 'Escape') return
+      event.stopPropagation()
+      event.preventDefault()
+      escapeRef.current()
+    }
+    window.addEventListener('keydown', onKey, true)
+    return () => window.removeEventListener('keydown', onKey, true)
+  }, [inProp])
+
   useEffect(() => {
     if (focusFirst) stripRef.current?.querySelector<HTMLButtonElement>('button:not(:disabled)')?.focus()
     // Only on mount: the strip opens once per press of the group button.

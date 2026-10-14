@@ -1,3 +1,4 @@
+import { anyFlyoutOpen } from '../../../components/workspace-shell/flyoutPointerState'
 import { Box } from '@mui/material'
 import { useEffect } from 'react'
 import { siteBoundaryEditActions } from '../../../viewer/siteBoundaryEdit/siteBoundaryEditActions'
@@ -50,7 +51,8 @@ function acceptsWindowKey(event: globalThis.KeyboardEvent): boolean {
   if (target && (target.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName))) return false
   if (target?.closest('[role="dialog"], [role="menu"], [role="listbox"]')) return false
   if (event.key === 'Delete' || event.key === 'Backspace') return false
-  // Escape on a control belongs to the control: a flyout closes first, then the ribbon, never the editor.
+  // An open group flyout takes Escape first; then the ribbon; the editor only gets Escape when neither is open.
+  if (event.key === 'Escape' && anyFlyoutOpen()) return false
   if (event.key === 'Escape' && target?.closest('button, [role="toolbar"]')) return false
   // Tab walks the corners from the map or the page, but never takes the key from a control the user is on, so the toolbar stays reachable.
   // Arrow keys on a button belong to it: the group buttons open their flyouts with Down (specs/081 US6).

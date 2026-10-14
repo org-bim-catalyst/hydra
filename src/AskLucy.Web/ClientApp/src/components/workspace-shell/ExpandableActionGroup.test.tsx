@@ -122,6 +122,17 @@ describe('ExpandableActionGroup', () => {
       expect(document.activeElement).toBe(trigger())
     })
 
+    it('Escape with focus on the page closes an open flyout and returns focus to its group button', () => {
+      render(<ExpandableActionGroup actions={[group({ highlighted: true })]} />)
+      fireEvent.keyDown(trigger(), { key: 'ArrowDown' })
+      act(() => {
+        document.body.focus()
+      })
+      fireEvent.keyDown(document.body, { key: 'Escape' })
+      expect(trigger()).toHaveAttribute('aria-expanded', 'false')
+      expect(document.activeElement).toBe(trigger())
+    })
+
     it('with the flyout open from the mouse, Escape on the group button closes only the flyout', () => {
       const ribbonKeyDown = vi.fn()
       render(<div onKeyDown={ribbonKeyDown}><ExpandableActionGroup actions={[group({ highlighted: true })]} /></div>)

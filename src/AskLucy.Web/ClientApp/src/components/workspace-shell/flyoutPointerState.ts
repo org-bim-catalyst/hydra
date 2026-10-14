@@ -13,6 +13,11 @@ if (typeof document !== 'undefined') {
   )
 }
 
+/** True while any group flyout is open. */
+export function anyFlyoutOpen(): boolean {
+  return openFlyoutCount > 0
+}
+
 export function flyoutOpened(): void {
   openFlyoutCount += 1
 }
