@@ -106,7 +106,7 @@ public sealed class NotificationStatisticsQueryTests(PersistenceTestFixture fixt
         stats.EmailFailed.Should().Be(1);
     }
 
-    [Fact(Skip = "Temporarily skipped: fails on the shared CI host; the notifications session re-enables it.")]
+    [Fact]
     public async Task AverageAndP95Latency_AreMeasuredFromCreationToSend()
     {
         var ct = TestContext.Current.CancellationToken;
