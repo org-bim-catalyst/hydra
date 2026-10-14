@@ -207,6 +207,19 @@ describe('SiteBoundaryCornerNavigator', () => {
     button.remove()
   })
 
+  it('arrow keys on a focused button are left alone, so Down opens a ribbon group', () => {
+    enter()
+    act(() => store().selectCorner(1))
+    const button = document.createElement('button')
+    document.body.appendChild(button)
+
+    fireEvent.keyDown(button, { key: 'ArrowDown' })
+
+    expect(store().session?.undo).toHaveLength(0)
+    expect(store().session?.selectedCorner).toBe(1)
+    button.remove()
+  })
+
   describe('voids (specs/081)', () => {
     // Inside the square, wound against it.
     const ATRIUM = [P(23.5864, 58.3924), P(23.5864, 58.3926), P(23.5866, 58.3926), P(23.5866, 58.3924)]

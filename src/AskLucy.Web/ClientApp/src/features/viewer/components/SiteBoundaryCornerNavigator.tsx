@@ -51,6 +51,8 @@ function acceptsWindowKey(event: globalThis.KeyboardEvent): boolean {
   if (target?.closest('[role="dialog"], [role="menu"], [role="listbox"]')) return false
   if (event.key === 'Delete' || event.key === 'Backspace') return false
   // Tab walks the corners from the map or the page, but never takes the key from a control the user is on, so the toolbar stays reachable.
+  // Arrow keys on a button belong to it: the group buttons open their flyouts with Down (specs/081 US6).
+  if (event.key.startsWith('Arrow') && target?.closest('button, [role="button"]')) return false
   if (event.key === 'Tab' && target?.closest('button, a, input, select, textarea, summary, [role="button"], [role="menuitem"], [role="tab"]')) return false
   // The Select tool too: a box selection is moved with the arrows as well as by dragging.
   const tool = useSiteBoundaryEditStore.getState().session?.tool
