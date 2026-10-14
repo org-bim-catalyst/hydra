@@ -232,7 +232,7 @@ function ToolGroupButton({ action }: { action: ExpandableActionGroupAction }) {
       >
         {shown?.icon}
       </IconButton>
-      {/* The corner mark: a click on it opens the flyout, the same as a right-click or a long press. */}
+      {/* The corner mark: a small circle centred on the button's bottom edge, with an arrow turned to point down. A click on it opens the flyout, the same as a right-click or a long press. */}
       <Box
         component="span"
         role="presentation"
@@ -243,17 +243,27 @@ function ToolGroupButton({ action }: { action: ExpandableActionGroupAction }) {
         data-testid="tool-group-corner"
         sx={{
           position: 'absolute',
-          right: 2,
-          bottom: 2,
-          width: 0,
-          height: 0,
-          borderLeft: '5px solid transparent',
-          borderBottom: '5px solid currentColor',
+          left: '50%',
+          bottom: 0,
+          transform: 'translate(-50%, 50%)',
+          width: 16,
+          height: 16,
+          borderRadius: '50%',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
           cursor: 'pointer',
-          opacity: 0.7,
-          transform: 'rotate(-90deg)',
+          color: 'inherit',
+          bgcolor: (t) => (t.palette.mode === 'dark' ? 'rgba(30,30,40,0.95)' : 'rgba(255,255,255,0.95)'),
+          border: (t) => `1px solid ${t.palette.divider}`,
         }}
-      />
+      >
+        <Box
+          component="span"
+          aria-hidden="true"
+          sx={{ width: 0, height: 0, borderLeft: '4px solid transparent', borderBottom: '4px solid currentColor', transform: 'rotate(135deg)' }}
+        />
+      </Box>
       {/* specs/081 US6: the flyout is a branch of the group button, rendered in the body so the ribbon's clipping
           cannot hide it. It is fixed above the button and slides out with the parent ribbon's clip-path reveal. */}
       {mounted && flyoutPlace && createPortal(
