@@ -108,16 +108,18 @@ function ToolGroupButton({ action }: { action: ExpandableActionGroupAction }) {
   // Open, and mounted until the slide-out has finished. `flyoutPlace` pins the strip above the button.
   const [open, setOpen] = useState(false)
   const [mounted, setMounted] = useState(false)
-  const [flyoutPlace, setFlyoutPlace] = useState<{ left: number; bottom: number } | null>(null)
+  const [flyoutPlace, setFlyoutPlace] = useState<{ left: number; top: number } | null>(null)
   const pressTimer = useRef<number | undefined>(undefined)
   const pressOpened = useRef(false)
   const buttonRef = useRef<HTMLButtonElement>(null)
   const wrapperRef = useRef<HTMLDivElement>(null)
 
-  // The button's place on screen, centred above it. Read from the live rectangle, never cached.
+  // The button's place on screen, centred above it. Read from the live rectangle, never cached. The top edge is used
+  // (not `bottom` from window.innerHeight): both `left` and `top` then share getBoundingClientRect's frame, which
+  // Chrome's innerHeight does not match.
   const measure = () => {
     const rect = wrapperRef.current?.getBoundingClientRect()
-    return rect ? { left: rect.left + rect.width / 2, bottom: window.innerHeight - rect.top } : null
+    return rect ? { left: rect.left + rect.width / 2, top: rect.top } : null
   }
 
   const openFlyout = () => {
@@ -138,7 +140,7 @@ function ToolGroupButton({ action }: { action: ExpandableActionGroupAction }) {
     const follow = () => {
       const place = measure()
       setFlyoutPlace((current) =>
-        place && (!current || current.left !== place.left || current.bottom !== place.bottom) ? place : current,
+        place && (!current || current.left !== place.left || current.top !== place.top) ? place : current,
       )
       frame = requestAnimationFrame(follow)
     }
@@ -271,7 +273,7 @@ function FlyoutStrip({ inProp, onExited, label, place, onClickAway, onEscape, ch
   inProp: boolean
   onExited?: () => void
   label: string
-  place: { left: number; bottom: number }
+  place: { left: number; top: number }
   onClickAway: (target: Node) => void
   onEscape: () => void
   children: ReactNode
@@ -301,8 +303,9 @@ function FlyoutStrip({ inProp, onExited, label, place, onClickAway, onEscape, ch
       sx={{
         position: 'fixed',
         left: place.left,
-        bottom: place.bottom,
-        transform: 'translateX(-50%)',
+        top: place.top,
+        // Centred on the button and lifted so its bottom edge sits on the button's top edge.
+        transform: 'translate(-50%, -100%)',
         zIndex: 1400,
         p: 0.5,
         // The square bottom corners are where the strip meets the trunk, so the branch reads as joined to it.
