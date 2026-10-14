@@ -289,3 +289,11 @@ Run on hydra.bimcatalyst.com, Al Safa Park 2, in edit mode, against the deployed
 Problems found and fixed during the walkthrough: flyouts did not close on Escape from the map or page; a stored group order hid newly added tools; the typed shape needed one dialog for rectangles and squares with a placement offset.
 
 **Status:** Implemented. Scenario 11 remains unrun.
+
+## Changes after the walkthrough
+
+- **Typed size (FR-020):** one "Rectangle or square of typed size" tool opens one dialog. "Make square" locks the height to the width, and East and North offsets from the ring centre place the shape.
+- **Group flyouts:** Down arrow opens a flyout on the keyboard; Tab and Shift+Tab loop through its tools while it is open, and Up and Down move between them. Escape closes an open flyout wherever focus is, returning focus to its group button; the next Escape collapses an unpinned ribbon.
+- **Saved group order:** tools added after a user reordered a group now appear at the end of that group.
+- **Refusals:** a drag's refusal message stays until the next press.
+- **Pre-feature rows:** covered by `SiteBoundaryCorrectionRepositoryTests` (voids default to none). That test needs the test2 database and was not run in this session.
