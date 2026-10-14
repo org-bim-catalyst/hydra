@@ -70,13 +70,10 @@ describe('OutlineActionGroup', () => {
   })
 
   // specs/081 FR-020: the typed rectangle and square are reachable from the ribbon, and open the size dialog.
-  it.each([
-    ['typed-rectangle', 'Rectangle of typed size', 'rectangle'],
-    ['typed-square', 'Square of typed size', 'square'],
-  ] as const)('pressing the group after choosing %s opens the typed-size dialog', (toolId, label, kind) => {
-    useOutlineToolGroupStore.getState().choose('rectangle', toolId)
+  it('choosing the typed size makes it the group tool, and pressing the group opens the size dialog', () => {
+    useOutlineToolGroupStore.getState().choose('rectangle', 'typed-shape')
     render(<OutlineActionGroup />)
-    fireEvent.click(screen.getByRole('button', { name: label }))
-    expect(store().shapeDialog).toBe(kind)
+    fireEvent.click(screen.getByRole('button', { name: 'Rectangle or square of typed size' }))
+    expect(store().shapeDialog).toBe('rectangle')
   })
 })

@@ -115,6 +115,13 @@ describe('ExpandableActionGroup', () => {
       expect(onChooseTool).toHaveBeenCalledWith('c')
     })
 
+    it('Escape closes the flyout and returns focus to its group button', () => {
+      render(<ExpandableActionGroup actions={[group({ highlighted: true })]} />)
+      fireEvent.keyDown(trigger(), { key: 'ArrowDown' })
+      fireEvent.keyDown(menu(), { key: 'Escape' })
+      expect(document.activeElement).toBe(trigger())
+    })
+
     it('a Down arrow moves focus to the first enabled tool, so the keyboard can reach the flyout', () => {
       render(<ExpandableActionGroup actions={[group({ highlighted: true })]} />)
       fireEvent.keyDown(trigger(), { key: 'ArrowDown' })

@@ -36,7 +36,7 @@ export interface SiteBoundaryEditRuntime {
   /** specs/081: adds (or cuts) the polygon the user drew, with the operation the tool was started with. True on success; false with the reason shown. */
   applyShapePolygon(points: readonly GeoPoint[]): Promise<boolean>
   /** specs/081: adds or cuts a rectangle or square of typed size, centred on the ring being edited. True on success; false with the reason shown. */
-  applyTypedShape(kind: 'rectangle' | 'square', operation: CircleOperation, widthMeters: number, heightMeters: number): Promise<boolean>
+  applyTypedShape(kind: 'rectangle' | 'square', operation: CircleOperation, widthMeters: number, heightMeters: number, eastMeters: number, northMeters: number): Promise<boolean>
   /** Adds (or cuts) the circle the user drew. Resolves true on success; false with the reason shown. */
   applyCircle(centre: GeoPoint, radiusMeters: number): Promise<boolean>
   /** Draws the arc through the dropped point. True on success; false with the reason shown. */
@@ -89,8 +89,8 @@ export const siteBoundaryEditActions = {
   startShape: (kind: ShapeKind, operation: CircleOperation) => call('startShape', kind, operation),
   startPolygon: (operation: CircleOperation) => call('startPolygon', operation),
   applyShapePolygon: (points: readonly GeoPoint[]) => call('applyShapePolygon', points) ?? Promise.resolve(false),
-  applyTypedShape: (kind: 'rectangle' | 'square', operation: CircleOperation, widthMeters: number, heightMeters: number) =>
-    call('applyTypedShape', kind, operation, widthMeters, heightMeters) ?? Promise.resolve(false),
+  applyTypedShape: (kind: 'rectangle' | 'square', operation: CircleOperation, widthMeters: number, heightMeters: number, eastMeters: number, northMeters: number) =>
+    call('applyTypedShape', kind, operation, widthMeters, heightMeters, eastMeters, northMeters) ?? Promise.resolve(false),
   applyCircle: (centre: GeoPoint, radiusMeters: number) => call('applyCircle', centre, radiusMeters) ?? Promise.resolve(false),
   startArc: () => call('startArc'),
   applyArc: (through: GeoPoint) => call('applyArc', through) ?? false,

@@ -1,6 +1,7 @@
 import { Box, ClickAwayListener, IconButton, List, ListItem, ListItemButton, ListItemIcon, ListItemText, Paper, Stack, Tooltip } from '@mui/material'
 import { useEffect, useLayoutEffect, useRef, useState, type KeyboardEvent, type MouseEvent, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
+import { flyoutClosed, flyoutOpened } from './flyoutPointerState'
 
 export interface ExpandableActionGroupAction {
   id: string
@@ -100,6 +101,7 @@ const LONG_PRESS_MS = 400
 let closeOpenFlyout: (() => void) | null = null
 const FLYOUT_MS = 220
 
+
 /** specs/081 US6 (T042): a ribbon button for a group of tools. The group's other tools slide out above it as icons. */
 function ToolGroupButton({ action }: { action: ExpandableActionGroupAction }) {
   const tools = action.tools ?? []
@@ -150,6 +152,14 @@ function ToolGroupButton({ action }: { action: ExpandableActionGroupAction }) {
     frame = requestAnimationFrame(follow)
     return () => cancelAnimationFrame(frame)
     // measure only reads refs, so the loop needs to start and stop with `open`.
+  }, [open])
+  // Counts the open flyouts, for the ribbon's outside-click check.
+  useEffect(() => {
+    if (!open) return
+    flyoutOpened()
+    return () => {
+      flyoutClosed()
+    }
   }, [open])
   const closeFlyout = () => setOpen(false)
   const cancelPress = () => window.clearTimeout(pressTimer.current)
@@ -312,7 +322,11 @@ function FlyoutStrip({ inProp, focusFirst, onExited, label, place, onClickAway, 
       role="toolbar"
       aria-label={label}
       onKeyDown={(event) => {
-        if (event.key === 'Escape') onEscape()
+        // The flyout takes the Escape, so the ribbon behind it stays open for the next one.
+        if (event.key === 'Escape') {
+          event.stopPropagation()
+          onEscape()
+        }
       }}
       sx={{
         position: 'fixed',

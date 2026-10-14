@@ -166,28 +166,33 @@ describe('SiteBoundaryShapeDialog', () => {
     act(() => store().setShapeDialog('rectangle'))
     render(<SiteBoundaryShapeDialog />)
 
-    expect(screen.getByText('Add or cut a rectangle')).toBeInTheDocument()
+    expect(screen.getByText('Add or cut a rectangle or square')).toBeInTheDocument()
     await user.clear(screen.getByLabelText(/Width/))
     await user.type(screen.getByLabelText(/Width/), '30')
     await user.clear(screen.getByLabelText(/Height/))
     await user.type(screen.getByLabelText(/Height/), '12')
     await user.click(screen.getByText('Apply'))
 
-    expect(applyTypedShape).toHaveBeenCalledWith('rectangle', 'cut', 30, 12)
+    expect(applyTypedShape).toHaveBeenCalledWith('rectangle', 'cut', 30, 12, 0, 0)
     expect(store().shapeDialog).toBeNull()
   })
 
-  it('asks a square for one side only, and can add it instead of cutting', async () => {
+  it('Make square locks the height to the width, and applies a square at the chosen offset', async () => {
     const user = userEvent.setup()
     enter()
-    act(() => store().setShapeDialog('square'))
+    act(() => store().setShapeDialog('rectangle'))
     render(<SiteBoundaryShapeDialog />)
 
-    expect(screen.queryByLabelText(/Height/)).not.toBeInTheDocument()
+    await user.click(screen.getByLabelText('Make square'))
+    expect(screen.getByLabelText(/Height/)).toBeDisabled()
+    await user.clear(screen.getByLabelText(/Side|Width/))
+    await user.type(screen.getByLabelText(/Side|Width/), '20')
     await user.click(screen.getByLabelText('Add it'))
+    await user.clear(screen.getByLabelText(/East/))
+    await user.type(screen.getByLabelText(/East/), '15')
     await user.click(screen.getByText('Apply'))
 
-    expect(applyTypedShape).toHaveBeenCalledWith('square', 'add', 20, 10)
+    expect(applyTypedShape).toHaveBeenCalledWith('square', 'add', 20, 20, 15, 0)
   })
 
   it('does not apply a rectangle side under a metre', async () => {

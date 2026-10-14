@@ -52,6 +52,7 @@ export function OutlineActionGroup() {
   const hasOutline = useActiveSiteBoundaryStore((s) => s.polygon !== null)
   const isHandEdited = useActiveSiteBoundaryStore((s) => s.isHandEdited)
   const order = useOutlineToolGroupStore((s) => s.order)
+  const typedDialog = useSiteBoundaryEditStore((s) => s.shapeDialog === 'rectangle' || s.shapeDialog === 'square')
 
   const editing = session !== null
   const saving = session?.status.kind === 'saving'
@@ -176,22 +177,13 @@ export function OutlineActionGroup() {
       disabled: !editing || saving,
       disabledReason: notEditing,
     },
-    // specs/081 FR-020: a typed size, for the keyboard and touch. It opens the size dialog, so it is swap-only.
+    // specs/081 FR-020: a rectangle or square of typed size, with its place and whether it is square, in one dialog.
     {
-      id: 'typed-rectangle',
-      swapOnly: true,
-      label: 'Rectangle of typed size',
+      id: 'typed-shape',
+      label: 'Rectangle or square of typed size',
       icon: <RiRulerLine size={20} />,
       onSelect: () => siteBoundaryEditActions.openShapeDialog('rectangle'),
-      disabled: !editing || saving,
-      disabledReason: notEditing,
-    },
-    {
-      id: 'typed-square',
-      swapOnly: true,
-      label: 'Square of typed size',
-      icon: <RiRulerLine size={20} />,
-      onSelect: () => siteBoundaryEditActions.openShapeDialog('square'),
+      highlighted: typedDialog,
       disabled: !editing || saving,
       disabledReason: notEditing,
     },

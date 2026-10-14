@@ -43,8 +43,7 @@ describe('orderOf with a saved order from before a tool was added', () => {
       'add-rectangle',
       'cut-square',
       'add-square',
-      'typed-rectangle',
-      'typed-square',
+      'typed-shape',
     ])
   })
 })

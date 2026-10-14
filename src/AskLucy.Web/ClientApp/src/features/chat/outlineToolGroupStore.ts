@@ -13,7 +13,7 @@ export const OUTLINE_TOOL_GROUPS = {
   circle: { defaultTool: 'add-circle', tools: ['add-circle', 'cut-circle', 'make-circle'] },
   rectangle: {
     defaultTool: 'add-rectangle',
-    tools: ['add-rectangle', 'cut-rectangle', 'add-square', 'cut-square', 'typed-rectangle', 'typed-square'],
+    tools: ['add-rectangle', 'cut-rectangle', 'add-square', 'cut-square', 'typed-shape'],
   },
   polygon: { defaultTool: 'add-polygon', tools: ['add-polygon', 'cut-polygon'] },
 } as const
