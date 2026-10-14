@@ -221,7 +221,7 @@ public sealed class NotificationPreferencesEndpointsTests(NotificationPreference
         response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
     }
 
-    [Fact(Skip = "Temporarily skipped: SQL host unreachable from the CI runner; the notifications session re-enables it.")]
+    [Fact]
     public async Task Put_WithAnUnknownCategory_Returns400()
     {
         var response = await PutAsync(ClientFor(await SeedUserAsync()), new { changes = new[] { Change("Nonsense", "Email", false) } });
@@ -231,7 +231,7 @@ public sealed class NotificationPreferencesEndpointsTests(NotificationPreference
 
     // --- 429 ---
 
-    [Fact(Skip = "Temporarily skipped: rate-limit quota not hit on the shared CI host; restore after deploy.")]
+    [Fact]
     public async Task Get_Returns429_AfterTheMinuteQuotaIsSpent()
     {
         // The limiter is partitioned per user, so a user of its own can spend the quota without touching any other test.
