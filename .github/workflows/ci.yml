@@ -75,35 +75,35 @@ jobs:
           New-Item -ItemType Directory -Force -Path TestResults | Out-Null
 
           # Where this runner exits to, and whether TCP 1433 to the shared SQL host answers from here.
-          $server = if ($env:PERSISTENCE_TESTS_CONNECTION_STRING -match 'Server=(?:tcp:)?([^,;]+)') { $Matches[1] } else { '' }
+          # Only key names are printed if the server key is missing: the values are secrets.
+          $parts = $env:PERSISTENCE_TESTS_CONNECTION_STRING -split ';' | ForEach-Object {
+            $kv = $_ -split '=', 2
+            if ($kv.Count -eq 2) { [pscustomobject]@{ Key = $kv[0].Trim().ToLower(); Value = $kv[1].Trim() } }
+          }
+          $serverPart = $parts | Where-Object { $_.Key -in 'server', 'data source', 'address', 'addr', 'network address' } | Select-Object -First 1
+          $server = if ($serverPart) { (($serverPart.Value -replace '^tcp:', '') -split ',')[0] } else { '' }
           Write-Host "Runner public egress IP: $((Invoke-RestMethod -Uri 'https://api.ipify.org').Trim())"
           if ($server) {
             $probe = Test-NetConnection -ComputerName $server -Port 1433 -WarningAction SilentlyContinue
             Write-Host "TCP 1433 to ${server}: reachable=$($probe.TcpTestSucceeded)"
           } else {
-            Write-Host "::warning::Could not read the server name from PERSISTENCE_TESTS_CONNECTION_STRING."
+            Write-Host "::warning::No server key in PERSISTENCE_TESTS_CONNECTION_STRING. Key names present: $($parts.Key -join ', ')"
           }
 
-          # Sample the shared SQL host every 10 seconds during the run, so each test failure can be lined up with server state.
+          # Time a trivial query against the shared SQL host every 10 seconds during the run. A slow answer from the server is a
+          # load signal, and a failed attempt is recorded rather than dropped.
           if (-not (Get-Module -ListAvailable SqlServer)) { Install-Module SqlServer -Force -Scope CurrentUser -AllowClobber }
           $sampler = Start-Job -ArgumentList $env:PERSISTENCE_TESTS_CONNECTION_STRING, (Join-Path $PWD 'TestResults/sql-sampler.csv') -ScriptBlock {
             param($connectionString, $logPath)
             Import-Module SqlServer
-            $query = @"
-          SELECT
-            (SELECT COUNT(*) FROM sys.dm_exec_sessions WHERE is_user_process = 1) AS user_sessions,
-            (SELECT COUNT(*) FROM sys.dm_exec_requests WHERE session_id > 50) AS active_requests,
-            (SELECT COUNT(*) FROM sys.dm_exec_requests WHERE wait_type LIKE 'LCK%') AS lock_waits
-          "@
-            Add-Content -Path $logPath -Value 'utc,user_sessions,active_requests,lock_waits,error'
+            Add-Content -Path $logPath -Value 'utc,latency_ms,error'
             while ($true) {
               $utc = (Get-Date).ToUniversalTime().ToString('o')
               try {
-                $row = Invoke-Sqlcmd -ConnectionString $connectionString -Query $query -QueryTimeout 15
-                Add-Content -Path $logPath -Value "$utc,$($row.user_sessions),$($row.active_requests),$($row.lock_waits),"
+                $ms = (Measure-Command { Invoke-Sqlcmd -ConnectionString $connectionString -Query 'SELECT 1' -QueryTimeout 15 | Out-Null }).TotalMilliseconds
+                Add-Content -Path $logPath -Value "$utc,$([math]::Round($ms)),"
               } catch {
-                # A sample that fails is recorded, never dropped: the failure itself is evidence.
-                Add-Content -Path $logPath -Value "$utc,,,,$($_.Exception.GetType().Name)"
+                Add-Content -Path $logPath -Value "$utc,,$($_.Exception.GetType().Name)"
               }
               Start-Sleep -Seconds 10
             }
