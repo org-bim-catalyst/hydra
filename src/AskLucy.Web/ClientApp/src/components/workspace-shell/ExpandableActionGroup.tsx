@@ -325,11 +325,23 @@ function FlyoutStrip({ inProp, focusFirst, onExited, label, place, onClickAway, 
   })
   useEffect(() => {
     if (!inProp) return
+    // While open, Tab and Shift+Tab loop through the flyout's tools, and Up and Down move between them.
     const onKey = (event: globalThis.KeyboardEvent) => {
-      if (event.key !== 'Escape') return
+      if (event.key === 'Escape') {
+        event.stopPropagation()
+        event.preventDefault()
+        escapeRef.current()
+        return
+      }
+      const moves = event.key === 'Tab' || event.key === 'ArrowDown' || event.key === 'ArrowUp'
+      const items = moves ? [...(stripRef.current?.querySelectorAll<HTMLButtonElement>('button:not(:disabled)') ?? [])] : []
+      if (items.length === 0) return
+      const current = items.indexOf(document.activeElement as HTMLButtonElement)
+      const backwards = event.key === 'ArrowUp' || (event.key === 'Tab' && event.shiftKey)
+      const next = current < 0 ? (backwards ? items.length - 1 : 0) : (current + (backwards ? -1 : 1) + items.length) % items.length
       event.stopPropagation()
       event.preventDefault()
-      escapeRef.current()
+      items[next].focus()
     }
     window.addEventListener('keydown', onKey, true)
     return () => window.removeEventListener('keydown', onKey, true)

@@ -142,6 +142,14 @@ describe('ExpandableActionGroup', () => {
       expect(ribbonKeyDown).not.toHaveBeenCalled()
     })
 
+    it('while open, Tab stays in the flyout instead of leaving the ribbon', () => {
+      render(<ExpandableActionGroup actions={[group({ highlighted: true })]} />)
+      fireEvent.keyDown(trigger(), { key: 'ArrowDown' })
+      const tool = document.activeElement
+      expect(fireEvent.keyDown(tool!, { key: 'Tab' })).toBe(false)
+      expect(document.activeElement).toBe(tool)
+    })
+
     it('a Down arrow moves focus to the first enabled tool, so the keyboard can reach the flyout', () => {
       render(<ExpandableActionGroup actions={[group({ highlighted: true })]} />)
       fireEvent.keyDown(trigger(), { key: 'ArrowDown' })

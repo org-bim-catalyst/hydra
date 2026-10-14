@@ -53,6 +53,8 @@ function acceptsWindowKey(event: globalThis.KeyboardEvent): boolean {
   if (event.key === 'Delete' || event.key === 'Backspace') return false
   // An open group flyout takes Escape first; then the ribbon; the editor only gets Escape when neither is open.
   if (event.key === 'Escape' && anyFlyoutOpen()) return false
+  // An open flyout loops Tab and moves with the arrows through its tools.
+  if ((event.key === 'Tab' || event.key.startsWith('Arrow')) && anyFlyoutOpen()) return false
   if (event.key === 'Escape' && target?.closest('button, [role="toolbar"]')) return false
   // Tab walks the corners from the map or the page, but never takes the key from a control the user is on, so the toolbar stays reachable.
   // Arrow keys on a button belong to it: the group buttons open their flyouts with Down (specs/081 US6).
