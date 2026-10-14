@@ -29388,15 +29388,15 @@
     "semantic_hash": ""
   },
   "src/AskLucy.Web/ClientApp/src/viewer/siteBoundaryEdit/siteBoundaryEditStore.test.ts": {
-    "mtime": 1791312283.5785105,
-    "seen": 1791312376.4340754,
-    "ast_hash": "0d4fd757e6fc1c288759a110da4eb789",
+    "mtime": 1791984312.1041956,
+    "seen": 1791984549.4805272,
+    "ast_hash": "295894fa7885b52db0e6a92385027789",
     "semantic_hash": ""
   },
   "src/AskLucy.Web/ClientApp/src/viewer/siteBoundaryEdit/siteBoundaryEditStore.ts": {
-    "mtime": 1791958925.0000749,
-    "seen": 1791959413.8980534,
-    "ast_hash": "3147fe42eebd41904aeda57828bb71ad",
+    "mtime": 1791984215.5636444,
+    "seen": 1791984549.4805286,
+    "ast_hash": "40cf76cd118824d222e8a76705067228",
     "semantic_hash": ""
   },
   "src/AskLucy.Application/Chats/Commands/SaveSiteBoundaryEdit/SaveSiteBoundaryEditCommand.cs": {
@@ -29502,9 +29502,9 @@
     "semantic_hash": ""
   },
   "src/AskLucy.Web/ClientApp/src/viewer/siteBoundaryEdit/editablePolygonController.test.ts": {
-    "mtime": 1791312283.5745268,
-    "seen": 1791312376.4340596,
-    "ast_hash": "e21e8271571f57f9249ac14170279a10",
+    "mtime": 1791984312.1071947,
+    "seen": 1791984549.4805079,
+    "ast_hash": "537b6fd4d7436e5e6c019fe244d7cb96",
     "semantic_hash": ""
   },
   "src/AskLucy.Web/ClientApp/src/viewer/siteBoundaryEdit/editablePolygonController.ts": {
@@ -29526,9 +29526,9 @@
     "semantic_hash": ""
   },
   "src/AskLucy.Web/ClientApp/src/viewer/siteBoundaryEdit/useSiteBoundaryEditMode.ts": {
-    "mtime": 1791966641.3472345,
-    "seen": 1791967172.1125863,
-    "ast_hash": "5e43668fa4a6c801cea995978690cdaa",
+    "mtime": 1791984215.5656774,
+    "seen": 1791984549.4805336,
+    "ast_hash": "423025c691d7fd42111e52db73e482ca",
     "semantic_hash": ""
   },
   "src/AskLucy.Web/ClientApp/src/features/viewer/components/SiteBoundaryEditToolbar.a11y.test.tsx": {
@@ -30114,9 +30114,9 @@
     "semantic_hash": ""
   },
   "specs/081-outline-voids-and-shapes/spec.md": {
-    "mtime": 1791281921.0612514,
-    "seen": 1791282624.1918817,
-    "ast_hash": "039334a3085595af7c9a61e7d420bf22",
+    "mtime": 1791984422.6988356,
+    "seen": 1791984549.4837303,
+    "ast_hash": "3ffee2d0d74e1d165160e2c6f6a38d7d",
     "semantic_hash": ""
   },
   "specs/081-outline-voids-and-shapes/contracts/site-boundary-voids-api.md": {
@@ -30150,9 +30150,9 @@
     "semantic_hash": ""
   },
   "specs/081-outline-voids-and-shapes/tasks.md": {
-    "mtime": 1791912537.670421,
-    "seen": 1791912643.2665977,
-    "ast_hash": "4c88685a762d4530c3c52a5822a4987d",
+    "mtime": 1791984422.7348886,
+    "seen": 1791984549.4837325,
+    "ast_hash": "21048f8ac09f43f3536f69b093c09f7b",
     "semantic_hash": ""
   },
   "specs/069-model-deprecation-workflow/plan.md": {

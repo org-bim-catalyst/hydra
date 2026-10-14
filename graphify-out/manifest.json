@@ -30114,9 +30114,9 @@
     "semantic_hash": ""
   },
   "specs/081-outline-voids-and-shapes/spec.md": {
-    "mtime": 1791984422.6988356,
-    "seen": 1791984549.4837303,
-    "ast_hash": "3ffee2d0d74e1d165160e2c6f6a38d7d",
+    "mtime": 1791988922.778153,
+    "seen": 1791988997.1785243,
+    "ast_hash": "70e3f0cdb7ece1b0d316fe6515518af4",
     "semantic_hash": ""
   },
   "specs/081-outline-voids-and-shapes/contracts/site-boundary-voids-api.md": {
