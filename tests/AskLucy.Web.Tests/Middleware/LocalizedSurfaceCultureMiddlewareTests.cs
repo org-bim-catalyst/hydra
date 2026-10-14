@@ -67,7 +67,7 @@ public sealed partial class LocalizedSurfaceCultureMiddlewareTests(CustomWebAppl
         messages.Should().NotBeEmpty().And.OnlyContain(m => ArabicLetters().IsMatch(m));
     }
 
-    [Fact(Skip = "Temporarily skipped: fails on the shared CI host; the notifications session re-enables it.")]
+    [Fact]
     public async Task ReasonCodes_StayUntranslated_WhileTheirTextIsLocalized()
     {
         await _host.SetPlatformAsync(true, "en", "ar");

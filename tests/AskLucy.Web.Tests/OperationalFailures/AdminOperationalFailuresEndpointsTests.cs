@@ -134,7 +134,7 @@ public sealed class AdminOperationalFailuresEndpointsTests(CustomWebApplicationF
         }
     }
 
-    [Fact(Skip = "Temporarily skipped: fails on the shared CI host; the notifications session re-enables it.")]
+    [Fact]
     public async Task GetIncident_ShouldReportWhetherTheViewerMayReadContent()
     {
         var seed = await SeedAsync();

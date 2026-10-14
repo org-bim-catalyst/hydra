@@ -262,7 +262,7 @@ public sealed class ApprovalNotificationAccessTests(ApprovalNotificationFactory 
 
     // ---- audit trail ----
 
-    [Fact(Skip = "Temporarily skipped: approval notification not delivered on the shared CI host; the notifications session re-enables it.")]
+    [Fact]
     public async Task CreationDeliveryAndFirstRead_EachLeaveOneAuditRow_WithTheCorrelationId()
     {
         var (executionId, agentId, approvalId) = await SeedAgentApprovalAsync();
