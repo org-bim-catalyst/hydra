@@ -87,10 +87,17 @@ describe('siteBoundaryEditStore', () => {
       expect(session().redo).toHaveLength(0)
     })
 
-    it('clears a previous refusal', () => {
+    it('keeps a refusal through a recorded change, so the drag that was refused still explains itself', () => {
       enter()
       store().refuse('That would make the outline cross itself.')
       store().applyChange({ op: 'move', ring: 0, index: 0, before: P(0, 0), after: P(-5, -5) })
+      expect(session().refusal).toBe('That would make the outline cross itself.')
+    })
+
+    it('clearRefusal removes it', () => {
+      enter()
+      store().refuse('That would make the outline cross itself.')
+      store().clearRefusal()
       expect(session().refusal).toBeNull()
     })
   })

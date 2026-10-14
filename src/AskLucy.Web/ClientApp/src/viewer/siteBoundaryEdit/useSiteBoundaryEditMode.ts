@@ -592,6 +592,14 @@ export function useSiteBoundaryEditMode() {
     void siteBoundaryEditActions.start(request.revision)
   }, [handle, pendingRequest])
 
+  // A new press starts a new action, so an old refusal goes. A refusal raised by the press itself (a drag past the edge) stays.
+  useEffect(() => {
+    if (!inSession) return
+    const onPress = () => store().clearRefusal()
+    window.addEventListener('pointerdown', onPress, true)
+    return () => window.removeEventListener('pointerdown', onPress, true)
+  }, [inSession])
+
   // Delete or Backspace removes the selected corner. Ignored while typing in a field, so it can never
   // eat the chat box's own Backspace.
   useEffect(() => {

@@ -270,7 +270,7 @@
   - Domain, Application, Infrastructure and Web tests (`PERSISTENCE_TESTS_CONNECTION_STRING` set), and Persistence tests against test2;
   - in `ClientApp`: `npx tsc -b --noEmit`, `npx eslint .`, and the full `npx vitest run` (also with `MSYS_NO_PATHCONV=1 VITE_API_BASE_URL=/api/v1`).
 - [X] T047 Push to main, watch CI, and confirm the deploy by fetching the live bundle and searching for new strings (for example "Cut rectangle" and "already outside the site").
-- [ ] T048 Walk quickstart scenarios 1 to 15 on production (hydra, Al Safa Park 2) in a tab in the Claude in Chrome group. Record pointer and box events live if anything misbehaves. Then mark the spec Implemented and record the walkthrough in `specs/081-outline-voids-and-shapes/spec.md`.
+- [x] T048 Walk quickstart scenarios 1 to 15 on production (hydra, Al Safa Park 2) in a tab in the Claude in Chrome group. Record pointer and box events live if anything misbehaves. Then mark the spec Implemented and record the walkthrough in `specs/081-outline-voids-and-shapes/spec.md`.
 
 ---
 

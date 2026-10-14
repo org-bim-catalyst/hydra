@@ -347,7 +347,8 @@ export const useSiteBoundaryEditStore = create<State & Actions>()((set, get) => 
               : change.op === 'replace'
                 ? { selectedCorner: null, selectedCorners: [] }
               : {}
-        return { rings, voids, undo, redo: [], approxAreaSquareMeters: totalArea(rings, voids), refusal: null, ...selection }
+        // A recorded change keeps a refusal: the drag that was refused records its last valid position, and the message must stay.
+        return { rings, voids, undo, redo: [], approxAreaSquareMeters: totalArea(rings, voids), ...selection }
       })
       lastChangeAt = now
     },

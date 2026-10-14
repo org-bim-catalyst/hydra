@@ -230,7 +230,7 @@ describe('moving a corner', () => {
     host.rings[0].path.setAt(2, P(110, 110))
 
     expect(session().undo).toHaveLength(1)
-    expect(session().refusal).toBeNull()
+    expect(session().refusal).toMatch(/cross/)
   })
 
   it('refuses a corner dropped on another corner', () => {
