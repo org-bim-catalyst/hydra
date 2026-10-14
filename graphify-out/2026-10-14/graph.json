@@ -122038,7 +122038,7 @@
       "file_type": "code",
       "norm_label": "flyoutstrip()",
       "source_file": "src/AskLucy.Web/ClientApp/src/components/workspace-shell/ExpandableActionGroup.tsx",
-      "source_location": "L272"
+      "source_location": "L276"
     },
     {
       "id": "src_asklucy_web_clientapp_src_components_workspace_shell_expandableactiongroup_toolgroupbutton",
@@ -1755953,7 +1755953,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "src/AskLucy.Web/ClientApp/src/components/workspace-shell/ExpandableActionGroup.tsx",
-      "source_location": "L272",
+      "source_location": "L276",
       "weight": 1.0
     },
     {
@@ -2048469,5 +2048469,5 @@
       "source_file": "docs/UI_GUIDELINES.md"
     }
   ],
-  "built_at_commit": "bf0b208d85b280d4e3bc3c3820d9e270a058c0e0"
+  "built_at_commit": "601a8ae71a3e1443effa9ef13d277e31e425c7a4"
 }

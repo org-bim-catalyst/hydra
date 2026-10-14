@@ -1,7 +1,7 @@
 # Graph Report - Ask Lucy  (2026-10-14)
 
 ## Corpus Check
-- 5358 files · ~3,555,520 words
+- 5358 files · ~3,555,631 words
 - Verdict: corpus is large enough that graph structure adds value.
 - Unclassified: 213 file(s) not represented in the graph (top: .csv 102, .ttf 54, (none) 35)
 
@@ -11,7 +11,7 @@
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `bf0b208d`
+- Built from commit: `601a8ae7`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
@@ -2032,6 +2032,8 @@
 10. `Task` - 241 edges
 
 ## Surprising Connections (you probably didn't know these)
+- `D11 - Grouped ribbon (Photoshop-style tool groups)` --references--> `ExpandableActionGroup()`  [INFERRED]
+  specs/081-outline-voids-and-shapes/research.md → src/AskLucy.Web/ClientApp/src/components/workspace-shell/ExpandableActionGroup.tsx
 - `D7: Notification types and recipients` --references--> `NotificationTypeCatalog`  [INFERRED]
   specs/069-model-deprecation-workflow/research.md → src/AskLucy.Domain/Notifications/NotificationTypeCatalog.cs
 - `Technical Context` --references--> `IUnitOfWork`  [INFERRED]
@@ -2040,8 +2042,6 @@
   specs/078-restore-local-whisper/data-model.md → src/AskLucy.Application/Abstractions/IUnitOfWork.cs
 - `1. Modules publish into the caller's unit of work` --references--> `NotificationOutboxEvent`  [INFERRED]
   docs/adr/0018-transactional-notification-outbox.md → src/AskLucy.Domain/Notifications/NotificationOutboxEvent.cs
-- `Implementation for User Story 5` --references--> `AdminNavItem`  [INFERRED]
-  specs/062-admin-panel-layout-polish/tasks.md → src/AskLucy.Web/ClientApp/src/features/admin/adminNav.tsx
 
 ## Import Cycles
 - None detected.
@@ -5722,7 +5722,7 @@ Cohesion: 0.40
 Nodes (4): DateTime, DateTimeOffset, Guid, ModelBuilder
 
 ## Knowledge Gaps
-- **6056 isolated node(s):** `BulkActionResult`, `BulkActionSkip`, `BulkTargetRequest`, `GetUsersParams`, `AdministratorContentAccess` (+6051 more)
+- **6056 isolated node(s):** `ExpandableActionGroupProps`, `BulkActionResult`, `BulkActionSkip`, `BulkTargetRequest`, `GetUsersParams` (+6051 more)
   These have ≤1 connection - possible missing edges or undocumented components. (Counts symbols only; 15718 node(s) total have ≤1 connection when file, concept and rationale nodes are included.)
 - **1102 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
 
@@ -5730,12 +5730,12 @@ Nodes (4): DateTime, DateTimeOffset, Guid, ModelBuilder
 _Questions this graph is uniquely positioned to answer:_
 
 - **Why does `AskLucy.Application.Abstractions` connect `AskLucy.Application.Abstractions` to `mediatr`, `.GenerateAccessToken`, `AskLucy.Application.SiteBoundaries`, `asklucy_domain_operationalfailures`, `AskLucy.Domain.Ai`, `microsoft_extensions_options`, `IWorkflowExecutionNotifier`, `AiCapabilitySetting`, `PromptTestCase`, `PagedResult`, `AskLucy.Application.Agents`, `DictationEngineSetting`, `GeneratedImageMaterializerTests`, `DocumentProcessingJob`, `SendChatMessageCommand`, `asklucy_application_abstractions`, `.McpCapabilityRefreshJob_ShouldProcessManyServers_WithOneFailureNeverBlockingTheRest`, `system_text_json`, `SystemWorkflowProvisioner`, `CreateSpeechToTextSessionCommandHandlerTests`, `SiteAnalysis`, `DocumentsController`, `.SearchAsync`, `PresenceSphereSettingsHandlerTests`, `.SaveBothAsync`, `IMcpClientFactory`, `AskLucy.Infrastructure/DependencyInjection.cs`, `asklucy_domain_common`, `AiDocumentLanguageAndClassifier`, `.OnModelCreating`, `ChatMessage`, `RefreshToken`, `AskLucy.Application.Users`, `IWorkflowPolicyRepository`, `OpenRouterProvider`, `.GetByIdAsync`, `DocumentUploadSession`, `fluentassertions`, `Tasks: External Login Profile Sync`, `.RunAsync`, `.SearchAsync`, `IRefreshTokenRepository`, `IVectorStore`, `.Handle_ShouldIssueTokens_WhenCodeIsValid`, `AskLucy.Domain.Panels`, `GetMyCookieConsentQuery`, `RegisterMcpServerCommandHandlerTests`, `.SaveChangesAsync`, `.GetByKeyAsync`, `Exception`, `IIdentityService`, `.RetrieveContextAsync`, `IEmailSender`, `IFileStorage`, `IChunkingStrategy`, `.GetByIdAsync`, `AiContracts.cs`, `InMemoryAgentRepository`, `Tasks: Notifications & Communication Hub`, `.GetByIdAsync`, `AccountEmailJob`, `DocumentStatistics`, `ICurrentUserAccessor`, `IAgentExecutionRepository`, `PromptCategory`, `Verified Codebase Context (2026-09-25)`, `IRoleAssignmentRepository`?**
-  _High betweenness centrality (0.098) - this node is a cross-community bridge._
+  _High betweenness centrality (0.097) - this node is a cross-community bridge._
 - **Why does `BaseEntity` connect `BaseEntity` to `ChunkStatistics`, `IndexingLog`, `Attachment`, `.Create`, `McpTool`, `SendChatMessageCommand`, `PromptRating`, `PromptFolder`, `PromptTag`, `IWorkflowPolicyRepository`, `MemoryConflict`, `DocumentFolder`, `CookieConsentRecord`, `AgentExecutionError`, `AgentApproval`, `DocumentChunk`, `.Create`, `.GetByIdAsync`, `.SaveChangesAsync`, `WorkflowPolicy`, `VoiceProvider`, `McpResource`, `DocumentRepository`, `DocumentMetadata`, `.GetByIdAsync`, `DocumentStatistics`, `.Conflate`, `Persistence`, `RetrievalHistory`, `KnowledgeBase`, `DocumentPreview`, `AgentPolicy`, `McpPrompt`, `CustomModelSummaryDto`, `McpServer`, `.GetByIdForOwnerAsync`, `Project`, `Contract: Edit Mode in the Studio Viewer`, `WorkflowVariableType`, `SiteAnalysis`, `Document`, `IMcpClientFactory`, `WorkflowNode`, `Implementation for Foundational`, `RoleAuditLog`, `RetrievalResult`, `WorkflowExecutionNode`, `KnowledgeBaseCategory`, `DocumentUploadSession`, `CustomModel`, `AgentMemoryPolicy`, `NotificationDelivery`, `PromptCategory`, `WorkflowConnection`, `Verified Codebase Context (2026-09-25)`, `MemoryReference`, `AgentExecutionEvent`, `CustomModelTests`, `WorkflowExecutionEventType`, `PromptTestCase`, `DocumentProcessingJob`, `.Model`, `EmbeddingProvider`, `MemoryNotification`, `IRequest`, `DocumentProcessingStage`, `PresenceSphereSettingsHandlerTests`, `AgentToolCall`, `IndexingJob`, `PromptVariable`, `UserAiPreference`, `UserVoicePreference`, `ProviderHealthCheck`, `AgentExecutionCost`, `Embedding`, `PromptExecutionResult`, `Agent`, `Message`, `AgentKnowledgeBase`, `WorkflowApproval`, `AgentExecutionStep`, `AiProviderFailureKind`, `MemoryVersion`, `PromptExecution`, `SiteAnalysisResult`, `DocumentVersion`, `MemoryExportJob`, `WorkflowError`, `AIModel`, `VoiceProviderFailoverEvent`, `Citation`, `AgentExecution`, `ApplicationUser`, `DocumentProcessingPipeline`, `SearchAnalytics`, `AgentTool`, `Prompt`, `WorkflowExecution`, `Research: Notifications & Communication Hub`, `UserPanelPreference`, `IAgentExecutionRepository`, `McpServerHealth`?**
-  _High betweenness centrality (0.054) - this node is a cross-community bridge._
+  _High betweenness centrality (0.070) - this node is a cross-community bridge._
 - **Why does `Implementation for User Story 2` connect `.Create` to `KnowledgeBase`, `.RunAsync_ShouldWrapMcpToolOutput_InTheGenericToolResultFraming_BeforeItReachesTheNextModelCall`, `NotificationTypeDefinition`, `memoryApi.ts`, `AgentNodeExecutorTests`, `UserChat`, `DocumentWorkspacePage.tsx`, `Application abstractions and core services`, `DuplicateDetectionTests`, `EmbeddingProvider`, `MemoryNotification`, `PauseWorkflowExecutionCommandHandler`, `CustomModelDeploymentJob`, `IRequest`, `Document`, `.RunAsync_ShouldFailCleanlyWithARecordedError_WhenSavingAConflictingWriteThrows`, `.RunAsync_ShouldFailTheExecutionWithARecordedError_RatherThanCallTheTool_WhenThePlanReferencesATool_NotInTheActiveCatalog`, `DocumentProcessingPipeline`, `AgentApprovalWorkflowTests`, `DocumentUploadSession`, `McpHighRiskApprovalTests`, `.RunAsync`, `.RunAsync_ShouldNeverExecuteAMutatingTool_AndShouldRecordTheStepSkipped_ForATestExecution`, `.SaveChangesAsync`, `Research: Notifications & Communication Hub`, `IIdentityService`, `.KnowledgeBaseCheck_ShouldReportOwnedKnowledgeBaseAvailable_AndOthersNot`, `Agent`, `WorkflowRetryPolicyTests`, `.CreateExecution`, `ProcessingFailureAndRetryTests`, `Tasks: Notifications & Communication Hub`, `INotificationAccessCheck`, `.SetUpExecutionWithMcpTool`, `AgentExecutionOrchestratorTests`, `ICurrentUserAccessor`, `.Handle_ShouldMergeResultsFromBothVectorStores_WhenKnowledgeBasesSpanBothProviders`, `WorkflowExecutionOrchestrator`?**
-  _High betweenness centrality (0.044) - this node is a cross-community bridge._
-- **What connects `BulkActionResult`, `BulkActionSkip`, `BulkTargetRequest` to the rest of the system?**
+  _High betweenness centrality (0.058) - this node is a cross-community bridge._
+- **What connects `ExpandableActionGroupProps`, `BulkActionResult`, `BulkActionSkip` to the rest of the system?**
   _6056 weakly-connected nodes found - possible documentation gaps or missing edges._
 - **Should `mediatr` be split into smaller, more focused modules?**
   _Cohesion score 0.004291878563723224 - nodes in this community are weakly interconnected._
