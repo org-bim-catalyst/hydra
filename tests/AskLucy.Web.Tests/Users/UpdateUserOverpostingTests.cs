@@ -12,6 +12,7 @@ namespace AskLucy.Web.Tests.Users;
 /// vulnerability where the entire <c>ApplicationUser</c> entity was bound from the
 /// request body and passed to <c>UpdateAsync</c> as-is.
 /// </summary>
+[Collection(DatabaseSerialGroup.Name)]
 public sealed class UpdateUserOverpostingTests(CustomWebApplicationFactory factory) : IClassFixture<CustomWebApplicationFactory>
 {
     private readonly HttpClient _client = factory.CreateClient();

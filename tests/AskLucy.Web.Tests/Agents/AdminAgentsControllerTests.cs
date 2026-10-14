@@ -12,6 +12,7 @@ namespace AskLucy.Web.Tests.Agents;
 /// authorization let the request through, not that data was returned correctly (that is
 /// <c>GetSystemAgentsQueryHandlerTests</c>'s job).
 /// </summary>
+[Collection(DatabaseSerialGroup.Name)]
 public sealed class AdminAgentsControllerTests(CustomWebApplicationFactory factory) : IClassFixture<CustomWebApplicationFactory>
 {
     private readonly HttpClient _client = factory.CreateClient();

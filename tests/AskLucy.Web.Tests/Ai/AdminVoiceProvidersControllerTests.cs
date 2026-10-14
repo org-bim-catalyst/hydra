@@ -12,6 +12,7 @@ namespace AskLucy.Web.Tests.Ai;
 /// <see cref="AdminAiProvidersControllerTests"/>. The administrator requests target an unknown
 /// engine or provider id, so passing authorization never writes a row to the shared database.
 /// </summary>
+[Collection(DatabaseSerialGroup.Name)]
 public sealed class AdminVoiceProvidersControllerTests(CustomWebApplicationFactory factory) : IClassFixture<CustomWebApplicationFactory>
 {
     private readonly HttpClient _client = factory.CreateClient();

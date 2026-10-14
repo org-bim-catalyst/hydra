@@ -16,6 +16,7 @@ namespace AskLucy.Web.Tests.Admin;
 /// CRUD/409/403-on-built-in behavior is covered by the mocked-repository handler tests in
 /// AskLucy.Application.Tests.Authorization and by quickstart.md's live-database scenarios.
 /// </summary>
+[Collection(DatabaseSerialGroup.Name)]
 public sealed class AdminRolesTests(CustomWebApplicationFactory factory) : IClassFixture<CustomWebApplicationFactory>
 {
     private static readonly string[] DashboardViewOnly = ["admin.dashboard.view"];

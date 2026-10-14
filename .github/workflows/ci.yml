@@ -70,7 +70,55 @@ jobs:
 
       - name: Test
         working-directory: .
-        run: dotnet test "Ask Lucy.sln" --no-build --configuration Release --logger "trx" --results-directory TestResults ${{ inputs.test_filter && format('--filter "{0}"', inputs.test_filter) || '' }}
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path TestResults | Out-Null
+
+          # Where this runner exits to, and whether TCP 1433 to the shared SQL host answers from here.
+          $server = if ($env:PERSISTENCE_TESTS_CONNECTION_STRING -match 'Server=(?:tcp:)?([^,;]+)') { $Matches[1] } else { '' }
+          Write-Host "Runner public egress IP: $((Invoke-RestMethod -Uri 'https://api.ipify.org').Trim())"
+          if ($server) {
+            $probe = Test-NetConnection -ComputerName $server -Port 1433 -WarningAction SilentlyContinue
+            Write-Host "TCP 1433 to ${server}: reachable=$($probe.TcpTestSucceeded)"
+          } else {
+            Write-Host "::warning::Could not read the server name from PERSISTENCE_TESTS_CONNECTION_STRING."
+          }
+
+          # Sample the shared SQL host every 10 seconds during the run, so each test failure can be lined up with server state.
+          if (-not (Get-Module -ListAvailable SqlServer)) { Install-Module SqlServer -Force -Scope CurrentUser -AllowClobber }
+          $sampler = Start-Job -ArgumentList $env:PERSISTENCE_TESTS_CONNECTION_STRING, (Join-Path $PWD 'TestResults/sql-sampler.csv') -ScriptBlock {
+            param($connectionString, $logPath)
+            Import-Module SqlServer
+            $query = @"
+          SELECT
+            (SELECT COUNT(*) FROM sys.dm_exec_sessions WHERE is_user_process = 1) AS user_sessions,
+            (SELECT COUNT(*) FROM sys.dm_exec_requests WHERE session_id > 50) AS active_requests,
+            (SELECT COUNT(*) FROM sys.dm_exec_requests WHERE wait_type LIKE 'LCK%') AS lock_waits
+          "@
+            Add-Content -Path $logPath -Value 'utc,user_sessions,active_requests,lock_waits,error'
+            while ($true) {
+              $utc = (Get-Date).ToUniversalTime().ToString('o')
+              try {
+                $row = Invoke-Sqlcmd -ConnectionString $connectionString -Query $query -QueryTimeout 15
+                Add-Content -Path $logPath -Value "$utc,$($row.user_sessions),$($row.active_requests),$($row.lock_waits),"
+              } catch {
+                # A sample that fails is recorded, never dropped: the failure itself is evidence.
+                Add-Content -Path $logPath -Value "$utc,,,,$($_.Exception.GetType().Name)"
+              }
+              Start-Sleep -Seconds 10
+            }
+          }
+
+          $exit = 0
+          try {
+            dotnet test "Ask Lucy.sln" --no-build --configuration Release --logger "trx" --results-directory TestResults ${{ inputs.test_filter && format('--filter "{0}"', inputs.test_filter) || '' }}
+            $exit = $LASTEXITCODE
+          } finally {
+            Stop-Job -Job $sampler
+            Receive-Job -Job $sampler -ErrorAction Continue
+            Remove-Job -Job $sampler -Force
+          }
+          exit $exit
         env:
           # Web.Tests' app host: the shared test DB, never wiped.
           PERSISTENCE_TESTS_CONNECTION_STRING: ${{ secrets.PERSISTENCE_TESTS_CONNECTION_STRING }}

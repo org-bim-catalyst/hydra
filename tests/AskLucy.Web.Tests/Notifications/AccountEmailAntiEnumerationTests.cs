@@ -15,6 +15,7 @@ using Xunit;
 namespace AskLucy.Web.Tests.Notifications;
 
 /// <summary>One host for the account-email tests, so they share one "auth-endpoints" rate-limit window and one database.</summary>
+[Collection(DatabaseSerialGroup.Name)]
 public sealed class AccountEmailHubFactory : CustomWebApplicationFactory;
 
 /// <summary>
@@ -23,6 +24,7 @@ public sealed class AccountEmailHubFactory : CustomWebApplicationFactory;
 /// envelope, and exactly one outbox insert each. Inside, the unknown address ends as <c>NoRecipient</c> with
 /// no notification, no delivery and no email, and the log holds only a hash of it.
 /// </summary>
+[Collection(DatabaseSerialGroup.Name)]
 public sealed class AccountEmailAntiEnumerationTests(AccountEmailHubFactory factory) : IClassFixture<AccountEmailHubFactory>, IAsyncLifetime
 {
     private const string ForgotEndpoint = "/api/v1/auth/password/forgot";

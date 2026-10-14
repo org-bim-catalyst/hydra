@@ -40,6 +40,7 @@ namespace AskLucy.Web.Tests.Ai;
 /// <c>CustomWebApplicationFactory</c>: this is about byte ordering on the wire, not routing or auth.
 /// </para>
 /// </summary>
+[Collection(DatabaseSerialGroup.Name)]
 public sealed class AiControllerChatStreamTests : IDisposable
 {
     private readonly ISender _mediator = Substitute.For<ISender>();
@@ -492,6 +493,7 @@ public sealed class AiControllerChatStreamTests : IDisposable
 /// because it needs a short interval to keep the test fast; the shared fixture's default
 /// (production) interval would make every test in this file wait on it for nothing.
 /// </summary>
+[Collection(DatabaseSerialGroup.Name)]
 public sealed class AiControllerKeepAliveTests : IDisposable
 {
     private readonly ISender _mediator = Substitute.For<ISender>();

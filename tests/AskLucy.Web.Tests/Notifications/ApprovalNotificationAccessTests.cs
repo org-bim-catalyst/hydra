@@ -21,6 +21,7 @@ using MessagePublisher = AskLucy.Application.Notifications.Abstractions.INotific
 namespace AskLucy.Web.Tests.Notifications;
 
 /// <summary>One host and database for the approval-notification tests.</summary>
+[Collection(DatabaseSerialGroup.Name)]
 public sealed class ApprovalNotificationFactory : CustomWebApplicationFactory;
 
 /// <summary>
@@ -29,6 +30,7 @@ public sealed class ApprovalNotificationFactory : CustomWebApplicationFactory;
 /// exists), and the notification's creation, email hand-off and first read each leave exactly one audit row carrying the
 /// event's correlation id.
 /// </summary>
+[Collection(DatabaseSerialGroup.Name)]
 public sealed class ApprovalNotificationAccessTests(ApprovalNotificationFactory factory)
     : IClassFixture<ApprovalNotificationFactory>, IAsyncLifetime
 {

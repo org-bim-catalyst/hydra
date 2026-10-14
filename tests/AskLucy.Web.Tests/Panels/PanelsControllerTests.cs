@@ -19,6 +19,7 @@ namespace AskLucy.Web.Tests.Panels;
 /// <see cref="IUnitOfWork"/> are substituted via <c>ConfigureTestServices</c> so these never make a
 /// real EF Core/SQL Server call.
 /// </summary>
+[Collection(DatabaseSerialGroup.Name)]
 public sealed class PanelsControllerTests(CustomWebApplicationFactory factory) : IClassFixture<CustomWebApplicationFactory>
 {
     private readonly HttpClient _client = factory.CreateClient();

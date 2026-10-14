@@ -11,6 +11,7 @@ namespace AskLucy.Web.Tests.Admin;
 /// area's permissions is rejected on both. No live database needed — these are pure
 /// authorization-boundary checks (see <see cref="RoleAuthorizationTests"/>'s own doc comment).
 /// </summary>
+[Collection(DatabaseSerialGroup.Name)]
 public sealed class PermissionEnforcementMatrixTests(CustomWebApplicationFactory factory) : IClassFixture<CustomWebApplicationFactory>
 {
     private readonly HttpClient _client = factory.CreateClient();

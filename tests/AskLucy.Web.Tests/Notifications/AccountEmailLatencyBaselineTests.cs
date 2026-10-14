@@ -18,6 +18,7 @@ using Xunit;
 namespace AskLucy.Web.Tests.Notifications;
 
 /// <summary>Opens the wall-clock tests. They measure this host as much as this code, so CI runs them only on request.</summary>
+[Collection(DatabaseSerialGroup.Name)]
 public static class AccountEmailLatencyGate
 {
     public const string EnvironmentVariable = "RUN_SCALE_PERFORMANCE_TESTS";
@@ -28,6 +29,7 @@ public static class AccountEmailLatencyGate
 }
 
 /// <summary>One host whose only outgoing mail is a clock-stamped capture, so a test can time "request to hand-off".</summary>
+[Collection(DatabaseSerialGroup.Name)]
 public sealed class AccountEmailLatencyFactory : CustomWebApplicationFactory
 {
     public ConcurrentDictionary<string, long> HandedOffAt { get; } = new(StringComparer.OrdinalIgnoreCase);
@@ -73,6 +75,7 @@ public sealed class AccountEmailLatencyFactory : CustomWebApplicationFactory
 /// other wall-clock tests: set <c>RUN_SCALE_PERFORMANCE_TESTS=1</c>.
 /// </para>
 /// </summary>
+[Collection(DatabaseSerialGroup.Name)]
 public sealed class AccountEmailLatencyBaselineTests(AccountEmailLatencyFactory factory, ITestOutputHelper output) : IClassFixture<AccountEmailLatencyFactory>
 {
     private const int Runs = 50;

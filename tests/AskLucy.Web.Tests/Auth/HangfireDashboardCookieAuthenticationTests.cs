@@ -14,6 +14,7 @@ namespace AskLucy.Web.Tests.Auth;
 /// Program.cs's `OnMessageReceived`/`OnTokenValidated` (research.md Decisions 1 &amp; 2), not
 /// just the minting endpoint tested by <see cref="Controllers.AdminHangfireSessionEndpointTests"/>.
 /// </summary>
+[Collection(DatabaseSerialGroup.Name)]
 public sealed class HangfireDashboardCookieAuthenticationTests(CustomWebApplicationFactory factory)
     : IClassFixture<CustomWebApplicationFactory>
 {

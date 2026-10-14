@@ -6,6 +6,7 @@ using Xunit;
 namespace AskLucy.Web.Tests.Ai;
 
 /// <summary>specs/005-multi-provider-ai-engine contracts/providers.md — user-facing catalog is authenticated but not role-gated (any signed-in user can read the enabled-provider/model catalog).</summary>
+[Collection(DatabaseSerialGroup.Name)]
 public sealed class AiProvidersControllerTests(CustomWebApplicationFactory factory) : IClassFixture<CustomWebApplicationFactory>
 {
     private readonly HttpClient _client = factory.CreateClient();

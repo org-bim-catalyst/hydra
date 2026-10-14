@@ -14,6 +14,7 @@ namespace AskLucy.Web.Tests.Workflows;
 /// no-live-database, self-signed-JWT pattern as <see cref="Agents.AgentPoliciesControllerTests"/> —
 /// role evaluation is purely a function of the token's claims, independent of any data access.
 /// </summary>
+[Collection(DatabaseSerialGroup.Name)]
 public sealed class WorkflowPoliciesControllerTests(CustomWebApplicationFactory factory) : IClassFixture<CustomWebApplicationFactory>
 {
     private readonly HttpClient _client = factory.CreateClient();

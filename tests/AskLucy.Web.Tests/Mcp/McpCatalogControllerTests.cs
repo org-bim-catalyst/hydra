@@ -10,6 +10,7 @@ namespace AskLucy.Web.Tests.Mcp;
 /// user, unlike <see cref="McpServersControllerTests"/>'s admin-only surface; no role requirement,
 /// just <c>[Authorize]</c> plus the dedicated `mcp-endpoints` rate-limit policy (T097).
 /// </summary>
+[Collection(DatabaseSerialGroup.Name)]
 public sealed class McpCatalogControllerTests(CustomWebApplicationFactory factory) : IClassFixture<CustomWebApplicationFactory>
 {
     private readonly HttpClient _client = factory.CreateClient();

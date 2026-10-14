@@ -15,6 +15,7 @@ namespace AskLucy.Web.Tests.Workflows;
 /// outer auth gate (unauthenticated request → 401), which is what's runnable in this environment
 /// without a seeded second user account.
 /// </summary>
+[Collection(DatabaseSerialGroup.Name)]
 public sealed class WorkflowsControllerTests(CustomWebApplicationFactory factory) : IClassFixture<CustomWebApplicationFactory>
 {
     private readonly HttpClient _client = factory.CreateClient();

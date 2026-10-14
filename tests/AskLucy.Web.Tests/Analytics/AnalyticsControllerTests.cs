@@ -13,6 +13,7 @@ namespace AskLucy.Web.Tests.Analytics;
 /// <see cref="CustomWebApplicationFactory"/> instance (all anonymous calls share one IP
 /// partition key), which no other controller test in this suite attempts either.
 /// </summary>
+[Collection(DatabaseSerialGroup.Name)]
 public sealed class AnalyticsControllerTests(CustomWebApplicationFactory factory) : IClassFixture<CustomWebApplicationFactory>
 {
     private readonly HttpClient _client = factory.CreateClient();

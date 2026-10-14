@@ -10,6 +10,7 @@ namespace AskLucy.Web.Tests.SiteAnalysis;
 /// decorator, and the height source needs an internal decoder. None of that wiring is visible to
 /// the unit tests, which construct each piece by hand; this resolves it from the real host.
 /// </summary>
+[Collection(DatabaseSerialGroup.Name)]
 public sealed class BuildingProviderRegistrationTests(CustomWebApplicationFactory factory) : IClassFixture<CustomWebApplicationFactory>
 {
     [Fact]

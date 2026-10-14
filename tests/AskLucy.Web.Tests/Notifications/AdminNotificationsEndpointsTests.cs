@@ -17,6 +17,7 @@ using Xunit;
 namespace AskLucy.Web.Tests.Notifications;
 
 /// <summary>One host and database for the admin notification tests, with a mail password and support address to prove never leak.</summary>
+[Collection(DatabaseSerialGroup.Name)]
 public sealed class AdminNotificationsFactory : CustomWebApplicationFactory
 {
     public const string MailPassword = "s3cret-mail-password-for-tests";
@@ -38,6 +39,7 @@ public sealed class AdminNotificationsFactory : CustomWebApplicationFactory
 /// T151 — specs/067 US6, contracts/admin-notifications-api.md over the real host and database: the permission matrix (none is 403,
 /// view reads and can't act, manage does both), what a response never contains, and the once-an-hour <c>…Viewed</c> audit.
 /// </summary>
+[Collection(DatabaseSerialGroup.Name)]
 public sealed class AdminNotificationsEndpointsTests(AdminNotificationsFactory factory) : IClassFixture<AdminNotificationsFactory>, IAsyncLifetime
 {
     private const string Base = "/api/v1/admin/notifications";

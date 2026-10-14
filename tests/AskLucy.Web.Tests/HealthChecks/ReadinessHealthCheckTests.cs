@@ -11,6 +11,7 @@ namespace AskLucy.Web.Tests.HealthChecks;
 /// instance), on top of the check's own logic already covered by
 /// AskLucy.Persistence.Tests's PendingMigrationsHealthCheckTests.
 /// </summary>
+[Collection(DatabaseSerialGroup.Name)]
 public sealed class ReadinessHealthCheckTests(CustomWebApplicationFactory factory) : IClassFixture<CustomWebApplicationFactory>
 {
     private readonly HttpClient _client = factory.CreateClient();

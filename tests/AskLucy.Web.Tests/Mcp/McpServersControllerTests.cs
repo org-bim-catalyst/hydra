@@ -17,6 +17,7 @@ namespace AskLucy.Web.Tests.Mcp;
 /// <c>mcp-server-has-references</c> require a live database to actually reach the validation logic
 /// that produces them and are exercised by the Application-layer handler tests instead.
 /// </summary>
+[Collection(DatabaseSerialGroup.Name)]
 public sealed class McpServersControllerTests(CustomWebApplicationFactory factory) : IClassFixture<CustomWebApplicationFactory>
 {
     private readonly HttpClient _client = factory.CreateClient();

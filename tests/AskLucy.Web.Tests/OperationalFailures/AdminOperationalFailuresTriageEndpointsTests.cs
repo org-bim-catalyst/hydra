@@ -18,6 +18,7 @@ namespace AskLucy.Web.Tests.OperationalFailures;
 /// a transition someone else got to first is a 409 <c>incident-conflict</c>, and one root-cause
 /// resolve clears a 1,000-incident fault (SC-011).
 /// </summary>
+[Collection(DatabaseSerialGroup.Name)]
 public sealed class AdminOperationalFailuresTriageEndpointsTests(CustomWebApplicationFactory factory)
     : IClassFixture<CustomWebApplicationFactory>
 {

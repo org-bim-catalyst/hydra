@@ -17,6 +17,7 @@ using Xunit;
 namespace AskLucy.Web.Tests.Notifications;
 
 /// <summary>A test-only channel. It is deliberately not a member of <see cref="NotificationChannel"/>: see <see cref="StubChannelProofTests"/>.</summary>
+[Collection(DatabaseSerialGroup.Name)]
 internal static class StubChannel
 {
     /// <summary>A value the production enum doesn't define, so adding the stub changes no production type.</summary>
@@ -24,6 +25,7 @@ internal static class StubChannel
 }
 
 /// <summary>The stub channel's sender: records every context it is handed and reports success.</summary>
+[Collection(DatabaseSerialGroup.Name)]
 internal sealed class RecordingStubChannelSender : INotificationChannelSender
 {
     private readonly List<DeliveryContext> _sent = [];
@@ -54,6 +56,7 @@ internal sealed class RecordingStubChannelSender : INotificationChannelSender
 }
 
 /// <summary>The only wiring a new channel needs: one sender, and the singleton marker that tells the registry it exists (FR-060).</summary>
+[Collection(DatabaseSerialGroup.Name)]
 public sealed class StubChannelFactory : CustomWebApplicationFactory
 {
     internal RecordingStubChannelSender Sender { get; } = new();
@@ -91,6 +94,7 @@ public sealed class StubChannelFactory : CustomWebApplicationFactory
 /// What this does not exercise is the dispatcher's lookup of a type in the production catalogue, which by design only
 /// knows the channels the type declares; a new channel ships with the catalogue edits that opt types into it.
 /// </summary>
+[Collection(DatabaseSerialGroup.Name)]
 public sealed class StubChannelProofTests(StubChannelFactory factory) : IClassFixture<StubChannelFactory>
 {
     private const string WorkerId = "stub-channel-proof-worker";

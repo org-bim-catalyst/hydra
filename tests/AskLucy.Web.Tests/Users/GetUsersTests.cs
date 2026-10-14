@@ -11,6 +11,7 @@ namespace AskLucy.Web.Tests.Users;
 /// (integration, against a real database) — this proves the endpoint's authorization gate and
 /// that it accepts the query-string shape without erroring on validation.
 /// </summary>
+[Collection(DatabaseSerialGroup.Name)]
 public sealed class GetUsersTests(CustomWebApplicationFactory factory) : IClassFixture<CustomWebApplicationFactory>
 {
     private readonly HttpClient _client = factory.CreateClient();
