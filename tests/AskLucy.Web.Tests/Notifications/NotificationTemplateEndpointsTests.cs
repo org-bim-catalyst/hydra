@@ -257,7 +257,7 @@ public sealed class NotificationTemplateEndpointsTests(AdminNotificationsFactory
             .Should().BeFalse();
     }
 
-    [Fact(Skip = "Temporarily skipped: fails on the shared CI host; the notifications session re-enables it.")]
+    [Fact]
     public async Task SendTest_TheEleventhInAnHour_Is429()
     {
         var (admin, _) = await RealAdminAsync();
@@ -299,7 +299,7 @@ public sealed class NotificationTemplateEndpointsTests(AdminNotificationsFactory
         (await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken)).Should().Contain(expected);
     }
 
-    [Fact(Skip = "Temporarily skipped: 500 on the shared CI DB, not 409; the notifications session re-enables it.")]
+    [Fact]
     public async Task UpdateDraft_NeedsIfMatch_AndAStaleOneIsAConcurrencyConflict()
     {
         var admin = Manager();
@@ -334,7 +334,7 @@ public sealed class NotificationTemplateEndpointsTests(AdminNotificationsFactory
 
     // ---- publish / archive ----
 
-    [Fact(Skip = "Temporarily skipped: 500 on the shared CI DB; restore after deploy.")]
+    [Fact]
     public async Task Publish_ArchivesThePreviousVersion_AndKeepsIt_AndEveryActionIsAudited()
     {
         var admin = Manager();

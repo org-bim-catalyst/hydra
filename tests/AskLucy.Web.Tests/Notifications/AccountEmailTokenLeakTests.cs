@@ -38,7 +38,7 @@ public sealed partial class AccountEmailTokenLeakTests(AccountEmailHubFactory fa
     [GeneratedRegex(@"https?://[^\s""<]+", RegexOptions.CultureInvariant)]
     private static partial Regex Url();
 
-    [Fact(Skip = "Temporarily skipped: fails on the shared CI host; the notifications session re-enables it.")]
+    [Fact]
     public async Task EveryAccountEmailType_LeavesNoTokenOrLinkInAnyStorageOrLogSink()
     {
         var ct = TestContext.Current.CancellationToken;
@@ -137,7 +137,8 @@ public sealed partial class AccountEmailTokenLeakTests(AccountEmailHubFactory fa
     private static async Task<AskLucy.Application.Abstractions.EmailMessage> WaitForEmailAsync(
         string to, string subject, CancellationToken ct, int skip = 0, bool toPrefix = false)
     {
-        var deadline = DateTime.UtcNow.AddSeconds(90);
+        // Mail is handed off through the notification outbox, which is slow on the remote CI database; 90 s was too tight.
+        var deadline = DateTime.UtcNow.AddSeconds(120);
         while (DateTime.UtcNow < deadline)
         {
             var matches = ScriptableEmailSender.Shared.AcceptedMessages
@@ -151,7 +152,7 @@ public sealed partial class AccountEmailTokenLeakTests(AccountEmailHubFactory fa
             await Task.Delay(250, ct);
         }
 
-        throw new TimeoutException($"No '{subject}' email reached {to} within 90 seconds.");
+        throw new TimeoutException($"No '{subject}' email reached {to} within 120 seconds.");
     }
 
     private async Task<string> SeedConfirmedUserAsync(string email)

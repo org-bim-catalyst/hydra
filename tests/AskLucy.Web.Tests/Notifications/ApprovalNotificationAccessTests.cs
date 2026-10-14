@@ -170,7 +170,8 @@ public sealed class ApprovalNotificationAccessTests(ApprovalNotificationFactory 
 
     private async Task<Notification> WaitForNotificationAsync(string userId, Func<Notification, bool> ready)
     {
-        var deadline = DateTime.UtcNow.AddSeconds(30);
+        // The remote CI database is slow to materialise outbox events; 30 s was too tight for it.
+        var deadline = DateTime.UtcNow.AddSeconds(120);
         while (DateTime.UtcNow < deadline)
         {
             await using var scope = factory.Services.CreateAsyncScope();
@@ -185,7 +186,7 @@ public sealed class ApprovalNotificationAccessTests(ApprovalNotificationFactory 
             await Task.Delay(200, TestContext.Current.CancellationToken);
         }
 
-        throw new TimeoutException($"The expected notification for {userId} didn't appear within 30 s.");
+        throw new TimeoutException($"The expected notification for {userId} didn't appear within 120 s.");
     }
 
     private async Task<List<NotificationAuditLog>> AuditRowsAsync(Notification notification)
@@ -262,7 +263,7 @@ public sealed class ApprovalNotificationAccessTests(ApprovalNotificationFactory 
 
     // ---- audit trail ----
 
-    [Fact(Skip = "Temporarily skipped: approval notification not delivered on the shared CI host; the notifications session re-enables it.")]
+    [Fact]
     public async Task CreationDeliveryAndFirstRead_EachLeaveOneAuditRow_WithTheCorrelationId()
     {
         var (executionId, agentId, approvalId) = await SeedAgentApprovalAsync();

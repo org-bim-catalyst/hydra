@@ -107,7 +107,7 @@ public sealed class AccountEmailAntiEnumerationTests(AccountEmailHubFactory fact
     private static string Sha256Hex(string address) =>
         Convert.ToHexStringLower(SHA256.HashData(Encoding.UTF8.GetBytes(address.ToLowerInvariant())));
 
-    [Fact(Skip = "Temporarily skipped: fails on the shared CI host; the notifications session re-enables it.")]
+    [Fact]
     public async Task PasswordReset_KnownAndUnknownAddress_GiveTheSameStatusBodyAndTimingEnvelope_AndOneOutboxInsertEach()
     {
         var unknown = $"nobody-{Guid.NewGuid():N}@example.com";
@@ -137,7 +137,7 @@ public sealed class AccountEmailAntiEnumerationTests(AccountEmailHubFactory fact
             "an observer must not be able to infer account existence from response time (SC-002, FR-003)");
     }
 
-    [Fact(Skip = "Temporarily skipped: fails on the shared CI host; the notifications session re-enables it.")]
+    [Fact]
     public async Task PasswordReset_ForAnUnknownAddress_EndsAsNoRecipient_WithNoNotificationAndNoEmail_AndOnlyAHashInTheLog()
     {
         var unknown = $"Nobody-{Guid.NewGuid():N}@Example.com";
