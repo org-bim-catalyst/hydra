@@ -10422,15 +10422,15 @@
     "semantic_hash": "11fa42fca592454426fb423c7b8f22de"
   },
   "src/AskLucy.Web/ClientApp/src/components/workspace-shell/ExpandableActionGroup.test.tsx": {
-    "mtime": 1791974302.910019,
-    "seen": 1791974431.7806654,
-    "ast_hash": "198c018a7e81f6d1ae97d10bb4df90f5",
+    "mtime": 1791976664.1228912,
+    "seen": 1791976809.4814477,
+    "ast_hash": "b0376e0cf83d6ee7edec8890509a8279",
     "semantic_hash": ""
   },
   "src/AskLucy.Web/ClientApp/src/components/workspace-shell/ExpandableActionGroup.tsx": {
-    "mtime": 1791976223.1325495,
-    "seen": 1791976386.34906,
-    "ast_hash": "21baba56213030df89fa55957a3945b5",
+    "mtime": 1791981154.3754206,
+    "seen": 1791981317.1408846,
+    "ast_hash": "d85cdc91cc4611b9dca269ca630abf72",
     "semantic_hash": ""
   },
   "src/AskLucy.Web/ClientApp/src/components/workspace-shell/FloatingPanel.a11y.test.tsx": {
@@ -29790,9 +29790,9 @@
     "semantic_hash": ""
   },
   "src/AskLucy.Web/ClientApp/src/features/viewer/components/SiteBoundaryCornerNavigator.tsx": {
-    "mtime": 1791974302.9117222,
-    "seen": 1791974431.7812805,
-    "ast_hash": "9faf77f33e3ceb55f76d7f054640e287",
+    "mtime": 1791976664.1217697,
+    "seen": 1791976809.4821458,
+    "ast_hash": "87e89a70a7738c2f6e4056f7add4520f",
     "semantic_hash": ""
   },
   "src/AskLucy.Web/ClientApp/src/features/viewer/components/SiteBoundaryChatSwitchDialog.test.tsx": {
