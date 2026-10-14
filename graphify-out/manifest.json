@@ -10428,9 +10428,9 @@
     "semantic_hash": ""
   },
   "src/AskLucy.Web/ClientApp/src/components/workspace-shell/ExpandableActionGroup.tsx": {
-    "mtime": 1791921792.1828353,
-    "seen": 1791921911.9355147,
-    "ast_hash": "9deab91e03208c9cc9bb0160b73ba657",
+    "mtime": 1791945020.820032,
+    "seen": 1791945287.9565005,
+    "ast_hash": "dfa19614fee51a37aed09215641456d8",
     "semantic_hash": ""
   },
   "src/AskLucy.Web/ClientApp/src/components/workspace-shell/FloatingPanel.a11y.test.tsx": {
@@ -26658,9 +26658,9 @@
     "semantic_hash": ""
   },
   "tests/AskLucy.Web.Tests/OperationalFailures/OperationalFailureHostTests.cs": {
-    "mtime": 1790379262.1321497,
-    "seen": 1790379644.3202162,
-    "ast_hash": "881100b5627407668beb32a086904b31",
+    "mtime": 1791946306.739796,
+    "seen": 1791946635.9482906,
+    "ast_hash": "e06a37e0cdb3ab1d68f80b47eeb51ef6",
     "semantic_hash": ""
   },
   "src/AskLucy.Application/OperationalFailures/CorrectiveActionCatalog.cs": {
