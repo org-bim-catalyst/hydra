@@ -296,4 +296,4 @@ Problems found and fixed during the walkthrough: flyouts did not close on Escape
 - **Group flyouts:** Down arrow opens a flyout on the keyboard; Tab and Shift+Tab loop through its tools while it is open, and Up and Down move between them. Escape closes an open flyout wherever focus is, returning focus to its group button; the next Escape collapses an unpinned ribbon.
 - **Saved group order:** tools added after a user reordered a group now appear at the end of that group.
 - **Refusals:** a drag's refusal message stays until the next press.
-- **Pre-feature rows:** covered by `SiteBoundaryCorrectionRepositoryTests` (voids default to none). That test needs the test2 database and was not run in this session.
+- **Pre-feature rows:** covered by `SiteBoundaryCorrectionRepositoryTests` (voids default to none). Run against the test2 database: 5 of 5 pass.
