@@ -19770,9 +19770,9 @@
     "semantic_hash": ""
   },
   "tests/AskLucy.Web.Tests/Auth/ForgotPasswordEndpointTests.cs": {
-    "mtime": 1791312283.3747416,
-    "seen": 1791312376.435528,
-    "ast_hash": "cbbad994e0066c026a8d0c41ec6cf0f4",
+    "mtime": 1791960536.0639927,
+    "seen": 1791960654.638627,
+    "ast_hash": "6a27e5cc0f5b3d44d251c91312c1b6b3",
     "semantic_hash": ""
   },
   "tests/AskLucy.Web.Tests/Auth/PasswordChangeSessionRevocationTests.cs": {
@@ -27342,9 +27342,9 @@
     "semantic_hash": ""
   },
   "tests/AskLucy.Web.Tests/Authorization/ContentPermissionGrantPathsTests.cs": {
-    "mtime": 1790438958.74676,
-    "seen": 1790439485.8944433,
-    "ast_hash": "ca312f9abfb958cc94a5b064a9971443",
+    "mtime": 1791952997.669772,
+    "seen": 1791953101.4180086,
+    "ast_hash": "fa117a74dec8586611cefbc86cabcacf",
     "semantic_hash": ""
   },
   "src/AskLucy.Web/ClientApp/src/features/solar/buildings/siteBuildingsRadius.test.ts": {
@@ -29394,9 +29394,9 @@
     "semantic_hash": ""
   },
   "src/AskLucy.Web/ClientApp/src/viewer/siteBoundaryEdit/siteBoundaryEditStore.ts": {
-    "mtime": 1791314966.8332717,
-    "seen": 1791343295.0835319,
-    "ast_hash": "08dd24512a17881d0f781e52f3c594f8",
+    "mtime": 1791958925.0000749,
+    "seen": 1791959413.8980534,
+    "ast_hash": "3147fe42eebd41904aeda57828bb71ad",
     "semantic_hash": ""
   },
   "src/AskLucy.Application/Chats/Commands/SaveSiteBoundaryEdit/SaveSiteBoundaryEditCommand.cs": {
@@ -29628,9 +29628,9 @@
     "semantic_hash": ""
   },
   "src/AskLucy.Web/ClientApp/src/features/viewer/components/SiteBoundaryShapeDialog.tsx": {
-    "mtime": 1791314966.827274,
-    "seen": 1791343295.0832703,
-    "ast_hash": "f873c3f468adc1a82f46c2fd853a67f4",
+    "mtime": 1791958925.0010746,
+    "seen": 1791959413.8977318,
+    "ast_hash": "a7e453af16b4dccdbe26a5f4aa140c72",
     "semantic_hash": ""
   },
   "src/AskLucy.Web/ClientApp/src/viewer/siteBoundaryEdit/googlePixelProjector.ts": {
@@ -32142,15 +32142,15 @@
     "semantic_hash": ""
   },
   "src/AskLucy.Web/ClientApp/src/features/chat/outlineToolGroupStore.test.ts": {
-    "mtime": 1791895291.760501,
-    "seen": 1791895464.6208656,
-    "ast_hash": "e3011398c1cb2d4238cced85e4180e86",
+    "mtime": 1791956426.8442566,
+    "seen": 1791956539.5708988,
+    "ast_hash": "2ae38bc6fef0ad9c0bec57e45698f69f",
     "semantic_hash": ""
   },
   "src/AskLucy.Web/ClientApp/src/features/chat/outlineToolGroupStore.ts": {
-    "mtime": 1791950555.406773,
-    "seen": 1791950780.8506052,
-    "ast_hash": "4973f28288f52e633797aa15bed0f5ab",
+    "mtime": 1791956426.807643,
+    "seen": 1791956539.5709012,
+    "ast_hash": "d827178de056a79769fff1efe296bbd0",
     "semantic_hash": ""
   },
   "src/AskLucy.Web/ClientApp/src/features/mcp/pages/McpAdministrationPage.rtl.test.tsx": {

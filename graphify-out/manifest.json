@@ -10422,15 +10422,15 @@
     "semantic_hash": "11fa42fca592454426fb423c7b8f22de"
   },
   "src/AskLucy.Web/ClientApp/src/components/workspace-shell/ExpandableActionGroup.test.tsx": {
-    "mtime": 1791895350.2682385,
-    "seen": 1791895464.6205518,
-    "ast_hash": "fa0961d46a4a04d20589fa69424a2dae",
+    "mtime": 1791962632.2056992,
+    "seen": 1791962790.5623522,
+    "ast_hash": "b41b9c032ec7ab5dd090e94632c24840",
     "semantic_hash": ""
   },
   "src/AskLucy.Web/ClientApp/src/components/workspace-shell/ExpandableActionGroup.tsx": {
-    "mtime": 1791945020.820032,
-    "seen": 1791945287.9565005,
-    "ast_hash": "dfa19614fee51a37aed09215641456d8",
+    "mtime": 1791962613.0429716,
+    "seen": 1791962790.5623536,
+    "ast_hash": "0d5901cff61f944c17d1726efdc2512d",
     "semantic_hash": ""
   },
   "src/AskLucy.Web/ClientApp/src/components/workspace-shell/FloatingPanel.a11y.test.tsx": {
@@ -19770,9 +19770,9 @@
     "semantic_hash": ""
   },
   "tests/AskLucy.Web.Tests/Auth/ForgotPasswordEndpointTests.cs": {
-    "mtime": 1791312283.3747416,
-    "seen": 1791312376.435528,
-    "ast_hash": "cbbad994e0066c026a8d0c41ec6cf0f4",
+    "mtime": 1791960536.0639927,
+    "seen": 1791960654.638627,
+    "ast_hash": "6a27e5cc0f5b3d44d251c91312c1b6b3",
     "semantic_hash": ""
   },
   "tests/AskLucy.Web.Tests/Auth/PasswordChangeSessionRevocationTests.cs": {
@@ -29394,9 +29394,9 @@
     "semantic_hash": ""
   },
   "src/AskLucy.Web/ClientApp/src/viewer/siteBoundaryEdit/siteBoundaryEditStore.ts": {
-    "mtime": 1791314966.8332717,
-    "seen": 1791343295.0835319,
-    "ast_hash": "08dd24512a17881d0f781e52f3c594f8",
+    "mtime": 1791958925.0000749,
+    "seen": 1791959413.8980534,
+    "ast_hash": "3147fe42eebd41904aeda57828bb71ad",
     "semantic_hash": ""
   },
   "src/AskLucy.Application/Chats/Commands/SaveSiteBoundaryEdit/SaveSiteBoundaryEditCommand.cs": {
@@ -29628,9 +29628,9 @@
     "semantic_hash": ""
   },
   "src/AskLucy.Web/ClientApp/src/features/viewer/components/SiteBoundaryShapeDialog.tsx": {
-    "mtime": 1791314966.827274,
-    "seen": 1791343295.0832703,
-    "ast_hash": "f873c3f468adc1a82f46c2fd853a67f4",
+    "mtime": 1791958925.0010746,
+    "seen": 1791959413.8977318,
+    "ast_hash": "a7e453af16b4dccdbe26a5f4aa140c72",
     "semantic_hash": ""
   },
   "src/AskLucy.Web/ClientApp/src/viewer/siteBoundaryEdit/googlePixelProjector.ts": {
