@@ -299,7 +299,7 @@ public sealed class NotificationTemplateEndpointsTests(AdminNotificationsFactory
         (await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken)).Should().Contain(expected);
     }
 
-    [Fact(Skip = "Temporarily skipped: 500 on the shared CI DB, not 409; the notifications session re-enables it.")]
+    [Fact]
     public async Task UpdateDraft_NeedsIfMatch_AndAStaleOneIsAConcurrencyConflict()
     {
         var admin = Manager();
