@@ -46,5 +46,8 @@ export const useOutlineToolGroupStore = create<OutlineToolGroupState>()(
 
 /** A group's tools in display order: the first is the button's. */
 export function orderOf(group: OutlineToolGroupId, order: Partial<Record<OutlineToolGroupId, string[]>>): string[] {
-  return order[group] ?? [...OUTLINE_TOOL_GROUPS[group].tools]
+  const defaults: readonly string[] = OUTLINE_TOOL_GROUPS[group].tools
+  const saved = (order[group] ?? []).filter((tool) => defaults.includes(tool))
+  // A saved order predates any tool added since; those join the end, so a new tool is never hidden by an old order.
+  return [...saved, ...defaults.filter((tool) => !saved.includes(tool))]
 }

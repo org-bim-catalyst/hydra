@@ -35,3 +35,16 @@ describe('outlineToolGroupStore', () => {
     for (const group of Object.values(OUTLINE_TOOL_GROUPS)) expect(group.tools).toContain(group.defaultTool)
   })
 })
+
+describe('orderOf with a saved order from before a tool was added', () => {
+  it('keeps the saved order and appends the tools it does not list', () => {
+    expect(orderOf('rectangle', { rectangle: ['cut-rectangle', 'add-rectangle', 'cut-square', 'add-square'] })).toEqual([
+      'cut-rectangle',
+      'add-rectangle',
+      'cut-square',
+      'add-square',
+      'typed-rectangle',
+      'typed-square',
+    ])
+  })
+})
