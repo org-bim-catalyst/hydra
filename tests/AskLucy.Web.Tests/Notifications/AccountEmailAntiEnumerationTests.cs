@@ -107,7 +107,7 @@ public sealed class AccountEmailAntiEnumerationTests(AccountEmailHubFactory fact
     private static string Sha256Hex(string address) =>
         Convert.ToHexStringLower(SHA256.HashData(Encoding.UTF8.GetBytes(address.ToLowerInvariant())));
 
-    [Fact(Skip = "Temporarily skipped: fails on the shared CI host; the notifications session re-enables it.")]
+    [Fact]
     public async Task PasswordReset_KnownAndUnknownAddress_GiveTheSameStatusBodyAndTimingEnvelope_AndOneOutboxInsertEach()
     {
         var unknown = $"nobody-{Guid.NewGuid():N}@example.com";
