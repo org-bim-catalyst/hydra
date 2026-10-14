@@ -114,5 +114,11 @@ describe('ExpandableActionGroup', () => {
       fireEvent.click(menu().querySelector<HTMLElement>('[aria-label="Tool C"]')!)
       expect(onChooseTool).toHaveBeenCalledWith('c')
     })
+
+    it('a Down arrow moves focus to the first enabled tool, so the keyboard can reach the flyout', () => {
+      render(<ExpandableActionGroup actions={[group({ highlighted: true })]} />)
+      fireEvent.keyDown(trigger(), { key: 'ArrowDown' })
+      expect(document.activeElement).toBe(menu().querySelector('[aria-label="Tool C"]'))
+    })
   })
 })

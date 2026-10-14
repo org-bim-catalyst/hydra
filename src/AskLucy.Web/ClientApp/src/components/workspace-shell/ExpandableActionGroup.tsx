@@ -109,6 +109,8 @@ function ToolGroupButton({ action }: { action: ExpandableActionGroupAction }) {
   const [open, setOpen] = useState(false)
   const [mounted, setMounted] = useState(false)
   const [flyoutPlace, setFlyoutPlace] = useState<{ left: number; top: number } | null>(null)
+  // Opened from the keyboard: the flyout takes focus, since it sits at the end of the page where Tab never reaches it.
+  const [focusFirst, setFocusFirst] = useState(false)
   const pressTimer = useRef<number | undefined>(undefined)
   const pressOpened = useRef(false)
   const buttonRef = useRef<HTMLButtonElement>(null)
@@ -122,9 +124,10 @@ function ToolGroupButton({ action }: { action: ExpandableActionGroupAction }) {
     return rect ? { left: rect.left + rect.width / 2, top: rect.top } : null
   }
 
-  const openFlyout = () => {
+  const openFlyout = (fromKeyboard = false) => {
     const place = measure()
     if (!place) return
+    setFocusFirst(fromKeyboard)
     closeOpenFlyout?.()
     closeOpenFlyout = closeFlyout
     setFlyoutPlace(place)
@@ -170,7 +173,7 @@ function ToolGroupButton({ action }: { action: ExpandableActionGroupAction }) {
   const onKeyDown = (event: KeyboardEvent<HTMLButtonElement>) => {
     if (event.key === 'ArrowDown') {
       event.preventDefault()
-      openFlyout()
+      openFlyout(true)
     }
   }
 
@@ -235,6 +238,7 @@ function ToolGroupButton({ action }: { action: ExpandableActionGroupAction }) {
       {mounted && flyoutPlace && createPortal(
         <FlyoutStrip
           inProp={open}
+          focusFirst={focusFirst}
           onExited={() => setMounted(false)}
           label={action.label}
           place={flyoutPlace}
@@ -269,8 +273,10 @@ function ToolGroupButton({ action }: { action: ExpandableActionGroupAction }) {
 }
 
 /** The flyout strip: revealed with the parent ribbon's clip-path slide, from the trunk outwards. */
-function FlyoutStrip({ inProp, onExited, label, place, onClickAway, onEscape, children }: {
+function FlyoutStrip({ inProp, focusFirst, onExited, label, place, onClickAway, onEscape, children }: {
   inProp: boolean
+  /** Opened from the keyboard: the first enabled tool takes focus. */
+  focusFirst: boolean
   onExited?: () => void
   label: string
   place: { left: number; top: number }
@@ -279,6 +285,13 @@ function FlyoutStrip({ inProp, onExited, label, place, onClickAway, onEscape, ch
   children: ReactNode
 }) {
   const [revealed, setRevealed] = useState(false)
+  const stripRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    if (focusFirst) stripRef.current?.querySelector<HTMLButtonElement>('button:not(:disabled)')?.focus()
+    // Only on mount: the strip opens once per press of the group button.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   useEffect(() => {
     const frame = requestAnimationFrame(() => setRevealed(inProp))
@@ -294,6 +307,7 @@ function FlyoutStrip({ inProp, onExited, label, place, onClickAway, onEscape, ch
   return (
     <ClickAwayListener onClickAway={(event) => onClickAway(event.target as Node)}>
     <Paper
+      ref={stripRef}
       elevation={6}
       role="toolbar"
       aria-label={label}
