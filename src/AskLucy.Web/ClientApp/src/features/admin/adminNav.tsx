@@ -152,6 +152,13 @@ export const ADMIN_NAV: AdminNavItem[] = [
     permission: 'admin.notifications.view',
   },
   {
+    path: '/admin/provider-health',
+    label: 'Provider health',
+    labelKey: 'nav.providerHealth',
+    icon: <TranslateOutlinedIcon fontSize="small" />,
+    permission: 'admin.operational-failures.view',
+  },
+  {
     id: 'hangfire-dashboard',
     label: 'Jobs',
     labelKey: 'nav.jobs',

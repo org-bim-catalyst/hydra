@@ -13,6 +13,7 @@ export const enAdminShell = {
     roleAssignments: 'Role assignments',
     systemAgents: 'System agents',
     aiProviders: 'AI providers',
+    providerHealth: 'Provider health',
     defaultModels: 'Default models',
     aiCapabilities: 'AI capabilities',
     voice: 'Voice',
