@@ -93,6 +93,7 @@ jobs:
           # Time a trivial query against the shared SQL host every 10 seconds during the run. A slow answer from the server is a
           # load signal, and a failed attempt is recorded rather than dropped.
           if (-not (Get-Module -ListAvailable SqlServer)) { Install-Module SqlServer -Force -Scope CurrentUser -AllowClobber }
+          Import-Module SqlServer
           $sampler = Start-Job -ArgumentList $env:PERSISTENCE_TESTS_CONNECTION_STRING, (Join-Path $PWD 'TestResults/sql-sampler.csv') -ScriptBlock {
             param($connectionString, $logPath)
             Import-Module SqlServer
@@ -109,6 +110,20 @@ jobs:
             }
           }
 
+          # Row count of every table before and after the run. A table that grows on every run is one the tests write to; a
+          # table that stays flat is seed data or the migration history. A failed snapshot is recorded in the file, not dropped.
+          $rowCountQuery = "SELECT s.name + '.' + t.name AS table_name, SUM(p.rows) AS row_count FROM sys.tables t JOIN sys.schemas s ON s.schema_id = t.schema_id JOIN sys.partitions p ON p.object_id = t.object_id AND p.index_id IN (0, 1) GROUP BY s.name, t.name ORDER BY 1"
+          function Save-RowCounts([string]$path) {
+            try {
+              Invoke-Sqlcmd -ConnectionString $env:PERSISTENCE_TESTS_CONNECTION_STRING -Query $rowCountQuery -QueryTimeout 60 |
+                Select-Object table_name, row_count | Export-Csv -NoTypeInformation -Path $path
+            } catch {
+              "error,$($_.Exception.GetType().Name)" | Out-File -FilePath $path
+              Write-Host "::warning::Row count snapshot failed: $($_.Exception.GetType().Name)"
+            }
+          }
+          Save-RowCounts (Join-Path $PWD 'TestResults/rowcounts-before.csv')
+
           $exit = 0
           try {
             dotnet test "Ask Lucy.sln" --no-build --configuration Release --logger "trx" --results-directory TestResults ${{ inputs.test_filter && format('--filter "{0}"', inputs.test_filter) || '' }}
@@ -117,6 +132,7 @@ jobs:
             Stop-Job -Job $sampler
             Receive-Job -Job $sampler -ErrorAction Continue
             Remove-Job -Job $sampler -Force
+            Save-RowCounts (Join-Path $PWD 'TestResults/rowcounts-after.csv')
           }
           exit $exit
         env:
