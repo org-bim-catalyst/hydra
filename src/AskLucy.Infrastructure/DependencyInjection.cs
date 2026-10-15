@@ -550,6 +550,7 @@ public static class DependencyInjection
         services.AddScoped<IAccountLinkIssuer, AccountLinkIssuer>();
         services.AddScoped<NotificationLeaseSweepJob>();
         services.AddScoped<NotificationRetentionJob>();
+        services.AddScoped<ProviderHealthCheckRetentionJob>();
         services.AddSingleton<SmtpConnectionHolder>();
         services.AddSingleton<AskLucy.Application.Localization.ILocalizationSettingsProvider, CachedLocalizationSettingsProvider>();
         services.AddScoped<IEffectiveLanguageResolver, EffectiveLanguageResolver>();
