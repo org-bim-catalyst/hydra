@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using System.Reflection;
 using Microsoft.Data.SqlClient;
 using Xunit.v3;
@@ -28,20 +29,25 @@ public sealed class TestDataCleanupAttribute : BeforeAfterTestAttribute
         "dbo.RefreshTokens",
     ];
 
-    // Everything written since the previous cleanup is removed, so rows written in class setup, between tests, are covered too.
-    private static DateTime _lastCleanupUtc = DateTime.UtcNow;
+    // Rows written by class setup (shared fixtures) are used by later tests in the same class, so only rows created while the
+    // test itself runs are removed.
+    private static readonly ConcurrentDictionary<string, DateTime> WindowStarts = new();
+
+    public override void Before(MethodInfo methodUnderTest, IXunitTest test)
+    {
+        if (IsDatabaseTest(test))
+        {
+            WindowStarts[test.UniqueID] = DateTime.UtcNow;
+        }
+    }
 
     public override void After(MethodInfo methodUnderTest, IXunitTest test)
     {
         // An exception here fails the test that just ran, so a cleanup problem is never silently skipped.
-        if (!IsDatabaseTest(test))
+        if (WindowStarts.TryRemove(test.UniqueID, out var windowStart))
         {
-            return;
+            DeleteRowsSince(windowStart).GetAwaiter().GetResult();
         }
-
-        var now = DateTime.UtcNow;
-        DeleteRowsSince(_lastCleanupUtc).GetAwaiter().GetResult();
-        _lastCleanupUtc = now;
     }
 
     private static async Task DeleteRowsSince(DateTime windowStart)
