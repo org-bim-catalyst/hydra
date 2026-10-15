@@ -3,7 +3,7 @@ using System.Reflection;
 using Microsoft.Data.SqlClient;
 using Xunit.v3;
 
-[assembly: AskLucy.Web.Tests.TestDataCleanupAttribute]
+// control run: cleanup disabled
 
 namespace AskLucy.Web.Tests;
 
