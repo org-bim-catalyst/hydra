@@ -73,6 +73,8 @@ jobs:
         shell: pwsh
         run: |
           New-Item -ItemType Directory -Force -Path TestResults | Out-Null
+          # Start of this run, in the format SQL Server compares against CreatedAtUtc. The cleanup step reads it back.
+          "TEST_RUN_START=$((Get-Date).ToUniversalTime().ToString('yyyy-MM-dd HH:mm:ss.fffffff'))" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
 
           # Where this runner exits to, and whether TCP 1433 to the shared SQL host answers from here.
           # Only key names are printed if the server key is missing: the values are secrets.
@@ -141,6 +143,27 @@ jobs:
           # Persistence.Tests only: the dedicated test2 DB, emptied on every run. It needs every
           # migration applied by hand (docs/TESTING.md §13), or this suite fails.
           PERSISTENCE_TESTS_2_CONNECTION_STRING: ${{ secrets.PERSISTENCE_TESTS_2_CONNECTION_STRING }}
+
+      # Removes the rows this run created from the shared test DB, once the whole suite has finished. Identity and seed tables are
+      # never listed here.
+      - name: Remove this run's test rows
+        if: always()
+        shell: pwsh
+        run: |
+          if (-not $env:TEST_RUN_START) { throw 'TEST_RUN_START was not recorded, so nothing was removed.' }
+          if (-not (Get-Module -ListAvailable SqlServer)) { Install-Module SqlServer -Force -Scope CurrentUser -AllowClobber }
+          Import-Module SqlServer
+          # Child tables first, so no foreign key points at a row that has already been deleted.
+          $tables = 'dbo.NotificationAuditLogs', 'dbo.NotificationDeliveries', 'dbo.NotificationOutboxEvents', 'dbo.Notifications',
+            'dbo.RoleAuditLogs', 'dbo.KnowledgeBaseAuditLogs', 'dbo.OperationalFailureOccurrences', 'dbo.DocumentChecksums',
+            'dbo.DocumentStatistics', 'dbo.RefreshTokens'
+          foreach ($table in $tables) {
+            $query = "DELETE FROM $table WHERE CreatedAtUtc >= '$($env:TEST_RUN_START)'"
+            Invoke-Sqlcmd -ConnectionString $env:PERSISTENCE_TESTS_CONNECTION_STRING -Query $query -QueryTimeout 300 | Out-Null
+            Write-Host "Removed this run's rows from $table"
+          }
+        env:
+          PERSISTENCE_TESTS_CONNECTION_STRING: ${{ secrets.PERSISTENCE_TESTS_CONNECTION_STRING }}
 
       - name: Upload test results
         if: always()
