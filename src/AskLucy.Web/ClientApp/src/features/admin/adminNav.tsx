@@ -154,7 +154,7 @@ export const ADMIN_NAV: AdminNavItem[] = [
   {
     path: '/admin/provider-health',
     label: 'Provider health',
-    labelKey: 'nav.operationalFailures',
+    labelKey: 'nav.providerHealth',
     icon: <TranslateOutlinedIcon fontSize="small" />,
     permission: 'admin.operational-failures.view',
   },
