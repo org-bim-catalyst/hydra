@@ -165,6 +165,17 @@ jobs:
         env:
           PERSISTENCE_TESTS_CONNECTION_STRING: ${{ secrets.PERSISTENCE_TESTS_CONNECTION_STRING }}
 
+      # Row counts after the removal, to compare with the snapshot taken before the suite.
+      - name: Snapshot row counts after removal
+        if: always()
+        shell: pwsh
+        run: |
+          $query = "SELECT s.name + '.' + t.name AS table_name, SUM(p.rows) AS row_count FROM sys.tables t JOIN sys.schemas s ON s.schema_id = t.schema_id JOIN sys.partitions p ON p.object_id = t.object_id AND p.index_id IN (0, 1) GROUP BY s.name, t.name ORDER BY 1"
+          Invoke-Sqlcmd -ConnectionString $env:PERSISTENCE_TESTS_CONNECTION_STRING -Query $query -QueryTimeout 60 |
+            Select-Object table_name, row_count | Export-Csv -NoTypeInformation -Path (Join-Path $PWD 'TestResults/rowcounts-final.csv')
+        env:
+          PERSISTENCE_TESTS_CONNECTION_STRING: ${{ secrets.PERSISTENCE_TESTS_CONNECTION_STRING }}
+
       - name: Upload test results
         if: always()
         uses: actions/upload-artifact@v7
