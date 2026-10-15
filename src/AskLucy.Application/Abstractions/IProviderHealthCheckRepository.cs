@@ -9,4 +9,7 @@ public interface IProviderHealthCheckRepository
     Task<IReadOnlyList<ProviderHealthCheck>> ListRecentByProviderIdAsync(Guid providerId, int take, CancellationToken cancellationToken = default);
 
     void Add(ProviderHealthCheck check);
+
+    /// <summary>Deletes checks recorded before the cutoff. Returns the number of rows removed.</summary>
+    Task<int> DeleteCheckedBeforeAsync(DateTime cutoffUtc, CancellationToken cancellationToken);
 }

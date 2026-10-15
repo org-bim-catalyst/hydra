@@ -1142,3 +1142,9 @@ Planned modules include:
 * Oracle Fusion Integration
 
 No future module should require redesigning the existing core schema. Instead, it should extend the model using new bounded contexts, foreign keys, and interfaces while preserving backward compatibility.
+
+## ProviderHealthChecks
+
+One row per provider health check, written every `ProviderHealthCheck:Interval` by the health-check hosted service. Append-only; each row references its provider through a cascade-delete foreign key.
+
+Retention: the daily Hangfire job `provider-health-check-retention` (03:30, `ProviderHealthCheckRetentionJob`) deletes rows with `CheckedAtUtc` older than `ProviderHealthCheck:RetentionDays` (default 30) in a single `ExecuteDeleteAsync`. The index `IX_ProviderHealthChecks_ProviderId_CheckedAtUtc` leads with `ProviderId`, so this time-only delete scans the table rather than seeking; that is acceptable while the table stays small. Add a `CheckedAtUtc`-leading index if it grows.
