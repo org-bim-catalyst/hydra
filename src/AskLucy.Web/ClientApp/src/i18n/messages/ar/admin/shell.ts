@@ -15,7 +15,7 @@ export const arAdminShell = {
     roleAssignments: 'تعيين الأدوار',
     systemAgents: 'وكلاء النظام',
     aiProviders: 'مزودو الذكاء الاصطناعي',
-    providerHealth: 'فحص حالة المزودين',
+    providerHealth: 'فحص حالة المزود',
     defaultModels: 'النماذج الافتراضية',
     aiCapabilities: 'قدرات الذكاء الاصطناعي',
     voice: 'الصوت',
