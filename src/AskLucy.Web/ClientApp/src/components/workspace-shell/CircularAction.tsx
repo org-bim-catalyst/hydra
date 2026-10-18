@@ -4,6 +4,7 @@ import { type KeyboardEvent, type ReactNode, useRef } from 'react'
 import { radius } from '../../theme'
 import { zIndex } from '../../theme/tokens/zIndex'
 import { CIRCULAR_ACTION_CHROME } from './circularActionChrome'
+import { flyoutWasOpenAtPointerDown } from './flyoutPointerState'
 
 /** Direction the ribbon expands relative to the trigger button, derived from placement:
  * right-edge → left, top → down, bottom → up, left → right. */
@@ -181,7 +182,13 @@ export function CircularAction({
   }
 
   return (
-    <ClickAwayListener onClickAway={() => expanded && !pinned && onToggle()}>
+    <ClickAwayListener
+      onClickAway={() => {
+        // A click that dismisses an open flyout only does that; the ribbon collapses on the next click.
+        if (flyoutWasOpenAtPointerDown()) return
+        if (expanded && !pinned) onToggle()
+      }}
+    >
       {/* Outer Box sets the in-flow footprint (Fab size only — never changes on expand). */}
       <Box onKeyDown={handleKeyDown} sx={{ position: 'relative', display: 'inline-flex' }}>
 

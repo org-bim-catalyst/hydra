@@ -1,0 +1,6 @@
+{
+  "name": "AI model retired",
+  "title": "{{ modelNames }} was retired",
+  "message": "{{ itemSummary }} now use {{ replacementSummary }}. You can choose a different model in Settings.",
+  "actionLabel": "View details"
+}

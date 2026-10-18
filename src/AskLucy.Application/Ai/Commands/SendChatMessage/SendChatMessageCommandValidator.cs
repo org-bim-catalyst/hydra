@@ -1,5 +1,6 @@
 using System.Text.Json;
 using AskLucy.Application.Abstractions;
+using AskLucy.Domain.Ai;
 using FluentValidation;
 
 namespace AskLucy.Application.Ai.Commands.SendChatMessage;
@@ -44,7 +45,10 @@ public sealed class SendChatMessageCommandValidator : AbstractValidator<SendChat
                 }
 
                 var model = await models.GetByIdAsync(command.ModelId, cancellationToken);
-                if (model is null || !model.IsSelectable || model.ProviderId != command.ProviderId)
+                // specs/069 FR-014: Deprecated is allowed through so the handler can resolve its
+                // replacement; only a genuinely unavailable model is rejected here.
+                var usable = model is { Status: AIModelStatus.Available or AIModelStatus.Deprecated };
+                if (model is null || !usable || model.ProviderId != command.ProviderId)
                 {
                     context.AddFailure("modelId", "The selected model is not available for the selected provider.");
                     return;

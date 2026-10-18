@@ -1,0 +1,13 @@
+{
+  "name": "تم إيقاف نموذج ذكاء اصطناعي",
+  "subject": "تم إيقاف {{ modelNames }}",
+  "preheader": "عناصرك المحفوظة تستخدم الآن {{ replacementSummary }}.",
+  "greeting": "مرحباً {{ recipientDisplayName }}،",
+  "heading": "تم إيقاف نموذج كنت تستخدمه",
+  "bodyParagraphs": [
+    "لم يعد {{ modelNames }} متاحاً من مزوّده.",
+    "{{ itemSummary }} تستخدم الآن {{ replacementSummary }}. يمكنك اختيار نموذج آخر من الإعدادات."
+  ],
+  "safetyNote": "تصلك هذه الرسالة لأن إشعارات البريد مفعّلة لفئة النظام. يمكنك تغيير ذلك من الإعدادات ← الإشعارات.",
+  "actionLabel": "عرض التفاصيل"
+}

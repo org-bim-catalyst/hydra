@@ -45,7 +45,7 @@ public sealed partial class NotificationTypeCatalogTests
             .Select(f => (string)f.GetRawConstantValue()!)
             .ToList();
         keys.Should().BeEquivalentTo(constants);
-        constants.Should().HaveCount(37);
+        constants.Should().HaveCount(41);
     }
 
     [Fact]

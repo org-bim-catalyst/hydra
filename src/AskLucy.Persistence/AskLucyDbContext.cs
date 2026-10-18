@@ -60,6 +60,14 @@ public sealed class AskLucyDbContext(DbContextOptions<AskLucyDbContext> options,
 
     public DbSet<AiCapabilityAssignment> AiCapabilityAssignments => Set<AiCapabilityAssignment>();
 
+    public DbSet<ModelDeprecationBatch> ModelDeprecationBatches => Set<ModelDeprecationBatch>();
+
+    public DbSet<ModelDeprecation> ModelDeprecations => Set<ModelDeprecation>();
+
+    public DbSet<PlatformDefaultChange> PlatformDefaultChanges => Set<PlatformDefaultChange>();
+
+    public DbSet<ItemSwitch> ItemSwitches => Set<ItemSwitch>();
+
     public DbSet<AiCapabilitySetting> AiCapabilitySettings => Set<AiCapabilitySetting>();
 
     public DbSet<UserAiPreference> UserAiPreferences => Set<UserAiPreference>();

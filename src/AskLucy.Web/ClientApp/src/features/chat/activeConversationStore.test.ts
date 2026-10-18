@@ -1,34 +1,50 @@
 import { beforeEach, describe, expect, it } from 'vitest'
+import { useAuthStore } from '../../store/authStore'
 import { useActiveConversationStore } from './activeConversationStore'
+
+const remembered = () => JSON.parse(localStorage.getItem('ask-lucy-last-conversation')!).state.lastChatByUser
 
 describe('activeConversationStore', () => {
   beforeEach(() => {
-    sessionStorage.clear()
-    useActiveConversationStore.setState({ activeChatId: null })
+    localStorage.clear()
+    useAuthStore.setState({ userId: 'user-a' })
+    useActiveConversationStore.setState({ activeChatId: null, lastChatByUser: {} })
   })
 
   it('defaults to no active conversation', () => {
     expect(useActiveConversationStore.getState().activeChatId).toBeNull()
   })
 
-  it('setActiveChatId updates state and persists to sessionStorage', () => {
+  it('setActiveChatId updates the open conversation and remembers it for the signed-in account', () => {
     useActiveConversationStore.getState().setActiveChatId('chat-123')
 
     expect(useActiveConversationStore.getState().activeChatId).toBe('chat-123')
-    const stored = sessionStorage.getItem('ask-lucy-active-conversation')
-    expect(stored).not.toBeNull()
-    expect(JSON.parse(stored!).state.activeChatId).toBe('chat-123')
+    expect(remembered()).toEqual({ 'user-a': 'chat-123' })
   })
 
-  it('setActiveChatId(null) clears the active conversation', () => {
+  it('setActiveChatId(null) clears the open conversation but keeps the remembered one', () => {
     useActiveConversationStore.getState().setActiveChatId('chat-123')
     useActiveConversationStore.getState().setActiveChatId(null)
 
     expect(useActiveConversationStore.getState().activeChatId).toBeNull()
+    expect(remembered()).toEqual({ 'user-a': 'chat-123' })
   })
 
-  it('does not persist to localStorage (session-only, per data-model.md)', () => {
-    useActiveConversationStore.getState().setActiveChatId('chat-123')
-    expect(localStorage.getItem('ask-lucy-active-conversation')).toBeNull()
+  it('resumes the account\'s last conversation when none is open, and never another account\'s', () => {
+    useActiveConversationStore.getState().setActiveChatId('chat-a')
+    useActiveConversationStore.getState().setActiveChatId(null)
+
+    expect(useActiveConversationStore.getState().resumeChatId()).toBe('chat-a')
+
+    useAuthStore.setState({ userId: 'user-b' })
+    expect(useActiveConversationStore.getState().resumeChatId()).toBeNull()
+  })
+
+  it('keeps each account\'s own last conversation', () => {
+    useActiveConversationStore.getState().setActiveChatId('chat-a')
+    useAuthStore.setState({ userId: 'user-b' })
+    useActiveConversationStore.getState().setActiveChatId('chat-b')
+
+    expect(remembered()).toEqual({ 'user-a': 'chat-a', 'user-b': 'chat-b' })
   })
 })

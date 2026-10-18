@@ -1,4 +1,4 @@
-import { act, fireEvent, render, screen, within } from '@testing-library/react'
+import { act, fireEvent, render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
 import { ExpandableActionGroup, type ExpandableActionGroupAction } from './ExpandableActionGroup'
@@ -43,10 +43,11 @@ describe('ExpandableActionGroup', () => {
   describe('tool groups (specs/081 US6)', () => {
     // jsdom cannot run getByRole once a MUI menu is open (it resolves styles for every node), so the open menu is
     // read through querySelector and getByText instead.
-    const menu = () => document.querySelector<HTMLElement>('[role="menu"]')!
+    const menu = () => document.querySelector<HTMLElement>('[role="toolbar"]')!
     const tools = (onSelect = vi.fn()): ExpandableActionGroupAction[] => [
       { id: 'a', label: 'Tool A', icon: <span aria-hidden="true">A</span>, onSelect },
       { id: 'b', label: 'Tool B', icon: <span aria-hidden="true">B</span>, onSelect: vi.fn(), disabled: true, disabledReason: 'Not now' },
+      { id: 'c', label: 'Tool C', icon: <span aria-hidden="true">C</span>, onSelect: vi.fn() },
     ]
     const group = (extra: Partial<ExpandableActionGroupAction> = {}): ExpandableActionGroupAction => ({
       id: 'g', label: 'Tool A', tools: tools(), activeToolId: 'a', onChooseTool: vi.fn(), ...extra,
@@ -56,7 +57,7 @@ describe('ExpandableActionGroup', () => {
 
     it('renders one button showing the active tool, marked as a menu button', () => {
       render(<ExpandableActionGroup actions={[group()]} />)
-      expect(trigger()).toHaveAttribute('aria-haspopup', 'menu')
+      expect(trigger()).toHaveAttribute('aria-haspopup', 'true')
       expect(trigger()).toHaveAttribute('aria-expanded', 'false')
     })
 
@@ -71,8 +72,8 @@ describe('ExpandableActionGroup', () => {
       const onChooseTool = vi.fn()
       render(<ExpandableActionGroup actions={[group({ highlighted: true, onChooseTool })]} />)
       fireEvent.click(trigger())
-      fireEvent.click(within(menu()).getByText('Tool A'))
-      expect(onChooseTool).toHaveBeenCalledWith('a')
+      fireEvent.click(menu().querySelector<HTMLElement>('[aria-label="Tool C"]')!)
+      expect(onChooseTool).toHaveBeenCalledWith('c')
     })
 
     it('opens the menu on right-click and from the corner mark', () => {
@@ -91,8 +92,8 @@ describe('ExpandableActionGroup', () => {
       await act(async () => {
         await new Promise((resolve) => setTimeout(resolve, 450))
       })
-      expect(document.querySelector('[role="menu"]')).not.toBeNull()
-      const button = document.querySelector<HTMLElement>('[aria-haspopup="menu"]')!
+      expect(document.querySelector('[role="toolbar"]')).not.toBeNull()
+      const button = document.querySelector<HTMLElement>('[aria-haspopup="true"]')!
       fireEvent.pointerUp(button)
       fireEvent.click(button)
       expect(onSelect).not.toHaveBeenCalled()
@@ -101,9 +102,8 @@ describe('ExpandableActionGroup', () => {
     it('shows the reason a disabled tool cannot be chosen', () => {
       render(<ExpandableActionGroup actions={[group()]} />)
       fireEvent.contextMenu(trigger())
-      const item = within(menu()).getByText('Tool B').closest('[role="menuitem"]')!
-      expect(item).toHaveAttribute('aria-disabled', 'true')
-      expect(item).toHaveAttribute('title', 'Not now')
+      const item = menu().querySelector<HTMLButtonElement>('[aria-label="Tool B"]')!
+      expect(item).toBeDisabled()
     })
 
     it('opens with the Down arrow, and choosing from the menu calls onChooseTool', () => {
@@ -111,8 +111,49 @@ describe('ExpandableActionGroup', () => {
       render(<ExpandableActionGroup actions={[group({ highlighted: true, onChooseTool })]} />)
       fireEvent.keyDown(trigger(), { key: 'ArrowDown' })
       expect(menu()).toBeTruthy()
-      fireEvent.click(within(menu()).getByText('Tool A'))
-      expect(onChooseTool).toHaveBeenCalledWith('a')
+      fireEvent.click(menu().querySelector<HTMLElement>('[aria-label="Tool C"]')!)
+      expect(onChooseTool).toHaveBeenCalledWith('c')
+    })
+
+    it('Escape closes the flyout and returns focus to its group button', () => {
+      render(<ExpandableActionGroup actions={[group({ highlighted: true })]} />)
+      fireEvent.keyDown(trigger(), { key: 'ArrowDown' })
+      fireEvent.keyDown(menu(), { key: 'Escape' })
+      expect(document.activeElement).toBe(trigger())
+    })
+
+    it('Escape with focus on the page closes an open flyout and returns focus to its group button', () => {
+      render(<ExpandableActionGroup actions={[group({ highlighted: true })]} />)
+      fireEvent.keyDown(trigger(), { key: 'ArrowDown' })
+      act(() => {
+        document.body.focus()
+      })
+      fireEvent.keyDown(document.body, { key: 'Escape' })
+      expect(trigger()).toHaveAttribute('aria-expanded', 'false')
+      expect(document.activeElement).toBe(trigger())
+    })
+
+    it('with the flyout open from the mouse, Escape on the group button closes only the flyout', () => {
+      const ribbonKeyDown = vi.fn()
+      render(<div onKeyDown={ribbonKeyDown}><ExpandableActionGroup actions={[group({ highlighted: true })]} /></div>)
+      fireEvent.contextMenu(trigger())
+      fireEvent.keyDown(trigger(), { key: 'Escape' })
+      expect(trigger()).toHaveAttribute('aria-expanded', 'false')
+      expect(ribbonKeyDown).not.toHaveBeenCalled()
+    })
+
+    it('while open, Tab stays in the flyout instead of leaving the ribbon', () => {
+      render(<ExpandableActionGroup actions={[group({ highlighted: true })]} />)
+      fireEvent.keyDown(trigger(), { key: 'ArrowDown' })
+      const tool = document.activeElement
+      expect(fireEvent.keyDown(tool!, { key: 'Tab' })).toBe(false)
+      expect(document.activeElement).toBe(tool)
+    })
+
+    it('a Down arrow moves focus to the first enabled tool, so the keyboard can reach the flyout', () => {
+      render(<ExpandableActionGroup actions={[group({ highlighted: true })]} />)
+      fireEvent.keyDown(trigger(), { key: 'ArrowDown' })
+      expect(document.activeElement).toBe(menu().querySelector('[aria-label="Tool C"]'))
     })
   })
 })

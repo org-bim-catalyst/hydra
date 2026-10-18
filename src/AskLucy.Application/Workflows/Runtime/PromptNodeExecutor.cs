@@ -1,7 +1,9 @@
 using System.Text.Json;
 using AskLucy.Application.Abstractions;
+using AskLucy.Application.Ai.Deprecation;
 using AskLucy.Application.Prompts;
 using AskLucy.Application.Workflows.Expressions;
+using AskLucy.Domain.Ai;
 using AskLucy.Domain.Workflows;
 
 namespace AskLucy.Application.Workflows.Runtime;
@@ -19,6 +21,7 @@ public sealed class PromptNodeExecutor(
     IPromptRepository promptRepository,
     IAIProviderRepository providerRepository,
     IAIModelRepository modelRepository,
+    IExecutableModelResolver executableModelResolver,
     IAIProviderResolver providerResolver,
     IWorkflowExpressionEvaluator expressionEvaluator) : IWorkflowNodeExecutor
 {
@@ -76,10 +79,21 @@ public sealed class PromptNodeExecutor(
         }
 
         var provider = await providerRepository.GetByIdAsync(providerId, cancellationToken);
-        var model = await modelRepository.GetByIdAsync(modelId, cancellationToken);
-        if (provider is null || model is null)
+        var configuredModel = await modelRepository.GetByIdAsync(modelId, cancellationToken);
+        if (provider is null || configuredModel is null)
         {
             return WorkflowNodeExecutionResult.Failure("The configured AI provider or model was not found.");
+        }
+
+        // specs/069 FR-014/FR-015: follow the replacement chain, or fail this step with a clear reason.
+        AIModel model;
+        try
+        {
+            model = (await executableModelResolver.ResolveAsync(configuredModel, cancellationToken)).Model;
+        }
+        catch (ModelRetiredException retired)
+        {
+            return WorkflowNodeExecutionResult.Failure(retired.UserSafeMessage);
         }
 
         var resolvedSystem = PromptVariableResolver.ResolveContent(version.SystemInstructions, resolution.ResolvedValues);

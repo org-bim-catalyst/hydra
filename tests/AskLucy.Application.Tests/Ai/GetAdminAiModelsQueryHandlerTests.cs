@@ -30,7 +30,7 @@ public sealed class GetAdminAiModelsQueryHandlerTests
 
         var available = AIModel.Create(provider.Id, "gpt-4.1", "GPT-4.1", 128000, 16384, MakeCapabilities(), null, new ModelPricing(2.5m, 10m), "test");
         var deprecated = AIModel.Create(provider.Id, "gpt-3.5", "GPT-3.5", 16000, 4096, MakeCapabilities(), null, null, "test");
-        deprecated.SetStatus(AIModelStatus.Deprecated, "test");
+        deprecated.Deprecate("test");
 
         _models.ListByProviderIdAsync(provider.Id, Arg.Any<CancellationToken>()).Returns([available, deprecated]);
 

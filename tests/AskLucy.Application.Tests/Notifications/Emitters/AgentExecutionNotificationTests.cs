@@ -47,7 +47,7 @@ public sealed class AgentExecutionNotificationTests
     }
 
     private AgentExecutionOrchestrator CreateOrchestrator() => new(
-        _executionRepository, _agentRepository, _providerRepository, _modelRepository,
+        _executionRepository, _agentRepository, _providerRepository, _modelRepository, TestModelResolver.Passthrough(),
         _providerResolver, _planner, _toolCatalog, _budgetGuard, _duplicateDetector, _policyEvaluator, _notifier,
         Substitute.For<IAgentAuditLogRepository>(), _chatRepository, _messageRepository, _notificationPublisher, _unitOfWork);
 

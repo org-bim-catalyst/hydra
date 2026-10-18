@@ -16,7 +16,7 @@ import { useCornerMenuStore } from './cornerMenuStore'
 import { createGoogleEditablePolygonHost } from './googleEditablePolygonHost'
 import { createGooglePixelProjector } from './googlePixelProjector'
 import { registerSiteBoundaryEditRuntime, siteBoundaryEditActions, type SiteBoundaryEditRuntime } from './siteBoundaryEditActions'
-import { DENSE_RING_CORNERS, openRing, simplifyDenseRing } from './ringGeometry'
+import { DENSE_RING_CORNERS, fromLocalMeters, openRing, simplifyDenseRing } from './ringGeometry'
 import { arcThroughPoint, circleRing, curveEdge, rectangleAround, ringCentre, roundCorner } from './ringShapes'
 import { activeCorners, pathCorners, pathCountOf, useSiteBoundaryEditStore } from './siteBoundaryEditStore'
 import { captureViewState, enterPlanForEditing, restoreViewState, type ViewStateDeps } from './viewStateCapture'
@@ -504,11 +504,12 @@ export function useSiteBoundaryEditMode() {
         const operation = session?.tool === 'polygon' ? session.polygonOperation : session?.circleOperation
         return operation ? combineShape({ shape: openRing(points) }, operation, 'The shape could not be applied.') : false
       },
-      async applyTypedShape(kind, operation, widthMeters, heightMeters) {
+      async applyTypedShape(kind, operation, widthMeters, heightMeters, eastMeters, northMeters) {
         const session = store().session
         if (!session) return false
 
-        const centre = ringCentre(activeCorners(session))
+        // The offset is measured from the ring's centre, in metres east and north.
+        const [centre] = fromLocalMeters([{ x: eastMeters, y: northMeters }], ringCentre(activeCorners(session)))
         const result = rectangleAround(centre, widthMeters, kind === 'square' ? widthMeters : heightMeters)
         if ('refusal' in result) {
           store().refuse(result.refusal)
@@ -590,6 +591,14 @@ export function useSiteBoundaryEditMode() {
     if (!request) return
     void siteBoundaryEditActions.start(request.revision)
   }, [handle, pendingRequest])
+
+  // A new press starts a new action, so an old refusal goes. A refusal raised by the press itself (a drag past the edge) stays.
+  useEffect(() => {
+    if (!inSession) return
+    const onPress = () => store().clearRefusal()
+    window.addEventListener('pointerdown', onPress, true)
+    return () => window.removeEventListener('pointerdown', onPress, true)
+  }, [inSession])
 
   // Delete or Backspace removes the selected corner. Ignored while typing in a field, so it can never
   // eat the chat box's own Backspace.

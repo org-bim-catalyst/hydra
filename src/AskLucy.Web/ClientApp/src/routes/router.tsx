@@ -110,6 +110,9 @@ const AdminAnnouncementsPage = lazy(() =>
 const AdminNotificationTemplatesPage = lazy(() =>
   import('../features/admin/pages/AdminNotificationTemplatesPage').then((m) => ({ default: m.AdminNotificationTemplatesPage })),
 )
+const AdminProviderHealthRetentionPage = lazy(() =>
+  import('../features/admin/providerHealth/AdminProviderHealthRetentionPage').then((m) => ({ default: m.AdminProviderHealthRetentionPage })),
+)
 const AdminLocalizationPage = lazy(() =>
   import('../features/admin/pages/AdminLocalizationPage').then((m) => ({ default: m.AdminLocalizationPage })),
 )
@@ -707,6 +710,19 @@ const router = createBrowserRouter([
         <AdminRoute permission="admin.notifications.view">
           <Lazy>
             <AdminLocalizationPage />
+          </Lazy>
+        </AdminRoute>
+      </ProtectedRoute>
+    ),
+    errorElement: <ErrorPage />,
+  },
+  {
+    path: '/admin/provider-health',
+    element: (
+      <ProtectedRoute>
+        <AdminRoute permission="admin.operational-failures.view">
+          <Lazy>
+            <AdminProviderHealthRetentionPage />
           </Lazy>
         </AdminRoute>
       </ProtectedRoute>

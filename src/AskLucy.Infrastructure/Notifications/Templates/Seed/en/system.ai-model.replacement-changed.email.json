@@ -1,0 +1,13 @@
+{
+  "name": "Replacement changed",
+  "subject": "{{ modelNames }} replacement changed",
+  "preheader": "Your items now use {{ replacementSummary }}.",
+  "greeting": "Hi {{ recipientDisplayName }},",
+  "heading": "Your replacement model changed",
+  "bodyParagraphs": [
+    "An administrator changed the replacement for {{ modelNames }}.",
+    "{{ itemSummary }} now use {{ replacementSummary }}."
+  ],
+  "safetyNote": "You're receiving this because email notifications are turned on for System updates. You can change this in Settings → Notifications.",
+  "actionLabel": "View details"
+}

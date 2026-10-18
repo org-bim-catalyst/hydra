@@ -154,7 +154,7 @@ internal static class SendChatMessageHandlerFactory
             TestEffectiveSiteBoundary.None(),
             orchestratorLogger);
 
-        return new SendChatMessageCommandHandler(resolver, providers, models, orchestrator, validator);
+        return new SendChatMessageCommandHandler(resolver, providers, models, TestModelResolver.Passthrough(), orchestrator, validator);
     }
 
     /// <summary>Forwards every call to the test's own <see cref="ILogger"/> substitute, so <c>Received().Log(...)</c> assertions keep observing the orchestrator's messages.</summary>

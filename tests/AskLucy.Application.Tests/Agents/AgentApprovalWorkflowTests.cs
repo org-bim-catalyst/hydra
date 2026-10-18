@@ -95,7 +95,7 @@ public sealed class AgentApprovalWorkflowTests
     }
 
     private AgentExecutionOrchestrator CreateOrchestrator() => new(
-        _executionRepository, _agentRepository, _providerRepository, _modelRepository, _providerResolver, _planner,
+        _executionRepository, _agentRepository, _providerRepository, _modelRepository, TestModelResolver.Passthrough(), _providerResolver, _planner,
         new AgentToolCatalog([_highRiskTool], EmptyMcpToolRegistry()), new AgentBudgetGuard(Microsoft.Extensions.Options.Options.Create(new AgentRuntimeOptions())),
         new AgentDuplicateToolCallDetector(), new AgentPolicyEvaluator(_policyRepository), Substitute.For<IAgentExecutionNotifier>(),
         Substitute.For<IAgentAuditLogRepository>(), _chatRepository, _messageRepository, Substitute.For<INotificationPublisher>(), _unitOfWork);

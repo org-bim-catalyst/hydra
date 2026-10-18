@@ -1,5 +1,6 @@
 using AskLucy.Application.Abstractions;
 using AskLucy.Application.Ai.Commands.ApplyProviderModelSync;
+using AskLucy.Application.Ai.Deprecation;
 using AskLucy.Application.Ai.Queries.GetProviderModelSyncDiff;
 using AskLucy.Domain.Ai;
 using FluentAssertions;
@@ -22,6 +23,9 @@ public sealed class ApplyProviderModelSyncCommandHandlerTests
     private readonly IAIModelRepository _models = Substitute.For<IAIModelRepository>();
     private readonly IUnitOfWork _unitOfWork = Substitute.For<IUnitOfWork>();
     private readonly ICurrentUserAccessor _currentUser = Substitute.For<ICurrentUserAccessor>();
+    private readonly IAIProviderRepository _providers = Substitute.For<IAIProviderRepository>();
+    private readonly IAiCapabilityAssignmentRepository _assignments = Substitute.For<IAiCapabilityAssignmentRepository>();
+    private readonly IModelDeprecationRepository _deprecations = Substitute.For<IModelDeprecationRepository>();
     private readonly ApplyProviderModelSyncCommandHandler _handler;
 
     private static readonly AIModelCapabilities Capabilities = new(true, true, true, true, false, false, true, false, false);
@@ -29,10 +33,17 @@ public sealed class ApplyProviderModelSyncCommandHandlerTests
     public ApplyProviderModelSyncCommandHandlerTests()
     {
         _currentUser.UserId.Returns("admin-1");
+        var deprecationService = new ModelDeprecationService(
+            _models, _providers, _assignments, _deprecations,
+            Substitute.For<AskLucy.Application.Notifications.Abstractions.INotificationPublisher>(),
+            new AdminRecipientResolver(Substitute.For<IRoleRepository>(), Substitute.For<IRoleAssignmentRepository>()));
         _handler = new ApplyProviderModelSyncCommandHandler(
-            _models, _unitOfWork, _currentUser, Substitute.For<ILogger<ApplyProviderModelSyncCommandHandler>>());
+            _models, _unitOfWork, _currentUser, deprecationService,
+            Substitute.For<Hangfire.IBackgroundJobClient>(), Substitute.For<ILogger<ApplyProviderModelSyncCommandHandler>>());
 
         _models.ListByProviderIdAsync(Arg.Any<Guid>(), Arg.Any<CancellationToken>()).Returns([]);
+        _providers.GetByIdAsync(Arg.Any<Guid>(), Arg.Any<CancellationToken>()).Returns(AIProvider.Create("openai", "OpenAI", "test"));
+        _assignments.ListAllAsync(Arg.Any<CancellationToken>()).Returns([]);
     }
 
     [Fact]
@@ -58,7 +69,7 @@ public sealed class ApplyProviderModelSyncCommandHandlerTests
     }
 
     [Fact]
-    public async Task Handle_ShouldMarkRemovedFromVendorModelsUnavailable_AndNeverDeleteThem()
+    public async Task Handle_ShouldDeprecateRemovedFromVendorModels_AndNeverDeleteThem()
     {
         var providerId = Guid.NewGuid();
         var existing = AIModel.Create(providerId, "gpt-3.5", "GPT-3.5", 16000, 4096, Capabilities, null, null, "test");
@@ -70,10 +81,11 @@ public sealed class ApplyProviderModelSyncCommandHandlerTests
 
         var result = await _handler.Handle(command, CancellationToken.None);
 
-        existing.Status.Should().Be(AIModelStatus.Unavailable);
+        existing.Status.Should().Be(AIModelStatus.Deprecated);
         result.AppliedModelKeys.Should().ContainSingle().Which.Should().Be("gpt-3.5");
         result.Failed.Should().BeEmpty();
         _models.DidNotReceiveWithAnyArgs().Add(default!);
+        _deprecations.Received(1).Add(Arg.Any<ModelDeprecationBatch>());
     }
 
     [Fact]
@@ -118,7 +130,7 @@ public sealed class ApplyProviderModelSyncCommandHandlerTests
 
         var result = await _handler.Handle(command, CancellationToken.None);
 
-        belongsToProvider.Status.Should().Be(AIModelStatus.Unavailable);
+        belongsToProvider.Status.Should().Be(AIModelStatus.Deprecated);
         result.AppliedModelKeys.Should().ContainSingle().Which.Should().Be("gpt-3.5");
         result.Failed.Should().ContainSingle(f => f.ModelKey == "gpt-old" && f.Reason.Contains("stale"));
         await _unitOfWork.Received(1).SaveChangesAsync(Arg.Any<CancellationToken>());

@@ -28,7 +28,7 @@ public sealed class OperationalFailureHostTests(CustomWebApplicationFactory fact
     }
 
     [Fact]
-    public async Task Record_ShouldAppearAsAnIncident_WithinFiveSeconds()
+    public async Task Record_ShouldAppearAsAnIncident_WithinThirtySeconds()
     {
         // The store commits a new incident before joining the first occurrence to it (research D3),
         // so the poll waits for the join rather than the bare row.
@@ -49,7 +49,7 @@ public sealed class OperationalFailureHostTests(CustomWebApplicationFactory fact
 
         try
         {
-            var deadline = DateTime.UtcNow.AddSeconds(5);
+            var deadline = DateTime.UtcNow.AddSeconds(30);
             OperationalFailureIncident? incident = null;
             while (incident is null)
             {

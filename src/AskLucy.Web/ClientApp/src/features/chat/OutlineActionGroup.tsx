@@ -6,6 +6,7 @@ import {
   RiEdit2Line,
   RiRestartLine,
   RiRoundedCorner,
+  RiRulerLine,
 } from '@remixicon/react'
 import {
   ExpandableActionGroup,
@@ -32,8 +33,7 @@ import {
   SelectCornersIcon,
 } from './outlineToolIcons'
 import {
-  OUTLINE_TOOL_GROUPS,
-  rememberedTool,
+  orderOf,
   useOutlineToolGroupStore,
   type OutlineToolGroupId,
 } from './outlineToolGroupStore'
@@ -51,7 +51,8 @@ export function OutlineActionGroup() {
   const dirty = useSiteBoundaryEditStore((s) => s.isDirty())
   const hasOutline = useActiveSiteBoundaryStore((s) => s.polygon !== null)
   const isHandEdited = useActiveSiteBoundaryStore((s) => s.isHandEdited)
-  const chosen = useOutlineToolGroupStore((s) => s.chosen)
+  const order = useOutlineToolGroupStore((s) => s.order)
+  const typedDialog = useSiteBoundaryEditStore((s) => s.shapeDialog === 'rectangle' || s.shapeDialog === 'square')
 
   const editing = session !== null
   const saving = session?.status.kind === 'saving'
@@ -79,6 +80,7 @@ export function OutlineActionGroup() {
     },
     {
       id: 'delete-corner',
+      swapOnly: true,
       label: session && session.selectedCorners.length > 1 ? `Delete ${session.selectedCorners.length} corners` : 'Delete corner',
       icon: <DeleteCornerIcon size={20} />,
       onSelect: siteBoundaryEditActions.deleteCorner,
@@ -87,6 +89,7 @@ export function OutlineActionGroup() {
     },
     {
       id: 'round-corner',
+      swapOnly: true,
       label: 'Round corner',
       icon: <RiRoundedCorner size={20} />,
       onSelect: () => siteBoundaryEditActions.openShapeDialog('round'),
@@ -95,6 +98,7 @@ export function OutlineActionGroup() {
     },
     {
       id: 'curve-edge',
+      swapOnly: true,
       label: 'Curve edge',
       icon: <CurveEdgeIcon size={20} />,
       onSelect: () => siteBoundaryEditActions.openShapeDialog('curve'),
@@ -130,6 +134,7 @@ export function OutlineActionGroup() {
     },
     {
       id: 'make-circle',
+      swapOnly: true,
       label: 'Make ring a circle',
       icon: <RingToCircleIcon size={20} />,
       onSelect: () => siteBoundaryEditActions.openShapeDialog('circle'),
@@ -172,6 +177,16 @@ export function OutlineActionGroup() {
       disabled: !editing || saving,
       disabledReason: notEditing,
     },
+    // specs/081 FR-020: a rectangle or square of typed size, with its place and whether it is square, in one dialog.
+    {
+      id: 'typed-shape',
+      label: 'Rectangle or square of typed size',
+      icon: <RiRulerLine size={20} />,
+      onSelect: () => siteBoundaryEditActions.openShapeDialog('rectangle'),
+      highlighted: typedDialog,
+      disabled: !editing || saving,
+      disabledReason: notEditing,
+    },
     {
       id: 'add-polygon',
       label: 'Add polygon',
@@ -193,12 +208,12 @@ export function OutlineActionGroup() {
   ]
   const byId = new Map(tools.map((tool) => [tool.id, tool]))
 
-  // One group button: shows the active tool in it, else the remembered one; choosing a tool remembers it and runs it.
+  // One group button: shows the active tool in it, else the group's first tool. Its flyout holds the others, in order.
+  // Choosing a flyout tool swaps it with the button's tool; a swap-only tool then waits for the button press to run.
   const group = (id: OutlineToolGroupId): ExpandableActionGroupAction => {
-    const members = OUTLINE_TOOL_GROUPS[id].tools.map((toolId) => byId.get(toolId)!)
+    const members = orderOf(id, order).map((toolId) => byId.get(toolId)!)
     const active = members.find((tool) => tool.highlighted)
-    const shownId = active?.id ?? rememberedTool(id, chosen)
-    const shown = members.find((tool) => tool.id === shownId) ?? members[0]
+    const shown = active ?? members[0]
     return {
       id: `group-${id}`,
       label: shown.label,
@@ -210,7 +225,8 @@ export function OutlineActionGroup() {
       activeToolId: shown.id,
       onChooseTool: (toolId) => {
         useOutlineToolGroupStore.getState().choose(id, toolId)
-        byId.get(toolId)?.onSelect?.()
+        const tool = byId.get(toolId)
+        if (!tool?.swapOnly) tool?.onSelect?.()
       },
     }
   }

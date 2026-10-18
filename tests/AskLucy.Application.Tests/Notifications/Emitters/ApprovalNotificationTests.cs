@@ -91,7 +91,7 @@ public sealed class ApprovalNotificationTests
         resolver.Resolve(Arg.Any<string>()).Returns(aiProvider);
 
         _agentOrchestrator = new AgentExecutionOrchestrator(
-            _agentExecutions, _agents, providers, models, resolver, planner,
+            _agentExecutions, _agents, providers, models, TestModelResolver.Passthrough(), resolver, planner,
             new AgentToolCatalog([_highRiskTool], EmptyMcpToolRegistry()),
             new AgentBudgetGuard(Microsoft.Extensions.Options.Options.Create(new AgentRuntimeOptions())),
             new AgentDuplicateToolCallDetector(), new AgentPolicyEvaluator(_agentPolicies), Substitute.For<IAgentExecutionNotifier>(),

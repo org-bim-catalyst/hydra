@@ -4,7 +4,7 @@
 
 **Created**: 2026-10-06
 
-**Status**: Draft
+**Status**: Implemented
 
 **Input**: User description: "Voids and more drawing shapes in the site outline editor (follow-on to specs/079-site-boundary-manual-editing). Allow a ring of the outline to have voids inside it (a mall or hospital atrium under a skylight or open to the air), even when the map's building footprint doesn't show it. A cut drawn entirely inside a ring makes a void instead of being refused. A void only reduces the outline's area; it doesn't change which buildings belong to the site. Voids are saved, survive reopening the chat, reset like the rest of the outline, are editable and removable, are shown as holes, and Lucy knows about them. Splits stay allowed: a cut that splits a ring gives separate parts, switched between with [ and ]. New drawing shapes alongside the circle: rectangle, square and free polygon, each able to add to the outline or cut out of it."
 
@@ -263,3 +263,37 @@ and check that the Circle button is no longer highlighted but still shows Cut ci
 - Using voids in future analyses (solar, shadows) belongs to those analyses' specs. This feature only keeps voids accurate and available.
 - The existing size limits (parts per outline, corners per part and in total) apply to voids too; void corners count toward the totals.
 - The existing per-user, per-site ownership and audit rules for corrections apply unchanged.
+
+## Production walkthrough (T048)
+
+Run on hydra.bimcatalyst.com, Al Safa Park 2, in edit mode, against the deployed build. Scenarios follow `quickstart.md`.
+
+| # | Result |
+|---|---|
+| 1 | Pass: a cut circle drawn inside the site made a hole; the area dropped by about 1,013 m². |
+| 2 | Pass: a cut rectangle made a hole; one Undo removed it. |
+| 3 | Pass: Add over the hole filled part of it; Add across the east edge added only the outside part; Cut square removed area. Squares from unequal drags are square: covered by `ringShapes.test.ts`. |
+| 4 | Pass: five corners and a double-click added a polygon; Backspace removed the last corner; Escape cancelled; a self-crossing polygon was refused with a message. |
+| 5 | Partial on the first run: the dragged corner stopped at its last valid point but showed no message. Fixed afterwards: a refusal now stays until the next press. Not re-run on the live site. |
+| 6 | Pass: Shift+] selected the void ("void 1 of 2"); Remove void added its area back; Undo restored it. |
+| 7 | Pass: a thin cut across the site split it into two parts; [ and ] moved between them, each keeping its own holes. |
+| 8 | Pass: after Done and a reload the voids were still there. Checked in the same chat, not a second chat. |
+| 9 | Pass: Lucy reported 13,781 m² with 2 voids totalling 1,327 m², matching the editor. |
+| 10 | Pass: Reset returned the outline to the original single ring with no holes. |
+| 11 | Not run: no site saved before this feature was available to open. |
+| 12 | Pass: "Rectangle or square of typed size" opened the dialog; 20 × 10 m cut took the area from 15,123 to 14,923 m². |
+| 13 | Pass: Select corners took the highlight from Cut circle, which kept its icon; Delete corner was saved as the corners group's first tool and did not run. |
+| 14 | Pass: after reopening, each group showed its last-chosen tool. |
+| 15 | Pass: Down arrow opened a flyout, Tab and Up/Down moved between its tools, Enter chose one, and Escape closed it and returned focus to its button. |
+
+Problems found and fixed during the walkthrough: flyouts did not close on Escape from the map or page; a stored group order hid newly added tools; the typed shape needed one dialog for rectangles and squares with a placement offset.
+
+**Status:** Implemented. Scenario 11 remains unrun.
+
+## Changes after the walkthrough
+
+- **Typed size (FR-020):** one "Rectangle or square of typed size" tool opens one dialog. "Make square" locks the height to the width, and East and North offsets from the ring centre place the shape.
+- **Group flyouts:** Down arrow opens a flyout on the keyboard; Tab and Shift+Tab loop through its tools while it is open, and Up and Down move between them. Escape closes an open flyout wherever focus is, returning focus to its group button; the next Escape collapses an unpinned ribbon.
+- **Saved group order:** tools added after a user reordered a group now appear at the end of that group.
+- **Refusals:** a drag's refusal message stays until the next press.
+- **Pre-feature rows:** covered by `SiteBoundaryCorrectionRepositoryTests` (voids default to none). Run against the test2 database: 5 of 5 pass.

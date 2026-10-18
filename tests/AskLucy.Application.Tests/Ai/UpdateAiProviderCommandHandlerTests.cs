@@ -1,5 +1,6 @@
 using AskLucy.Application.Abstractions;
 using AskLucy.Application.Ai.Commands.UpdateAiProvider;
+using AskLucy.Application.Ai.Deprecation;
 using AskLucy.Domain.Ai;
 using FluentAssertions;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -27,8 +28,9 @@ public sealed class UpdateAiProviderCommandHandlerTests
     }
 
     private UpdateAiProviderCommandHandler CreateHandler() => new(
-        _providers, _unitOfWork, _currentUser, [_observer], _timeProvider,
-        NullLogger<UpdateAiProviderCommandHandler>.Instance);
+        _providers, _unitOfWork, _currentUser,
+        new PlatformDefaultFlagResolver(Substitute.For<IModelDeprecationRepository>()),
+        [_observer], _timeProvider, NullLogger<UpdateAiProviderCommandHandler>.Instance);
 
     private static AIProvider EnabledProvider()
     {

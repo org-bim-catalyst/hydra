@@ -135,6 +135,8 @@ interface State {
   notice: string | null
   /** Which shape tool is asking for its number, or null when none is. Cleared when the session ends. */
   shapeDialog: ShapeTool | null
+  /** The most recent opening: its tool, and a number that changes on each opening so the dialog starts fresh. Kept after it closes. */
+  shapeDialogHistory: { tool: ShapeTool; seq: number } | null
 }
 
 interface Actions {
@@ -260,9 +262,14 @@ export const useSiteBoundaryEditStore = create<State & Actions>()((set, get) => 
     pendingRequest: null,
     notice: null,
     shapeDialog: null,
+    shapeDialogHistory: null,
 
     setShapeDialog(tool) {
-      set({ shapeDialog: tool })
+      const previous = get().shapeDialogHistory
+      set({
+        shapeDialog: tool,
+        shapeDialogHistory: tool ? { tool, seq: (previous?.seq ?? 0) + 1 } : previous,
+      })
     },
 
     setNotice(notice) {
@@ -340,7 +347,8 @@ export const useSiteBoundaryEditStore = create<State & Actions>()((set, get) => 
               : change.op === 'replace'
                 ? { selectedCorner: null, selectedCorners: [] }
               : {}
-        return { rings, voids, undo, redo: [], approxAreaSquareMeters: totalArea(rings, voids), refusal: null, ...selection }
+        // A recorded change keeps a refusal: the drag that was refused records its last valid position, and the message must stay.
+        return { rings, voids, undo, redo: [], approxAreaSquareMeters: totalArea(rings, voids), ...selection }
       })
       lastChangeAt = now
     },

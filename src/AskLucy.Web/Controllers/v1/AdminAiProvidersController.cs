@@ -7,10 +7,12 @@ using AskLucy.Application.Ai.Commands.SetAiProviderCredential;
 using AskLucy.Application.Ai.Commands.UpdateAiCapabilitySettings;
 using AskLucy.Application.Ai.Commands.UpdateAiModelStatus;
 using AskLucy.Application.Ai.Commands.UpdateAiProvider;
+using AskLucy.Application.Ai.Commands.ValidateModelReplacement;
 using AskLucy.Application.Ai.Queries.GetAdminAiModels;
 using AskLucy.Application.Ai.Queries.GetAdminAiProviders;
 using AskLucy.Application.Ai.Queries.GetAiCapabilityAssignments;
 using AskLucy.Application.Ai.Queries.GetAiCapabilitySettings;
+using AskLucy.Application.Ai.Queries.GetModelDeprecations;
 using AskLucy.Application.Ai.Queries.GetProviderModelSyncDiff;
 using AskLucy.Domain.Ai;
 using AskLucy.Web.Auth;
@@ -31,6 +33,10 @@ namespace AskLucy.Web.Controllers.v1;
 /// manage permission. <see cref="UpdateProvider"/>'s deprecated <c>DefaultModelId</c>/
 /// <c>ClearDefaultModel</c> fields are a known interim gap — see that action's own doc comment.
 /// </summary>
+public sealed record ChangeModelReplacementRequest(Guid ModelId);
+
+public sealed record ChangeModelReplacementResponse(Guid BatchId);
+
 [ApiController]
 [LocalizedSurface]
 [EnableRateLimiting("admin-endpoints")]
@@ -156,5 +162,45 @@ public sealed class AdminAiProvidersController(ISender mediator) : ControllerBas
     [HttpPost("providers/{providerId:guid}/models/actions/sync/apply")]
     [RequirePermission("admin.ai-providers.manage")]
     public async Task<ActionResult<ApplyProviderModelSyncResultDto>> ApplyModelSync(Guid providerId, ApplyProviderModelSyncRequest request, CancellationToken cancellationToken) =>
-        Ok(await mediator.Send(new ApplyProviderModelSyncCommand(providerId, request.Added, request.RemovedFromVendor), cancellationToken));
+        Ok(await mediator.Send(
+            new ApplyProviderModelSyncCommand(providerId, request.Added, request.RemovedFromVendor, ApplyProviderModelSyncCommand.ChoicesFrom(request.RemovedFromVendor)),
+            cancellationToken));
+
+    /// <summary>specs/069 contracts §3 — deprecation records, newest first, counts only.</summary>
+    [HttpGet("deprecations")]
+    [RequirePermission("admin.ai-providers.manage")]
+    public async Task<ActionResult<ModelDeprecationPageDto>> ListDeprecations(
+        [FromQuery] Guid? providerId,
+        [FromQuery] bool awaitingValidation,
+        [FromQuery] bool openFlags,
+        [FromQuery] Guid? cursor,
+        [FromQuery] int pageSize,
+        CancellationToken cancellationToken) =>
+        Ok(await mediator.Send(
+            new ListModelDeprecationsQuery(providerId, awaitingValidation, openFlags, cursor, pageSize == 0 ? 20 : pageSize),
+            cancellationToken));
+
+    [HttpGet("deprecations/{deprecationId:guid}")]
+    [RequirePermission("admin.ai-providers.manage")]
+    public async Task<ActionResult<ModelDeprecationDetailDto>> GetDeprecation(Guid deprecationId, CancellationToken cancellationToken) =>
+        Ok(await mediator.Send(new GetModelDeprecationQuery(deprecationId), cancellationToken));
+
+    /// <summary>specs/069 FR-011a — accepts the replacement already in use.</summary>
+    [HttpPost("deprecations/{deprecationId:guid}/actions/accept-replacement")]
+    [RequirePermission("admin.ai-providers.manage")]
+    public async Task<IActionResult> AcceptReplacement(Guid deprecationId, CancellationToken cancellationToken)
+    {
+        await mediator.Send(new AcceptModelReplacementCommand(deprecationId), cancellationToken);
+        return NoContent();
+    }
+
+    /// <summary>specs/069 FR-011b — changes the replacement during validation.</summary>
+    [HttpPost("deprecations/{deprecationId:guid}/actions/change-replacement")]
+    [RequirePermission("admin.ai-providers.manage")]
+    public async Task<ActionResult<ChangeModelReplacementResponse>> ChangeReplacement(
+        Guid deprecationId, ChangeModelReplacementRequest request, CancellationToken cancellationToken)
+    {
+        var batchId = await mediator.Send(new ChangeModelReplacementCommand(deprecationId, request.ModelId), cancellationToken);
+        return Accepted(new ChangeModelReplacementResponse(batchId));
+    }
 }

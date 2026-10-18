@@ -8,6 +8,8 @@ using AskLucy.Application.Admin.Commands.IssueHangfireDashboardSession;
 using AskLucy.Application.Authorization;
 using AskLucy.Infrastructure;
 using AskLucy.Infrastructure.Agents;
+using AskLucy.Infrastructure.Ai;
+using AskLucy.Infrastructure.Ai.Deprecation;
 using AskLucy.Infrastructure.Auth;
 using AskLucy.Infrastructure.CustomModels;
 using AskLucy.Infrastructure.Documents;
@@ -826,6 +828,11 @@ RegisterRecurringJob(() => RecurringJob.AddOrUpdate<MemoryCleanupJob>(
 RegisterRecurringJob(() => RecurringJob.AddOrUpdate<PasswordResetTokenCleanupJob>(
     "password-reset-token-cleanup", job => job.RunAsync(CancellationToken.None), Cron.Daily));
 
+// specs/069 research D4 — re-enqueues a model-deprecation batch whose user-impact job never
+// started (a crash between the confirming save and the enqueue). The job is idempotent.
+RegisterRecurringJob(() => RecurringJob.AddOrUpdate<ModelDeprecationSweepJob>(
+    "model-deprecation-sweep", job => job.RunAsync(CancellationToken.None), "* * * * *"));
+
 // specs/067 US3 (research R5) — every minute, a delivery still "Sending" past its lease is failed as
 // AmbiguousOutcome (never resent automatically), and an outbox event stuck "Processing" returns to
 // pending. Idempotent — safe to call on every startup.
@@ -836,6 +843,10 @@ RegisterRecurringJob(() => RecurringJob.AddOrUpdate<NotificationLeaseSweepJob>(
 // rows are never deleted. Idempotent — safe to call on every startup.
 RegisterRecurringJob(() => RecurringJob.AddOrUpdate<NotificationRetentionJob>(
     "notification-retention", job => job.RunAsync(CancellationToken.None), Cron.Daily(3)));
+
+// Daily removal of provider health checks older than ProviderHealthCheck:RetentionDays. Idempotent — safe on every startup.
+RegisterRecurringJob(() => RecurringJob.AddOrUpdate<ProviderHealthCheckRetentionJob>(
+    "provider-health-check-retention", job => job.RunAsync(CancellationToken.None), Cron.Daily(3, 30)));
 
 // spec 021-mcp-integration User Story 6 (research.md Decision 10) — a 5-minute cadence matching
 // McpRuntimeOptions.HealthCheckIntervalMinutes's own default; each run only actually

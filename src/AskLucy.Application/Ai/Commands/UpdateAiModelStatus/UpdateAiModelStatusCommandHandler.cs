@@ -1,4 +1,6 @@
 using AskLucy.Application.Abstractions;
+using AskLucy.Application.Ai.Deprecation;
+using AskLucy.Domain.Common;
 using MediatR;
 using Microsoft.Extensions.Logging;
 
@@ -17,7 +19,14 @@ public sealed class UpdateAiModelStatusCommandHandler(
             ?? throw new KeyNotFoundException("Model not found.");
 
         var oldStatus = model.Status;
-        model.SetStatus(request.Status, actorUserId);
+        try
+        {
+            model.SetStatus(request.Status, actorUserId);
+        }
+        catch (DomainRuleViolationException ex)
+        {
+            throw new ModelStatusLockedException(ex.Message);
+        }
         await unitOfWork.SaveChangesAsync(cancellationToken);
 
         AiAdminActionLog.AdminAiModelStatusChanged(logger, actorUserId, model.Id, oldStatus, request.Status);

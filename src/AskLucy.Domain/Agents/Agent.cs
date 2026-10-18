@@ -175,6 +175,15 @@ public sealed class Agent : BaseEntity
     }
 
     /// <summary>Draft-field edit (spec.md FR-001/FR-003) — never touches published version history.</summary>
+    /// <summary>specs/069 FR-014: moves the agent's draft model off a retired one, leaving every other setting alone.</summary>
+    public void SetModel(Guid? modelProviderId, Guid? modelId, string actor)
+    {
+        ModelProviderId = modelProviderId;
+        ModelId = modelId;
+        ModifiedAtUtc = DateTime.UtcNow;
+        ModifiedBy = actor;
+    }
+
     public void UpdateDraft(
         string name,
         string? description,

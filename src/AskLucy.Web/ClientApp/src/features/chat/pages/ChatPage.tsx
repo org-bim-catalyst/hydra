@@ -99,9 +99,14 @@ export function ChatPage() {
   // conversation selected in the Chat History Settings tab (which sets this, then
   // navigates here) actually opens — a fresh mount otherwise has no other way to know
   // which conversation was just picked.
+  // Reopens the account's last conversation when there is no open one (a reload, or signing in again).
   const [selectedChatId, setSelectedChatId] = useState<string | null>(
-    () => useActiveConversationStore.getState().activeChatId,
+    () => useActiveConversationStore.getState().resumeChatId(),
   )
+  // Keeps the store, and so the account's remembered conversation, in step with the one on screen.
+  useEffect(() => {
+    useActiveConversationStore.getState().setActiveChatId(selectedChatId)
+  }, [selectedChatId])
   const [viewKey, setViewKey] = useState(0)
   const [language, setLanguage] = useState('en')
   const queryClient = useQueryClient()

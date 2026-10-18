@@ -1,6 +1,8 @@
 using AskLucy.Application.Abstractions;
+using AskLucy.Application.Ai.Deprecation;
 using AskLucy.Domain.Ai;
 using AskLucy.Domain.Common;
+using Hangfire;
 using MediatR;
 using Microsoft.Extensions.Logging;
 
@@ -18,11 +20,16 @@ namespace AskLucy.Application.Ai.Commands.ApplyProviderModelSync;
 /// rejecting the whole request. Every row that isn't stale is still committed together in
 /// exactly one <see cref="IUnitOfWork.SaveChangesAsync"/> call (research.md Decision 2 —
 /// preserves "one business transaction, one SaveChanges").
+///
+/// specs/069 FR-001: removed-from-vendor rows are deprecated through
+/// <see cref="IModelDeprecationService"/>, in the same single save.
 /// </summary>
 public sealed class ApplyProviderModelSyncCommandHandler(
     IAIModelRepository models,
     IUnitOfWork unitOfWork,
     ICurrentUserAccessor currentUser,
+    IModelDeprecationService deprecationService,
+    Hangfire.IBackgroundJobClient backgroundJobClient,
     ILogger<ApplyProviderModelSyncCommandHandler> logger) : IRequestHandler<ApplyProviderModelSyncCommand, ApplyProviderModelSyncResultDto>
 {
     public async Task<ApplyProviderModelSyncResultDto> Handle(ApplyProviderModelSyncCommand request, CancellationToken cancellationToken)
@@ -68,6 +75,7 @@ public sealed class ApplyProviderModelSyncCommandHandler(
             appliedModelKeys.Add(added.ModelKey);
         }
 
+        var candidates = new List<DeprecationCandidate>();
         foreach (var removed in request.RemovedFromVendor)
         {
             if (!catalogIds.Contains(removed.Id))
@@ -80,11 +88,25 @@ public sealed class ApplyProviderModelSyncCommandHandler(
 
             var model = await models.GetByIdAsync(removed.Id, cancellationToken)
                 ?? throw new KeyNotFoundException("Model not found.");
-            model.SetStatus(AIModelStatus.Unavailable, actorUserId);
-            appliedModelKeys.Add(removed.ModelKey);
+            var choice = request.Replacements is not null && request.Replacements.TryGetValue(removed.Id, out var chosen)
+                ? chosen
+                : ReplacementChoice.Proposed;
+            candidates.Add(new DeprecationCandidate(model, choice));
         }
 
+        var deprecation = await deprecationService.DeprecateAsync(request.ProviderId, candidates, actorUserId, cancellationToken);
+        appliedModelKeys.AddRange(deprecation.DeprecatedModelKeys);
+        failed.AddRange(deprecation.Failed);
+
         await unitOfWork.SaveChangesAsync(cancellationToken);
+
+        // specs/069 research D4: the user-item switch and notices run after the confirm commits,
+        // so thousands of affected items never hold the admin's request open. The sweep re-enqueues
+        // a batch this enqueue was lost for.
+        if (deprecation.BatchId is { } batchId)
+        {
+            backgroundJobClient.Enqueue<IModelDeprecationUserImpactJob>(j => j.RunAsync(batchId, CancellationToken.None));
+        }
 
         AiAdminActionLog.AdminAiModelSyncApplied(logger, actorUserId, request.ProviderId, request.Added.Count, request.RemovedFromVendor.Count);
 

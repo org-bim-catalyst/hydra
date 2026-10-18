@@ -28,7 +28,7 @@ public sealed class PromptNodeExecutorTests
     private readonly IWorkflowExpressionEvaluator _expressionEvaluator = new WorkflowExpressionEvaluator();
 
     private PromptNodeExecutor CreateExecutor() =>
-        new(_promptRepository, _providerRepository, _modelRepository, _providerResolver, _expressionEvaluator);
+        new(_promptRepository, _providerRepository, _modelRepository, TestModelResolver.Passthrough(), _providerResolver, _expressionEvaluator);
 
     private static (Prompt Prompt, PromptVersion Version) BuildPrompt()
     {

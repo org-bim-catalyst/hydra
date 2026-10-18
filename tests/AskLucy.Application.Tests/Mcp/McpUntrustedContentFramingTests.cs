@@ -82,7 +82,7 @@ public sealed class McpUntrustedContentFramingTests
             .Returns(new ChatCompletionResult("{}", new ChatUsage(5, 5, null, null, 20)));
 
         var orchestrator = new AgentExecutionOrchestrator(
-            executionRepository, agentRepository, providerRepository, modelRepository, providerResolver, planner,
+            executionRepository, agentRepository, providerRepository, modelRepository, TestModelResolver.Passthrough(), providerResolver, planner,
             new AgentToolCatalog([], registry), new AgentBudgetGuard(Microsoft.Extensions.Options.Options.Create(new AgentRuntimeOptions())),
             new AgentDuplicateToolCallDetector(), new AgentPolicyEvaluator(policyRepository), Substitute.For<IAgentExecutionNotifier>(),
             Substitute.For<IAgentAuditLogRepository>(), Substitute.For<IUserChatRepository>(), Substitute.For<IMessageRepository>(),

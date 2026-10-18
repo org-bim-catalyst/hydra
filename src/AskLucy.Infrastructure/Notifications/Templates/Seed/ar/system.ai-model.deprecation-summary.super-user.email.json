@@ -1,0 +1,16 @@
+{
+  "name": "ملخص إيقاف نموذج",
+  "subject": "تم إيقاف {{ modelNames }}",
+  "preheader": "راجع البديل وأي إعدادات افتراضية معلّمة.",
+  "greeting": "مرحباً {{ recipientDisplayName }}،",
+  "heading": "تم إيقاف نموذج",
+  "bodyParagraphs": [
+    "لم يعد {{ providerName }} يعرض {{ modelNames }}. أكّد ذلك {{ confirmedBy }} في {{ confirmedAt }}.",
+    "السبب: {{ reason }}.",
+    "{{ reassignedSummary }}",
+    "{{ flaggedSummary }}",
+    "{{ validationRequest }}"
+  ],
+  "safetyNote": "تصلك هذه الرسالة لأنك مسؤول عن مزوّدي الذكاء الاصطناعي.",
+  "actionLabel": "مراجعة الإيقاف"
+}

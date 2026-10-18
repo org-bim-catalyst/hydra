@@ -15,4 +15,9 @@ public sealed class ProviderHealthCheckRepository(AskLucyDbContext dbContext) : 
             .ToListAsync(cancellationToken);
 
     public void Add(ProviderHealthCheck check) => dbContext.ProviderHealthChecks.Add(check);
+
+    public Task<int> DeleteCheckedBeforeAsync(DateTime cutoffUtc, CancellationToken cancellationToken) =>
+        dbContext.ProviderHealthChecks
+            .Where(h => h.CheckedAtUtc < cutoffUtc)
+            .ExecuteDeleteAsync(cancellationToken);
 }

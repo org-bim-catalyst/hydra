@@ -6,4 +6,7 @@ public sealed class ProviderHealthCheckOptions
     public const string SectionName = "ProviderHealthCheck";
 
     public TimeSpan Interval { get; init; } = TimeSpan.FromMinutes(2);
+
+    /// <summary>Health-check rows older than this many days are deleted by the daily retention job.</summary>
+    public int RetentionDays { get; init; } = 30;
 }

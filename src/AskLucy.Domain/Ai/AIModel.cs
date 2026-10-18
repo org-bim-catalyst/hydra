@@ -135,10 +135,37 @@ public sealed class AIModel : BaseEntity
         };
     }
 
-    /// <summary>FR-006. Any transition is allowed — deprecating/disabling a model already in use is exactly the scenario FR-011 exists to handle safely.</summary>
+    /// <summary>
+    /// FR-006: Available and Unavailable toggle freely — disabling a model already in use is
+    /// exactly the scenario FR-011 handles safely. specs/069 FR-021/FR-022: Deprecated is
+    /// terminal, and only <see cref="Deprecate"/> may enter it.
+    /// </summary>
     public void SetStatus(AIModelStatus status, string actor)
     {
+        if (Status == AIModelStatus.Deprecated)
+        {
+            throw new DomainRuleViolationException("A deprecated model can't be re-enabled.");
+        }
+
+        if (status == AIModelStatus.Deprecated)
+        {
+            throw new DomainRuleViolationException("Models are deprecated only through the sync review.");
+        }
+
         Status = status;
+        ModifiedAtUtc = DateTime.UtcNow;
+        ModifiedBy = actor;
+    }
+
+    /// <summary>specs/069 FR-001: the only way into Deprecated, reached only through the sync review.</summary>
+    public void Deprecate(string actor)
+    {
+        if (Status != AIModelStatus.Available)
+        {
+            throw new DomainRuleViolationException("Only an Available model can be deprecated.");
+        }
+
+        Status = AIModelStatus.Deprecated;
         ModifiedAtUtc = DateTime.UtcNow;
         ModifiedBy = actor;
     }
