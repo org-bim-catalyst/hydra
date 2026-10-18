@@ -62,3 +62,18 @@ Run the full backend and frontend suites before pushing. `Web.Tests` needs `PERS
 ## Performance check (SC-007)
 
 Seed 5,000 conversations across 2,000 users on **A**, then confirm the deprecation. **Expect**: the apply request returns in under 10 s, and the job completes afterwards.
+
+## Validation log
+
+**2026-10-18 — automated suites (branch merged to main at f43ac184, follow-ups at 1a3b2759):**
+
+- Domain 744 passed, Application 2,663 → 2,668 passed, Infrastructure 922 → 924 passed (3 skipped).
+- Web.Tests: 1,022 passed, 0 failed, 21 skipped (includes the 401/403 matrix and OpenAPI contract tests).
+- Persistence, `db_a15752_asklucytest2`, serial: 143 passed, 0 failed, 10 skipped.
+- Frontend: type-check clean; full suite 2,930 passed with only the two known ChatPage parallel-load
+  flakes, which pass 96/96 in isolation. Admin + i18n: 662 passed.
+- `dotnet format`: no import, charset or whitespace errors in the changed files.
+
+**Not yet run:** scenarios S1–S6 end to end against a running host (they need a controlled fake
+vendor model list), the SC-007 performance seed, and the new `ModelReferenceStoreTests` against a
+reachable database — the test-2 host was unreachable when it was added.
