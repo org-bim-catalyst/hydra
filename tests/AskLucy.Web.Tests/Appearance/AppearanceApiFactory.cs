@@ -39,6 +39,9 @@ public sealed class AppearanceApiFactory : CustomWebApplicationFactory
             services.AddSingleton(Profiles);
             services.RemoveAll<IUnitOfWork>();
             services.AddSingleton(UnitOfWork);
+
+            // A substitute unit of work: a notification worker here would claim other tests' events and lose them.
+            RemoveNotificationWorkers(services);
         });
     }
 }
