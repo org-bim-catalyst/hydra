@@ -9,6 +9,7 @@ public sealed class SetAiCapabilityAssignmentCommandHandler(
     IAiCapabilityAssignmentRepository assignments,
     IUnitOfWork unitOfWork,
     ICurrentUserAccessor currentUser,
+    AskLucy.Application.Ai.Deprecation.PlatformDefaultFlagResolver flagResolver,
     ILogger<SetAiCapabilityAssignmentCommandHandler> logger) : IRequestHandler<SetAiCapabilityAssignmentCommand>
 {
     public async Task Handle(SetAiCapabilityAssignmentCommand request, CancellationToken cancellationToken)
@@ -30,6 +31,8 @@ public sealed class SetAiCapabilityAssignmentCommandHandler(
         else
         {
             existing.AssignTo(providerId, request.ModelId, actorUserId);
+            // specs/069 FR-010: an assignment may be the fix for an open flag.
+            await flagResolver.ResolveCapabilityAssignmentAsync(providerId, request.Capability, request.ModelId, actorUserId, cancellationToken);
         }
 
         await unitOfWork.SaveChangesAsync(cancellationToken);

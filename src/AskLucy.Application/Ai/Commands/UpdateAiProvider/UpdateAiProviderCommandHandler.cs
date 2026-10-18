@@ -8,6 +8,7 @@ public sealed class UpdateAiProviderCommandHandler(
     IAIProviderRepository providers,
     IUnitOfWork unitOfWork,
     ICurrentUserAccessor currentUser,
+    AskLucy.Application.Ai.Deprecation.PlatformDefaultFlagResolver flagResolver,
     IEnumerable<IAiProviderSwitchedOffObserver> switchedOffObservers,
     TimeProvider timeProvider,
     ILogger<UpdateAiProviderCommandHandler> logger) : IRequestHandler<UpdateAiProviderCommand>
@@ -42,6 +43,8 @@ public sealed class UpdateAiProviderCommandHandler(
         else if (request.DefaultModelId.HasValue)
         {
             provider.SetDefaultModel(request.DefaultModelId, actorUserId);
+            // specs/069 FR-010: this may be the fix for an open deprecation flag.
+            await flagResolver.ResolveProviderDefaultAsync(provider.Id, request.DefaultModelId, actorUserId, cancellationToken);
         }
 
         // specs/078 research D10 — the enabled→disabled edge, notified before the single

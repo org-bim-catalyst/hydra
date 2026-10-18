@@ -15,4 +15,8 @@ public interface IModelDeprecationRepository
 
     /// <summary>Batches still Pending after <paramref name="confirmedBeforeUtc"/>, for the sweep.</summary>
     Task<IReadOnlyList<Guid>> ListStuckPendingBatchIdsAsync(DateTime confirmedBeforeUtc, CancellationToken cancellationToken = default);
+
+    /// <summary>Open flags for one platform function: the provider default (null capability) or one capability.</summary>
+    Task<IReadOnlyList<PlatformDefaultChange>> ListOpenFlagsAsync(
+        Guid providerId, AiCapability? capability, CancellationToken cancellationToken = default);
 }
