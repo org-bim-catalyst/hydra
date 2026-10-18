@@ -162,7 +162,9 @@ public sealed class AdminAiProvidersController(ISender mediator) : ControllerBas
     [HttpPost("providers/{providerId:guid}/models/actions/sync/apply")]
     [RequirePermission("admin.ai-providers.manage")]
     public async Task<ActionResult<ApplyProviderModelSyncResultDto>> ApplyModelSync(Guid providerId, ApplyProviderModelSyncRequest request, CancellationToken cancellationToken) =>
-        Ok(await mediator.Send(new ApplyProviderModelSyncCommand(providerId, request.Added, request.RemovedFromVendor), cancellationToken));
+        Ok(await mediator.Send(
+            new ApplyProviderModelSyncCommand(providerId, request.Added, request.RemovedFromVendor, ApplyProviderModelSyncCommand.ChoicesFrom(request.RemovedFromVendor)),
+            cancellationToken));
 
     /// <summary>specs/069 contracts §3 — deprecation records, newest first, counts only.</summary>
     [HttpGet("deprecations")]

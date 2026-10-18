@@ -1,4 +1,5 @@
 using AskLucy.Application.Abstractions;
+using AskLucy.Application.Ai.Deprecation;
 using AskLucy.Application.Ai.Queries.GetProviderModelSyncDiff;
 using AskLucy.Domain.Ai;
 using FluentAssertions;
@@ -27,7 +28,12 @@ public sealed class GetProviderModelSyncDiffQueryHandlerTests
         _provider = AIProvider.Create("openai", "OpenAI", "test");
         _providers.GetByIdAsync(_provider.Id, Arg.Any<CancellationToken>()).Returns(_provider);
         _resolver.Resolve("openai").Returns(_aiProvider);
-        _handler = new GetProviderModelSyncDiffQueryHandler(_providers, _models, _resolver);
+        var assignments = Substitute.For<IAiCapabilityAssignmentRepository>();
+        assignments.ListAllAsync(Arg.Any<CancellationToken>()).Returns([]);
+        var references = Substitute.For<IModelReferenceStore>();
+        references.CountAsync(Arg.Any<IReadOnlyCollection<Guid>>(), Arg.Any<CancellationToken>())
+            .Returns(new ModelImpactCounts(0, 0, 0, 0, 0));
+        _handler = new GetProviderModelSyncDiffQueryHandler(_providers, _models, _resolver, assignments, references);
     }
 
     private AIModel MakeCatalogModel(string modelKey, AIModelStatus status)

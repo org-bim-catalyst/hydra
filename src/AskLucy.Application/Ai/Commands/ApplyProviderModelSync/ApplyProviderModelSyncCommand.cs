@@ -20,4 +20,18 @@ public sealed record ApplyProviderModelSyncCommand(
     Guid ProviderId,
     IReadOnlyList<ProviderModelInfo> Added,
     IReadOnlyList<RemovedModelDto> RemovedFromVendor,
-    IReadOnlyDictionary<Guid, ReplacementChoice>? Replacements = null) : IRequest<ApplyProviderModelSyncResultDto>;
+    IReadOnlyDictionary<Guid, ReplacementChoice>? Replacements = null) : IRequest<ApplyProviderModelSyncResultDto>
+{
+    /// <summary>specs/069 FR-007: the choices the client echoed back on each removed row.</summary>
+    public static IReadOnlyDictionary<Guid, ReplacementChoice> ChoicesFrom(IReadOnlyList<RemovedModelDto> removed) =>
+        removed
+            .Where(r => r.Replacement is not null)
+            .ToDictionary(
+                r => r.Id,
+                r => r.Replacement!.Kind switch
+                {
+                    "Model" when r.Replacement.ModelId is { } modelId => new ReplacementChoice(ReplacementChoiceKind.Model, modelId),
+                    "None" => new ReplacementChoice(ReplacementChoiceKind.None),
+                    _ => ReplacementChoice.Proposed,
+                });
+}
