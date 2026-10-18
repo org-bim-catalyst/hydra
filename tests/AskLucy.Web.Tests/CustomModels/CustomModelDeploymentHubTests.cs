@@ -16,6 +16,7 @@ namespace AskLucy.Web.Tests.CustomModels;
 /// transformation attaches for any role (built-in or custom), so each case here is just the
 /// principal that transformation would have produced.
 /// </summary>
+[Collection(DatabaseSerialGroup.Name)]
 public sealed class CustomModelDeploymentHubTests(CustomWebApplicationFactory factory) : IClassFixture<CustomWebApplicationFactory>
 {
     private readonly IGroupManager _groups = Substitute.For<IGroupManager>();

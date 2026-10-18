@@ -12,6 +12,7 @@ namespace AskLucy.Web.Tests.Admin;
 /// without a live database — unlike the endpoints' own data access, role evaluation is
 /// entirely a function of the token's claims.
 /// </summary>
+[Collection(DatabaseSerialGroup.Name)]
 public sealed class RoleAuthorizationTests(CustomWebApplicationFactory factory) : IClassFixture<CustomWebApplicationFactory>
 {
     private readonly HttpClient _client = factory.CreateClient();

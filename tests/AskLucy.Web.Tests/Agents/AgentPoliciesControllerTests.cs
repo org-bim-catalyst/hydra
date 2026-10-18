@@ -14,6 +14,7 @@ namespace AskLucy.Web.Tests.Agents;
 /// <see cref="Ai.AdminAiProvidersControllerTests"/> — role evaluation is purely a function of the
 /// token's claims, independent of any data access.
 /// </summary>
+[Collection(DatabaseSerialGroup.Name)]
 public sealed class AgentPoliciesControllerTests(CustomWebApplicationFactory factory) : IClassFixture<CustomWebApplicationFactory>
 {
     private readonly HttpClient _client = factory.CreateClient();

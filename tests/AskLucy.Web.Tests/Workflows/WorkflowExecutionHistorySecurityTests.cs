@@ -11,6 +11,7 @@ namespace AskLucy.Web.Tests.Workflows;
 /// (<c>WorkflowCrossUserSecurityTests</c>), where it's verifiable without a live database and a
 /// second real authenticated user.
 /// </summary>
+[Collection(DatabaseSerialGroup.Name)]
 public sealed class WorkflowExecutionHistorySecurityTests(CustomWebApplicationFactory factory) : IClassFixture<CustomWebApplicationFactory>
 {
     private readonly HttpClient _client = factory.CreateClient();

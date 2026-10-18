@@ -12,6 +12,7 @@ namespace AskLucy.Web.Tests.Auth;
 /// full success-path coverage needs a live database and is left to the Playwright
 /// regression matrix (tests/AskLucy.E2E.Tests).
 /// </summary>
+[Collection(DatabaseSerialGroup.Name)]
 public sealed class AccountManagementTests(CustomWebApplicationFactory factory)
     : IClassFixture<CustomWebApplicationFactory>
 {

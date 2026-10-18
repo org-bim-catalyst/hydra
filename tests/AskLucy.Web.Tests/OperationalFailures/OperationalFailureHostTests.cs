@@ -15,6 +15,7 @@ namespace AskLucy.Web.Tests.OperationalFailures;
 /// channel shared by both registrations, and a recorded failure reaching the database without
 /// anyone awaiting it.
 /// </summary>
+[Collection(DatabaseSerialGroup.Name)]
 public sealed class OperationalFailureHostTests(CustomWebApplicationFactory factory) : IClassFixture<CustomWebApplicationFactory>
 {
     [Fact]

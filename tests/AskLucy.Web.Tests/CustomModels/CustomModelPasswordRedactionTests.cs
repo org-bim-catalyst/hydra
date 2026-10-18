@@ -36,6 +36,7 @@ namespace AskLucy.Web.Tests.CustomModels;
 /// boots against (see <see cref="CustomWebApplicationFactory"/>). Nothing is persisted that the EF
 /// model doesn't map, so every column is covered.
 /// </remarks>
+[Collection(DatabaseSerialGroup.Name)]
 public sealed class CustomModelPasswordRedactionTests : IClassFixture<CustomWebApplicationFactory>
 {
     private const string Source = "https://huggingface.co/Supertone/supertonic-3";

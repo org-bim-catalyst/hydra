@@ -10,6 +10,7 @@ namespace AskLucy.Web.Tests.Controllers;
 /// specs/060-hangfire-dashboard-access User Story 1 — the endpoint the "Jobs" sidebar entry
 /// calls to mint the short-lived Hangfire-only cookie before opening <c>/hangfire</c>.
 /// </summary>
+[Collection(DatabaseSerialGroup.Name)]
 public sealed class AdminHangfireSessionEndpointTests(CustomWebApplicationFactory factory) : IClassFixture<CustomWebApplicationFactory>
 {
     private readonly HttpClient _client = factory.CreateClient();

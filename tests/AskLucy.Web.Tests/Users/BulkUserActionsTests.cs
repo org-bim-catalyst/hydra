@@ -16,6 +16,7 @@ namespace AskLucy.Web.Tests.Users;
 /// passing-authorization request cannot succeed end-to-end; what's verified is that
 /// authorization itself never blocks an admin (401/403) the way it blocks a non-admin.
 /// </summary>
+[Collection(DatabaseSerialGroup.Name)]
 public sealed class BulkUserActionsTests(CustomWebApplicationFactory factory) : IClassFixture<CustomWebApplicationFactory>
 {
     private readonly HttpClient _client = factory.CreateClient();

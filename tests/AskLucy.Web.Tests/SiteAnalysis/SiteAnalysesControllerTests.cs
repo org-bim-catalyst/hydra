@@ -12,6 +12,7 @@ namespace AskLucy.Web.Tests.SiteAnalysis;
 /// without a live database and a second real authenticated user. This class covers the outer auth
 /// gate (unauthenticated request → 401), which is what's runnable in this environment.
 /// </summary>
+[Collection(DatabaseSerialGroup.Name)]
 public sealed class SiteAnalysesControllerTests(CustomWebApplicationFactory factory) : IClassFixture<CustomWebApplicationFactory>
 {
     private readonly HttpClient _client = factory.CreateClient();

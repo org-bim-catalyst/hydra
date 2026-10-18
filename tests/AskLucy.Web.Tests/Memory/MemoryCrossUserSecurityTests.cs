@@ -17,6 +17,7 @@ namespace AskLucy.Web.Tests.Memory;
 /// Memory/Projects endpoint's outer auth gate (unauthenticated request → 401), which is what's
 /// runnable in this environment without a seeded second user account.
 /// </summary>
+[Collection(DatabaseSerialGroup.Name)]
 public sealed class MemoryCrossUserSecurityTests(CustomWebApplicationFactory factory) : IClassFixture<CustomWebApplicationFactory>
 {
     private readonly HttpClient _client = factory.CreateClient();

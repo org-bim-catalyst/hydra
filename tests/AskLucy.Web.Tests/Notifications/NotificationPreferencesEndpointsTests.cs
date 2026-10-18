@@ -19,6 +19,7 @@ using Hub = AskLucy.Application.Notifications.Abstractions;
 namespace AskLucy.Web.Tests.Notifications;
 
 /// <summary>One real host and database for the preferences tests, so they share one rate-limit state and one set of seeded users.</summary>
+[Collection(DatabaseSerialGroup.Name)]
 public sealed class NotificationPreferencesApiFactory : CustomWebApplicationFactory;
 
 /// <summary>
@@ -26,6 +27,7 @@ public sealed class NotificationPreferencesApiFactory : CustomWebApplicationFact
 /// host and database: the status codes (401, 400, 422, 429), the sparse storage, and what a saved preference does to
 /// the routing of a later event.
 /// </summary>
+[Collection(DatabaseSerialGroup.Name)]
 public sealed class NotificationPreferencesEndpointsTests(NotificationPreferencesApiFactory factory)
     : IClassFixture<NotificationPreferencesApiFactory>, IAsyncLifetime
 {

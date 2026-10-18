@@ -14,6 +14,7 @@ namespace AskLucy.Web.Tests.CustomModels;
 /// failing. <see cref="CustomWebApplicationFactory"/> configures no <c>Ftp</c> section, and the real
 /// configuration-backed provider is left in place.
 /// </summary>
+[Collection(DatabaseSerialGroup.Name)]
 public sealed class CustomModelsNotConfiguredTests : IClassFixture<CustomWebApplicationFactory>
 {
     private readonly HttpClient _client;

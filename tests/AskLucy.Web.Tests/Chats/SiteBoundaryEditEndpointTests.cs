@@ -15,6 +15,7 @@ namespace AskLucy.Web.Tests.Chats;
 /// the same split <see cref="OwnershipTests"/> documents. One derived factory per class, not a host
 /// per test (memory: WithWebHostBuilder stalls Web.Tests).
 /// </summary>
+[Collection(DatabaseSerialGroup.Name)]
 public sealed class SiteBoundaryEditEndpointTests(CustomWebApplicationFactory factory) : IClassFixture<CustomWebApplicationFactory>
 {
     private readonly HttpClient _client = factory.CreateClient();

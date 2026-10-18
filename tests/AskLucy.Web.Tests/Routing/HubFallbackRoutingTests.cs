@@ -13,6 +13,7 @@ namespace AskLucy.Web.Tests.Routing;
 /// for /hubs/panels — this test asserts the same failure mode for all 6 mapped hubs, not
 /// just the one first observed, per FR-011's "apply uniformly" requirement.
 /// </summary>
+[Collection(DatabaseSerialGroup.Name)]
 public sealed class HubFallbackRoutingTests(CustomWebApplicationFactory factory) : IClassFixture<CustomWebApplicationFactory>
 {
     private readonly HttpClient _client = factory.CreateClient();

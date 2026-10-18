@@ -7,6 +7,7 @@ using Xunit;
 namespace AskLucy.Web.Tests.Users;
 
 /// <summary>FR-014 privilege-escalation guard (specs/001-admin-dashboard, Clarifications 2026-07-28).</summary>
+[Collection(DatabaseSerialGroup.Name)]
 public sealed class ChangeUserRoleTests(CustomWebApplicationFactory factory) : IClassFixture<CustomWebApplicationFactory>
 {
     private readonly HttpClient _client = factory.CreateClient();

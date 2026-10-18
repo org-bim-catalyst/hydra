@@ -11,6 +11,7 @@ namespace AskLucy.Web.Tests.Admin;
 /// self-signed-JWT, no-live-database pattern as <see cref="RoleAuthorizationTests"/> — role
 /// evaluation is purely a function of the token's claims, independent of any data access.
 /// </summary>
+[Collection(DatabaseSerialGroup.Name)]
 public sealed class AdminDashboardTests(CustomWebApplicationFactory factory) : IClassFixture<CustomWebApplicationFactory>
 {
     private readonly HttpClient _client = factory.CreateClient();

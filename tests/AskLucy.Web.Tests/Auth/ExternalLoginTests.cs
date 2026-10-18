@@ -23,6 +23,7 @@ namespace AskLucy.Web.Tests.Auth;
 /// the auth-gate and "provider not configured" boundaries are exercised, per the project's
 /// established pattern for provider-dependent behavior (see tasks.md T028/T029).
 /// </summary>
+[Collection(DatabaseSerialGroup.Name)]
 public sealed class ExternalLoginTests(CustomWebApplicationFactory factory)
     : IClassFixture<CustomWebApplicationFactory>
 {

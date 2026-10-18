@@ -10,6 +10,7 @@ namespace AskLucy.Web.Tests.CustomModels;
 /// <c>/openapi</c> is only mapped in Development, so this asks the registered document provider
 /// directly rather than going over HTTP.
 /// </summary>
+[Collection(DatabaseSerialGroup.Name)]
 public sealed class CustomModelsOpenApiTests(CustomWebApplicationFactory factory) : IClassFixture<CustomWebApplicationFactory>
 {
     [Fact]

@@ -10,6 +10,7 @@ namespace AskLucy.Web.Tests.Ai;
 /// requests before reaching a handler. Deliberately does not require a live database —
 /// the JWT auth gate runs first, in the middleware pipeline.
 /// </summary>
+[Collection(DatabaseSerialGroup.Name)]
 public sealed class AnonymousAccessTests(CustomWebApplicationFactory factory)
     : IClassFixture<CustomWebApplicationFactory>
 {
