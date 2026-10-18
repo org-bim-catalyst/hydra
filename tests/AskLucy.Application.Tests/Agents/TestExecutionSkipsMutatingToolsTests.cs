@@ -69,7 +69,7 @@ public sealed class TestExecutionSkipsMutatingToolsTests
         mcpToolRegistry.ActiveTools.Returns((IReadOnlyCollection<IAgentTool>)[]);
 
         var orchestrator = new AgentExecutionOrchestrator(
-            executionRepository, agentRepository, providerRepository, modelRepository, providerResolver, planner,
+            executionRepository, agentRepository, providerRepository, modelRepository, TestModelResolver.Passthrough(), providerResolver, planner,
             new AgentToolCatalog([mutatingTool], mcpToolRegistry), new AgentBudgetGuard(Microsoft.Extensions.Options.Options.Create(new AgentRuntimeOptions())),
             new AgentDuplicateToolCallDetector(), new AgentPolicyEvaluator(Substitute.For<IAgentPolicyRepository>()),
             Substitute.For<IAgentExecutionNotifier>(), Substitute.For<IAgentAuditLogRepository>(), chatRepository, messageRepository,

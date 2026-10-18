@@ -30,7 +30,7 @@ public sealed class ExecutePromptMemoryIntegrationTests
     private readonly IAIProvider _aiProvider = Substitute.For<IAIProvider>();
 
     private ExecutePromptCommandHandler CreateHandler() =>
-        new(_promptRepository, _providerResolver, _providerRepository, _modelRepository, _ragService, _memoryService, _currentUser);
+        new(_promptRepository, _providerResolver, _providerRepository, _modelRepository, TestModelResolver.Passthrough(), _ragService, _memoryService, _currentUser);
 
     private static (Prompt Prompt, PromptVersion Version) BuildPrompt()
     {

@@ -89,7 +89,7 @@ public sealed class McpAuthorizationBypassSecurityTests
             .Returns(new AgentPlan(execution.Objective, [new AgentPlanStep(0, "Delete the record.", AgentExecutionStepType.ToolCall, namespacedName)]));
 
         var orchestrator = new AgentExecutionOrchestrator(
-            executionRepository, agentRepository, providerRepository, modelRepository, providerResolver, planner,
+            executionRepository, agentRepository, providerRepository, modelRepository, TestModelResolver.Passthrough(), providerResolver, planner,
             new AgentToolCatalog([], registry), new AgentBudgetGuard(Microsoft.Extensions.Options.Options.Create(new AgentRuntimeOptions())),
             new AgentDuplicateToolCallDetector(), new AgentPolicyEvaluator(policyRepository), Substitute.For<IAgentExecutionNotifier>(),
             Substitute.For<IAgentAuditLogRepository>(), Substitute.For<IUserChatRepository>(), Substitute.For<IMessageRepository>(),

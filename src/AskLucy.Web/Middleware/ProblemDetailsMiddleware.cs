@@ -328,6 +328,20 @@ public sealed class ProblemDetailsMiddleware(
             "Request violates a business rule",
             domainEx.Message),
 
+        // specs/069 FR-021/FR-022: Deprecated is terminal, and only the sync review may enter it.
+        AskLucy.Application.Ai.Deprecation.ModelStatusLockedException statusLockedEx => (
+            StatusCodes.Status409Conflict,
+            "https://hydra.bimcatalyst.com/problems/model-status-locked",
+            "Model status is locked",
+            statusLockedEx.Message),
+
+        // specs/069 FR-015: the run named a retired model with no usable replacement.
+        AskLucy.Application.Ai.Deprecation.ModelRetiredException modelRetiredEx => (
+            StatusCodes.Status400BadRequest,
+            "https://hydra.bimcatalyst.com/problems/model-retired",
+            "Model retired",
+            modelRetiredEx.UserSafeMessage),
+
         DuplicateResourceException duplicateEx => (
             StatusCodes.Status409Conflict,
             "https://hydra.bimcatalyst.com/problems/duplicate-resource",

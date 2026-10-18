@@ -58,7 +58,7 @@ public sealed class AgentNodeExecutorTests
         var policyEvaluator = new AgentPolicyEvaluator(_agentPolicyRepository);
 
         var orchestrator = new AgentExecutionOrchestrator(
-            _agentExecutionRepository, _agentRepository, _providerRepository, _modelRepository,
+            _agentExecutionRepository, _agentRepository, _providerRepository, _modelRepository, TestModelResolver.Passthrough(),
             _providerResolver, _planner, toolCatalog, budgetGuard, duplicateDetector, policyEvaluator, _notifier,
             _agentAuditLogRepository, _chatRepository, _messageRepository, Substitute.For<INotificationPublisher>(), _unitOfWork);
 

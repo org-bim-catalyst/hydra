@@ -96,7 +96,7 @@ public sealed class McpHighRiskApprovalTests
         registry.ActiveTools.Returns((IReadOnlyCollection<IAgentTool>)adapters);
 
         return new(
-            _executionRepository, _agentRepository, _providerRepository, _modelRepository, _providerResolver, _planner,
+            _executionRepository, _agentRepository, _providerRepository, _modelRepository, TestModelResolver.Passthrough(), _providerResolver, _planner,
             new AgentToolCatalog([], registry), new AgentBudgetGuard(Microsoft.Extensions.Options.Options.Create(new AgentRuntimeOptions())),
             new AgentDuplicateToolCallDetector(), new AgentPolicyEvaluator(_policyRepository), Substitute.For<IAgentExecutionNotifier>(),
             Substitute.For<IAgentAuditLogRepository>(), _chatRepository, _messageRepository, Substitute.For<INotificationPublisher>(), _unitOfWork);

@@ -1,6 +1,7 @@
 using System.Globalization;
 using System.Text.Json;
 using AskLucy.Application.Abstractions;
+using AskLucy.Application.Ai.Deprecation;
 using AskLucy.Application.Agents.Tools;
 using AskLucy.Application.Ai;
 using AskLucy.Application.Notifications.Abstractions;
@@ -47,6 +48,7 @@ public sealed class AgentExecutionOrchestrator(
     IAgentRepository agentRepository,
     IAIProviderRepository providerRepository,
     IAIModelRepository modelRepository,
+    IExecutableModelResolver executableModelResolver,
     IAIProviderResolver providerResolver,
     IAgentPlanner planner,
     AgentToolCatalog toolCatalog,
@@ -132,8 +134,11 @@ public sealed class AgentExecutionOrchestrator(
 
             var provider = await providerRepository.GetByIdAsync(versionProviderId, cancellationToken)
                 ?? throw new InvalidOperationException("The agent's configured AI provider no longer exists.");
-            var model = await modelRepository.GetByIdAsync(versionModelId, cancellationToken)
+            var configuredModel = await modelRepository.GetByIdAsync(versionModelId, cancellationToken)
                 ?? throw new InvalidOperationException("The agent's configured AI model no longer exists.");
+            // specs/069 FR-014: a published version can't be rewritten, so a retired model is
+            // redirected here; with no usable successor, the run fails with a user-safe message.
+            var model = (await executableModelResolver.ResolveAsync(configuredModel, cancellationToken)).Model;
             var aiProvider = providerResolver.Resolve(provider.ProviderKey);
 
             var availableTools = ResolveAvailableTools(agentVersion.ToolsSnapshotJson);

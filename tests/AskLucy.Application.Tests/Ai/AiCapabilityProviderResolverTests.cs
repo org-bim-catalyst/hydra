@@ -118,7 +118,7 @@ public sealed class AiCapabilityProviderResolverTests
     {
         var openai = Configured("openai", "OpenAI", out var gpt);
         var gemini = Configured("google-gemini", "Google Gemini", out var geminiModel);
-        geminiModel.SetStatus(AIModelStatus.Deprecated, "test");
+        geminiModel.Deprecate("test");
         _providers.ListEnabledAsync(Arg.Any<CancellationToken>()).Returns(new List<AIProvider> { openai });
         Assign(AiCapability.MemoryConflictDetection, gemini.Id);
 

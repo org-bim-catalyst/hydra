@@ -1,6 +1,7 @@
 using System.Runtime.CompilerServices;
 using System.Text.Json;
 using AskLucy.Application.Abstractions;
+using AskLucy.Application.Ai.Deprecation;
 using AskLucy.Application.Ai;
 using AskLucy.Application.Prompts.Authorization;
 using AskLucy.Domain.Ai;
@@ -33,6 +34,7 @@ public sealed class ExecutePromptCommandHandler(
     IAIProviderResolver providerResolver,
     IAIProviderRepository providerRepository,
     IAIModelRepository modelRepository,
+    IExecutableModelResolver executableModelResolver,
     IRagService ragService,
     IMemoryService memoryService,
     ICurrentUserAccessor currentUser) : IStreamRequestHandler<ExecutePromptCommand, PromptStreamChunk>
@@ -57,8 +59,10 @@ public sealed class ExecutePromptCommandHandler(
 
         var provider = await providerRepository.GetByIdAsync(request.ProviderId, cancellationToken)
             ?? throw new KeyNotFoundException("Provider not found.");
-        var model = await modelRepository.GetByIdAsync(request.ModelId, cancellationToken)
+        var configuredModel = await modelRepository.GetByIdAsync(request.ModelId, cancellationToken)
             ?? throw new KeyNotFoundException("Model not found.");
+        // specs/069 FR-014: resolve a retired model to its replacement, or fail with the retired model named.
+        var model = (await executableModelResolver.ResolveAsync(configuredModel, cancellationToken)).Model;
 
         var modelCapabilities = new AIModelCapabilities(
             model.SupportsStreaming, model.SupportsVision, model.SupportsFunctionCalling, model.SupportsJsonMode,

@@ -75,33 +75,44 @@ public sealed class AIModelTests
         model.MaxOutputTokens.Should().BeNull();
     }
 
-    [Theory]
-    [InlineData(AIModelStatus.Deprecated)]
-    [InlineData(AIModelStatus.Unavailable)]
-    public void SetStatus_ToNonAvailable_ShouldMakeModelUnselectable(AIModelStatus status)
+    [Fact]
+    public void SetStatus_ToUnavailable_ShouldMakeModelUnselectable()
     {
-        // Clarifications Session 2026-07-30 Q2: Deprecated and Unavailable are both
-        // non-selectable, differing only in administrative meaning (FR-006/FR-007).
+        // Clarifications Session 2026-07-30 Q2: a non-selectable model (FR-006/FR-007).
         var model = AIModel.Create(
             ProviderId, "gpt-4.1", "GPT-4.1", 128_000, 16_384, NoCapabilities,
             releaseDate: null, pricing: null, actor: "admin-1");
 
-        model.SetStatus(status, "admin-1");
+        model.SetStatus(AIModelStatus.Unavailable, "admin-1");
 
         model.IsSelectable.Should().BeFalse();
     }
 
     [Fact]
-    public void SetStatus_ShouldAllowReinstatingADeprecatedModel()
+    public void Deprecate_ShouldMakeModelUnselectable()
     {
         var model = AIModel.Create(
             ProviderId, "gpt-4.1", "GPT-4.1", 128_000, 16_384, NoCapabilities,
             releaseDate: null, pricing: null, actor: "admin-1");
 
-        model.SetStatus(AIModelStatus.Deprecated, "admin-1");
-        model.SetStatus(AIModelStatus.Available, "admin-1");
+        model.Deprecate("admin-1");
 
-        model.IsSelectable.Should().BeTrue();
+        model.IsSelectable.Should().BeFalse();
+    }
+
+    [Fact]
+    public void SetStatus_ShouldRefuseToReinstateADeprecatedModel()
+    {
+        // specs/069 FR-021: Deprecated is terminal; the toggle cannot leave it.
+        var model = AIModel.Create(
+            ProviderId, "gpt-4.1", "GPT-4.1", 128_000, 16_384, NoCapabilities,
+            releaseDate: null, pricing: null, actor: "admin-1");
+        model.Deprecate("admin-1");
+
+        var act = () => model.SetStatus(AIModelStatus.Available, "admin-1");
+
+        act.Should().Throw<DomainRuleViolationException>();
+        model.Status.Should().Be(AIModelStatus.Deprecated);
     }
 
     [Fact]

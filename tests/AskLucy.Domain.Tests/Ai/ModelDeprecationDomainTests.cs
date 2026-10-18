@@ -22,7 +22,11 @@ public sealed class ModelDeprecationDomainTests
         AIModelStatus status = AIModelStatus.Available)
     {
         var model = AIModel.Create(provider ?? Provider, key, key, context, null, caps ?? Caps(), released, pricing, "admin");
-        if (status != AIModelStatus.Available)
+        if (status == AIModelStatus.Deprecated)
+        {
+            model.Deprecate("admin");
+        }
+        else if (status != AIModelStatus.Available)
         {
             model.SetStatus(status, "admin");
         }

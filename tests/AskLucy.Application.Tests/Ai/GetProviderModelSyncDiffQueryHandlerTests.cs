@@ -33,7 +33,15 @@ public sealed class GetProviderModelSyncDiffQueryHandlerTests
     private AIModel MakeCatalogModel(string modelKey, AIModelStatus status)
     {
         var model = AIModel.Create(_provider.Id, modelKey, modelKey.ToUpperInvariant(), 128000, 16384, Capabilities, null, null, "test");
-        model.SetStatus(status, "test");
+        if (status == AIModelStatus.Deprecated)
+        {
+            model.Deprecate("test");
+        }
+        else if (status != AIModelStatus.Available)
+        {
+            model.SetStatus(status, "test");
+        }
+
         return model;
     }
 

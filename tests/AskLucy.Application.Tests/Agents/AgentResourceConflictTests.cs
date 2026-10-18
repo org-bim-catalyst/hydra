@@ -85,7 +85,7 @@ public sealed class AgentResourceConflictTests
         mcpToolRegistry.ActiveTools.Returns((IReadOnlyCollection<IAgentTool>)[]);
 
         var orchestrator = new AgentExecutionOrchestrator(
-            _executionRepository, _agentRepository, _providerRepository, _modelRepository, _providerResolver, _planner,
+            _executionRepository, _agentRepository, _providerRepository, _modelRepository, TestModelResolver.Passthrough(), _providerResolver, _planner,
             new AgentToolCatalog([], mcpToolRegistry), new AgentBudgetGuard(Microsoft.Extensions.Options.Options.Create(new AgentRuntimeOptions())),
             new AgentDuplicateToolCallDetector(), new AgentPolicyEvaluator(Substitute.For<IAgentPolicyRepository>()),
             Substitute.For<IAgentExecutionNotifier>(), Substitute.For<IAgentAuditLogRepository>(), _chatRepository, _messageRepository,

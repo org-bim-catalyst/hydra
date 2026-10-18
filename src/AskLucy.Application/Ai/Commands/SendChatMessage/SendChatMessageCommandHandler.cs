@@ -1,4 +1,5 @@
 using AskLucy.Application.Abstractions;
+using AskLucy.Application.Ai.Deprecation;
 using AskLucy.Application.Conversations.Runtime;
 using FluentValidation;
 using MediatR;
@@ -38,6 +39,7 @@ public sealed class SendChatMessageCommandHandler(
     IAIProviderResolver providerResolver,
     IAIProviderRepository providerRepository,
     IAIModelRepository modelRepository,
+    IExecutableModelResolver executableModelResolver,
     IConversationTurnOrchestrator turnOrchestrator,
     IValidator<SendChatMessageCommand> validator) : IStreamRequestHandler<SendChatMessageCommand, ChatStreamChunk>
 {
@@ -52,8 +54,11 @@ public sealed class SendChatMessageCommandHandler(
         // purely "is this request valid" and the handler's job purely "execute it".
         var provider = await providerRepository.GetByIdAsync(request.ProviderId, cancellationToken)
             ?? throw new KeyNotFoundException("Provider not found.");
-        var model = await modelRepository.GetByIdAsync(request.ModelId, cancellationToken)
+        var configuredModel = await modelRepository.GetByIdAsync(request.ModelId, cancellationToken)
             ?? throw new KeyNotFoundException("Model not found.");
+        // specs/069 FR-014: a conversation still naming a retired model runs on its replacement;
+        // with none, ModelRetiredException reaches the caller as a 400 naming the retired model.
+        var model = (await executableModelResolver.ResolveAsync(configuredModel, cancellationToken)).Model;
 
         var turn = new ConversationTurnRequest(
             request.ChatId,
