@@ -92,6 +92,7 @@ public static class DependencyInjection
         services.AddScoped<IAiCapabilityAssignmentRepository, AiCapabilityAssignmentRepository>();
         services.AddScoped<IAiCapabilitySettingRepository, AiCapabilitySettingRepository>();
         services.AddScoped<IAIModelRepository, AIModelRepository>();
+        services.AddScoped<IModelDeprecationRepository, ModelDeprecationRepository>();
         services.AddScoped<IProviderHealthCheckRepository, ProviderHealthCheckRepository>();
         services.AddScoped<IUserAiPreferenceRepository, UserAiPreferenceRepository>();
         services.AddScoped<IUserVoicePreferenceRepository, UserVoicePreferenceRepository>();

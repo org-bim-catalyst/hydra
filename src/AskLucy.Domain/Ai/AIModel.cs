@@ -143,6 +143,19 @@ public sealed class AIModel : BaseEntity
         ModifiedBy = actor;
     }
 
+    /// <summary>specs/069 FR-001: the only way into Deprecated, reached only through the sync review.</summary>
+    public void Deprecate(string actor)
+    {
+        if (Status != AIModelStatus.Available)
+        {
+            throw new DomainRuleViolationException("Only an Available model can be deprecated.");
+        }
+
+        Status = AIModelStatus.Deprecated;
+        ModifiedAtUtc = DateTime.UtcNow;
+        ModifiedBy = actor;
+    }
+
     public void SetPricing(ModelPricing? pricing, string actor)
     {
         Pricing = pricing;
