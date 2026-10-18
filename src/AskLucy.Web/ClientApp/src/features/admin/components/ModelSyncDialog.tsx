@@ -185,7 +185,9 @@ export function ModelSyncDialog({ providerId, providerDisplayName, open, onClose
     const added: AddedProviderModel[] = diff.added.filter((m) => selectedAddedKeys.has(m.modelKey))
     const removedFromVendor: RemovedProviderModel[] = diff.removedFromVendor
       .filter((m) => selectedRemovedIds.has(m.id))
-      .map(({ impact: _impact, ...row }) => ({ ...row, replacement: replacementChoices[row.id] ?? { kind: 'Proposed' } }))
+      // `impact` is intentionally dropped from the payload.
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      .map(({ impact, ...row }) => ({ ...row, replacement: replacementChoices[row.id] ?? { kind: 'Proposed' } }))
     applyMutation.mutate({ added, removedFromVendor })
   }
 
