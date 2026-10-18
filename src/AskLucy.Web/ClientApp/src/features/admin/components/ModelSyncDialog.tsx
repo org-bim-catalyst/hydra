@@ -15,6 +15,7 @@ import {
   ListItem,
   ListItemText,
   Snackbar,
+  MenuItem,
   TextField,
   Typography,
 } from '@mui/material'
@@ -24,7 +25,13 @@ import { useT } from '../../../i18n/useT'
 import type { Translate } from '../../../i18n/useT'
 import type { ProviderFailure } from '../../../api/httpClient'
 import * as adminAiProvidersApi from '../api/adminAiProvidersApi'
-import type { AddedProviderModel, ApplyProviderModelSyncResult, ProviderModelSyncDiff, RemovedProviderModel } from '../api/adminAiProvidersApi'
+import type {
+  AddedProviderModel,
+  ApplyProviderModelSyncResult,
+  ProviderModelSyncDiff,
+  RemovedProviderModel,
+  ReplacementRequest,
+} from '../api/adminAiProvidersApi'
 
 interface ModelSyncDialogProps {
   providerId: string
@@ -78,6 +85,7 @@ export function ModelSyncDialog({ providerId, providerDisplayName, open, onClose
   const [filterText, setFilterText] = useState('')
   const [selectedAddedKeys, setSelectedAddedKeys] = useState<Set<string>>(new Set())
   const [selectedRemovedIds, setSelectedRemovedIds] = useState<Set<string>>(new Set())
+  const [replacementChoices, setReplacementChoices] = useState<Record<string, ReplacementRequest>>({})
   const [applyResult, setApplyResult] = useState<ApplyProviderModelSyncResult | null>(null)
   const [feedback, setFeedback] = useState<Feedback>(null)
 
@@ -175,7 +183,9 @@ export function ModelSyncDialog({ providerId, providerDisplayName, open, onClose
   const handleConfirmApply = () => {
     if (!diff) return
     const added: AddedProviderModel[] = diff.added.filter((m) => selectedAddedKeys.has(m.modelKey))
-    const removedFromVendor: RemovedProviderModel[] = diff.removedFromVendor.filter((m) => selectedRemovedIds.has(m.id))
+    const removedFromVendor: RemovedProviderModel[] = diff.removedFromVendor
+      .filter((m) => selectedRemovedIds.has(m.id))
+      .map(({ impact: _impact, ...row }) => ({ ...row, replacement: replacementChoices[row.id] ?? { kind: 'Proposed' } }))
     applyMutation.mutate({ added, removedFromVendor })
   }
 
@@ -327,7 +337,71 @@ export function ModelSyncDialog({ providerId, providerDisplayName, open, onClose
                           />
                           <ListItemText
                             primary={<bdi>{model.displayName}</bdi>}
-                            secondary={<bdi dir="ltr">{model.modelKey}</bdi>}
+                            secondary={
+                              <Box component="span" sx={{ display: 'block' }}>
+                                <bdi dir="ltr">{model.modelKey}</bdi>
+                                {model.impact && (
+                                  <Typography variant="caption" component="span" sx={{ display: 'block' }} color="text.secondary">
+                                    {model.impact.distinctUsers === 0 && model.impact.conversations === 0 && model.impact.agents === 0
+                                      && model.impact.prompts === 0 && model.impact.workflowSteps === 0
+                                      ? t('sync.noImpact')
+                                      : t('sync.impactSummary', {
+                                          conversations: model.impact.conversations,
+                                          agents: model.impact.agents,
+                                          prompts: model.impact.prompts,
+                                          workflowSteps: model.impact.workflowSteps,
+                                          users: model.impact.distinctUsers,
+                                        })}
+                                  </Typography>
+                                )}
+                                {model.impact && model.impact.platformDefaults.length > 0 && (
+                                  <Typography variant="caption" component="span" sx={{ display: 'block' }} color="warning.main">
+                                    {t('sync.platformDefaultsAffected', {
+                                      targets: model.impact.platformDefaults
+                                        .map((d) => d.capability ?? d.targetKind)
+                                        .join(', '),
+                                    })}
+                                  </Typography>
+                                )}
+                                {model.impact && (
+                                  <TextField
+                                    select
+                                    size="small"
+                                    label={t('sync.replacement')}
+                                    value={replacementChoices[model.id]?.modelId ?? 'Proposed'}
+                                    onChange={(event) => {
+                                      const value = event.target.value
+                                      setReplacementChoices((current) => ({
+                                        ...current,
+                                        [model.id]: value === 'None'
+                                          ? { kind: 'None' }
+                                          : value === 'Proposed'
+                                            ? { kind: 'Proposed' }
+                                            : { kind: 'Model', modelId: value },
+                                      }))
+                                    }}
+                                    sx={{ mt: 1, minWidth: 260 }}
+                                  >
+                                    <MenuItem value="Proposed">
+                                      {model.impact.proposedReplacement
+                                        ? t('sync.replacementProposed', { name: model.impact.proposedReplacement.displayName })
+                                        : t('sync.replacementNone')}
+                                    </MenuItem>
+                                    <MenuItem value="None">{t('sync.replacementNone')}</MenuItem>
+                                    {model.impact.eligibleReplacements.map((candidate) => (
+                                      <MenuItem key={candidate.id} value={candidate.id}>
+                                        {candidate.missingCapabilities.length > 0
+                                          ? `${candidate.displayName} — ${t('sync.replacementLoses', { capabilities: candidate.missingCapabilities.join(', ') })}`
+                                          : candidate.displayName}
+                                      </MenuItem>
+                                    ))}
+                                  </TextField>
+                                )}
+                                <Typography variant="caption" component="span" sx={{ display: 'block' }} color="text.secondary">
+                                  {t('sync.deprecateWarning')}
+                                </Typography>
+                              </Box>
+                            }
                           />
                           <Chip size="small" label={t('sync.willBeMarked')} variant="outlined" color="warning" />
                         </ListItem>

@@ -31,6 +31,7 @@ import { AdminShell } from '../components/AdminShell'
 import { AiProviderActionsMenu } from '../components/AiProviderActionsMenu'
 import { ProviderHealthCell } from '../components/ProviderHealthCell'
 import { ProviderStalenessCell } from '../components/ProviderStalenessCell'
+import { DeprecationAttentionBanner } from '../components/DeprecationAttentionBanner'
 import { ProviderModelsSection } from '../components/ProviderModelsSection'
 import { CustomModelsSection } from '../components/customModels/CustomModelsSection'
 
@@ -98,6 +99,7 @@ function AdminAiProvidersPageContent() {
           {t('page.selectionMissing')}
         </Alert>
       )}
+      {canViewProviders && <DeprecationAttentionBanner />}
       {canViewProviders && (
         // The two sections share the page height equally (flex: 1 each); each scrolls on its own.
         <Paper

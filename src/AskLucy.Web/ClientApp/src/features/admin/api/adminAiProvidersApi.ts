@@ -114,10 +114,36 @@ export interface AddedProviderModel {
 }
 
 /** A catalog model the vendor no longer lists. */
+/** specs/069 FR-003 — counts only; the retired model's replacement candidates, best first. */
+export interface ReplacementCandidate {
+  id: string
+  displayName: string
+  missingCapabilities: string[]
+}
+
+export interface DeprecationImpact {
+  conversations: number
+  agents: number
+  prompts: number
+  workflowSteps: number
+  distinctUsers: number
+  platformDefaults: { targetKind: 'ProviderDefault' | 'CapabilityAssignment'; capability?: string | null }[]
+  proposedReplacement: ReplacementCandidate | null
+  eligibleReplacements: ReplacementCandidate[]
+}
+
+/** specs/069 FR-007 — what the administrator chose for this row. Omitted means `Proposed`. */
+export interface ReplacementRequest {
+  kind: 'Proposed' | 'Model' | 'None'
+  modelId?: string
+}
+
 export interface RemovedProviderModel {
   id: string
   modelKey: string
   displayName: string
+  impact?: DeprecationImpact | null
+  replacement?: ReplacementRequest | null
 }
 
 export interface ProviderModelSyncDiff {

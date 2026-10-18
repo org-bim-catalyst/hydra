@@ -152,7 +152,8 @@ describe('ModelSyncDialog', () => {
     await waitFor(() =>
       expect(adminAiProvidersApi.applyModelSync).toHaveBeenCalledWith('provider-1', {
         added: [diffWithChanges.added[0]],
-        removedFromVendor: [diffWithChanges.removedFromVendor[0]],
+        // specs/069: a removed row now carries the administrator's replacement choice.
+        removedFromVendor: [{ ...diffWithChanges.removedFromVendor[0], replacement: { kind: 'Proposed' } }],
       }),
     )
   })
