@@ -1,9 +1,9 @@
 using System.Globalization;
 using System.Text.Json;
 using AskLucy.Application.Abstractions;
-using AskLucy.Application.Ai.Deprecation;
 using AskLucy.Application.Agents.Tools;
 using AskLucy.Application.Ai;
+using AskLucy.Application.Ai.Deprecation;
 using AskLucy.Application.Notifications.Abstractions;
 using AskLucy.Domain.Agents;
 using AskLucy.Domain.Ai;

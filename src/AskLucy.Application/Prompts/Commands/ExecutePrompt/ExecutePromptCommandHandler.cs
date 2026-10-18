@@ -1,8 +1,8 @@
 using System.Runtime.CompilerServices;
 using System.Text.Json;
 using AskLucy.Application.Abstractions;
-using AskLucy.Application.Ai.Deprecation;
 using AskLucy.Application.Ai;
+using AskLucy.Application.Ai.Deprecation;
 using AskLucy.Application.Prompts.Authorization;
 using AskLucy.Domain.Ai;
 using AskLucy.Domain.Common;

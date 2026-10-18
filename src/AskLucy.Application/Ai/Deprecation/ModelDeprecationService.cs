@@ -2,8 +2,8 @@ using AskLucy.Application.Abstractions;
 using AskLucy.Application.Ai.Commands.ApplyProviderModelSync;
 using AskLucy.Application.Notifications.Abstractions;
 using AskLucy.Domain.Ai;
-using AskLucy.Domain.Notifications;
 using AskLucy.Domain.Common;
+using AskLucy.Domain.Notifications;
 
 namespace AskLucy.Application.Ai.Deprecation;
 
