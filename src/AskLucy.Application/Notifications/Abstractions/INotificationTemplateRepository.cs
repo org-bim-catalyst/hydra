@@ -69,5 +69,13 @@ public interface INotificationTemplateRepository
     /// <summary>Makes the next save fail with a concurrency conflict unless the row still has <paramref name="rowVersion"/>.</summary>
     void ExpectRowVersion(NotificationTemplateVersion version, byte[] rowVersion);
 
+    /// <summary>
+    /// Saves a publish: the draft <paramref name="newPublishedVersionId"/> becomes the published version and the one it replaces is archived.
+    /// A filtered unique index allows one published version per template, and SQL Server checks it per statement, so the archive must reach
+    /// the database before the publish. This is a database ordering concern (EF sorts the updates by key, which is creation order), so the
+    /// repository does it: both steps in one transaction, the replaced version first.
+    /// </summary>
+    Task SavePublishAsync(Guid newPublishedVersionId, CancellationToken cancellationToken);
+
     void Add(NotificationTemplate notificationTemplate);
 }

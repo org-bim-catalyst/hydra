@@ -967,9 +967,10 @@ The daily Hangfire job `notification-retention` (03:00, `RetentionService`) dele
 | `Failed` and `DeadLettered` deliveries | 30 days after the last attempt | `FailedDays` |
 | Finished non-in-app deliveries | 90 days | `DeliveryDays` |
 | `Completed` outbox events | 7 days | `CompletedOutboxDays` |
+| `Failed` outbox events (gave up after 10 attempts) | 30 days after they failed | `FailedDays` |
 | `NotificationAuditLogs` | never | |
 
-In-app deliveries are removed with their notification, and a notification that still has an active delivery is skipped. `Failed` outbox events are not purged by this job.
+In-app deliveries are removed with their notification, and a notification that still has an active delivery is skipped.
 
 ### Legacy tables pending removal
 

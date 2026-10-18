@@ -185,7 +185,7 @@ src/AskLucy.Persistence/
 ├── Configurations/Notifications/       # NEW Fluent API configs (+ Localization, ApplicationUser column)
 ├── Repositories/Notification*Repository.cs  NotificationCursor.cs  NotificationOutboxRepository.cs
 ├── Interceptors/NotificationWakeInterceptor.cs  # pulses the wake signal after commit
-└── Migrations/                         # 5 migrations (data-model.md § Migrations)
+└── Migrations/                         # 2 migrations: AddNotificationHub (all eight tables), AddLocalizationSettingAndUserPreferredLanguage
 
 src/AskLucy.Web/
 ├── Controllers/v1/ NotificationsController.cs  NotificationPreferencesController.cs

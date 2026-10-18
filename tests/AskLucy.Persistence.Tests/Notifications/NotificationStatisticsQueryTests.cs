@@ -12,12 +12,11 @@ namespace AskLucy.Persistence.Tests.Notifications;
 [Collection(PersistenceTestCollection.Name)]
 public sealed class NotificationStatisticsQueryTests(PersistenceTestFixture fixture)
 {
-    private static readonly Random Random = new();
     private static readonly NotificationTypeDefinition Failed = NotificationTypeCatalog.Get(NotificationTypeKeys.WorkflowExecutionFailed);
     private static readonly NotificationTypeDefinition Document = NotificationTypeCatalog.Get(NotificationTypeKeys.DocumentProcessingFailed);
 
-    /// <summary>A day nobody else seeds into: a random one in 2020-2024, which no run's "now" ever reaches.</summary>
-    private static DateTime NewWindowStart() => new DateTime(2020, 1, 1, 0, 0, 0, DateTimeKind.Utc).AddDays(Random.Next(0, 1800));
+    /// <summary>A day nobody else seeds into: its own ten-day slot in 2020-2024, which no run's "now" ever reaches.</summary>
+    private static DateTime NewWindowStart() => NotificationTestWindows.Next();
 
     private async Task<string> SeedUserAsync(CancellationToken ct)
     {
