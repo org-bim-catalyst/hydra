@@ -171,7 +171,9 @@ administrator explicitly confirms it; confirm the catalog matches the diff after
 - **FR-007**: System MUST require the administrator to explicitly review and confirm a
   proposed diff before any addition or status change from it is applied; dismissing a
   diff without confirming MUST leave the catalog completely unchanged.
-- **FR-008**: Confirming a diff MUST add each newly-listed model to the catalog with status
+- **FR-008**: *Amended by [specs/069](../069-model-deprecation-workflow/spec.md) FR-001: a
+  confirmed no-longer-listed model is now **Deprecated**, not Unavailable; the added side is
+  unchanged.* Confirming a diff MUST add each newly-listed model to the catalog with status
   Unavailable (not immediately selectable — a separate manual status change per FR-002 is
   required before end users can select it) and mark each no-longer-listed model Unavailable
   — never delete a model row, since past conversations may still reference it.

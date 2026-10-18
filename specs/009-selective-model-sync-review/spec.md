@@ -157,7 +157,8 @@ confirm the Confirm control is disabled/blocked and no apply request is possible
   including when the filtered view doesn't show every selected row.
 - **FR-007**: Confirming MUST apply only the currently selected rows: selected added models
   are created in the catalog (status Unavailable, per specs/008-ai-model-catalog-management's
-  existing rule); selected removed-from-vendor models are marked Unavailable; unselected rows
+  existing rule); selected removed-from-vendor models are **deprecated** (specs/069 FR-001,
+  which supersedes "marked Unavailable" here and in specs/008 FR-008); unselected rows
   on either side are left completely unmodified.
 - **FR-007a**: If one or more selected rows fail to apply (e.g., a selected row now conflicts
   with catalog state), the rows that can still be applied MUST be applied — a failure on one
