@@ -200,13 +200,12 @@ public sealed class ModelReferenceStore(AskLucyDbContext dbContext) : IModelRefe
             return [];
         }
 
-        // A LIKE pre-filter per model id keeps this from scanning every draft; the in-memory
-        // parse below then confirms a real AiPrompt node names it (research D10).
-        var candidates = await dbContext.Workflows
-            .Where(w => modelIds.Any(id => EF.Functions.Like(w.DraftDefinitionJson, $"%{id}%")))
-            .ToListAsync(cancellationToken);
+        // Drafts are parsed in memory: a LIKE per model id cannot be translated from a
+        // collection, and the platform's draft count is small (research D10). The tracked
+        // entities are needed so a confirmed rewrite can be saved by the caller.
+        var drafts = await dbContext.Workflows.ToListAsync(cancellationToken);
 
-        return candidates.Where(w => CountAiPromptNodes(w.DraftDefinitionJson, modelIds) > 0).ToList();
+        return drafts.Where(w => CountAiPromptNodes(w.DraftDefinitionJson, modelIds) > 0).ToList();
     }
 
     private static int CountAiPromptNodes(string draftJson, IReadOnlyCollection<Guid> modelIds) =>

@@ -7,6 +7,7 @@ using AskLucy.Domain.Prompts;
 using AskLucy.Domain.Workflows;
 using AskLucy.Persistence.Repositories;
 using FluentAssertions;
+using Microsoft.EntityFrameworkCore;
 
 namespace AskLucy.Persistence.Tests.Ai;
 
@@ -106,7 +107,7 @@ public sealed class ModelReferenceStoreTests(PersistenceTestFixture fixture)
         await using (var dbContext = fixture.CreateDbContext())
         {
             dbContext.UserChats.Single(c => c.Id == chat.Id).ModelId.Should().Be(replacement.Id);
-            dbContext.UserChats.Single(c => c.Id == deletedChat.Id).ModelId.Should().Be(retired.Id);
+            dbContext.UserChats.IgnoreQueryFilters().Single(c => c.Id == deletedChat.Id).ModelId.Should().Be(retired.Id);
             dbContext.Agents.Single(a => a.Id == agent.Id).ModelId.Should().Be(replacement.Id);
             dbContext.Prompts.Single(p => p.Id == prompt.Id).PreferredModelKey.Should().Be(replacement.ModelKey);
             dbContext.UserAiPreferences.Single(p => p.UserId == owner).DefaultModelId.Should().Be(replacement.Id);

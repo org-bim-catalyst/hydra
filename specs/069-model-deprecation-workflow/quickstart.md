@@ -69,11 +69,12 @@ Seed 5,000 conversations across 2,000 users on **A**, then confirm the deprecati
 
 - Domain 744 passed, Application 2,663 → 2,668 passed, Infrastructure 922 → 924 passed (3 skipped).
 - Web.Tests: 1,022 passed, 0 failed, 21 skipped (includes the 401/403 matrix and OpenAPI contract tests).
-- Persistence, `db_a15752_asklucytest2`, serial: 143 passed, 0 failed, 10 skipped.
+- Persistence, `db_a15752_asklucytest2`, serial: 143 passed, 0 failed, 10 skipped; the new
+  `ModelReferenceStoreTests` then passed serially as well (1/1).
 - Frontend: type-check clean; full suite 2,930 passed with only the two known ChatPage parallel-load
   flakes, which pass 96/96 in isolation. Admin + i18n: 662 passed.
 - `dotnet format`: no import, charset or whitespace errors in the changed files.
 
 **Not yet run:** scenarios S1–S6 end to end against a running host (they need a controlled fake
-vendor model list), the SC-007 performance seed, and the new `ModelReferenceStoreTests` against a
-reachable database — the test-2 host was unreachable when it was added.
+vendor model list), and the SC-007 performance seed. (The store test's first runs failed on a real EF translation
+bug in the draft pre-filter, fixed by parsing drafts in memory; it now passes.)
