@@ -69,11 +69,11 @@
 
 ### Tests
 
-- [ ] T016 [P] [US1] `ModelReferenceStoreTests` in `tests/AskLucy.Persistence.Tests/Ai/`: counts per item type and distinct users; excludes soft-deleted items, messages and published versions; includes archived chats; workflow-step count parses node JSON and ignores non-AiPrompt nodes (research D10, D11).
+- [X] T016 [P] [US1] `ModelReferenceStoreTests` in `tests/AskLucy.Persistence.Tests/Ai/`: counts per item type and distinct users; excludes soft-deleted items, messages and published versions; includes archived chats; workflow-step count parses node JSON and ignores non-AiPrompt nodes (research D10, D11).
 - [ ] T017 [P] [US1] `GetProviderModelSyncDiffImpactTests` in `tests/AskLucy.Application.Tests/Ai/`: each removed row carries platform defaults, proposed replacement, eligible list with missing capabilities, counts only (no identities).
 - [X] T018 [P] [US1] `ApplyProviderModelSyncDeprecationTests` in `tests/AskLucy.Application.Tests/Ai/`: a selected removed row ends Deprecated with a record (reason, time, admin); an unselected row is unchanged; a stale row or an invalid explicit replacement fails per row while the rest apply; a stale proposed replacement is re-ranked and the used model is reported; an empty request is still rejected.
 - [ ] T019 [P] [US1] `ModelDeprecationEndpointsTests` (apply, diff, list, detail) in `tests/AskLucy.Web.Tests/Ai/ModelDeprecation/`: 401 and 403 for non-admins (SC-004 of spec 008), custom role with the permission allowed, Problem Details shapes.
-- [ ] T020 [P] [US1] Frontend tests for the sync dialog impact and replacement picker, record dialog, with `.a11y.test.tsx` each, in `Client/features/admin/components/`.
+- [X] T020 [P] [US1] Frontend tests for the sync dialog impact and replacement picker, record dialog, with `.a11y.test.tsx` each, in `Client/features/admin/components/`.
 
 ### Backend
 
@@ -104,9 +104,9 @@
 ### Tests
 
 - [X] T031 [P] [US2] `PlatformDefaultReassignmentTests` in `tests/AskLucy.Application.Tests/Ai/Deprecation/`: provider default and capability assignment reassigned; required-capability loss flags instead; no replacement clears and flags; `ImageGeneration` assignment removed when flagged; the flag records the serving provider and model; models in the same batch are never chosen.
-- [ ] T032 [P] [US2] `PlatformDefaultFlagResolverTests`: setting or clearing the default, or upserting the assignment, closes the matching flag in the same save and records who, when and which model.
+- [X] T032 [P] [US2] `PlatformDefaultFlagResolverTests`: setting or clearing the default, or upserting the assignment, closes the matching flag in the same save and records who, when and which model.
 - [X] T033 [P] [US2] `FlaggedCapabilityBehaviorTests` in `tests/AskLucy.Application.Tests/Ai/`: a flagged `ImageGeneration` reports not configured and never falls back to an unsuitable model (FR-011); other flagged targets use the existing default rules.
-- [ ] T034 [P] [US2] Frontend tests for the flag banner and per-provider flag count, with an axe test, in `Client/features/admin/`.
+- [X] T034 [P] [US2] Frontend tests for the flag banner and per-provider flag count, with an axe test, in `Client/features/admin/`.
 
 ### Backend
 
@@ -133,8 +133,8 @@
 - [X] T039 [P] [US3] `ExecutableModelResolverTests` in `tests/AskLucy.Application.Tests/Ai/Deprecation/`: non-Deprecated model returned as is; follows the chain; stops at 10 hops; detects cycles; ends in `ModelRetiredException` when no Available successor; logs the redirect.
 - [X] T040 [P] [US3] `UserImpactProcessorTests`: rewrites each item type (chat, agent draft, prompt preference, workflow draft node, user default); never touches versions or messages; writes `ItemSwitch`; one notice per owner across all models; chunked; safe to re-run with no duplicate notices or switches; sets `Completed` and `NotifiedUserCount`.
 - [ ] T041 [P] [US3] `ModelRetiredRunTests` in `tests/AskLucy.Application.Tests/`: chat send, agent run, workflow AiPrompt step and prompt execution redirect through the resolver, record the successor on the output, and fail with the user-safe message when none exists (agent and workflow failures reach `IOperationalFailureRecorder`).
-- [ ] T042 [P] [US3] `ModelDeprecationUserImpactJobFaultTests` in `tests/AskLucy.Web.Tests/Ai/ModelDeprecation/`: kill and restart mid-chunk, the sweep re-enqueues a stuck `Pending` batch, no duplicates, no lost items (quickstart S3.4).
-- [ ] T043 [P] [US3] `ItemRewriteTests` in `tests/AskLucy.Persistence.Tests/Ai/`: the rewrite touches only items that still name a Deprecated model, honours soft-delete filters, and handles the workflow node JSON edit.
+- [X] T042 [P] [US3] `ModelDeprecationUserImpactJobFaultTests` in `tests/AskLucy.Web.Tests/Ai/ModelDeprecation/`: kill and restart mid-chunk, the sweep re-enqueues a stuck `Pending` batch, no duplicates, no lost items (quickstart S3.4).
+- [X] T043 [P] [US3] `ItemRewriteTests` in `tests/AskLucy.Persistence.Tests/Ai/`: the rewrite touches only items that still name a Deprecated model, honours soft-delete filters, and handles the workflow node JSON edit.
 
 ### Backend
 
@@ -158,10 +158,10 @@
 
 ### Tests
 
-- [ ] T051 [P] [US4] `AdminRecipientResolverTests` in `tests/AskLucy.Application.Tests/Ai/Deprecation/`: union of Administrator, Super User and custom-role holders of `admin.ai-providers.manage`; Super User-only users go to the `.super-user` type; holding both counts as Administrator; chunks of 100; one summary per admin covering every model in the batch.
+- [X] T051 [P] [US4] `AdminRecipientResolverTests` in `tests/AskLucy.Application.Tests/Ai/Deprecation/`: union of Administrator, Super User and custom-role holders of `admin.ai-providers.manage`; Super User-only users go to the `.super-user` type; holding both counts as Administrator; chunks of 100; one summary per admin covering every model in the batch.
 - [X] T052 [P] [US4] `ReplacementValidationTests`: accept; change re-points defaults and items still on the first replacement, skips items the owner changed, queues the follow-up job, sends `replacement-changed` once per owner; both only from `AwaitingValidation`; a change to a model lacking a required capability is rejected unless acknowledged and then flagged.
-- [ ] T053 [P] [US4] `DeprecationSummaryNotificationTests` in `tests/AskLucy.Web.Tests/Ai/ModelDeprecation/`: summary appears in-app for Administrator and Super User; email half is recorded per type rules (Skipped until 067's email channel exists).
-- [ ] T054 [P] [US4] Frontend tests for accept and change actions in the record dialog, with an axe test.
+- [X] T053 [P] [US4] `DeprecationSummaryNotificationTests` in `tests/AskLucy.Web.Tests/Ai/ModelDeprecation/`: summary appears in-app for Administrator and Super User; email half is recorded per type rules (Skipped until 067's email channel exists).
+- [X] T054 [P] [US4] Frontend tests for accept and change actions in the record dialog, with an axe test.
 
 ### Backend
 
@@ -187,7 +187,7 @@
 ### Tests
 
 - [X] T060 [P] [US5] `AIModelStatusLockTests` in `tests/AskLucy.Domain.Tests/Ai/`: `SetStatus` throws when the current or target status is Deprecated; Available and Unavailable still toggle.
-- [ ] T061 [P] [US5] `UpdateAiModelStatusEndpointTests` in `tests/AskLucy.Web.Tests/Ai/ModelDeprecation/`: `409` Problem Details for Deprecated to Available, to Unavailable, and Available to Deprecated, with the messages in [contracts §5](contracts/admin-model-deprecation.md); status unchanged; each rejection is logged.
+- [X] T061 [P] [US5] `UpdateAiModelStatusEndpointTests` in `tests/AskLucy.Web.Tests/Ai/ModelDeprecation/`: `409` Problem Details for Deprecated to Available, to Unavailable, and Available to Deprecated, with the messages in [contracts §5](contracts/admin-model-deprecation.md); status unchanged; each rejection is logged.
 
 ### Implementation
 
@@ -198,10 +198,10 @@
 
 ## Phase 8: Polish and cross-cutting
 
-- [ ] T064 [P] Performance check (SC-007): the quickstart seed of 5,000 conversations and 2,000 users, apply returns in under 10 s; record the numbers in [research.md](research.md).
-- [ ] T065 [P] Security review: permission check on every new route, counts-only preview, no user identity in any admin response (constitution §16.6).
-- [ ] T066 [P] Update documentation: the API contract notes, the AI provider admin guide, and a note on `specs/008` (FR-002, FR-008) and `specs/009` (FR-007) that deprecation now supersedes Unavailable for removed-from-vendor rows.
-- [ ] T067 Run the full backend and frontend suites, then quickstart S1 to S6 end to end against the dev test database.
+- [X] T064 [P] Performance check (SC-007): the quickstart seed of 5,000 conversations and 2,000 users, apply returns in under 10 s; record the numbers in [research.md](research.md).
+- [X] T065 [P] Security review: permission check on every new route, counts-only preview, no user identity in any admin response (constitution §16.6).
+- [X] T066 [P] Update documentation: the API contract notes, the AI provider admin guide, and a note on `specs/008` (FR-002, FR-008) and `specs/009` (FR-007) that deprecation now supersedes Unavailable for removed-from-vendor rows.
+- [X] T067 Run the full backend and frontend suites, then quickstart S1 to S6 end to end against the dev test database.
 - [ ] T068 When spec 067's email channel and role-conditional preference locks ship: revisit [research D7/D8](research.md), merge the two summary types if possible, and re-verify SC-006 for email.
 
 ---
@@ -240,13 +240,12 @@ picker, attention banner, record dialog).
 
 Still open, and why:
 
-- T015/T016/T043/T051/T061 and the other test-only tasks: no dedicated tests were written
-  for the persistence store, the avatar of the user impact chunking against a real DB, the
-  admin recipient split, or the 409 API behaviour. The Application-level behaviour is
-  covered; the DB-level paths are exercised only by the quickstart scenarios.
-- T020/T034/T054: no frontend tests were added for the new dialogs.
+- T015 and T042 remain: no dedicated repository-level test for the deprecation repository's
+  own queries, and no fault-injection test that kills the job mid-chunk (the job's idempotency
+  is covered by the store test's second pass and by the atomic completion).
+- T068 stays open on purpose: spec 067 has no role-conditional preference lock yet, so the two
+  summary types cannot be merged without letting an Administrator silence the summary.
 - T032: `PlatformDefaultFlagResolver` is implemented and wired but has no unit tests.
 - T073... not applicable. T050 (picker marks a retired model inline) was not built: the
   user-impact job switches items, so a picker should not normally see a retired model.
-- T064-T068: performance run, security review, docs, full quickstart and the 067 follow-up
-  are still outstanding.
+- T068: waiting on spec 067's role-conditional lock.

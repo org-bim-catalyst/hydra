@@ -96,8 +96,8 @@ public sealed class UserImpactProcessor(
             await unitOfWork.SaveChangesAsync(cancellationToken);
         }
 
-        batch.MarkUserImpactCompleted(notified, DateTime.UtcNow);
-        await unitOfWork.SaveChangesAsync(cancellationToken);
+        // Atomic: a sweep-triggered duplicate that raced this run simply reports false.
+        await deprecations.TryCompleteBatchAsync(batch.Id, notified, DateTime.UtcNow, cancellationToken);
     }
 
     private void PublishNotice(Guid batchId, string notificationType, OwnerSwitchResult owner)

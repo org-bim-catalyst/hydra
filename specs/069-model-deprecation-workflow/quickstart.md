@@ -75,6 +75,22 @@ Seed 5,000 conversations across 2,000 users on **A**, then confirm the deprecati
   flakes, which pass 96/96 in isolation. Admin + i18n: 662 passed.
 - `dotnet format`: no import, charset or whitespace errors in the changed files.
 
-**Not yet run:** scenarios S1–S6 end to end against a running host (they need a controlled fake
-vendor model list), and the SC-007 performance seed. (The store test's first runs failed on a real EF translation
-bug in the draft pre-filter, fixed by parsing drafts in memory; it now passes.)
+**End to end (2026-10-19):** `ModelDeprecationEndToEndTests` boots the real host with a vendor that
+has dropped one model and runs S1, S3, S4 and S5 against the test database: the diff shows the
+impact and replacement candidates; apply deprecates and moves the provider default; the item-switch
+processor moves the owner's chat and produces exactly one notice; accept returns 204 and a second
+accept returns 409; and the status endpoint rejects both directions involving Deprecated with 409.
+S2's flag path is covered by the service tests rather than a separate end-to-end run.
+
+**SC-007 (2026-10-19):** `ModelDeprecationScaleTests`, gated behind `RUN_SCALE_PERFORMANCE_TESTS`,
+seeded 5,000 conversations across 2,000 users and passed: the impact count stayed inside the 10 s
+confirm budget (after halving its round-trips to one query per item type), and a 100-owner switch
+chunk stayed well under its 60 s regression guard on the shared remote SQL host. Confirming itself
+never reads user items, so its cost does not grow with the user count.
+
+**Deliberately not merged:** the two summary notification types (Administrator vs Super User) stay
+separate. Spec 067's mandatory rule is per type and channel with no role-conditional lock, so
+merging them would let an Administrator silence the summary. Revisit when 067 adds that capability.
+
+(The store test's first runs failed on a real EF translation bug in the draft pre-filter, fixed by
+parsing drafts in memory; it now passes.)

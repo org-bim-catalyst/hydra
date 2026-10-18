@@ -19,6 +19,20 @@ public sealed class ModelDeprecationRepository(AskLucyDbContext dbContext) : IMo
             .Include(b => b.Deprecations)
             .FirstOrDefaultAsync(b => b.Id == batchId, cancellationToken);
 
+    public async Task<bool> TryCompleteBatchAsync(
+        Guid batchId, int notifiedUserCount, DateTime completedAtUtc, CancellationToken cancellationToken = default)
+    {
+        var affected = await dbContext.ModelDeprecationBatches
+            .Where(b => b.Id == batchId && b.UserImpactStatus == UserImpactStatus.Pending)
+            .ExecuteUpdateAsync(
+                s => s
+                    .SetProperty(b => b.UserImpactStatus, UserImpactStatus.Completed)
+                    .SetProperty(b => b.UserImpactCompletedAtUtc, completedAtUtc)
+                    .SetProperty(b => b.NotifiedUserCount, notifiedUserCount),
+                cancellationToken);
+        return affected > 0;
+    }
+
     public async Task<IReadOnlyList<PlatformDefaultChange>> ListOpenFlagsAsync(
         Guid providerId, AiCapability? capability, CancellationToken cancellationToken = default) =>
         await dbContext.PlatformDefaultChanges

@@ -23,36 +23,32 @@ public sealed class ModelReferenceStore(AskLucyDbContext dbContext) : IModelRefe
             return ModelImpactCounts.Empty;
         }
 
+        // One query per item type, not two: the owner list gives both the count and the
+        // distinct-user set, which halves the round-trips to the database (specs/069 SC-007).
         var keyById = await RetiredModelsAsync(modelIds, cancellationToken);
         var modelKeys = keyById.Values.Select(m => m.Key).ToList();
         var owners = new HashSet<string>(StringComparer.Ordinal);
 
-        var conversationOwners = await dbContext.UserChats.Where(c => c.ModelId != null && modelIds.Contains(c.ModelId.Value))
-            .Select(c => c.UserId).Distinct().ToListAsync(cancellationToken);
-        var conversations = await dbContext.UserChats.CountAsync(c => c.ModelId != null && modelIds.Contains(c.ModelId.Value), cancellationToken);
-
+        var chatOwners = await dbContext.UserChats.Where(c => c.ModelId != null && modelIds.Contains(c.ModelId.Value))
+            .Select(c => c.UserId).ToListAsync(cancellationToken);
         var agentOwners = await dbContext.Agents.Where(a => a.ModelId != null && modelIds.Contains(a.ModelId.Value))
-            .Select(a => a.OwnerId).Distinct().ToListAsync(cancellationToken);
-        var agents = await dbContext.Agents.CountAsync(a => a.ModelId != null && modelIds.Contains(a.ModelId.Value), cancellationToken);
-
+            .Select(a => a.OwnerId).ToListAsync(cancellationToken);
         var promptOwners = await dbContext.Prompts.Where(p => p.PreferredModelKey != null && modelKeys.Contains(p.PreferredModelKey))
-            .Select(p => p.OwnerId).Distinct().ToListAsync(cancellationToken);
-        var prompts = await dbContext.Prompts.CountAsync(p => p.PreferredModelKey != null && modelKeys.Contains(p.PreferredModelKey), cancellationToken);
+            .Select(p => p.OwnerId).ToListAsync(cancellationToken);
+        var preferenceOwners = await dbContext.UserAiPreferences
+            .Where(p => p.DefaultModelId != null && modelIds.Contains(p.DefaultModelId.Value))
+            .Select(p => p.UserId).ToListAsync(cancellationToken);
 
         var workflows = await CandidateWorkflowsAsync(modelIds, cancellationToken);
         var workflowSteps = workflows.Sum(w => CountAiPromptNodes(w.DraftDefinitionJson, modelIds));
 
-        var preferenceOwners = await dbContext.UserAiPreferences
-            .Where(p => p.DefaultModelId != null && modelIds.Contains(p.DefaultModelId.Value))
-            .Select(p => p.UserId).Distinct().ToListAsync(cancellationToken);
-
-        owners.UnionWith(conversationOwners);
+        owners.UnionWith(chatOwners);
         owners.UnionWith(agentOwners);
         owners.UnionWith(promptOwners);
         owners.UnionWith(preferenceOwners);
         owners.UnionWith(workflows.Select(w => w.OwnerId));
 
-        return new ModelImpactCounts(conversations, agents, prompts, workflowSteps, owners.Count);
+        return new ModelImpactCounts(chatOwners.Count, agentOwners.Count, promptOwners.Count, workflowSteps, owners.Count);
     }
 
     public async Task<IReadOnlyList<string>> ListOwnerIdsAsync(IReadOnlyCollection<Guid> modelIds, CancellationToken cancellationToken = default)
