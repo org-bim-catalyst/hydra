@@ -194,6 +194,14 @@ public sealed class Prompt : BaseEntity
         return ApplyEdit(content, variables, changeDescription, actor);
     }
 
+    /// <summary>specs/069 FR-014: moves a saved prompt off a retired model onto its replacement.</summary>
+    public void SetPreferredModel(string? modelKey, string actor)
+    {
+        PreferredModelKey = string.IsNullOrWhiteSpace(modelKey) ? null : modelKey.Trim();
+        ModifiedAtUtc = DateTime.UtcNow;
+        ModifiedBy = actor;
+    }
+
     public void Rename(string name, string actor)
     {
         if (string.IsNullOrWhiteSpace(name))

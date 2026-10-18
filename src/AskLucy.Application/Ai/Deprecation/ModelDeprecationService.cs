@@ -26,7 +26,7 @@ public sealed class ModelDeprecationService(
         var failed = new List<SyncApplyFailureDto>();
         if (candidates.Count == 0)
         {
-            return new ModelDeprecationResult(deprecatedKeys, failed);
+            return new ModelDeprecationResult(null, deprecatedKeys, failed);
         }
 
         var provider = await providers.GetByIdAsync(providerId, cancellationToken)
@@ -70,7 +70,7 @@ public sealed class ModelDeprecationService(
             deprecations.Add(batch);
         }
 
-        return new ModelDeprecationResult(deprecatedKeys, failed);
+        return new ModelDeprecationResult(deprecatedKeys.Count > 0 ? batch.Id : null, deprecatedKeys, failed);
     }
 
     private static ResolvedReplacement ResolveReplacement(DeprecationCandidate candidate, IReadOnlyList<AIModel> catalog, HashSet<Guid> batchModelIds)

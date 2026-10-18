@@ -2,6 +2,7 @@ using AskLucy.Application.Abstractions;
 using AskLucy.Application.Ai.Deprecation;
 using AskLucy.Domain.Ai;
 using AskLucy.Domain.Common;
+using Hangfire;
 using MediatR;
 using Microsoft.Extensions.Logging;
 
@@ -28,6 +29,7 @@ public sealed class ApplyProviderModelSyncCommandHandler(
     IUnitOfWork unitOfWork,
     ICurrentUserAccessor currentUser,
     IModelDeprecationService deprecationService,
+    Hangfire.IBackgroundJobClient backgroundJobClient,
     ILogger<ApplyProviderModelSyncCommandHandler> logger) : IRequestHandler<ApplyProviderModelSyncCommand, ApplyProviderModelSyncResultDto>
 {
     public async Task<ApplyProviderModelSyncResultDto> Handle(ApplyProviderModelSyncCommand request, CancellationToken cancellationToken)
@@ -97,6 +99,14 @@ public sealed class ApplyProviderModelSyncCommandHandler(
         failed.AddRange(deprecation.Failed);
 
         await unitOfWork.SaveChangesAsync(cancellationToken);
+
+        // specs/069 research D4: the user-item switch and notices run after the confirm commits,
+        // so thousands of affected items never hold the admin's request open. The sweep re-enqueues
+        // a batch this enqueue was lost for.
+        if (deprecation.BatchId is { } batchId)
+        {
+            backgroundJobClient.Enqueue<IModelDeprecationUserImpactJob>(j => j.RunAsync(batchId, CancellationToken.None));
+        }
 
         AiAdminActionLog.AdminAiModelSyncApplied(logger, actorUserId, request.ProviderId, request.Added.Count, request.RemovedFromVendor.Count);
 

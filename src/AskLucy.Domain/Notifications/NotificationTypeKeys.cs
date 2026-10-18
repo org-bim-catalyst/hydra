@@ -46,6 +46,7 @@ public static class NotificationTypeKeys
     public const string SecurityRecoveryCodesRegenerated = "security.recovery-codes.regenerated";
 
     public const string SystemAnnouncementPublished = "system.announcement.published";
+    public const string SystemAiModelDeprecated = "system.ai-model.deprecated";
     public const string TemplateTest = "template.test";
 
     public const string ConversationExportCompleted = "conversation.export.completed";

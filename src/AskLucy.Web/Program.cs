@@ -9,6 +9,7 @@ using AskLucy.Application.Authorization;
 using AskLucy.Infrastructure;
 using AskLucy.Infrastructure.Agents;
 using AskLucy.Infrastructure.Auth;
+using AskLucy.Infrastructure.Ai.Deprecation;
 using AskLucy.Infrastructure.CustomModels;
 using AskLucy.Infrastructure.Documents;
 using AskLucy.Infrastructure.Email;
@@ -825,6 +826,11 @@ RegisterRecurringJob(() => RecurringJob.AddOrUpdate<MemoryCleanupJob>(
 // retention. Retention housekeeping, not security: the tokens are already inert. Idempotent.
 RegisterRecurringJob(() => RecurringJob.AddOrUpdate<PasswordResetTokenCleanupJob>(
     "password-reset-token-cleanup", job => job.RunAsync(CancellationToken.None), Cron.Daily));
+
+// specs/069 research D4 — re-enqueues a model-deprecation batch whose user-impact job never
+// started (a crash between the confirming save and the enqueue). The job is idempotent.
+RegisterRecurringJob(() => RecurringJob.AddOrUpdate<ModelDeprecationSweepJob>(
+    "model-deprecation-sweep", job => job.RunAsync(CancellationToken.None), "* * * * *"));
 
 // specs/067 US3 (research R5) — every minute, a delivery still "Sending" past its lease is failed as
 // AmbiguousOutcome (never resent automatically), and an outbox event stuck "Processing" returns to

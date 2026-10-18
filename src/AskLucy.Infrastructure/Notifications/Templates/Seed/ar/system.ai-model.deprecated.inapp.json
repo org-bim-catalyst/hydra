@@ -1,0 +1,6 @@
+{
+  "name": "تم إيقاف نموذج ذكاء اصطناعي",
+  "title": "تم إيقاف {{ modelNames }}",
+  "message": "{{ itemSummary }} تستخدم الآن {{ replacementSummary }}. يمكنك اختيار نموذج آخر من الإعدادات.",
+  "actionLabel": "عرض التفاصيل"
+}

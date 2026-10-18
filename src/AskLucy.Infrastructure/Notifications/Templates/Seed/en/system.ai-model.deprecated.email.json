@@ -1,0 +1,13 @@
+{
+  "name": "AI model retired",
+  "subject": "{{ modelNames }} was retired",
+  "preheader": "Your saved items now use {{ replacementSummary }}.",
+  "greeting": "Hi {{ recipientDisplayName }},",
+  "heading": "A model you use was retired",
+  "bodyParagraphs": [
+    "{{ modelNames }} is no longer offered by its provider.",
+    "{{ itemSummary }} now use {{ replacementSummary }}. You can choose a different model in Settings."
+  ],
+  "safetyNote": "You're receiving this because email notifications are turned on for System updates. You can change this in Settings → Notifications.",
+  "actionLabel": "View details"
+}

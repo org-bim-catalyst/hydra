@@ -111,6 +111,21 @@ public static class NotificationTypeCatalog
                 RouteTemplate = NotificationDetailRoute,
                 EmailOnlyWhenCritical = true,
             },
+            // specs/069 FR-017: one notice per affected owner when a model they use is retired.
+            new NotificationTypeDefinition
+            {
+                Key = SystemAiModelDeprecated,
+                Category = NotificationCategory.System,
+                DefaultPriority = NotificationPriority.Normal,
+                Channels = Channels((NotificationChannel.InApp, ChannelDefault.Mandatory), (NotificationChannel.Email, ChannelDefault.On)),
+                DeclaredVariables =
+                [
+                    Var("modelNames", string.Empty),
+                    Var("itemSummary", string.Empty),
+                    Var("replacementSummary", string.Empty),
+                ],
+                RouteTemplate = NotificationDetailRoute,
+            },
             new NotificationTypeDefinition
             {
                 Key = TemplateTest,

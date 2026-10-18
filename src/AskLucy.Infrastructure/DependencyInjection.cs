@@ -693,6 +693,8 @@ public static class DependencyInjection
         // specs/067 US9-B: one-release forwarding shims, kept so jobs enqueued before the deploy still run.
 #pragma warning disable CS0618
         services.AddScoped<IPasswordEmailJob, PasswordEmailJob>();
+        services.AddScoped<IModelDeprecationUserImpactJob, Ai.Deprecation.ModelDeprecationUserImpactJob>();
+        services.AddScoped<Ai.Deprecation.ModelDeprecationSweepJob>();
         services.AddScoped<IAccountEmailJob, AccountEmailJob>();
 #pragma warning restore CS0618
         services.AddScoped<PasswordResetTokenCleanupJob>();

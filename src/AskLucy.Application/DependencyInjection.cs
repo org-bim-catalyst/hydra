@@ -434,6 +434,7 @@ public static class DependencyInjection
         services.AddScoped<INotificationAccessCheck, WorkflowExecutionNotificationAccessCheck>();
         services.AddScoped<AskLucy.Application.Ai.Deprecation.IModelDeprecationService, AskLucy.Application.Ai.Deprecation.ModelDeprecationService>();
         services.AddScoped<AskLucy.Application.Ai.Deprecation.IExecutableModelResolver, AskLucy.Application.Ai.Deprecation.ExecutableModelResolver>();
+        services.AddScoped<AskLucy.Application.Ai.Deprecation.UserImpactProcessor>();
         services.AddScoped<INotificationAccessCheck, KnowledgeBaseNotificationAccessCheck>();
         services.AddScoped<INotificationAccessCheck, MemoryNotificationAccessCheck>();
 

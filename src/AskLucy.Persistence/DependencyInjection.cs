@@ -1,4 +1,5 @@
 using AskLucy.Application.Abstractions;
+using AskLucy.Application.Ai.Deprecation;
 using AskLucy.Application.CustomModels.Abstractions;
 using AskLucy.Application.Notifications.Abstractions;
 using AskLucy.Application.OperationalFailures.Abstractions;
@@ -93,6 +94,7 @@ public static class DependencyInjection
         services.AddScoped<IAiCapabilitySettingRepository, AiCapabilitySettingRepository>();
         services.AddScoped<IAIModelRepository, AIModelRepository>();
         services.AddScoped<IModelDeprecationRepository, ModelDeprecationRepository>();
+        services.AddScoped<IModelReferenceStore, ModelReferenceStore>();
         services.AddScoped<IProviderHealthCheckRepository, ProviderHealthCheckRepository>();
         services.AddScoped<IUserAiPreferenceRepository, UserAiPreferenceRepository>();
         services.AddScoped<IUserVoicePreferenceRepository, UserVoicePreferenceRepository>();

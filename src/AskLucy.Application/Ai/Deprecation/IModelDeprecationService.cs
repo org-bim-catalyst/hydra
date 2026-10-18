@@ -16,7 +16,7 @@ public interface IModelDeprecationService
 
 public sealed record DeprecationCandidate(AIModel Model, ReplacementChoice Choice);
 
-public sealed record ModelDeprecationResult(IReadOnlyList<string> DeprecatedModelKeys, IReadOnlyList<SyncApplyFailureDto> Failed);
+public sealed record ModelDeprecationResult(Guid? BatchId, IReadOnlyList<string> DeprecatedModelKeys, IReadOnlyList<SyncApplyFailureDto> Failed);
 
 public enum ReplacementChoiceKind
 {

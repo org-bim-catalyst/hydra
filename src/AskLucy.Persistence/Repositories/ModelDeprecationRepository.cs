@@ -10,4 +10,15 @@ public sealed class ModelDeprecationRepository(AskLucyDbContext dbContext) : IMo
 
     public Task<ModelDeprecation?> GetByModelIdAsync(Guid modelId, CancellationToken cancellationToken = default) =>
         dbContext.ModelDeprecations.FirstOrDefaultAsync(d => d.ModelId == modelId, cancellationToken);
+
+    public Task<ModelDeprecationBatch?> GetBatchAsync(Guid batchId, CancellationToken cancellationToken = default) =>
+        dbContext.ModelDeprecationBatches
+            .Include(b => b.Deprecations)
+            .FirstOrDefaultAsync(b => b.Id == batchId, cancellationToken);
+
+    public async Task<IReadOnlyList<Guid>> ListStuckPendingBatchIdsAsync(DateTime confirmedBeforeUtc, CancellationToken cancellationToken = default) =>
+        await dbContext.ModelDeprecationBatches
+            .Where(b => b.UserImpactStatus == UserImpactStatus.Pending && b.ConfirmedAtUtc < confirmedBeforeUtc)
+            .Select(b => b.Id)
+            .ToListAsync(cancellationToken);
 }

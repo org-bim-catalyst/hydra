@@ -35,7 +35,8 @@ public sealed class ApplyProviderModelSyncCommandHandlerTests
         _currentUser.UserId.Returns("admin-1");
         var deprecationService = new ModelDeprecationService(_models, _providers, _assignments, _deprecations);
         _handler = new ApplyProviderModelSyncCommandHandler(
-            _models, _unitOfWork, _currentUser, deprecationService, Substitute.For<ILogger<ApplyProviderModelSyncCommandHandler>>());
+            _models, _unitOfWork, _currentUser, deprecationService,
+            Substitute.For<Hangfire.IBackgroundJobClient>(), Substitute.For<ILogger<ApplyProviderModelSyncCommandHandler>>());
 
         _models.ListByProviderIdAsync(Arg.Any<Guid>(), Arg.Any<CancellationToken>()).Returns([]);
         _providers.GetByIdAsync(Arg.Any<Guid>(), Arg.Any<CancellationToken>()).Returns(AIProvider.Create("openai", "OpenAI", "test"));
