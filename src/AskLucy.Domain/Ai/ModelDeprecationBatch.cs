@@ -21,6 +21,9 @@ public sealed class ModelDeprecationBatch : BaseEntity
 
     public Guid? ReplacementChangeOfDeprecationId { get; private set; }
 
+    /// <summary>Kind <c>ReplacementChange</c> only: the replacement that was in use before the change.</summary>
+    public Guid? PreviousReplacementModelId { get; private set; }
+
     private readonly List<ModelDeprecation> _deprecations = [];
 
     public IReadOnlyCollection<ModelDeprecation> Deprecations => _deprecations;
@@ -37,6 +40,21 @@ public sealed class ModelDeprecationBatch : BaseEntity
             Kind = ModelDeprecationKind.Deprecation,
             ConfirmedByUserId = confirmedByUserId,
             ConfirmedAtUtc = confirmedAtUtc,
+            CreatedAtUtc = confirmedAtUtc,
+            CreatedBy = confirmedByUserId,
+        };
+
+    public static ModelDeprecationBatch ReplacementChange(
+        Guid providerId, Guid deprecationId, Guid previousReplacementModelId, string confirmedByUserId, DateTime confirmedAtUtc) =>
+        new()
+        {
+            Id = Guid.CreateVersion7(),
+            ProviderId = providerId,
+            Kind = ModelDeprecationKind.ReplacementChange,
+            ConfirmedByUserId = confirmedByUserId,
+            ConfirmedAtUtc = confirmedAtUtc,
+            ReplacementChangeOfDeprecationId = deprecationId,
+            PreviousReplacementModelId = previousReplacementModelId,
             CreatedAtUtc = confirmedAtUtc,
             CreatedBy = confirmedByUserId,
         };

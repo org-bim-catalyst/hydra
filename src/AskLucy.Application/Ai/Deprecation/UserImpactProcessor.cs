@@ -38,6 +38,48 @@ public sealed class UserImpactProcessor(
             }
         }
 
+        await RunAsync(batch, targets, NotificationTypeKeys.SystemAiModelDeprecated, cancellationToken);
+    }
+
+    /// <summary>specs/069 FR-011b: items still on the previous replacement move to the new one.</summary>
+    public async Task ProcessReplacementChangeAsync(Guid batchId, CancellationToken cancellationToken = default)
+    {
+        var batch = await deprecations.GetBatchAsync(batchId, cancellationToken);
+        if (batch is null || batch.Kind != ModelDeprecationKind.ReplacementChange
+            || batch.UserImpactStatus != UserImpactStatus.Pending
+            || batch.ReplacementChangeOfDeprecationId is not { } deprecationId
+            || batch.PreviousReplacementModelId is not { } previousId
+            || previousId == Guid.Empty)
+        {
+            return;
+        }
+
+        var deprecation = await deprecations.GetByIdAsync(deprecationId, cancellationToken);
+        var replacement = deprecation?.ReplacementModelId is { } newId
+            ? await models.GetByIdAsync(newId, cancellationToken)
+            : null;
+        if (replacement is null)
+        {
+            return;
+        }
+
+        await RunAsync(
+            batch,
+            new Dictionary<Guid, RetiredModelTarget>
+            {
+                [previousId] = new RetiredModelTarget(deprecationId, replacement.Id, replacement.ProviderId, replacement.ModelKey, replacement.DisplayName),
+            },
+            NotificationTypeKeys.SystemAiModelReplacementChanged,
+            cancellationToken);
+    }
+
+    private async Task RunAsync(
+        ModelDeprecationBatch batch,
+        IReadOnlyDictionary<Guid, RetiredModelTarget> targets,
+        string notificationType,
+        CancellationToken cancellationToken)
+    {
+        var batchId = batch.Id;
         var ownerIds = await references.ListOwnerIdsAsync(targets.Keys.ToList(), cancellationToken);
         var notified = 0;
         var now = DateTime.UtcNow;
@@ -47,7 +89,7 @@ public sealed class UserImpactProcessor(
             var switched = await references.SwitchAsync(batchId, targets, chunk, "system", now, cancellationToken);
             foreach (var owner in switched)
             {
-                PublishNotice(batchId, owner);
+                PublishNotice(batchId, notificationType, owner);
                 notified++;
             }
 
@@ -58,7 +100,7 @@ public sealed class UserImpactProcessor(
         await unitOfWork.SaveChangesAsync(cancellationToken);
     }
 
-    private void PublishNotice(Guid batchId, OwnerSwitchResult owner)
+    private void PublishNotice(Guid batchId, string notificationType, OwnerSwitchResult owner)
     {
         var modelNames = string.Join(", ", owner.Items.Select(i => i.PreviousModelName).Distinct(StringComparer.Ordinal));
         var byKind = owner.Items.GroupBy(i => i.Kind)
@@ -66,7 +108,7 @@ public sealed class UserImpactProcessor(
         var replacements = string.Join(", ", owner.Items.Select(i => i.NewModelName).Distinct(StringComparer.Ordinal));
 
         notifications.Publish(new NotificationRequest(
-            Type: NotificationTypeKeys.SystemAiModelDeprecated,
+            Type: notificationType,
             Recipient: new NotificationRecipient.User(owner.OwnerUserId),
             Variables: new Dictionary<string, string?>
             {

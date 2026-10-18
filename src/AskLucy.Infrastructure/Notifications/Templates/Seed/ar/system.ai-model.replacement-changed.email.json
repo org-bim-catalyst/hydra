@@ -1,0 +1,13 @@
+{
+  "name": "تغيير النموذج البديل",
+  "subject": "تغيّر بديل {{ modelNames }}",
+  "preheader": "عناصرك تستخدم الآن {{ replacementSummary }}.",
+  "greeting": "مرحباً {{ recipientDisplayName }}،",
+  "heading": "تغيّر النموذج البديل",
+  "bodyParagraphs": [
+    "غيّر مسؤول النظام البديل الخاص بـ {{ modelNames }}.",
+    "{{ itemSummary }} تستخدم الآن {{ replacementSummary }}."
+  ],
+  "safetyNote": "تصلك هذه الرسالة لأن إشعارات البريد مفعّلة لفئة النظام. يمكنك تغيير ذلك من الإعدادات ← الإشعارات.",
+  "actionLabel": "عرض التفاصيل"
+}

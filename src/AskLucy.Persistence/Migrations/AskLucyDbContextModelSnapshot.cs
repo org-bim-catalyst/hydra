@@ -1620,6 +1620,9 @@ namespace AskLucy.Persistence.Migrations
                     b.Property<int>("NotifiedUserCount")
                         .HasColumnType("int");
 
+                    b.Property<Guid?>("PreviousReplacementModelId")
+                        .HasColumnType("uniqueidentifier");
+
                     b.Property<Guid>("ProviderId")
                         .HasColumnType("uniqueidentifier");
 

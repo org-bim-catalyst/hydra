@@ -1,0 +1,6 @@
+{
+  "name": "Replacement changed",
+  "title": "{{ modelNames }} replacement changed",
+  "message": "{{ itemSummary }} now use {{ replacementSummary }}.",
+  "actionLabel": "View details"
+}

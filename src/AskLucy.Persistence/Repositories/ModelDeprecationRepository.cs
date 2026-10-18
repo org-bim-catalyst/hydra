@@ -11,6 +11,9 @@ public sealed class ModelDeprecationRepository(AskLucyDbContext dbContext) : IMo
     public Task<ModelDeprecation?> GetByModelIdAsync(Guid modelId, CancellationToken cancellationToken = default) =>
         dbContext.ModelDeprecations.FirstOrDefaultAsync(d => d.ModelId == modelId, cancellationToken);
 
+    public Task<ModelDeprecation?> GetByIdAsync(Guid deprecationId, CancellationToken cancellationToken = default) =>
+        dbContext.ModelDeprecations.FirstOrDefaultAsync(d => d.Id == deprecationId, cancellationToken);
+
     public Task<ModelDeprecationBatch?> GetBatchAsync(Guid batchId, CancellationToken cancellationToken = default) =>
         dbContext.ModelDeprecationBatches
             .Include(b => b.Deprecations)

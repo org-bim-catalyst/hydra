@@ -694,6 +694,7 @@ public static class DependencyInjection
 #pragma warning disable CS0618
         services.AddScoped<IPasswordEmailJob, PasswordEmailJob>();
         services.AddScoped<IModelDeprecationUserImpactJob, Ai.Deprecation.ModelDeprecationUserImpactJob>();
+        services.AddScoped<IModelDeprecationReplacementChangeJob, Ai.Deprecation.ModelDeprecationReplacementChangeJob>();
         services.AddScoped<Ai.Deprecation.ModelDeprecationSweepJob>();
         services.AddScoped<IAccountEmailJob, AccountEmailJob>();
 #pragma warning restore CS0618

@@ -1,0 +1,6 @@
+{
+  "name": "ملخص إيقاف نموذج",
+  "title": "تم إيقاف {{ modelNames }}",
+  "message": "السبب: {{ reason }}. {{ reassignedSummary }} {{ flaggedSummary }} {{ validationRequest }}",
+  "actionLabel": "مراجعة"
+}

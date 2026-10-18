@@ -47,6 +47,9 @@ public static class NotificationTypeKeys
 
     public const string SystemAnnouncementPublished = "system.announcement.published";
     public const string SystemAiModelDeprecated = "system.ai-model.deprecated";
+    public const string SystemAiModelReplacementChanged = "system.ai-model.replacement-changed";
+    public const string SystemAiModelDeprecationSummary = "system.ai-model.deprecation-summary";
+    public const string SystemAiModelDeprecationSummarySuperUser = "system.ai-model.deprecation-summary.super-user";
     public const string TemplateTest = "template.test";
 
     public const string ConversationExportCompleted = "conversation.export.completed";

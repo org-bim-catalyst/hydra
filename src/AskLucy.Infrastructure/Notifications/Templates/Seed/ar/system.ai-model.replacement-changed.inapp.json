@@ -1,0 +1,6 @@
+{
+  "name": "تغيير النموذج البديل",
+  "title": "تغيّر بديل {{ modelNames }}",
+  "message": "{{ itemSummary }} تستخدم الآن {{ replacementSummary }}.",
+  "actionLabel": "عرض التفاصيل"
+}

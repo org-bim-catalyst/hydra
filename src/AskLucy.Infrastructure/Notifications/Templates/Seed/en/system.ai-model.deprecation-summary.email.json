@@ -1,0 +1,16 @@
+{
+  "name": "Model deprecation summary",
+  "subject": "{{ modelNames }} was deprecated",
+  "preheader": "Review the replacement and any flagged defaults.",
+  "greeting": "Hi {{ recipientDisplayName }},",
+  "heading": "A model was deprecated",
+  "bodyParagraphs": [
+    "{{ providerName }} no longer lists {{ modelNames }}. Confirmed by {{ confirmedBy }} at {{ confirmedAt }}.",
+    "Reason: {{ reason }}.",
+    "{{ reassignedSummary }}",
+    "{{ flaggedSummary }}",
+    "{{ validationRequest }}"
+  ],
+  "safetyNote": "You're receiving this because you administer AI providers.",
+  "actionLabel": "Review the deprecation"
+}

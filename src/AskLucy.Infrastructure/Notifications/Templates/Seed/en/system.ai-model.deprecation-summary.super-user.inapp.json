@@ -1,0 +1,6 @@
+{
+  "name": "Model deprecation summary",
+  "title": "{{ modelNames }} was deprecated",
+  "message": "Reason: {{ reason }}. {{ reassignedSummary }} {{ flaggedSummary }} {{ validationRequest }}",
+  "actionLabel": "Review"
+}

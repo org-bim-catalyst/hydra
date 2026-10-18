@@ -126,6 +126,42 @@ public static class NotificationTypeCatalog
                 ],
                 RouteTemplate = NotificationDetailRoute,
             },
+            // specs/069 FR-011b: the replacement changed during validation and the owner's items moved again.
+            new NotificationTypeDefinition
+            {
+                Key = SystemAiModelReplacementChanged,
+                Category = NotificationCategory.System,
+                DefaultPriority = NotificationPriority.Normal,
+                Channels = Channels((NotificationChannel.InApp, ChannelDefault.Mandatory), (NotificationChannel.Email, ChannelDefault.On)),
+                DeclaredVariables =
+                [
+                    Var("modelNames", string.Empty),
+                    Var("itemSummary", string.Empty),
+                    Var("replacementSummary", string.Empty),
+                ],
+                RouteTemplate = NotificationDetailRoute,
+            },
+
+            // specs/069 FR-018/FR-020b: the deprecation summary. Email is mandatory for every
+            // recipient except a Super User, who gets the `.super-user` variant instead.
+            new NotificationTypeDefinition
+            {
+                Key = SystemAiModelDeprecationSummary,
+                Category = NotificationCategory.System,
+                DefaultPriority = NotificationPriority.High,
+                Channels = Channels((NotificationChannel.InApp, ChannelDefault.Mandatory), (NotificationChannel.Email, ChannelDefault.Mandatory)),
+                DeclaredVariables = SummaryVariables(),
+                RouteTemplate = NotificationDetailRoute,
+            },
+            new NotificationTypeDefinition
+            {
+                Key = SystemAiModelDeprecationSummarySuperUser,
+                Category = NotificationCategory.System,
+                DefaultPriority = NotificationPriority.High,
+                Channels = Channels((NotificationChannel.InApp, ChannelDefault.Mandatory), (NotificationChannel.Email, ChannelDefault.On)),
+                DeclaredVariables = SummaryVariables(),
+                RouteTemplate = NotificationDetailRoute,
+            },
             new NotificationTypeDefinition
             {
                 Key = TemplateTest,
@@ -198,6 +234,18 @@ public static class NotificationTypeCatalog
     // --- construction helpers ---
 
     private static NotificationVariable Var(string name, string fallback) => new(name, fallback);
+
+    private static IReadOnlyList<NotificationVariable> SummaryVariables() =>
+    [
+        Var("providerName", string.Empty),
+        Var("modelNames", string.Empty),
+        Var("reason", "No longer listed by the vendor"),
+        Var("confirmedBy", string.Empty),
+        Var("confirmedAt", string.Empty),
+        Var("reassignedSummary", string.Empty),
+        Var("flaggedSummary", string.Empty),
+        Var("validationRequest", string.Empty),
+    ];
 
     private static ReadOnlyDictionary<NotificationChannel, ChannelDefault> Channels(
         params (NotificationChannel Channel, ChannelDefault State)[] channels) =>

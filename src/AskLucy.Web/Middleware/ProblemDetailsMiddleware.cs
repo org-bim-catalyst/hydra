@@ -335,6 +335,20 @@ public sealed class ProblemDetailsMiddleware(
             "Model status is locked",
             statusLockedEx.Message),
 
+        // specs/069 FR-011a/FR-011b: the replacement is no longer awaiting validation.
+        AskLucy.Application.Ai.Commands.ValidateModelReplacement.ModelReplacementConflictException replacementConflictEx => (
+            StatusCodes.Status409Conflict,
+            "https://hydra.bimcatalyst.com/problems/model-replacement-conflict",
+            "Replacement changed",
+            replacementConflictEx.Message),
+
+        // specs/069 FR-011b: the chosen model cannot serve as the replacement.
+        AskLucy.Application.Ai.Commands.ValidateModelReplacement.ModelReplacementRejectedException replacementRejectedEx => (
+            StatusCodes.Status400BadRequest,
+            "https://hydra.bimcatalyst.com/problems/model-replacement-rejected",
+            "Replacement rejected",
+            replacementRejectedEx.Message),
+
         // specs/069 FR-015: the run named a retired model with no usable replacement.
         AskLucy.Application.Ai.Deprecation.ModelRetiredException modelRetiredEx => (
             StatusCodes.Status400BadRequest,

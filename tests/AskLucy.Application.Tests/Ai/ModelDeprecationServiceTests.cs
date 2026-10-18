@@ -23,7 +23,10 @@ public sealed class ModelDeprecationServiceTests
 
     public ModelDeprecationServiceTests()
     {
-        _service = new ModelDeprecationService(_models, _providers, _assignments, _deprecations);
+        _service = new ModelDeprecationService(
+            _models, _providers, _assignments, _deprecations,
+            Substitute.For<AskLucy.Application.Notifications.Abstractions.INotificationPublisher>(),
+            new AdminRecipientResolver(Substitute.For<IRoleRepository>(), Substitute.For<IRoleAssignmentRepository>()));
         _provider = AIProvider.Create("openai", "OpenAI", "test");
         _providers.GetByIdAsync(_provider.Id, Arg.Any<CancellationToken>()).Returns(_provider);
         _assignments.ListAllAsync(Arg.Any<CancellationToken>()).Returns([]);

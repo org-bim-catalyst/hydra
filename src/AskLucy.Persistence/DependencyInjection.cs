@@ -95,6 +95,7 @@ public static class DependencyInjection
         services.AddScoped<IAIModelRepository, AIModelRepository>();
         services.AddScoped<IModelDeprecationRepository, ModelDeprecationRepository>();
         services.AddScoped<IModelReferenceStore, ModelReferenceStore>();
+        services.AddScoped<AskLucy.Application.Ai.Queries.GetModelDeprecations.IModelDeprecationQueryRepository, ModelDeprecationQueryRepository>();
         services.AddScoped<IProviderHealthCheckRepository, ProviderHealthCheckRepository>();
         services.AddScoped<IUserAiPreferenceRepository, UserAiPreferenceRepository>();
         services.AddScoped<IUserVoicePreferenceRepository, UserVoicePreferenceRepository>();

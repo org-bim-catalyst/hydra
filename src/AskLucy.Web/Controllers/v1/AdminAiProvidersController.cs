@@ -1,5 +1,7 @@
 using AskLucy.Application.Ai;
 using AskLucy.Application.Ai.Commands.ApplyProviderModelSync;
+using AskLucy.Application.Ai.Commands.ValidateModelReplacement;
+using AskLucy.Application.Ai.Queries.GetModelDeprecations;
 using AskLucy.Application.Ai.Commands.CheckAiProviderHealth;
 using AskLucy.Application.Ai.Commands.ClearAiProviderCredential;
 using AskLucy.Application.Ai.Commands.SetAiCapabilityAssignment;
@@ -35,6 +37,10 @@ namespace AskLucy.Web.Controllers.v1;
 [LocalizedSurface]
 [EnableRateLimiting("admin-endpoints")]
 [Route("api/v1/admin/ai")]
+public sealed record ChangeModelReplacementRequest(Guid ModelId);
+
+public sealed record ChangeModelReplacementResponse(Guid BatchId);
+
 public sealed class AdminAiProvidersController(ISender mediator) : ControllerBase
 {
     [HttpGet("providers")]
@@ -157,4 +163,42 @@ public sealed class AdminAiProvidersController(ISender mediator) : ControllerBas
     [RequirePermission("admin.ai-providers.manage")]
     public async Task<ActionResult<ApplyProviderModelSyncResultDto>> ApplyModelSync(Guid providerId, ApplyProviderModelSyncRequest request, CancellationToken cancellationToken) =>
         Ok(await mediator.Send(new ApplyProviderModelSyncCommand(providerId, request.Added, request.RemovedFromVendor), cancellationToken));
+
+    /// <summary>specs/069 contracts §3 — deprecation records, newest first, counts only.</summary>
+    [HttpGet("deprecations")]
+    [RequirePermission("admin.ai-providers.manage")]
+    public async Task<ActionResult<ModelDeprecationPageDto>> ListDeprecations(
+        [FromQuery] Guid? providerId,
+        [FromQuery] bool awaitingValidation,
+        [FromQuery] bool openFlags,
+        [FromQuery] Guid? cursor,
+        [FromQuery] int pageSize,
+        CancellationToken cancellationToken) =>
+        Ok(await mediator.Send(
+            new ListModelDeprecationsQuery(providerId, awaitingValidation, openFlags, cursor, pageSize == 0 ? 20 : pageSize),
+            cancellationToken));
+
+    [HttpGet("deprecations/{deprecationId:guid}")]
+    [RequirePermission("admin.ai-providers.manage")]
+    public async Task<ActionResult<ModelDeprecationDetailDto>> GetDeprecation(Guid deprecationId, CancellationToken cancellationToken) =>
+        Ok(await mediator.Send(new GetModelDeprecationQuery(deprecationId), cancellationToken));
+
+    /// <summary>specs/069 FR-011a — accepts the replacement already in use.</summary>
+    [HttpPost("deprecations/{deprecationId:guid}/actions/accept-replacement")]
+    [RequirePermission("admin.ai-providers.manage")]
+    public async Task<IActionResult> AcceptReplacement(Guid deprecationId, CancellationToken cancellationToken)
+    {
+        await mediator.Send(new AcceptModelReplacementCommand(deprecationId), cancellationToken);
+        return NoContent();
+    }
+
+    /// <summary>specs/069 FR-011b — changes the replacement during validation.</summary>
+    [HttpPost("deprecations/{deprecationId:guid}/actions/change-replacement")]
+    [RequirePermission("admin.ai-providers.manage")]
+    public async Task<ActionResult<ChangeModelReplacementResponse>> ChangeReplacement(
+        Guid deprecationId, ChangeModelReplacementRequest request, CancellationToken cancellationToken)
+    {
+        var batchId = await mediator.Send(new ChangeModelReplacementCommand(deprecationId, request.ModelId), cancellationToken);
+        return Accepted(new ChangeModelReplacementResponse(batchId));
+    }
 }

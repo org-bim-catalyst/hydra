@@ -33,7 +33,10 @@ public sealed class ApplyProviderModelSyncCommandHandlerTests
     public ApplyProviderModelSyncCommandHandlerTests()
     {
         _currentUser.UserId.Returns("admin-1");
-        var deprecationService = new ModelDeprecationService(_models, _providers, _assignments, _deprecations);
+        var deprecationService = new ModelDeprecationService(
+            _models, _providers, _assignments, _deprecations,
+            Substitute.For<AskLucy.Application.Notifications.Abstractions.INotificationPublisher>(),
+            new AdminRecipientResolver(Substitute.For<IRoleRepository>(), Substitute.For<IRoleAssignmentRepository>()));
         _handler = new ApplyProviderModelSyncCommandHandler(
             _models, _unitOfWork, _currentUser, deprecationService,
             Substitute.For<Hangfire.IBackgroundJobClient>(), Substitute.For<ILogger<ApplyProviderModelSyncCommandHandler>>());

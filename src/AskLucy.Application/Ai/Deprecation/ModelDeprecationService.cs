@@ -1,6 +1,8 @@
 using AskLucy.Application.Abstractions;
 using AskLucy.Application.Ai.Commands.ApplyProviderModelSync;
+using AskLucy.Application.Notifications.Abstractions;
 using AskLucy.Domain.Ai;
+using AskLucy.Domain.Notifications;
 using AskLucy.Domain.Common;
 
 namespace AskLucy.Application.Ai.Deprecation;
@@ -14,7 +16,9 @@ public sealed class ModelDeprecationService(
     IAIModelRepository models,
     IAIProviderRepository providers,
     IAiCapabilityAssignmentRepository assignments,
-    IModelDeprecationRepository deprecations) : IModelDeprecationService
+    IModelDeprecationRepository deprecations,
+    INotificationPublisher notifications,
+    AdminRecipientResolver adminRecipients) : IModelDeprecationService
 {
     public async Task<ModelDeprecationResult> DeprecateAsync(
         Guid providerId,
@@ -68,9 +72,55 @@ public sealed class ModelDeprecationService(
         if (deprecatedKeys.Count > 0)
         {
             deprecations.Add(batch);
+            await PublishSummariesAsync(batch, provider.DisplayName, actor, now, cancellationToken);
         }
 
         return new ModelDeprecationResult(deprecatedKeys.Count > 0 ? batch.Id : null, deprecatedKeys, failed);
+    }
+
+    /// <summary>specs/069 FR-018/FR-020b: one summary per admin, chunked to the hub's recipient limit.</summary>
+    private async Task PublishSummariesAsync(
+        ModelDeprecationBatch batch, string providerName, string actor, DateTime now, CancellationToken cancellationToken)
+    {
+        var recipients = await adminRecipients.ResolveAsync(cancellationToken);
+        if (recipients.Mandatory.Count == 0 && recipients.Optional.Count == 0)
+        {
+            return;
+        }
+
+        var catalog = await models.ListByProviderIdAsync(batch.ProviderId, cancellationToken);
+        var names = catalog.Where(m => batch.Deprecations.Any(d => d.ModelId == m.Id))
+            .Select(m => m.DisplayName).ToList();
+        var reassigned = batch.Deprecations.SelectMany(d => d.DefaultChanges).Count(c => c.Outcome == DefaultChangeOutcome.Reassigned);
+        var flagged = batch.Deprecations.SelectMany(d => d.DefaultChanges).Count(c => c.Outcome == DefaultChangeOutcome.Flagged);
+
+        var variables = new Dictionary<string, string?>
+        {
+            ["providerName"] = providerName,
+            ["modelNames"] = string.Join(", ", names),
+            ["reason"] = "No longer listed by the vendor",
+            ["confirmedBy"] = actor,
+            ["confirmedAt"] = $"{now:yyyy-MM-dd HH:mm} UTC",
+            ["reassignedSummary"] = reassigned == 0 ? "No platform defaults were reassigned." : $"{reassigned} platform default(s) were reassigned.",
+            ["flaggedSummary"] = flagged == 0 ? "No defaults need attention." : $"{flagged} platform default(s) need attention on the AI Providers page.",
+            ["validationRequest"] = "Please review and validate the replacement.",
+        };
+
+        Publish(NotificationTypeKeys.SystemAiModelDeprecationSummary, recipients.Mandatory);
+        Publish(NotificationTypeKeys.SystemAiModelDeprecationSummarySuperUser, recipients.Optional);
+
+        void Publish(string type, IReadOnlyList<string> userIds)
+        {
+            foreach (var chunk in userIds.Chunk(100))
+            {
+                notifications.Publish(new NotificationRequest(
+                    Type: type,
+                    Recipient: new NotificationRecipient.Users(chunk),
+                    Variables: variables,
+                    RelatedItem: new RelatedItem("ai-model-deprecation-batch", batch.Id.ToString()),
+                    EventKey: $"ai-model-deprecation-summary:{batch.Id}:{chunk[0]}"));
+            }
+        }
     }
 
     private static ResolvedReplacement ResolveReplacement(DeprecationCandidate candidate, IReadOnlyList<AIModel> catalog, HashSet<Guid> batchModelIds)

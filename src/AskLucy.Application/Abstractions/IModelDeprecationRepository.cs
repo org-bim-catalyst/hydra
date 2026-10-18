@@ -8,6 +8,8 @@ public interface IModelDeprecationRepository
 
     Task<ModelDeprecation?> GetByModelIdAsync(Guid modelId, CancellationToken cancellationToken = default);
 
+    Task<ModelDeprecation?> GetByIdAsync(Guid deprecationId, CancellationToken cancellationToken = default);
+
     /// <summary>The batch with its deprecations (and their replacements) loaded, for the user-impact job.</summary>
     Task<ModelDeprecationBatch?> GetBatchAsync(Guid batchId, CancellationToken cancellationToken = default);
 
