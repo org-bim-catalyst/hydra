@@ -219,7 +219,10 @@ public static class DependencyInjection
 
             config.UseSqlServerStorage(connectionString);
         });
-        services.AddHangfireServer();
+        // Hangfire's default is 20 worker threads per process, each able to hold a SQL connection. The database host
+        // allows 10 connections in total, so the worker count is capped here (ConnectionBudget:HangfireWorkers).
+        var hangfireWorkers = configuration.GetValue("ConnectionBudget:HangfireWorkers", 5);
+        services.AddHangfireServer(options => options.WorkerCount = hangfireWorkers);
         // Resolved by Hangfire's job activator for both the on-demand processing pipeline jobs
         // and this US6 recurring job — Hangfire resolves concrete job classes directly from the
         // container, not just through their interfaces, so this explicit registration is required.
@@ -550,6 +553,7 @@ public static class DependencyInjection
         services.AddScoped<IAccountLinkIssuer, AccountLinkIssuer>();
         services.AddScoped<NotificationLeaseSweepJob>();
         services.AddScoped<NotificationRetentionJob>();
+        services.AddScoped<ProviderHealthCheckRetentionJob>();
         services.AddSingleton<SmtpConnectionHolder>();
         services.AddSingleton<AskLucy.Application.Localization.ILocalizationSettingsProvider, CachedLocalizationSettingsProvider>();
         services.AddScoped<IEffectiveLanguageResolver, EffectiveLanguageResolver>();
