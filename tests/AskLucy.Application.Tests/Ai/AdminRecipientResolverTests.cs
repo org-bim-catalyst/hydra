@@ -1,6 +1,6 @@
 using AskLucy.Application.Abstractions;
-using AskLucy.Domain.Authorization;
 using AskLucy.Application.Ai.Deprecation;
+using AskLucy.Domain.Authorization;
 using FluentAssertions;
 using NSubstitute;
 using Xunit;

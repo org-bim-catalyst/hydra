@@ -1,6 +1,6 @@
 using AskLucy.Application.Abstractions;
-using AskLucy.Application.Ai.Deprecation;
 using AskLucy.Application.Ai.Commands.UpdateAiProvider;
+using AskLucy.Application.Ai.Deprecation;
 using AskLucy.Domain.Ai;
 using FluentAssertions;
 using Microsoft.Extensions.Logging.Abstractions;
