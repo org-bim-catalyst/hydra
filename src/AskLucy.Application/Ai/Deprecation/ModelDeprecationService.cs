@@ -44,29 +44,41 @@ public sealed class ModelDeprecationService(
         var batchModelIds = candidates.Select(c => c.Model.Id).ToHashSet();
         var batch = ModelDeprecationBatch.Deprecate(providerId, actor, now);
 
+        // Pass 1 validates every row before anything changes, so a later failure can never leave
+        // a model deprecated without its record (FR-005: one model's changes apply together).
+        var validated = new List<(DeprecationCandidate Candidate, ResolvedReplacement Replacement)>();
         foreach (var candidate in candidates)
         {
-            var retired = candidate.Model;
             try
             {
-                var replacement = ResolveReplacement(candidate, catalog, batchModelIds);
-                retired.Deprecate(actor);
+                if (candidate.Model.Status != AIModelStatus.Available)
+                {
+                    throw new DomainRuleViolationException("Only an Available model can be deprecated.");
+                }
 
-                var source = replacement.Model is null ? ReplacementSource.None
-                    : candidate.Choice.Kind == ReplacementChoiceKind.Model ? ReplacementSource.AdminChosen
-                    : ReplacementSource.Proposed;
-                var deprecation = ModelDeprecation.Create(batch.Id, retired.Id, replacement.Model?.Id, source, actor, now);
-
-                ReassignOrFlagProviderDefault(provider, deprecation, retired, replacement.Model, actor, now);
-                ReassignOrFlagCapabilityAssignments(providerAssignments, deprecation, retired, replacement.Model, providerId, actor, now);
-
-                batch.Add(deprecation);
-                deprecatedKeys.Add(retired.ModelKey);
+                validated.Add((candidate, ResolveReplacement(candidate, catalog, batchModelIds)));
             }
             catch (DomainRuleViolationException ex)
             {
-                failed.Add(new SyncApplyFailureDto(retired.ModelKey, retired.DisplayName, ex.Message));
+                failed.Add(new SyncApplyFailureDto(candidate.Model.ModelKey, candidate.Model.DisplayName, ex.Message));
             }
+        }
+
+        foreach (var (candidate, replacement) in validated)
+        {
+            var retired = candidate.Model;
+            retired.Deprecate(actor);
+
+            var source = replacement.Model is null ? ReplacementSource.None
+                : candidate.Choice.Kind == ReplacementChoiceKind.Model ? ReplacementSource.AdminChosen
+                : ReplacementSource.Proposed;
+            var deprecation = ModelDeprecation.Create(batch.Id, retired.Id, replacement.Model?.Id, source, actor, now);
+
+            ReassignOrFlagProviderDefault(provider, deprecation, retired, replacement.Model, actor, now);
+            ReassignOrFlagCapabilityAssignments(providerAssignments, deprecation, retired, replacement.Model, providerId, actor, now);
+
+            batch.Add(deprecation);
+            deprecatedKeys.Add(retired.ModelKey);
         }
 
         if (deprecatedKeys.Count > 0)
