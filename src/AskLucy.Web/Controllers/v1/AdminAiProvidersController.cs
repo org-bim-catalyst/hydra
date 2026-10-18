@@ -33,14 +33,14 @@ namespace AskLucy.Web.Controllers.v1;
 /// manage permission. <see cref="UpdateProvider"/>'s deprecated <c>DefaultModelId</c>/
 /// <c>ClearDefaultModel</c> fields are a known interim gap — see that action's own doc comment.
 /// </summary>
-[ApiController]
-[LocalizedSurface]
-[EnableRateLimiting("admin-endpoints")]
-[Route("api/v1/admin/ai")]
 public sealed record ChangeModelReplacementRequest(Guid ModelId);
 
 public sealed record ChangeModelReplacementResponse(Guid BatchId);
 
+[ApiController]
+[LocalizedSurface]
+[EnableRateLimiting("admin-endpoints")]
+[Route("api/v1/admin/ai")]
 public sealed class AdminAiProvidersController(ISender mediator) : ControllerBase
 {
     [HttpGet("providers")]
