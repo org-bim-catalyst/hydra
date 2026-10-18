@@ -285,7 +285,8 @@ public sealed class NotificationPreferencesEndpointsTests(NotificationPreference
     /// <summary>Waits for the host's own dispatcher to materialize the user's notification with both of its deliveries.</summary>
     private async Task<List<NotificationDelivery>> WaitForDeliveriesAsync(string userId)
     {
-        var deadline = DateTime.UtcNow.AddSeconds(30);
+        // The remote CI database materialises notifications more slowly than 30 s at times; 120 s matches the other outbox waits.
+        var deadline = DateTime.UtcNow.AddSeconds(120);
         while (DateTime.UtcNow < deadline)
         {
             await using var scope = factory.Services.CreateAsyncScope();
@@ -300,7 +301,7 @@ public sealed class NotificationPreferencesEndpointsTests(NotificationPreference
             await Task.Delay(200, TestContext.Current.CancellationToken);
         }
 
-        throw new TimeoutException($"No notification with its deliveries appeared for {userId} within 30 s.");
+        throw new TimeoutException($"No notification with its deliveries appeared for {userId} within 120 s.");
     }
 
     private async Task<int> OverrideRowsAsync(string userId)
