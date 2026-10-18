@@ -116,7 +116,7 @@ public sealed class ModelDeprecationQueryRepository(AskLucyDbContext dbContext) 
             record.ModelId,
             model?.ModelKey ?? string.Empty,
             model?.DisplayName ?? string.Empty,
-            batch.ProviderId,
+            batch!.ProviderId,
             providerName,
             record.Reason,
             batch!.ConfirmedAtUtc,

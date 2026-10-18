@@ -60,7 +60,7 @@ public sealed class UserImpactProcessorTests
         await _processor.ProcessAsync(batch.Id, TestContext.Current.CancellationToken);
 
         _notifications.Received(1).Publish(Arg.Is<NotificationRequest>(r =>
-            r.Type == NotificationTypeKeys.SystemAiModelDeprecated
+            r!.Type == NotificationTypeKeys.SystemAiModelDeprecated
             && r.Recipient is NotificationRecipient.User
             && r.Variables["modelNames"] == "GPT-4 Turbo"
             && r.Variables["replacementSummary"] == "GPT-5"
@@ -77,9 +77,9 @@ public sealed class UserImpactProcessorTests
 
         await _processor.ProcessAsync(batch.Id, TestContext.Current.CancellationToken);
 
-        await _references.DidNotReceiveWithAnyArgs().SwitchAsync(default, default!, default!, default!, default);
+        await _references.DidNotReceiveWithAnyArgs().SwitchAsync(default, default!, default!, default!, default, TestContext.Current.CancellationToken);
         _notifications.DidNotReceiveWithAnyArgs().Publish(default!);
-        await _unitOfWork.DidNotReceiveWithAnyArgs().SaveChangesAsync();
+        await _unitOfWork.DidNotReceiveWithAnyArgs().SaveChangesAsync(TestContext.Current.CancellationToken);
     }
 
     [Fact]
@@ -94,7 +94,7 @@ public sealed class UserImpactProcessorTests
 
         await _processor.ProcessAsync(batch.Id, TestContext.Current.CancellationToken);
 
-        await _references.DidNotReceiveWithAnyArgs().SwitchAsync(default, default!, default!, default!, default);
+        await _references.DidNotReceiveWithAnyArgs().SwitchAsync(default, default!, default!, default!, default, TestContext.Current.CancellationToken);
         batch.UserImpactStatus.Should().Be(UserImpactStatus.Completed);
         batch.NotifiedUserCount.Should().Be(0);
     }

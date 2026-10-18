@@ -18,7 +18,7 @@ public sealed class ExecutableModelResolverTests
 
     public ExecutableModelResolverTests() => _resolver = new ExecutableModelResolver(_models, _deprecations);
 
-    private AIModel Model(string key, AIModelStatus status = AIModelStatus.Available)
+    private static AIModel Model(string key, AIModelStatus status = AIModelStatus.Available)
     {
         var model = AIModel.Create(Guid.CreateVersion7(), key, key, 128_000, 4096, Caps, null, null, "test");
         if (status == AIModelStatus.Deprecated)
