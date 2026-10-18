@@ -24,6 +24,7 @@ namespace AskLucy.Web.Tests.OperationalFailures;
 /// the real voice router, reporter and recorder into the real ingestor and store, it must be one
 /// Critical incident with seven occurrences and seven recoveries — not fourteen rows.
 /// </summary>
+[Collection(DatabaseSerialGroup.Name)]
 public sealed class ElevenLabsBurstReplayTests(CustomWebApplicationFactory factory) : IClassFixture<CustomWebApplicationFactory>
 {
     private const int Pairs = 7;

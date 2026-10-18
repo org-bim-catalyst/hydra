@@ -11,6 +11,7 @@ namespace AskLucy.Web.Tests.Users;
 /// cannot carry those fields, so no future endpoint change can leak them by accident)
 /// and via the auth gate (the endpoint itself requires authentication first).
 /// </summary>
+[Collection(DatabaseSerialGroup.Name)]
 public sealed class NoSecretLeakageTests(CustomWebApplicationFactory factory) : IClassFixture<CustomWebApplicationFactory>
 {
     private readonly HttpClient _client = factory.CreateClient();

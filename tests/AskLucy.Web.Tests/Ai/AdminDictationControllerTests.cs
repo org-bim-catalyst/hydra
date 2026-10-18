@@ -23,6 +23,7 @@ namespace AskLucy.Web.Tests.Ai;
 /// Local Whisper model catalog and the trial replaced, so nothing writes the shared database's
 /// dictation row or loads a model.
 /// </summary>
+[Collection(DatabaseSerialGroup.Name)]
 public sealed class DictationApiFactory : CustomWebApplicationFactory
 {
     public IDictationEngineSettingRepository Settings { get; } = Substitute.For<IDictationEngineSettingRepository>();
@@ -66,6 +67,7 @@ public sealed class DictationApiFactory : CustomWebApplicationFactory
 }
 
 /// <summary>specs/078 T027 — the admin dictation routes (contracts/admin-dictation.md) over the real host.</summary>
+[Collection(DatabaseSerialGroup.Name)]
 public sealed class AdminDictationControllerTests : IClassFixture<DictationApiFactory>
 {
     private static readonly byte[] RowVersion = [0, 0, 0, 0, 0, 0, 7, 209];

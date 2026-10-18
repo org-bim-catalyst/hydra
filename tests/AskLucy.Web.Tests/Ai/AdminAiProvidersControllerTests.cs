@@ -13,6 +13,7 @@ namespace AskLucy.Web.Tests.Ai;
 /// self-signed-JWT pattern as <see cref="Admin.AdminDashboardTests"/> — role evaluation is
 /// purely a function of the token's claims, independent of any data access.
 /// </summary>
+[Collection(DatabaseSerialGroup.Name)]
 public sealed class AdminAiProvidersControllerTests(CustomWebApplicationFactory factory) : IClassFixture<CustomWebApplicationFactory>
 {
     private readonly HttpClient _client = factory.CreateClient();

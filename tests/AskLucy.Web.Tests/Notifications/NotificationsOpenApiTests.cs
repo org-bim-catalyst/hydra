@@ -24,6 +24,7 @@ namespace AskLucy.Web.Tests.Notifications;
 /// 401 on every route, 403 on admin routes (permission gate) and 429 on rate-limited ones.
 /// </para>
 /// </summary>
+[Collection(DatabaseSerialGroup.Name)]
 public sealed class NotificationsOpenApiTests(CustomWebApplicationFactory factory) : IClassFixture<CustomWebApplicationFactory>
 {
     private const string User = "/api/v1/notifications";

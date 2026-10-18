@@ -25,6 +25,7 @@ namespace AskLucy.Web.Tests.Auth;
 /// delivery worker against the one shared database, so any host may be the one that sends a given email, and a
 /// per-host capture would miss it.
 /// </summary>
+[Collection(DatabaseSerialGroup.Name)]
 public sealed class CapturingEmailWebApplicationFactory : CustomWebApplicationFactory;
 
 /// <summary>
@@ -32,6 +33,7 @@ public sealed class CapturingEmailWebApplicationFactory : CustomWebApplicationFa
 /// rebuilt (AspNetRoleClaims, AspNetUserClaims) sit under registration, sign-in, custom roles and
 /// their permissions, so this walks one real account through all of them against the real schema.
 /// </summary>
+[Collection(DatabaseSerialGroup.Name)]
 public sealed partial class IdentityLifecycleSmokeTests(CapturingEmailWebApplicationFactory factory)
     : IClassFixture<CapturingEmailWebApplicationFactory>
 {

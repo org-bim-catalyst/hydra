@@ -6,6 +6,7 @@ using Xunit;
 namespace AskLucy.Web.Tests.Users;
 
 /// <summary>FR-015/FR-022 (specs/001-admin-dashboard).</summary>
+[Collection(DatabaseSerialGroup.Name)]
 public sealed class ForceReset2faTests(CustomWebApplicationFactory factory) : IClassFixture<CustomWebApplicationFactory>
 {
     private readonly HttpClient _client = factory.CreateClient();

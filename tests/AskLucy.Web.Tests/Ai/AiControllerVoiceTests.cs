@@ -17,6 +17,7 @@ namespace AskLucy.Web.Tests.Ai;
 /// AI-invoking endpoints, not the full ElevenLabs/database round trip (covered by the
 /// Application/Infrastructure unit and integration tests instead).
 /// </summary>
+[Collection(DatabaseSerialGroup.Name)]
 public sealed class AiControllerVoiceTests(CustomWebApplicationFactory factory) : IClassFixture<CustomWebApplicationFactory>
 {
     private readonly HttpClient _client = factory.CreateClient();

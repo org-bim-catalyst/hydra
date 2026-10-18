@@ -11,6 +11,7 @@ namespace AskLucy.Web.Tests.Users;
 /// <c>ApplicationUserQueryFilterTests</c> (the global query filter every list read goes
 /// through) — not duplicated here as a live end-to-end assertion.
 /// </summary>
+[Collection(DatabaseSerialGroup.Name)]
 public sealed class DeleteUserTests(CustomWebApplicationFactory factory) : IClassFixture<CustomWebApplicationFactory>
 {
     private readonly HttpClient _client = factory.CreateClient();

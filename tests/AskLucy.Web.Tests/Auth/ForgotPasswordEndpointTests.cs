@@ -14,6 +14,7 @@ namespace AskLucy.Web.Tests.Auth;
 /// notification hub instead of enqueuing a Hangfire job, and every host here sends through the shared fake
 /// SMTP server, so exercising the endpoint neither talks to SMTP nor leaves failing jobs behind.
 /// </summary>
+[Collection(DatabaseSerialGroup.Name)]
 public sealed class ForgotPasswordWebApplicationFactory : CustomWebApplicationFactory;
 
 /// <summary>
@@ -21,6 +22,7 @@ public sealed class ForgotPasswordWebApplicationFactory : CustomWebApplicationFa
 /// an observer who can see status, body and timing cannot tell the four account states apart
 /// (SC-005, SC-002, FR-003).
 /// </summary>
+[Collection(DatabaseSerialGroup.Name)]
 public sealed class ForgotPasswordEndpointTests(ForgotPasswordWebApplicationFactory factory)
     : IClassFixture<ForgotPasswordWebApplicationFactory>, IAsyncLifetime
 {

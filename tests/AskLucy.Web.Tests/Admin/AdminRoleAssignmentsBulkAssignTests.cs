@@ -8,6 +8,7 @@ using Xunit;
 namespace AskLucy.Web.Tests.Admin;
 
 /// <summary>specs/056-bulk-select-all — same authorization boundary as the existing Role assignments endpoints.</summary>
+[Collection(DatabaseSerialGroup.Name)]
 public sealed class AdminRoleAssignmentsBulkAssignTests(CustomWebApplicationFactory factory) : IClassFixture<CustomWebApplicationFactory>
 {
     private readonly HttpClient _client = factory.CreateClient();

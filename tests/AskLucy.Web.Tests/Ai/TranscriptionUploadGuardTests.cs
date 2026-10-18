@@ -13,6 +13,7 @@ namespace AskLucy.Web.Tests.Ai;
 /// two prior fix rounds, both scoped to <c>OpenAIProvider.cs</c> — this gap is upstream of that
 /// entirely, in ASP.NET Core's own silent-null <c>IFormFile</c> model binding).
 /// </summary>
+[Collection(DatabaseSerialGroup.Name)]
 public sealed class TranscriptionUploadGuardTests(CustomWebApplicationFactory factory) : IClassFixture<CustomWebApplicationFactory>
 {
     private readonly HttpClient _client = factory.CreateClient();

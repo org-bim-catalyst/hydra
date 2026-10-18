@@ -12,6 +12,7 @@ namespace AskLucy.Web.Tests.Auth;
 /// seeded user and is exercised by the Playwright regression matrix
 /// (tests/AskLucy.E2E.Tests) instead, not this environment's unit/contract test tier.
 /// </summary>
+[Collection(DatabaseSerialGroup.Name)]
 public sealed class TwoFactorManagementTests(CustomWebApplicationFactory factory)
     : IClassFixture<CustomWebApplicationFactory>
 {

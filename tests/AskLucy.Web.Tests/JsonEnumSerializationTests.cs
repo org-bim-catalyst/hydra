@@ -17,6 +17,7 @@ namespace AskLucy.Web.Tests;
 /// MVC JSON configuration itself (rather than a live controller round-trip) since this
 /// environment has no database available for a full end-to-end request.
 /// </summary>
+[Collection(DatabaseSerialGroup.Name)]
 public sealed class JsonEnumSerializationTests(CustomWebApplicationFactory factory) : IClassFixture<CustomWebApplicationFactory>
 {
     [Fact]

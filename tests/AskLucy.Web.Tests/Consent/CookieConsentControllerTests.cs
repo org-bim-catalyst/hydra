@@ -7,6 +7,7 @@ using Xunit;
 namespace AskLucy.Web.Tests.Consent;
 
 /// <summary>Same no-live-database pattern as <see cref="Users.LockUnlockUserTests"/>.</summary>
+[Collection(DatabaseSerialGroup.Name)]
 public sealed class CookieConsentControllerTests(CustomWebApplicationFactory factory) : IClassFixture<CustomWebApplicationFactory>
 {
     private readonly HttpClient _client = factory.CreateClient();

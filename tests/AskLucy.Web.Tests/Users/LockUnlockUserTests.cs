@@ -6,6 +6,7 @@ using Xunit;
 namespace AskLucy.Web.Tests.Users;
 
 /// <summary>FR-012/FR-013/FR-022 (specs/001-admin-dashboard). Same no-live-database pattern as <see cref="Admin.RoleAuthorizationTests"/>.</summary>
+[Collection(DatabaseSerialGroup.Name)]
 public sealed class LockUnlockUserTests(CustomWebApplicationFactory factory) : IClassFixture<CustomWebApplicationFactory>
 {
     private readonly HttpClient _client = factory.CreateClient();

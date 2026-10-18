@@ -20,6 +20,7 @@ namespace AskLucy.Web.Tests.Weather;
 /// auth/validation-gate coverage; the 200/502 cases substitute a fake <see cref="IWeatherProvider"/>
 /// via <c>ConfigureTestServices</c> so they never make a real call to Open-Meteo/Nominatim.
 /// </summary>
+[Collection(DatabaseSerialGroup.Name)]
 public sealed class WeatherControllerTests(CustomWebApplicationFactory factory) : IClassFixture<CustomWebApplicationFactory>
 {
     private readonly HttpClient _client = factory.CreateClient();

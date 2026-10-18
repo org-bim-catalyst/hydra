@@ -11,6 +11,7 @@ namespace AskLucy.Web.Tests.Documents;
 /// <c>RoleAuthorizationTests</c> — authorization is a pure function of the token's claims, so it
 /// is verifiable without a live database.
 /// </summary>
+[Collection(DatabaseSerialGroup.Name)]
 public sealed class DashboardAuthorizationTests(CustomWebApplicationFactory factory) : IClassFixture<CustomWebApplicationFactory>
 {
     private readonly HttpClient _client = factory.CreateClient();

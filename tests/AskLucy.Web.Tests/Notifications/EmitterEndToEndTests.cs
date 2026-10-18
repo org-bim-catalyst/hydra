@@ -38,6 +38,7 @@ namespace AskLucy.Web.Tests.Notifications;
 /// <item><description><b>Not covered here</b>: <c>knowledge-base.updated</c> (defined, never emitted, research R27); the not-emitted conversation and billing types; the email-only <c>account.*</c>, <c>security.password-changed</c> and <c>template.test</c> types, which have no center item by design and are covered by <c>AccountEmail*Tests</c> and <c>NotificationTemplateEndpointsTests</c>.</description></item>
 /// </list>
 /// </summary>
+[Collection(DatabaseSerialGroup.Name)]
 public sealed class EmitterEndToEndTests(CustomWebApplicationFactory factory) : IClassFixture<CustomWebApplicationFactory>, IAsyncLifetime
 {
     private readonly List<string> _userIds = [];

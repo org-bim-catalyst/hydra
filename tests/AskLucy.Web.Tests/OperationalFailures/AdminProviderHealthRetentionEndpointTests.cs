@@ -8,6 +8,7 @@ using Xunit;
 
 namespace AskLucy.Web.Tests.OperationalFailures;
 
+[Collection(DatabaseSerialGroup.Name)]
 public sealed class AdminProviderHealthRetentionEndpointTests(CustomWebApplicationFactory factory) : IClassFixture<CustomWebApplicationFactory>
 {
     private const string Url = "/api/v1/admin/provider-health/retention";

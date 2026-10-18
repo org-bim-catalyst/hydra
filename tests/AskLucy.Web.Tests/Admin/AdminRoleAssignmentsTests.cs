@@ -11,6 +11,7 @@ namespace AskLucy.Web.Tests.Admin;
 /// assignments screen's endpoints. See <see cref="AdminRolesTests"/>'s doc comment for why this
 /// stays authorization-only (no live database in this environment).
 /// </summary>
+[Collection(DatabaseSerialGroup.Name)]
 public sealed class AdminRoleAssignmentsTests(CustomWebApplicationFactory factory) : IClassFixture<CustomWebApplicationFactory>
 {
     private readonly HttpClient _client = factory.CreateClient();

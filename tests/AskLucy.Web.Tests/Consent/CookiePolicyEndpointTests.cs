@@ -4,6 +4,7 @@ using Xunit;
 
 namespace AskLucy.Web.Tests.Consent;
 
+[Collection(DatabaseSerialGroup.Name)]
 public sealed class CookiePolicyEndpointTests(CustomWebApplicationFactory factory) : IClassFixture<CustomWebApplicationFactory>
 {
     private readonly HttpClient _client = factory.CreateClient();
