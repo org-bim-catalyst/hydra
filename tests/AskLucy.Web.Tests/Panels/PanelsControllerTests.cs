@@ -6,6 +6,7 @@ using AskLucy.Application.Panels;
 using AskLucy.Domain.Panels;
 using AskLucy.Web.Contracts;
 using FluentAssertions;
+using Microsoft.AspNetCore.TestHost;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using NSubstitute;
@@ -27,7 +28,7 @@ public sealed class PanelsControllerTests(CustomWebApplicationFactory factory) :
     private HttpClient CreateClientWithRepository(IUserPanelPreferenceRepository repository)
     {
         var customFactory = factory.WithWebHostBuilder(builder =>
-            builder.ConfigureServices(services =>
+            builder.ConfigureTestServices(CustomWebApplicationFactory.RemoveNotificationWorkers).ConfigureServices(services =>
             {
                 services.RemoveAll<IUserPanelPreferenceRepository>();
                 services.AddScoped(_ => repository);

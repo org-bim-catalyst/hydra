@@ -50,6 +50,9 @@ public sealed class NotificationsApiFactory : CustomWebApplicationFactory
             services.AddSingleton(Repository);
             services.RemoveAll<IUnitOfWork>();
             services.AddSingleton(UnitOfWork);
+
+            // Substituted persistence: a notification worker here would claim other tests' events and lose them.
+            RemoveNotificationWorkers(services);
             services.RemoveAll<INotificationRealtimePublisher>();
             services.AddSingleton(Realtime);
             services.RemoveAll<INotificationAccessCheck>();

@@ -1,11 +1,13 @@
 using AskLucy.Application.Abstractions;
 using AskLucy.Application.Notifications.Abstractions;
+using AskLucy.Infrastructure.Notifications.Workers;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.AspNetCore.TestHost;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
+using Microsoft.Extensions.Hosting;
 
 namespace AskLucy.Web.Tests;
 
@@ -80,5 +82,22 @@ public class CustomWebApplicationFactory : WebApplicationFactory<Program>
                     descriptor.Lifetime));
             }
         });
+    }
+
+    /// <summary>
+    /// For a host that replaces <c>IUnitOfWork</c> or the notification repository with a substitute: takes the notification outbox
+    /// dispatcher and delivery worker out of it. Every host in the run shares one database, and a worker may claim any host's events;
+    /// one that saves through a substitute claims an event, "processes" it, persists nothing and leaves it leased until the lease
+    /// expires, so another test's notification never appears. Such a host has no use for the workers.
+    /// </summary>
+    public static void RemoveNotificationWorkers(IServiceCollection services)
+    {
+        foreach (var descriptor in services
+            .Where(d => d.ServiceType == typeof(IHostedService)
+                && (d.ImplementationType == typeof(NotificationOutboxDispatcher) || d.ImplementationType == typeof(NotificationDeliveryWorker)))
+            .ToList())
+        {
+            services.Remove(descriptor);
+        }
     }
 }
