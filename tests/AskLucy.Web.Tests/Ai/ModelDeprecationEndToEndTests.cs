@@ -197,16 +197,32 @@ public sealed class ModelDeprecationEndToEndTests(ModelDeprecationFactory factor
             $"{Base}/models/{_replacementId}", new { status = AIModelStatus.Deprecated }, TestContext.Current.CancellationToken);
         reDeprecate.StatusCode.Should().Be(HttpStatusCode.Conflict);
 
-        // S3: the job switches the owner's item and notifies them once.
+        // S3: apply enqueued the impact job. Wait for Hangfire to run it instead of calling the processor
+        // here — a second in-process run would race the enqueued one on the same item row versions.
+        Guid batchId;
         await using (var jobScope = factory.Services.CreateAsyncScope())
         {
-            var batchId = await jobScope.ServiceProvider.GetRequiredService<AskLucyDbContext>()
+            batchId = await jobScope.ServiceProvider.GetRequiredService<AskLucyDbContext>()
                 .ModelDeprecationBatches.Where(b => b.ProviderId == _providerId)
                 .Select(b => b.Id).SingleAsync(TestContext.Current.CancellationToken);
-            await jobScope.ServiceProvider.GetRequiredService<UserImpactProcessor>()
-                .ProcessAsync(batchId, TestContext.Current.CancellationToken);
-            batchIdOfProvider = batchId;
         }
+        batchIdOfProvider = batchId;
+
+        var impactDeadline = DateTime.UtcNow.AddSeconds(60);
+        UserImpactStatus impactStatus;
+        do
+        {
+            await Task.Delay(250, TestContext.Current.CancellationToken);
+            await using var pollScope = factory.Services.CreateAsyncScope();
+            impactStatus = await pollScope.ServiceProvider.GetRequiredService<AskLucyDbContext>()
+                .ModelDeprecationBatches.AsNoTracking()
+                .Where(b => b.Id == batchId)
+                .Select(b => b.UserImpactStatus)
+                .SingleAsync(TestContext.Current.CancellationToken);
+        }
+        while (impactStatus != UserImpactStatus.Completed && DateTime.UtcNow < impactDeadline);
+
+        impactStatus.Should().Be(UserImpactStatus.Completed);
 
         await using (var verifyScope = factory.Services.CreateAsyncScope())
         {

@@ -26,6 +26,9 @@ export default defineConfig({
     environment: 'jsdom',
     globals: true,
     setupFiles: ['./src/setupTests.ts'],
+    // The ChatPage suites exceed the 5 s default when many heavy files share the CPU, so test
+    // files run in series. Slower wall-clock, but the result no longer depends on runner load.
+    fileParallelism: false,
     server: {
       deps: {
         // @react-three/* ship no `exports` map, so Node would load their CommonJS builds, which

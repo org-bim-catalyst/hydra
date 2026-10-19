@@ -39,6 +39,12 @@ public sealed class UserImpactProcessorTests
         }
 
         _deprecations.GetBatchAsync(batch.Id, Arg.Any<CancellationToken>()).Returns(batch);
+        _deprecations.TryCompleteBatchAsync(batch.Id, Arg.Any<int>(), Arg.Any<DateTime>(), Arg.Any<CancellationToken>())
+            .Returns(call =>
+            {
+                batch.MarkUserImpactCompleted(call.ArgAt<int>(1), call.ArgAt<DateTime>(2));
+                return true;
+            });
         _models.GetByIdAsync(replacement.Id, Arg.Any<CancellationToken>()).Returns(replacement);
         _references.ListOwnerIdsAsync(Arg.Any<IReadOnlyCollection<Guid>>(), Arg.Any<CancellationToken>()).Returns(["user-1"]);
         _references.SwitchAsync(batch.Id, Arg.Any<IReadOnlyDictionary<Guid, RetiredModelTarget>>(), Arg.Any<IReadOnlyList<string>>(), Arg.Any<string>(), Arg.Any<DateTime>(), Arg.Any<CancellationToken>())
@@ -91,6 +97,12 @@ public sealed class UserImpactProcessorTests
         var batch = ModelDeprecationBatch.Deprecate(providerId, "admin", DateTime.UtcNow);
         batch.Add(ModelDeprecation.Create(batch.Id, retired.Id, null, ReplacementSource.None, "admin", DateTime.UtcNow));
         _deprecations.GetBatchAsync(batch.Id, Arg.Any<CancellationToken>()).Returns(batch);
+        _deprecations.TryCompleteBatchAsync(batch.Id, Arg.Any<int>(), Arg.Any<DateTime>(), Arg.Any<CancellationToken>())
+            .Returns(call =>
+            {
+                batch.MarkUserImpactCompleted(call.ArgAt<int>(1), call.ArgAt<DateTime>(2));
+                return true;
+            });
 
         await _processor.ProcessAsync(batch.Id, TestContext.Current.CancellationToken);
 

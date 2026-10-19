@@ -796,8 +796,16 @@ app.UseHangfireDashboard("/hangfire", new DashboardOptions
 // (data-model.md, SC-011). Idempotent — safe to call on every startup.
 // Registering a recurring job writes to the database. A connection the shared host drops at that moment
 // used to stop the app from starting at all, so each registration is retried a few times first.
-static void RegisterRecurringJob(Action register)
+void RegisterRecurringJob(Action register)
 {
+    // Recurring production jobs are not needed by the test host. Registering them made every
+    // host write a dozen Hangfire rows while starting, which exhausted the shared test database's
+    // connections and failed host start-up when it was momentarily slow.
+    if (app.Environment.IsEnvironment("Testing"))
+    {
+        return;
+    }
+
     for (var attempt = 1; ; attempt++)
     {
         try
