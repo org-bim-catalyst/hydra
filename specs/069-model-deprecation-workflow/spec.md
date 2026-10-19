@@ -4,7 +4,7 @@
 
 **Created**: 2026-09-23
 
-**Status**: Draft
+**Status**: Implemented (2026-10-19)
 
 **Input**: User description: "Model deprecation workflow (AI provider catalog): when a "sync from provider" check finds that a currently-Available model in the catalog is no longer listed by the vendor (specs/008 FR-006's removedFromVendor diff), give the administrator a reviewed way to formally deprecate it that goes beyond a simple status flip: (1) the administrator reviews and confirms the vendor-removal in the sync diff (existing behavior per specs/009) and the model transitions to Deprecated; (2) on that transition, notify the administrator(s) that a model was deprecated and why (vendor no longer lists it); (3) identify any end users who have that model set as an active preference (chat default, saved prompt, agent config, etc.) and notify them that their configured model is no longer available; (4) if the deprecated model was any provider's or user's default model, automatically reassign the default to the closest same-tier replacement model (matching capabilities/performance class) from the same provider's Available catalog, so no in-flight process (chat, agent, workflow) breaks — if no suitable replacement exists, flag it for administrator attention instead of leaving a broken default; (5) a Deprecated model must remain non-re-enable-able from the simple admin toggle (specs/008 FR-002, as amended) — re-enabling it, if ever needed, is a separate deliberate action, not in scope here unless decided otherwise during spec. Depends on and extends specs/008-ai-model-catalog-management and specs/009-selective-model-sync-review, and will likely touch the platform's Notification Engine and default-model resolution logic."
 

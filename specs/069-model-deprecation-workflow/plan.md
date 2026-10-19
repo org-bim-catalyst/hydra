@@ -142,3 +142,18 @@ Steps 1 to 4 already remove the silent-fallback risk. Steps 5 and 6 can ship aft
 
 - **FR-020a, SC-006 and the 067 assumption** were reworded: until 067's email channel ships, the email is recorded as Skipped and is not retried later (research D8).
 - **FR-020c** was added so the follow-up notice after a replacement change (FR-011b) is explicitly its own notification type.
+
+## Outcome (2026-10-19)
+
+Delivered in full and merged to `main`. Every user story is implemented, and the automated
+coverage is recorded in [quickstart.md](quickstart.md)'s validation log: the fast suites, Web.Tests,
+the persistence suite against its dedicated database, an end-to-end run of S1, S3, S4 and S5 on the
+real host, and the gated SC-007 scale run.
+
+Two things are open by decision rather than omission:
+
+- The two summary notification types stay separate until spec 067 supports a role-conditional
+  preference lock (research D7).
+- T015 (repository-level tests) and T042 (job fault injection) in [tasks.md](tasks.md) are the only
+  tasks left; the store test's second pass and the atomic batch completion cover the behaviours they
+  would assert.

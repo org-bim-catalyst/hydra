@@ -176,3 +176,18 @@ Workflow steps are counted in draft workflows only. The query pre-filters node `
 ## D11: Reference counting excludes deleted and historical rows (FR-012)
 
 **Decision**: Counts and rewrites go through the global soft-delete query filters, so deleted chats, agents, prompts and workflows are excluded. `Message`, `AgentVersion`, `WorkflowVersion`, `PromptVersion` and `PromptTestCase` are never counted or rewritten. Archived chats **are** included.
+
+---
+
+## Status after implementation (2026-10-19)
+
+- **D8 is superseded.** Spec 067's email channel shipped after this research was written, so
+  deprecations confirmed now send their emails; the "recorded as Skipped" caveat only ever applied
+  while that channel was missing. FR-020a and SC-006 already say this.
+- **D7 still holds.** 067's mandatory rule remains per type and channel with no role-conditional
+  lock, so the two summary types cannot be merged yet.
+- **D10 was adjusted by a real defect.** The workflow draft pre-filter could not be translated by
+  EF from a collection lambda; drafts are parsed in memory instead, which the recorded scale allows.
+- **D4 gained one guard.** Batch completion is now a single guarded `UPDATE`, because the sweep can
+  legitimately re-enqueue a batch whose run is slow, and the duplicate must not fail on a
+  concurrency token.
