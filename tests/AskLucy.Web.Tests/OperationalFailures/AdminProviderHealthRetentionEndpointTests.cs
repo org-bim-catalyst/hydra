@@ -39,7 +39,7 @@ public sealed class AdminProviderHealthRetentionEndpointTests(CustomWebApplicati
     private static async Task<JsonDocument> ReadAsync(HttpResponseMessage response) =>
         JsonDocument.Parse(await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken));
 
-    private async Task<(int RetentionDays, string? RowVersion)> GetRetentionAsync(HttpClient client)
+    private static async Task<(int RetentionDays, string? RowVersion)> GetRetentionAsync(HttpClient client)
     {
         using var response = await client.GetAsync(Url, TestContext.Current.CancellationToken);
         response.StatusCode.Should().Be(HttpStatusCode.OK);
@@ -49,7 +49,7 @@ public sealed class AdminProviderHealthRetentionEndpointTests(CustomWebApplicati
             body.RootElement.GetProperty("rowVersion").GetString());
     }
 
-    private async Task<HttpResponseMessage> PutAsync(HttpClient client, int retentionDays, string? rowVersion)
+    private static async Task<HttpResponseMessage> PutAsync(HttpClient client, int retentionDays, string? rowVersion)
     {
         using var request = new HttpRequestMessage(HttpMethod.Put, Url) { Content = Json(new { retentionDays }) };
         if (rowVersion is not null)
@@ -68,7 +68,7 @@ public sealed class AdminProviderHealthRetentionEndpointTests(CustomWebApplicati
     }
 
     /// <summary>The shared test database keeps the singleton between runs; put it back after a mutating test.</summary>
-    private async Task RestoreAsync(HttpClient client)
+    private static async Task RestoreAsync(HttpClient client)
     {
         var (days, rowVersion) = await GetRetentionAsync(client);
         if (days == 30 || rowVersion is null)

@@ -56,6 +56,11 @@ public sealed class ModelDeprecationEndToEndTests(ModelDeprecationFactory factor
     : IClassFixture<ModelDeprecationFactory>, IAsyncLifetime
 {
     private const string Base = "/api/v1/admin/ai";
+
+    /// <summary>The API writes enums as strings; the default reader expects numbers.</summary>
+    private static readonly JsonSerializerOptions EnumStringJsonOptions =
+        new(JsonSerializerDefaults.Web) { Converters = { new JsonStringEnumConverter() } };
+
     private readonly List<string> _userIds = [];
 
     private Guid _providerId;
@@ -121,8 +126,9 @@ public sealed class ModelDeprecationEndToEndTests(ModelDeprecationFactory factor
         await db.AIModels.IgnoreQueryFilters().Where(m => m.ProviderId == _providerId).ExecuteDeleteAsync();
         await db.AIProviders.IgnoreQueryFilters().Where(p => p.Id == _providerId).ExecuteDeleteAsync();
         await db.NotificationOutboxEvents.IgnoreQueryFilters()
-            .Where(e => e.EventKey != null && e.EventKey.StartsWith("ai-model-deprecation:"))
-            .Where(e => e.EventKey.Contains(_providerId.ToString()))
+            .Where(e => e.EventKey != null
+                && e.EventKey.StartsWith("ai-model-deprecation:")
+                && e.EventKey.Contains(_providerId.ToString()))
             .ExecuteDeleteAsync();
 
         var userManager = scope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
@@ -250,10 +256,9 @@ public sealed class ModelDeprecationEndToEndTests(ModelDeprecationFactory factor
         }
 
         // The API serializes enums as strings API-wide; the default reader expects numbers.
-        var jsonOptions = new JsonSerializerOptions(JsonSerializerDefaults.Web) { Converters = { new JsonStringEnumConverter() } };
         var raw = await client.GetStringAsync($"{Base}/deprecations/{record.Id}", TestContext.Current.CancellationToken);
         raw.Should().Contain("\"validationStatus\":\"Accepted\"", raw);
-        var detail = JsonSerializer.Deserialize<ModelDeprecationDetailDto>(raw, jsonOptions);
+        var detail = JsonSerializer.Deserialize<ModelDeprecationDetailDto>(raw, EnumStringJsonOptions);
         detail!.ValidationStatus.Should().Be(ReplacementValidationStatus.Accepted);
         detail.NotifiedUserCount.Should().Be(1);
     }
