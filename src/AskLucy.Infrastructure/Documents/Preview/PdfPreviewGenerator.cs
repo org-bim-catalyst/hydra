@@ -2,9 +2,7 @@ using AskLucy.Application.Abstractions;
 using AskLucy.Domain.Documents;
 using Docnet.Core;
 using Docnet.Core.Models;
-using SixLabors.ImageSharp;
-using SixLabors.ImageSharp.Formats.Png;
-using SixLabors.ImageSharp.PixelFormats;
+using ImageMagick;
 
 namespace AskLucy.Infrastructure.Documents.Preview;
 
@@ -48,9 +46,11 @@ public sealed class PdfPreviewGenerator : IDocumentPreviewGenerator
             var height = pageReader.GetPageHeight();
             var bgraBytes = pageReader.GetImage();
 
-            using var image = Image.LoadPixelData<Bgra32>(bgraBytes, width, height);
+            using var image = new MagickImage(
+                bgraBytes,
+                new PixelReadSettings((uint)width, (uint)height, StorageType.Char, PixelMapping.BGRA));
             using var pageImageStream = new MemoryStream();
-            image.SaveAsPng(pageImageStream, new PngEncoder());
+            image.Write(pageImageStream, MagickFormat.Png);
             results.Add(new DocumentPreviewResult(DocumentPreviewType.PageImage, pageImageStream.ToArray(), i + 1));
         }
 

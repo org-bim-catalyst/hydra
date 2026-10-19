@@ -6,11 +6,10 @@ using AskLucy.Application.SiteBoundaries;
 using AskLucy.Domain.Ai;
 using AskLucy.Domain.SiteBoundaries;
 using AskLucy.Infrastructure.Ai;
+using AskLucy.Infrastructure.Images;
+using ImageMagick;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
-using SixLabors.ImageSharp;
-using SixLabors.ImageSharp.PixelFormats;
-using SixLabors.ImageSharp.Processing;
 
 namespace AskLucy.Infrastructure.Boundaries;
 
@@ -59,7 +58,7 @@ internal sealed class GeminiSegmentationDiagnosticService(
     /// rather than silently losing time to a shorter cap than intended.
     /// </summary>
     private static readonly TimeSpan RequestTimeout = TimeSpan.FromSeconds(110);
-    private static readonly Rgba32 OutlineColor = new(255, 0, 0);
+    private static readonly Rgb OutlineColor = new(255, 0, 0);
     private readonly GoogleGeminiOptions _options = options.Value;
 
     public async Task<BoundaryDrawDiagnosticResult> SegmentAsync(
@@ -224,13 +223,13 @@ internal sealed class GeminiSegmentationDiagnosticService(
                 "multiple of 4 after padding usually means the response was cut off mid-string by the output-token budget).");
         }
 
-        using var originalImage = Image.Load<Rgba32>(image.ImageBytes);
+        var (imageWidth, imageHeight) = RasterImage.ReadSize(image.ImageBytes);
         bool[,] fullMask;
         try
         {
-            fullMask = BuildFullImageMask(maskBytes, box2d, originalImage.Width, originalImage.Height);
+            fullMask = BuildFullImageMask(maskBytes, box2d, imageWidth, imageHeight);
         }
-        catch (Exception ex) when (ex.GetType().Name is "InvalidImageContentException" or "UnknownImageFormatException" or "NotSupportedException")
+        catch (Exception ex) when (ex is MagickException or InvalidDataException or NotSupportedException)
         {
             // Diagnostic-only detail, not a constitution violation of "no silent failures" - this
             // note IS the surfaced failure, just with enough detail (length + leading bytes) to
@@ -241,14 +240,14 @@ internal sealed class GeminiSegmentationDiagnosticService(
                 $"recognisable image (first bytes: {headBytes}; PNG should start with 89504E470D0A1A0A) — {ex.GetType().Name}.");
         }
 
-        var pixelRing = MaskContourVectorizer.TryExtractPixelRing(fullMask, originalImage.Width, originalImage.Height);
+        var pixelRing = MaskContourVectorizer.TryExtractPixelRing(fullMask, imageWidth, imageHeight);
         if (pixelRing is null)
         {
             return new BoundaryDrawDiagnosticResult(null, null,
                 $"Model '{modelKey}' returned a mask, but no plausible outline could be traced from it.");
         }
 
-        var geoRing = MaskContourVectorizer.ToGeoRing(pixelRing, originalImage.Width, originalImage.Height, image);
+        var geoRing = MaskContourVectorizer.ToGeoRing(pixelRing, imageWidth, imageHeight, image);
         var renderedImage = PixelRingRenderer.DrawRingOnImage(image.ImageBytes, pixelRing, OutlineColor);
 
         return new BoundaryDrawDiagnosticResult(renderedImage, "image/jpeg", null, geoRing, "gemini-segmentation-mask");
@@ -285,33 +284,29 @@ internal sealed class GeminiSegmentationDiagnosticService(
         var boxWidth = Math.Max(1, xmaxPx - xminPx);
         var boxHeight = Math.Max(1, ymaxPx - yminPx);
 
-        using var maskImage = Image.Load<L8>(maskPngBytes);
-        maskImage.Mutate(ctx => ctx.Resize(boxWidth, boxHeight));
+        var grey = RasterImage.DecodeGreyResized(maskPngBytes, boxWidth, boxHeight);
 
         var fullMask = new bool[imageWidth, imageHeight];
-        maskImage.ProcessPixelRows(accessor =>
+        for (var y = 0; y < boxHeight; y++)
         {
-            for (var y = 0; y < accessor.Height; y++)
+            var targetY = yminPx + y;
+            if (targetY < 0 || targetY >= imageHeight)
             {
-                var targetY = yminPx + y;
-                if (targetY < 0 || targetY >= imageHeight)
+                continue;
+            }
+
+            var rowStart = y * boxWidth;
+            for (var x = 0; x < boxWidth; x++)
+            {
+                var targetX = xminPx + x;
+                if (targetX < 0 || targetX >= imageWidth)
                 {
                     continue;
                 }
 
-                var row = accessor.GetRowSpan(y);
-                for (var x = 0; x < row.Length; x++)
-                {
-                    var targetX = xminPx + x;
-                    if (targetX < 0 || targetX >= imageWidth)
-                    {
-                        continue;
-                    }
-
-                    fullMask[targetX, targetY] = row[x].PackedValue > 127;
-                }
+                fullMask[targetX, targetY] = grey[rowStart + x] > 127;
             }
-        });
+        }
 
         return fullMask;
     }

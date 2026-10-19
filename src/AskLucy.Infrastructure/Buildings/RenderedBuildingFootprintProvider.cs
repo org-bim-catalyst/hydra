@@ -4,11 +4,10 @@ using AskLucy.Application.SiteBoundaries;
 using AskLucy.Domain.SiteBoundaries;
 using AskLucy.Infrastructure.Boundaries;
 using AskLucy.Infrastructure.Geocoding;
+using AskLucy.Infrastructure.Images;
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
-using SixLabors.ImageSharp;
-using SixLabors.ImageSharp.PixelFormats;
 
 namespace AskLucy.Infrastructure.Buildings;
 
@@ -154,25 +153,22 @@ internal sealed class RenderedBuildingFootprintProvider(
     /// </summary>
     private BuildingFootprintResult ExtractFootprints(byte[] imageBytes, SatelliteImage bounds, GeoPoint center, int radiusMetres, int zoom)
     {
-        using var image = Image.Load<Rgba32>(imageBytes);
+        var image = RasterImage.Decode(imageBytes);
         var width = image.Width;
         var height = image.Height;
 
         var mask = new bool[width, height];
-        image.ProcessPixelRows(accessor =>
+        for (var y = 0; y < height; y++)
         {
-            for (var y = 0; y < accessor.Height; y++)
+            var rowStart = y * width * 4;
+            for (var x = 0; x < width; x++)
             {
-                var row = accessor.GetRowSpan(y);
-                for (var x = 0; x < row.Length; x++)
-                {
-                    var pixel = row[x];
-                    // Mirrors the boundary extractor's own green-test shape/tolerance (research D1)
-                    // — wide enough to absorb edge antialiasing, tight enough to never admit white.
-                    mask[x, y] = pixel.R >= 180 && pixel.B >= 180 && pixel.G <= 120;
-                }
+                var index = rowStart + x * 4;
+                // Mirrors the boundary extractor's own green-test shape/tolerance (research D1)
+                // — wide enough to absorb edge antialiasing, tight enough to never admit white.
+                mask[x, y] = image.Rgba[index] >= 180 && image.Rgba[index + 2] >= 180 && image.Rgba[index + 1] <= 120;
             }
-        });
+        }
 
         // research D5 — MinimumAreaSquareMetres converted to a pixel count using this tile's own
         // resolution (scale=2 halves MetersPerPixel's scale-1 figure).

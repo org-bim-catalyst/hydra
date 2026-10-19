@@ -8,12 +8,11 @@ using AskLucy.Infrastructure.Buildings;
 using AskLucy.Infrastructure.Geocoding;
 using AskLucy.Infrastructure.Tests.Ai;
 using FluentAssertions;
+using ImageMagick;
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using NSubstitute;
-using SixLabors.ImageSharp;
-using SixLabors.ImageSharp.PixelFormats;
 using Xunit;
 
 namespace AskLucy.Infrastructure.Tests.Buildings;
@@ -292,8 +291,7 @@ public sealed class RenderedBuildingFootprintProviderTests
         const int radiusMetres = 30;
         var radiusPixels = (int)(radiusMetres / metresPerPixel); // ~111 px at this latitude/zoom
 
-        using var image = new Image<Rgba32>(size, size);
-        var magenta = new Rgba32(255, 0, 255, 255);
+        var pixels = new byte[size * size * 4];
 
         void FillSquare(int originX, int originY, int squareSize)
         {
@@ -301,7 +299,14 @@ public sealed class RenderedBuildingFootprintProviderTests
             {
                 for (var y = originY; y < originY + squareSize && y < size; y++)
                 {
-                    if (x >= 0 && y >= 0) image[x, y] = magenta;
+                    if (x >= 0 && y >= 0)
+                    {
+                        var index = (y * size + x) * 4;
+                        pixels[index] = 255;
+                        pixels[index + 1] = 0;
+                        pixels[index + 2] = 255;
+                        pixels[index + 3] = 255;
+                    }
                 }
             }
         }
@@ -321,9 +326,9 @@ public sealed class RenderedBuildingFootprintProviderTests
         // EXCLUDED — below the minimum area (15 m² ≈ well under 20x20 px at this resolution).
         FillSquare(centrePixel - 300, centrePixel - 300, 2);
 
-        using var stream = new MemoryStream();
-        image.SaveAsPng(stream);
-        var provider = CreateProvider(stream.ToArray(), out _, renderedOptions: new RenderedFootprintOptions { Zoom = zoom });
+        using var image = new MagickImage(
+            pixels, new PixelReadSettings(size, size, StorageType.Char, PixelMapping.RGBA));
+        var provider = CreateProvider(image.ToByteArray(MagickFormat.Png), out _, renderedOptions: new RenderedFootprintOptions { Zoom = zoom });
 
         var result = await provider.SearchAsync(center, radiusMetres, CancellationToken.None);
 

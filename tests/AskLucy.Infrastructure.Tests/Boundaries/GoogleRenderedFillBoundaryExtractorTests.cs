@@ -7,11 +7,10 @@ using AskLucy.Infrastructure.Boundaries;
 using AskLucy.Infrastructure.Geocoding;
 using AskLucy.Infrastructure.Tests.Ai;
 using FluentAssertions;
+using ImageMagick;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using NSubstitute;
-using SixLabors.ImageSharp;
-using SixLabors.ImageSharp.PixelFormats;
 using Xunit;
 
 namespace AskLucy.Infrastructure.Tests.Boundaries;
@@ -117,18 +116,24 @@ public sealed class GoogleRenderedFillBoundaryExtractorTests
     /// </summary>
     private static byte[] TileWithGreenRectangle(int left, int top, int width, int height)
     {
-        using var tile = new Image<Rgba32>(1280, 1280, new Rgba32(255, 255, 255));
+        const int size = 1280;
+        var pixels = new byte[size * size * 4];
+        Array.Fill(pixels, (byte)255); // opaque white
         for (var y = top; y < top + height; y++)
         {
             for (var x = left; x < left + width; x++)
             {
-                tile[x, y] = new Rgba32(0, 255, 0);
+                var index = (y * size + x) * 4;
+                pixels[index] = 0;
+                pixels[index + 1] = 255;
+                pixels[index + 2] = 0;
+                pixels[index + 3] = 255;
             }
         }
 
-        using var stream = new MemoryStream();
-        tile.SaveAsPng(stream);
-        return stream.ToArray();
+        using var tile = new MagickImage(
+            pixels, new PixelReadSettings(size, size, StorageType.Char, PixelMapping.RGBA));
+        return tile.ToByteArray(MagickFormat.Png);
     }
 
     [Fact]

@@ -1,7 +1,6 @@
 using AskLucy.Application.SiteBoundaries;
 using AskLucy.Domain.SiteBoundaries;
-using SixLabors.ImageSharp;
-using SixLabors.ImageSharp.PixelFormats;
+using AskLucy.Infrastructure.Images;
 
 namespace AskLucy.Infrastructure.Boundaries;
 
@@ -31,30 +30,28 @@ internal static class RedOutlineVectorizer
 
     public static IReadOnlyList<GeoPoint>? TryExtractRing(byte[] imageBytes, SatelliteImage bounds)
     {
-        using var image = Image.Load<Rgba32>(imageBytes);
+        var image = RasterImage.Decode(imageBytes);
         var width = image.Width;
         var height = image.Height;
 
         var mask = new bool[width, height];
-        image.ProcessPixelRows(accessor =>
+        for (var y = 0; y < height; y++)
         {
-            for (var y = 0; y < accessor.Height; y++)
+            var rowStart = y * width * 4;
+            for (var x = 0; x < width; x++)
             {
-                var row = accessor.GetRowSpan(y);
-                for (var x = 0; x < row.Length; x++)
-                {
-                    mask[x, y] = IsBoundaryRed(row[x]);
-                }
+                var index = rowStart + x * 4;
+                mask[x, y] = IsBoundaryRed(image.Rgba[index], image.Rgba[index + 1], image.Rgba[index + 2]);
             }
-        });
+        }
 
         return MaskContourVectorizer.TryExtractRing(mask, width, height, bounds);
     }
 
-    private static bool IsBoundaryRed(Rgba32 pixel) =>
-        pixel.R >= MinRed
-        && pixel.G <= MaxGreenOrBlue
-        && pixel.B <= MaxGreenOrBlue
-        && pixel.R - pixel.G >= MinRedDominance
-        && pixel.R - pixel.B >= MinRedDominance;
+    private static bool IsBoundaryRed(byte r, byte g, byte b) =>
+        r >= MinRed
+        && g <= MaxGreenOrBlue
+        && b <= MaxGreenOrBlue
+        && r - g >= MinRedDominance
+        && r - b >= MinRedDominance;
 }

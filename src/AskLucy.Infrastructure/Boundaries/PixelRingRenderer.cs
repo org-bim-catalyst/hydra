@@ -1,20 +1,18 @@
-using SixLabors.ImageSharp;
-using SixLabors.ImageSharp.PixelFormats;
+using AskLucy.Infrastructure.Images;
 
 namespace AskLucy.Infrastructure.Boundaries;
 
 /// <summary>
 /// Draws a closed pixel-space ring back onto a copy of the source image, so a human can visually
 /// verify a deterministically-extracted outline the same way the "draw" diagnostic's own generated
-/// image is verified. A plain Bresenham line plot — <c>SixLabors.ImageSharp.Drawing</c> (the shape
-/// package) isn't a dependency here, only core ImageSharp is, and a few pixels of line width for a
-/// closed polygon doesn't need more than that.
+/// image is verified. A plain Bresenham line plot — a few pixels of line width for a closed polygon
+/// doesn't need a drawing library.
 /// </summary>
 internal static class PixelRingRenderer
 {
-    public static byte[] DrawRingOnImage(byte[] originalImageBytes, IReadOnlyList<(int X, int Y)> ring, Rgba32 color, int thickness = 3)
+    public static byte[] DrawRingOnImage(byte[] originalImageBytes, IReadOnlyList<(int X, int Y)> ring, Rgb color, int thickness = 3)
     {
-        using var image = Image.Load<Rgba32>(originalImageBytes);
+        var image = RasterImage.Decode(originalImageBytes);
 
         for (var i = 0; i < ring.Count; i++)
         {
@@ -23,12 +21,10 @@ internal static class PixelRingRenderer
             DrawLine(image, a, b, color, thickness);
         }
 
-        using var stream = new MemoryStream();
-        image.SaveAsJpeg(stream);
-        return stream.ToArray();
+        return image.EncodeJpeg();
     }
 
-    private static void DrawLine(Image<Rgba32> image, (int X, int Y) from, (int X, int Y) to, Rgba32 color, int thickness)
+    private static void DrawLine(RasterImage image, (int X, int Y) from, (int X, int Y) to, Rgb color, int thickness)
     {
         var x0 = from.X; var y0 = from.Y;
         var x1 = to.X; var y1 = to.Y;
@@ -52,7 +48,7 @@ internal static class PixelRingRenderer
         }
     }
 
-    private static void PlotThick(Image<Rgba32> image, int centerX, int centerY, Rgba32 color, int thickness)
+    private static void PlotThick(RasterImage image, int centerX, int centerY, Rgb color, int thickness)
     {
         var half = thickness / 2;
         for (var dx = -half; dx <= half; dx++)
@@ -63,7 +59,11 @@ internal static class PixelRingRenderer
                 var y = centerY + dy;
                 if (x >= 0 && y >= 0 && x < image.Width && y < image.Height)
                 {
-                    image[x, y] = color;
+                    var index = (y * image.Width + x) * 4;
+                    image.Rgba[index] = color.R;
+                    image.Rgba[index + 1] = color.G;
+                    image.Rgba[index + 2] = color.B;
+                    image.Rgba[index + 3] = 255;
                 }
             }
         }

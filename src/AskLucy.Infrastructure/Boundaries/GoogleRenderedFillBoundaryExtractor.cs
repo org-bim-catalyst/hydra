@@ -2,10 +2,10 @@ using System.Globalization;
 using AskLucy.Application.SiteBoundaries;
 using AskLucy.Domain.SiteBoundaries;
 using AskLucy.Infrastructure.Geocoding;
+using AskLucy.Infrastructure.Images;
+using ImageMagick;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
-using SixLabors.ImageSharp;
-using SixLabors.ImageSharp.PixelFormats;
 
 namespace AskLucy.Infrastructure.Boundaries;
 
@@ -141,11 +141,11 @@ internal sealed class GoogleRenderedFillBoundaryExtractor(
 
             return ring;
         }
-        // ImageFormatException (UnknownImageFormatException, InvalidImageContentException) covers
-        // a malformed or unrecognisable response body — this class decodes the image itself, unlike
+        // MagickException (and InvalidDataException from the pixel export) covers a malformed or
+        // unrecognisable response body — this class decodes the image itself, unlike
         // GoogleSatelliteImageProvider, which only ever hands raw bytes onward; a bad response here
         // must degrade to null exactly like an HTTP failure, never throw into the caller.
-        catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException or ImageFormatException)
+        catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException or MagickException or InvalidDataException)
         {
             GoogleRenderedFillBoundaryExtractorLog.ExtractionFailed(logger, ex, center.Latitude, center.Longitude);
             return null;
@@ -186,39 +186,40 @@ internal sealed class GoogleRenderedFillBoundaryExtractor(
             return null;
         }
 
-        using var canvas = StitchTiles(tileBytes!);
+        var canvas = StitchTiles(tileBytes!);
 
         var (west, _, _, north) = StaticMapFraming.CoveredBounds(tileCenters[0], zoom); // top-left
         var (_, south, east, _) = StaticMapFraming.CoveredBounds(tileCenters[3], zoom); // bottom-right
 
-        using var stream = new MemoryStream();
-        canvas.SaveAsJpeg(stream);
-        var bytes = stream.ToArray();
+        var bytes = canvas.EncodeJpeg();
 
         return (bytes, new SatelliteImage(bytes, "image/jpeg", west, south, east, north));
     }
 
     /// <summary>Lays four same-size tiles (top-left, top-right, bottom-left, bottom-right, matching <see cref="GridOffsets"/>'s order) into one 2x-width, 2x-height canvas.</summary>
-    private static Image<Rgba32> StitchTiles(byte[][] tileBytes)
+    private static RasterImage StitchTiles(byte[][] tileBytes)
     {
-        var canvas = new Image<Rgba32>(ScaledTileSize * 2, ScaledTileSize * 2);
+        var size = ScaledTileSize * 2;
+        var canvas = new byte[size * size * 4];
 
         for (var i = 0; i < tileBytes.Length; i++)
         {
-            using var tile = Image.Load<Rgba32>(tileBytes[i]);
+            var tile = RasterImage.Decode(tileBytes[i]);
             var offsetX = i is 1 or 3 ? ScaledTileSize : 0; // top-right, bottom-right
             var offsetY = i is 2 or 3 ? ScaledTileSize : 0; // bottom-left, bottom-right
 
             for (var y = 0; y < tile.Height; y++)
             {
-                for (var x = 0; x < tile.Width; x++)
-                {
-                    canvas[offsetX + x, offsetY + y] = tile[x, y];
-                }
+                Buffer.BlockCopy(
+                    tile.Rgba,
+                    y * tile.Width * 4,
+                    canvas,
+                    ((offsetY + y) * size + offsetX) * 4,
+                    tile.Width * 4);
             }
         }
 
-        return canvas;
+        return RasterImage.FromRgba(canvas, size, size);
     }
 
     private async Task<byte[]?> FetchTileBytesAsync(
@@ -265,23 +266,20 @@ internal sealed class GoogleRenderedFillBoundaryExtractor(
     /// </summary>
     private static IReadOnlyList<GeoPoint>? ExtractForcedColorRing(byte[] imageBytes, SatelliteImage bounds, out bool touchesImageEdge)
     {
-        using var image = Image.Load<Rgba32>(imageBytes);
+        var image = RasterImage.Decode(imageBytes);
         var width = image.Width;
         var height = image.Height;
 
         var mask = new bool[width, height];
-        image.ProcessPixelRows(accessor =>
+        for (var y = 0; y < height; y++)
         {
-            for (var y = 0; y < accessor.Height; y++)
+            var rowStart = y * width * 4;
+            for (var x = 0; x < width; x++)
             {
-                var row = accessor.GetRowSpan(y);
-                for (var x = 0; x < row.Length; x++)
-                {
-                    var pixel = row[x];
-                    mask[x, y] = pixel.G >= 180 && pixel.R <= 120 && pixel.B <= 120;
-                }
+                var index = rowStart + x * 4;
+                mask[x, y] = image.Rgba[index + 1] >= 180 && image.Rgba[index] <= 120 && image.Rgba[index + 2] <= 120;
             }
-        });
+        }
 
         return MaskContourVectorizer.TryExtractRing(mask, width, height, bounds, out touchesImageEdge);
     }
