@@ -1,4 +1,5 @@
 using AskLucy.Application.Abstractions;
+using AskLucy.Application.Ai;
 using AskLucy.Application.Buildings;
 using AskLucy.Application.Conversations.SystemAgents;
 using AskLucy.Application.CustomModels.Abstractions;

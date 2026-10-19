@@ -58,6 +58,10 @@ public sealed class AskLucyDbContext(DbContextOptions<AskLucyDbContext> options,
 
     public DbSet<ProviderHealthCheck> ProviderHealthChecks => Set<ProviderHealthCheck>();
 
+    public DbSet<ProviderHealthRetentionSetting> ProviderHealthRetentionSettings => Set<ProviderHealthRetentionSetting>();
+
+    public DbSet<ProviderHealthRetentionAuditLog> ProviderHealthRetentionAuditLogs => Set<ProviderHealthRetentionAuditLog>();
+
     public DbSet<AiCapabilityAssignment> AiCapabilityAssignments => Set<AiCapabilityAssignment>();
 
     public DbSet<ModelDeprecationBatch> ModelDeprecationBatches => Set<ModelDeprecationBatch>();

@@ -1148,4 +1148,12 @@ No future module should require redesigning the existing core schema. Instead, i
 
 One row per provider health check, written every `ProviderHealthCheck:Interval` by the health-check hosted service. Append-only; each row references its provider through a cascade-delete foreign key.
 
-Retention: the daily Hangfire job `provider-health-check-retention` (03:30, `ProviderHealthCheckRetentionJob`) deletes rows with `CheckedAtUtc` older than `ProviderHealthCheck:RetentionDays` (default 30) in a single `ExecuteDeleteAsync`. The index `IX_ProviderHealthChecks_ProviderId_CheckedAtUtc` leads with `ProviderId`, so this time-only delete scans the table rather than seeking; that is acceptable while the table stays small. Add a `CheckedAtUtc`-leading index if it grows.
+Retention: the daily Hangfire job `provider-health-check-retention` (03:30, `ProviderHealthCheckRetentionJob`) deletes rows with `CheckedAtUtc` older than the stored `ProviderHealthRetentionSettings.RetentionDays` value in a single `ExecuteDeleteAsync`. When that row is missing, the job falls back to `ProviderHealthCheck:RetentionDays` (default 30). The index `IX_ProviderHealthChecks_ProviderId_CheckedAtUtc` leads with `ProviderId`, so this time-only delete scans the table rather than seeking; that is acceptable while the table stays small. Add a `CheckedAtUtc`-leading index if it grows.
+
+## ProviderHealthRetentionSettings
+
+A single platform-wide row with a fixed id, seeded by the migration at 30 days (the effective `ProviderHealthCheck:RetentionDays` value when the feature shipped). `RetentionDays` is validated 1–365. `RowVersion` guards edits: the admin `PUT` must send the version last read in `If-Match`. A stored value wins over configuration; configuration applies only when the row is missing.
+
+## ProviderHealthRetentionAuditLogs
+
+Append-only trail of retention changes: actor user id, previous and new days, occurrence time, and the correlation id stamped by the SaveChanges interceptor. Written in the same transaction as the setting update; rejected saves write nothing. No update or delete path and, as of specs/082, no read endpoint.

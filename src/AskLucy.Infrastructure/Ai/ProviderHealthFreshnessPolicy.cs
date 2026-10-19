@@ -1,4 +1,5 @@
 using AskLucy.Application.Abstractions;
+using AskLucy.Application.Ai;
 using Microsoft.Extensions.Options;
 
 namespace AskLucy.Infrastructure.Ai;

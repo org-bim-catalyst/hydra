@@ -1,4 +1,5 @@
 using AskLucy.Application.Abstractions;
+using AskLucy.Application.Ai;
 using AskLucy.Domain.Ai;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;

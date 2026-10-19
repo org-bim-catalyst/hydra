@@ -74,7 +74,7 @@ Every saved change to the retention window is recorded in the administrative aud
 - **Concurrent edits**: One administrator saves while another still has the old value on screen. The stale save must be rejected and must never silently overwrite the newer value.
 - **Boundary values**: The smallest and largest allowed values must be accepted and saved exactly; one below or above must be rejected.
 - **First save after upgrade**: The seeded value must be present, so the page shows a stored value rather than an "unset" state.
-- **Missing or unreadable setting**: The page shows the configured fallback and still allows an administrator to save a stored value; the cleanup job uses the fallback rather than failing.
+- **Missing or unreadable setting**: The page shows the configured fallback and marks the value as coming from configuration; because there is no stored version to guard a change, saving is disabled until the setting row exists (the migration seeds it). The cleanup job uses the fallback rather than failing.
 - **Shortened window**: If an administrator shortens the window below the age of existing rows, those rows are deleted at the next run, not at save time.
 - **A failed cleanup run**: The next scheduled run tries again; a failed run does not change the stored setting.
 - **Repeated saves of the same value**: Saving the current value succeeds without an error (or is clearly reported as needing no change), and does not corrupt the setting.
@@ -101,7 +101,7 @@ Every saved change to the retention window is recorded in the administrative aud
 
 - **Provider health retention setting**: A single, platform-wide record holding the number of days health-check history is kept, the version used to detect concurrent edits, and who/when it was last changed. It does not belong to any user or organisation.
 - **Provider health check record** (existing): A timestamped record of one provider health probe. Its age, relative to the retention window, determines whether the cleanup job deletes it.
-- **Administrative audit entry** (existing): The governance record of a successful settings change, capturing actor, time, previous value and new value.
+- **Provider health retention audit entry**: An append-only governance record of a successful settings change, capturing actor, time, previous value and new value. It is never updated or deleted by the feature.
 
 ## Success Criteria *(mandatory)*
 
@@ -125,5 +125,5 @@ Every saved change to the retention window is recorded in the administrative aud
 - **Effective timing**: The cleanup job runs daily; a saved change is picked up on its next run. Immediate re-deletion on save is explicitly out of scope.
 - **Single tenant-wide setting**: There is one retention window for the whole platform, not one per provider, user or organisation.
 - **Existing page**: The "Provider health" page referred to is the existing `/admin/provider-health` page titled "Provider health checks"; the check-interval display and any other content on it stay as they are.
-- **Audit mechanism**: The feature reuses the administrative audit trail already in place for similar single-row admin settings; no separate log or export is added.
+- **Audit mechanism**: The change is recorded in a small append-only audit table dedicated to this setting, following the platform's existing per-area audit-log pattern. No audit-reading UI or export is added; the notification and role audit trails already serve their own areas.
 - **No change to what is stored**: Health checks keep their current contents and deletion is still age-based on the recorded check time.
