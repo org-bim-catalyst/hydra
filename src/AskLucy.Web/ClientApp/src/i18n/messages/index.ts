@@ -4,6 +4,8 @@ import { arAdminAiCapabilities } from './ar/admin/aiCapabilities'
 import { enAdminAiCapabilities } from './en/admin/aiCapabilities'
 import { arAdminAiProviders } from './ar/admin/aiProviders'
 import { enAdminAiProviders } from './en/admin/aiProviders'
+import { arAdminAiTools } from './ar/admin/aiTools'
+import { enAdminAiTools } from './en/admin/aiTools'
 import { arAdminDashboard } from './ar/admin/dashboard'
 import { enAdminDashboard } from './en/admin/dashboard'
 import { arAdminDefaultModels } from './ar/admin/defaultModels'
@@ -45,6 +47,7 @@ export const catalogs = {
     'admin.aiProviders': enAdminAiProviders,
     'admin.defaultModels': enAdminDefaultModels,
     'admin.aiCapabilities': enAdminAiCapabilities,
+    'admin.aiTools': enAdminAiTools,
     'admin.agentPolicies': enAdminAgentPolicies,
     'admin.workflowPolicies': enAdminWorkflowPolicies,
     'admin.mcpServers': enAdminMcpServers,
@@ -63,6 +66,7 @@ export const catalogs = {
     'admin.aiProviders': arAdminAiProviders,
     'admin.defaultModels': arAdminDefaultModels,
     'admin.aiCapabilities': arAdminAiCapabilities,
+    'admin.aiTools': arAdminAiTools,
     'admin.agentPolicies': arAdminAgentPolicies,
     'admin.workflowPolicies': arAdminWorkflowPolicies,
     'admin.mcpServers': arAdminMcpServers,

@@ -75,7 +75,11 @@ var externalAuthBuilder = builder.Services
     // actually written to: ExternalAuth.HandleTicketReceivedAsync always calls HandleResponse()
     // before the framework's default sign-in-to-cookie step would run (T073/FR-010/FR-034 —
     // token issuance goes through our own one-time-code exchange instead of a cookie).
-    .AddCookie(ExternalAuth.TransientScheme);
+    .AddCookie(ExternalAuth.TransientScheme)
+    // specs/083-viewer-map-capture — the service-to-service scheme for the capture endpoint.
+    // JWT stays the default scheme; the capture controller names this one explicitly.
+    .AddScheme<ServiceApiKeyAuthenticationOptions, ServiceApiKeyAuthenticationHandler>(
+        ServiceApiKeyAuthenticationOptions.SchemeName, _ => { });
 
 builder.Services.AddOptions<JwtBearerOptions>(JwtBearerDefaults.AuthenticationScheme)
     .Configure<IOptions<JwtOptions>>((bearerOptions, jwtOptions) =>
@@ -358,6 +362,25 @@ builder.Services.AddRateLimiter(options =>
         {
             Window = TimeSpan.FromMinutes(1),
             PermitLimit = 120,
+            QueueLimit = 0,
+        });
+    });
+
+    // Map capture (specs/083-viewer-map-capture) — a service-to-service endpoint that spends a
+    // geocoding call and an imagery fetch on every request, so the per-caller limit is the
+    // configured MapCapture:RateLimitPerMinute rather than a fixed 120. Partitioned on the
+    // service identity the API key handler issues (ClaimTypes.NameIdentifier), so two callers
+    // behind one IP get their own buckets.
+    options.AddPolicy("map-capture-endpoints", context =>
+    {
+        var partitionKey = RateLimitPartitions.UserOrClientKey(context);
+        var permitLimit = builder.Configuration.GetValue<int>(
+            "MapCapture:RateLimitPerMinute", 60);
+
+        return RateLimitPartition.GetFixedWindowLimiter(partitionKey, _ => new FixedWindowRateLimiterOptions
+        {
+            Window = TimeSpan.FromMinutes(1),
+            PermitLimit = permitLimit,
             QueueLimit = 0,
         });
     });
@@ -676,6 +699,26 @@ builder.Services.AddHealthChecks()
 builder.Services.AddSignalR();
 
 var app = builder.Build();
+
+// specs/083-viewer-map-capture — a deployment with no service key still starts, but every
+// capture request would answer 401. Say so once at startup rather than letting the first
+// caller discover it.
+{
+    var configuredKeys = builder.Configuration
+        .GetSection("MapCapture:ApiKeys").GetChildren()
+        .Count(entry => !string.IsNullOrWhiteSpace(entry["Key"]));
+
+    if (configuredKeys == 0)
+    {
+        // Single dev-only startup call, not a hot path — a LoggerMessage delegate adds
+        // ceremony without a measurable benefit here.
+#pragma warning disable CA1848
+        app.Logger.LogWarning(
+            "No MapCapture:ApiKeys are configured, so /api/v1/map-captures will reject every request with 401.");
+#pragma warning restore CA1848
+    }
+}
+
 
 // Applies any pending EF Core migrations on every startup, in every environment — closes the
 // exact gap that let 20260914180820_AddRoleManagement.cs ship merged to main but never actually

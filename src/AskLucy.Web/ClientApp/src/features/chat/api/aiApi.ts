@@ -189,6 +189,14 @@ export type ChatStreamEvent =
       chatId: string
       revision: string
     }
+  /** specs/083-map-snapshot — the aerial picture Lucy captured, carried on the trailing
+   * `__SNAPSHOT__` event. `documentId` is the stored document; the client resolves it to a fresh
+   * signed URL every time it renders, exactly as a generated image does. */
+  | {
+      type: 'snapshot'
+      documentId: string
+      locationName: string
+    }
   /**
    * The server finished one assistant message and started another. Deltas that follow belong to
    * the new one; the text so far is complete and already persisted server-side.
@@ -231,6 +239,7 @@ const ZOOM_EVENT_PREFIX = '__ZOOM__'
 const VIEWER_CONTENT_EVENT_PREFIX = '__VIEWER_CONTENT__'
 const SOLAR_ANALYSIS_EVENT_PREFIX = '__SOLAR_ANALYSIS__'
 const SITE_BOUNDARY_EDIT_EVENT_PREFIX = '__SITE_BOUNDARY_EDIT__'
+const SNAPSHOT_EVENT_PREFIX = '__SNAPSHOT__'
 const SITE_BOUNDARY_EVENT_PREFIX = '__SITE_BOUNDARY__'
 const ACTIONS_EVENT_PREFIX = '__ACTIONS__'
 const TURN_OUTCOME_EVENT_PREFIX = '__TURN_OUTCOME__'
@@ -519,6 +528,13 @@ export async function* streamChat(
       if (data.startsWith(SITE_BOUNDARY_EDIT_EVENT_PREFIX)) {
         const payload = JSON.parse(data.slice(SITE_BOUNDARY_EDIT_EVENT_PREFIX.length)) as { chatId: string; revision: string }
         yield { type: 'siteBoundaryEdit', chatId: payload.chatId, revision: payload.revision }
+        continue
+      }
+
+      // specs/083-map-snapshot: the captured aerial picture — `data: __SNAPSHOT__{"documentId",...}`.
+      if (data.startsWith(SNAPSHOT_EVENT_PREFIX)) {
+        const payload = JSON.parse(data.slice(SNAPSHOT_EVENT_PREFIX.length)) as { documentId: string; locationName: string }
+        yield { type: 'snapshot', documentId: payload.documentId, locationName: payload.locationName }
         continue
       }
 

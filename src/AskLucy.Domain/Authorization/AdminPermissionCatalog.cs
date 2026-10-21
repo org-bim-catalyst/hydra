@@ -23,13 +23,15 @@ public static class AdminPermissionCatalog
 
     public const string AppearanceManage = "admin.appearance.manage";
 
+    public const string AiToolsView = "admin.ai-tools.view";
+
     /// <summary>
     /// Keys only a Super User may grant or revoke, and the only keys the built-in Administrator role
     /// does not hold implicitly (specs/074 research D14).
     /// </summary>
     public static IReadOnlySet<string> SuperUserControlledKeys { get; }
 
-    private static readonly List<AdminPermission> _allList = new(25);
+    private static readonly List<AdminPermission> _allList = new(26);
 
     static AdminPermissionCatalog()
     {
@@ -84,6 +86,10 @@ public static class AdminPermissionCatalog
         // Appearance (specs/080). Workspace-wide look of the presence sphere; reading it is open to every signed-in user.
         _allList.Add(Permission(AppearanceView, AdminArea.Appearance, AdminPermissionLevel.View, "View appearance", "View the presence sphere settings and their preview."));
         _allList.Add(Permission(AppearanceManage, AdminArea.Appearance, AdminPermissionLevel.Manage, "Manage appearance", "Change the presence sphere's dot size, size within its card, and whether it can be zoomed."));
+
+        // AI tools (specs/083). View-only: the catalogue of what the platform can call is a
+        // read-only fact about the deployment, like the registered system agents.
+        _allList.Add(Permission(AiToolsView, AdminArea.AiTools, AdminPermissionLevel.View, "View AI tools", "View the tools available to the AI, their risk level, and the permissions each one requires."));
 
         All = new ReadOnlyCollection<AdminPermission>(_allList);
         SuperUserControlledKeys = new HashSet<string>(StringComparer.Ordinal) { OperationalFailuresContentView };

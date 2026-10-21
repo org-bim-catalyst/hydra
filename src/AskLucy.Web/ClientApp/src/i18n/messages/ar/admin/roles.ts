@@ -135,6 +135,7 @@ export const arAdminRoles = {
     OperationalFailures: 'الإخفاقات التشغيلية',
     Notifications: 'الإشعارات',
     Appearance: 'المظهر',
+    AiTools: 'أدوات الذكاء الاصطناعي',
   },
   permissions: {
     dashboardView: {
@@ -235,6 +236,10 @@ export const arAdminRoles = {
     appearanceManage: {
       name: 'إدارة المظهر',
       description: 'تغيير حجم نقاط كرة الحضور وحجمها داخل بطاقتها وإمكانية تكبيرها.',
+    },
+    aiToolsView: {
+      name: 'عرض أدوات الذكاء الاصطناعي',
+      description: 'عرض الأدوات المتاحة للذكاء الاصطناعي ومستوى خطورتها والصلاحيات التي تتطلبها كل أداة.',
     },
   },
 } satisfies MessagesOf<typeof enAdminRoles>

@@ -84,6 +84,9 @@ const AdminSystemAgentsPage = lazy(() =>
 const AdminAiCapabilitiesPage = lazy(() =>
   import('../features/admin/pages/AdminAiCapabilitiesPage').then((m) => ({ default: m.AdminAiCapabilitiesPage })),
 )
+const AdminAiToolsPage = lazy(() =>
+  import('../features/admin/pages/AdminAiToolsPage').then((m) => ({ default: m.AdminAiToolsPage })),
+)
 const AdminDefaultModelsPage = lazy(() =>
   import('../features/admin/pages/AdminDefaultModelsPage').then((m) => ({ default: m.AdminDefaultModelsPage })),
 )
@@ -580,6 +583,19 @@ const router = createBrowserRouter([
         <AdminRoute>
           <Lazy>
             <AdminAiCapabilitiesPage />
+          </Lazy>
+        </AdminRoute>
+      </ProtectedRoute>
+    ),
+    errorElement: <ErrorPage />,
+  },
+  {
+    path: '/admin/ai-tools',
+    element: (
+      <ProtectedRoute>
+        <AdminRoute permission="admin.ai-tools.view">
+          <Lazy>
+            <AdminAiToolsPage />
           </Lazy>
         </AdminRoute>
       </ProtectedRoute>

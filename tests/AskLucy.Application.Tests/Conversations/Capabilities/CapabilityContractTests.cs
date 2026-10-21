@@ -7,6 +7,8 @@ using AskLucy.Application.Panels;
 using AskLucy.Application.SiteBoundaries;
 using AskLucy.Application.Tests.SiteBoundaries;
 using FluentAssertions;
+using MediatR;
+using Microsoft.Extensions.DependencyInjection;
 using NSubstitute;
 using Xunit;
 
@@ -51,6 +53,7 @@ public sealed class CapabilityContractTests
         new SearchMemoryCapability(Substitute.For<IMemoryService>()),
         new PresentPanelContentCapability(Substitute.For<IPanelNotifier>()),
         new OpenLivePanelCapability(Substitute.For<IPanelNotifier>()),
+        new MapSnapshotCapability(Substitute.For<ISender>(), Substitute.For<IUserChatRepository>(), Substitute.For<IServiceScopeFactory>()),
     ];
 
     [Theory]

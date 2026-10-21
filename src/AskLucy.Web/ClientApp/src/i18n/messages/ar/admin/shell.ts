@@ -18,6 +18,7 @@ export const arAdminShell = {
     providerHealth: 'فحص حالة المزود',
     defaultModels: 'النماذج الافتراضية',
     aiCapabilities: 'قدرات الذكاء الاصطناعي',
+    aiTools: 'أدوات الذكاء الاصطناعي',
     voice: 'الصوت',
     appearance: 'المظهر',
     agentPolicies: 'سياسات الوكلاء',

@@ -18,6 +18,7 @@ import MarkEmailUnreadOutlinedIcon from '@mui/icons-material/MarkEmailUnreadOutl
 import CampaignOutlinedIcon from '@mui/icons-material/CampaignOutlined'
 import DescriptionOutlinedIcon from '@mui/icons-material/DescriptionOutlined'
 import TranslateOutlinedIcon from '@mui/icons-material/TranslateOutlined'
+import BuildOutlinedIcon from '@mui/icons-material/BuildOutlined'
 import type { ReactNode } from 'react'
 import type { enAdminShell } from '../../i18n/messages/en/admin/shell'
 
@@ -95,6 +96,7 @@ export const ADMIN_NAV: AdminNavItem[] = [
   },
   { path: '/admin/default-models', label: 'Default models', labelKey: 'nav.defaultModels', icon: <ModelTrainingOutlinedIcon fontSize="small" />, permission: 'admin.default-models.view' },
   { path: '/admin/ai-capabilities', label: 'AI capabilities', labelKey: 'nav.aiCapabilities', icon: <TuneOutlinedIcon fontSize="small" />, permission: 'admin.ai-capabilities.view' },
+  { path: '/admin/ai-tools', label: 'AI tools', labelKey: 'nav.aiTools', icon: <BuildOutlinedIcon fontSize="small" />, permission: 'admin.ai-tools.view' },
   {
     path: '/admin/voice',
     label: 'Voice',

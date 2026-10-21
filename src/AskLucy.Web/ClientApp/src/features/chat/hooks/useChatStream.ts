@@ -240,13 +240,14 @@ export function useChatStream(
       // `isProgress` marks a part the server closed with a break that NAMED the work still to do
       // ("Looking for it.", "Now highlighting the boundary."): a status line the chat shows at once,
       // with the thinking dots beneath it, rather than a reply it holds back until its voice is ready.
-      let assistantParts: { id: string; content: string; isProgress?: boolean }[] = [{ id: newMessageId(), content: '' }]
-      const renderParts = (parts: { id: string; content: string; isProgress?: boolean }[]): ChatMessage[] =>
+      let assistantParts: { id: string; content: string; isProgress?: boolean; imageDocumentId?: string }[] = [{ id: newMessageId(), content: '' }]
+      const renderParts = (parts: { id: string; content: string; isProgress?: boolean; imageDocumentId?: string }[]): ChatMessage[] =>
         parts.map((part) => ({
           id: part.id,
           role: 'assistant' as const,
           content: part.content,
           ...(part.isProgress ? { isProgress: true } : {}),
+          ...(part.imageDocumentId ? { imageDocumentId: part.imageDocumentId } : {}),
         }))
       let citations: ChatMessage['citations']
       let retrievalOutcome: ChatMessage['retrievalOutcome']
@@ -258,6 +259,9 @@ export function useChatStream(
       /** The persisted row the offer was stored on — the only id a selection can be posted against. */
       let offeringMessageId: string | undefined
       let turnOutcome: ChatMessage['turnOutcome']
+      /** specs/083-map-snapshot — the captured picture, kept out of `assistantParts` so the offer
+       * card still lands on the reply (the server persists the picture as its own message). */
+      let snapshotImage: { documentId: string; locationName: string } | undefined
       try {
         const activeChatId = await ensureChatId(content)
         for await (const event of streamChat(activeChatId, history, providerId, modelId, undefined, controller.signal)) {
@@ -384,6 +388,11 @@ export function useChatStream(
             suggestedActions = event.actions
             offerQuestion = event.question
             offeringMessageId = event.offeredByMessageId
+          } else if (event.type === 'snapshot') {
+            // specs/083-map-snapshot — the captured picture. It is its own bubble, not a
+            // replacement for the reply's text: the server stores it as its own image message,
+            // so the live view and the reloaded history show it in the same place.
+            snapshotImage = { documentId: event.documentId, locationName: event.locationName }
           }
         }
         if (isActiveRef.current) {
@@ -429,6 +438,11 @@ export function useChatStream(
               ...(suggestedActions && restRendered.length === 0 ? { suggestedActions, question: offerQuestion } : {}),
             },
             ...restRendered,
+            // specs/083-map-snapshot — the picture is its own bubble, and the server stores it as
+            // its own message, so the live view and the reloaded history show it in the same place.
+            ...(snapshotImage
+              ? [{ role: 'assistant' as const, content: snapshotImage.locationName, imageDocumentId: snapshotImage.documentId }]
+              : []),
           ])
         }
       } catch (err) {
@@ -512,13 +526,14 @@ export function useChatStream(
       // `isProgress` marks a part the server closed with a break that NAMED the work still to do
       // ("Looking for it.", "Now highlighting the boundary."): a status line the chat shows at once,
       // with the thinking dots beneath it, rather than a reply it holds back until its voice is ready.
-      let assistantParts: { id: string; content: string; isProgress?: boolean }[] = [{ id: newMessageId(), content: '' }]
-      const renderParts = (parts: { id: string; content: string; isProgress?: boolean }[]): ChatMessage[] =>
+      let assistantParts: { id: string; content: string; isProgress?: boolean; imageDocumentId?: string }[] = [{ id: newMessageId(), content: '' }]
+      const renderParts = (parts: { id: string; content: string; isProgress?: boolean; imageDocumentId?: string }[]): ChatMessage[] =>
         parts.map((part) => ({
           id: part.id,
           role: 'assistant' as const,
           content: part.content,
           ...(part.isProgress ? { isProgress: true } : {}),
+          ...(part.imageDocumentId ? { imageDocumentId: part.imageDocumentId } : {}),
         }))
       let citations: ChatMessage['citations']
       let retrievalOutcome: ChatMessage['retrievalOutcome']
@@ -530,6 +545,9 @@ export function useChatStream(
       /** The persisted row the offer was stored on — the only id a selection can be posted against. */
       let offeringMessageId: string | undefined
       let turnOutcome: ChatMessage['turnOutcome']
+      /** specs/083-map-snapshot — the captured picture, kept out of `assistantParts` so the offer
+       * card still lands on the reply (the server persists the picture as its own message). */
+      let snapshotImage: { documentId: string; locationName: string } | undefined
       try {
         const activeChatId = await ensureChatId(seedTitle)
         for await (const event of streamChat(
@@ -625,6 +643,11 @@ export function useChatStream(
             suggestedActions = event.actions
             offerQuestion = event.question
             offeringMessageId = event.offeredByMessageId
+          } else if (event.type === 'snapshot') {
+            // specs/083-map-snapshot — the captured picture. It is its own bubble, not a
+            // replacement for the reply's text: the server stores it as its own image message,
+            // so the live view and the reloaded history show it in the same place.
+            snapshotImage = { documentId: event.documentId, locationName: event.locationName }
           }
         }
         if (isActiveRef.current) {
@@ -664,6 +687,11 @@ export function useChatStream(
               ...(suggestedActions && restRendered.length === 0 ? { suggestedActions, question: offerQuestion } : {}),
             },
             ...restRendered,
+            // specs/083-map-snapshot — the picture is its own bubble, and the server stores it as
+            // its own message, so the live view and the reloaded history show it in the same place.
+            ...(snapshotImage
+              ? [{ role: 'assistant' as const, content: snapshotImage.locationName, imageDocumentId: snapshotImage.documentId }]
+              : []),
           ])
         }
       } catch (err) {

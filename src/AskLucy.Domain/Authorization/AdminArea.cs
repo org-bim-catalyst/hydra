@@ -14,5 +14,6 @@ public enum AdminArea
     CustomModels,
     OperationalFailures,
     Notifications,
-    Appearance
+    Appearance,
+    AiTools
 }

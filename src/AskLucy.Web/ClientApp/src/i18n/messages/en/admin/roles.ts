@@ -111,6 +111,7 @@ export const enAdminRoles = {
     OperationalFailures: 'Operational failures',
     Notifications: 'Notifications',
     Appearance: 'Appearance',
+    AiTools: 'AI tools',
   },
   permissions: {
     dashboardView: { name: 'View dashboard', description: 'View the admin dashboard overview.' },
@@ -206,6 +207,11 @@ export const enAdminRoles = {
       name: 'Manage appearance',
       description:
         "Change the presence sphere's dot size, size within its card, and whether it can be zoomed.",
+    },
+    aiToolsView: {
+      name: 'View AI tools',
+      description:
+        'View the tools available to the AI, their risk level, and the permissions each one requires.',
     },
   },
 } as const

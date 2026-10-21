@@ -36,6 +36,10 @@ public static class TurnContextFactory
                 AgentToolPermission.ExternalNetwork,
                 AgentToolPermission.ReadKnowledge,
                 AgentToolPermission.ReadMemory,
+                // WriteFile: the map snapshot stores its capture as a platform Document so the
+                // picture survives a reload. Without this grant the capability is refused by
+                // CapabilityExecutor's permission gate before it ever runs.
+                AgentToolPermission.WriteFile,
             };
 
         return new TurnContext(

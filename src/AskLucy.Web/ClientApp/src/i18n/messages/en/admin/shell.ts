@@ -16,6 +16,7 @@ export const enAdminShell = {
     providerHealth: 'Provider health',
     defaultModels: 'Default models',
     aiCapabilities: 'AI capabilities',
+    aiTools: 'AI tools',
     voice: 'Voice',
     appearance: 'Appearance',
     agentPolicies: 'Agent policies',

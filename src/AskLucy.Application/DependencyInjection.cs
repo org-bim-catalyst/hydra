@@ -21,6 +21,7 @@ using AskLucy.Application.Documents.Processing.Stages;
 using AskLucy.Application.KnowledgeBases;
 using AskLucy.Application.KnowledgeBases.Notifications;
 using AskLucy.Application.Locations;
+using AskLucy.Application.MapCaptures;
 using AskLucy.Application.Mcp.Resilience;
 using AskLucy.Application.Mcp.Tools;
 using AskLucy.Application.Mcp.Validation;
@@ -107,6 +108,19 @@ public static class DependencyInjection
         services.AddScoped<ILocationResolutionService, ScopeIsolatedLocationResolutionService>();
         services.AddOptions<LocationResolutionOptions>()
             .BindConfiguration(LocationResolutionOptions.SectionName)
+            .ValidateOnStart();
+
+        // specs/083-viewer-map-capture — numeric bounds are validated at startup; ApiKeys stays
+        // optional so a deployment with no service key returns 401 at request time instead of
+        // failing host startup (the ValidateOnStart host-crash trap only applies to required
+        // options with no default).
+        services.AddOptions<MapCaptureOptions>()
+            .BindConfiguration(MapCaptureOptions.SectionName)
+            .Validate(o =>
+                o.MinViewSizeMetres > 0
+                && o.MaxViewSizeMetres >= o.MinViewSizeMetres
+                && o.MaxImageBytes > 0
+                && o.RateLimitPerMinute > 0)
             .ValidateOnStart();
 
         // Site Boundary Resolution (specs/042-site-boundary-resolution) — extends Locations
@@ -321,6 +335,7 @@ public static class DependencyInjection
         // SiteSchematicImageGenerationTool above: this exact registration was the one the runtime
         // deadlocked on.
         services.AddScoped<IAgentTool, RequestSiteAnalysisCapability>();
+        services.AddScoped<IAgentTool, MapSnapshotCapability>();
 
         services.AddScoped<CapabilityIndexRetriever>();
         services.AddScoped<ConversationCapabilityCatalog>();

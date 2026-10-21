@@ -814,6 +814,37 @@ DELETE /agents/{id}
 POST /agents/{id}/execute
 ```
 
+### AI tools (administrator, read-only)
+
+Shipped in specs/083-viewer-map-capture. An administrator had nowhere to see the tools an
+agent can call — the admin panel showed providers, capabilities and system agents, but never
+the tools themselves. This endpoint reads the same merged catalogue the agent runtime
+dispatches on, so it can never show a tool the runtime would refuse, or hide one it would use.
+
+```
+GET /admin/ai-tools
+```
+
+View-only by design: what a deployment can call is a fact about the deployment, not a setting
+an administrator edits (the same reasoning as the system-agents view). No write endpoint
+exists, and none is planned.
+
+The response is the list of `AgentToolDto`:
+
+| Field | Type | Notes |
+|---|---|---|
+| `name` | string | a native tool's plain name, or an MCP tool's `mcp:{serverId}:{toolName}` |
+| `description` | string | the tool's own description |
+| `riskLevel` | string | `Low` / `Medium` / `High` / `Critical` |
+| `requiredPermissions` | string[] | the `AgentToolPermission` values the tool declares |
+| `inputSchemaJson` | string | the tool's own JSON Schema, carried verbatim |
+| `outputSchemaJson` | string | the tool's own JSON Schema, carried verbatim |
+
+The schemas are the tool's raw JSON, not a re-serialization: the tool owns that document, and
+re-emitting it here would quietly change what the platform tells a model it may send.
+
+Gated on `admin.ai-tools.view` and rate limited by `admin-endpoints`.
+
 ---
 
 # 27. MCP Endpoints

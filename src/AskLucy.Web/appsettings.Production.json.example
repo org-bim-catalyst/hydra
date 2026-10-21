@@ -134,5 +134,9 @@
 
   "BoundaryScoring": {
     "EnableAiVisionVerification": true
+  },
+
+  "MapCapture": {
+    "ApiKeys": []
   }
 }

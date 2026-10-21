@@ -61,6 +61,10 @@ public sealed record ChatStreamChunk(
 
     /// <summary>specs/079 - Lucy opening the outline editor, carried the same way <see cref="SolarAnalysis"/> is.</summary>
     SiteBoundaryEditCommand? SiteBoundaryEdit = null,
+
+    /// <summary>specs/083-map-snapshot - the aerial picture Lucy captured for the user, carried the
+    /// same way <see cref="SolarAnalysis"/> is. Carries the stored Document id, not the bytes.</summary>
+    MapSnapshotCommand? MapSnapshot = null,
     bool StartsNewMessage = false,
 
     /// <summary>

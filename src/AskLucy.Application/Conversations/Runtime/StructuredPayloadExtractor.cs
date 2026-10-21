@@ -84,6 +84,17 @@ public static class StructuredPayloadExtractor
                         Guid.Parse(root.GetProperty("chatId").GetString()!),
                         Guid.Parse(root.GetProperty("revision").GetString()!)));
 
+                // specs/083-map-snapshot - the captured picture, as a stored Document id the client
+                // resolves to a signed URL. A failure result carries no documentId, so it falls
+                // through to `default` and Lucy narrates the failure from the tool result text.
+                case MapSnapshotCapability.CapabilityKey
+                    when root.TryGetProperty("documentId", out var documentIdEl):
+                    return new ChatStreamChunk(null, null, MapSnapshot: new MapSnapshotCommand(
+                        documentIdEl.GetString() ?? string.Empty,
+                        root.TryGetProperty("locationName", out var snapshotNameEl)
+                            ? snapshotNameEl.GetString() ?? string.Empty
+                            : string.Empty));
+
                 default:
                     return null;
             }

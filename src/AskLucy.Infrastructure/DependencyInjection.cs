@@ -4,6 +4,7 @@ using AskLucy.Application.Buildings;
 using AskLucy.Application.Conversations.SystemAgents;
 using AskLucy.Application.CustomModels.Abstractions;
 using AskLucy.Application.Locations;
+using AskLucy.Application.MapCaptures;
 using AskLucy.Application.Notifications.Abstractions;
 using AskLucy.Application.OperationalFailures.Abstractions;
 using AskLucy.Application.Options;
@@ -32,6 +33,7 @@ using AskLucy.Infrastructure.Files;
 using AskLucy.Infrastructure.Geocoding;
 using AskLucy.Infrastructure.Identity;
 using AskLucy.Infrastructure.KnowledgeBases;
+using AskLucy.Infrastructure.MapCaptures;
 using AskLucy.Infrastructure.Mcp;
 using AskLucy.Infrastructure.Memory;
 using AskLucy.Infrastructure.Notifications;
@@ -453,6 +455,13 @@ public static class DependencyInjection
         services.AddScoped<IStreetViewImageProvider, GoogleStreetViewImageProvider>();
         services.AddScoped<IBoundaryVisionAnalyzer, GeminiBoundaryVisionAnalyzer>();
         services.AddScoped<IRenderedFillBoundaryExtractor, GoogleRenderedFillBoundaryExtractor>();
+        // specs/083-viewer-map-capture — the capture renderers. The router picks Google when a key
+        // is configured and the ESRI satellite fallback otherwise, so all three are registered
+        // unconditionally and the choice lives in one place.
+        services.AddScoped<MapImageComposer>();
+        services.AddScoped<GoogleStaticMapImageRenderer>();
+        services.AddScoped<EsriSatelliteImageRenderer>();
+        services.AddScoped<IMapImageRenderer, MapImageRendererRouter>();
         services.AddScoped<IBoundaryDrawDiagnosticService, GeminiBoundaryDrawDiagnosticService>();
         services.AddScoped<IBoundarySegmentationDiagnosticService, GeminiSegmentationDiagnosticService>();
         services.AddSingleton<IFileStorage, LocalFileStorage>();

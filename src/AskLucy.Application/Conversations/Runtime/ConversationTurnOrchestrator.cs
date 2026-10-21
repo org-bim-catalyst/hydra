@@ -123,6 +123,23 @@ public sealed class ConversationTurnOrchestrator(
             yield break;
         }
 
+        // specs/083 — "how does it look?" could mean a picture or a map move, and the two are
+        // opposites: one returns an image, the other moves the viewer's camera. Asked BEFORE the
+        // decide step, because a decided "act" would have moved the map already by the time any
+        // card could appear — the card would then be offering a move that has happened. A
+        // dispatched selection or a retry must never be hijacked by it, hence the guard.
+        if (request.SelectedAction is null && request.Retry is null &&
+            MapSnapshotPhrasing.TryDetectAmbiguousPlace(latestUserMessage) is { } ambiguousPlace)
+        {
+            await foreach (var chunk in RunSnapshotAmbiguityOfferAsync(
+                request, userId, ambiguousPlace, cancellationToken))
+            {
+                yield return chunk;
+            }
+
+            yield break;
+        }
+
         // specs/045 US3 (FR-027) — a selection was already resolved and grounded by
         // ISelectedActionResolver before this command was even dispatched (AiController runs that
         // ahead of persisting the user message, since the message's own Content is the resolved
@@ -735,6 +752,44 @@ public sealed class ConversationTurnOrchestrator(
         {
             yield return new ChatStreamChunk(chunk.ContentDelta, chunk.Usage);
         }
+    }
+
+    /// <summary>
+    /// specs/083 — the hand-composed "a picture, or a map move?" card. No capability runs, so
+    /// nothing has happened yet and there is nothing to claim: the turn's outcome is
+    /// <see cref="TurnVerdict.AnsweredInWords"/>.
+    /// <para>
+    /// A short prose lead-in comes first, and not only for readability: the controller persists
+    /// an assistant message — and emits the offer — only when the turn produced text, so a card
+    /// with nothing else on it would be dropped on the wire and the user would see a reply that
+    /// asked a question with no way to answer it.
+    /// </para>
+    /// </summary>
+    private async IAsyncEnumerable<ChatStreamChunk> RunSnapshotAmbiguityOfferAsync(
+        ConversationTurnRequest request,
+        string? userId,
+        string placeName,
+        [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken cancellationToken)
+    {
+        var offer = MapSnapshotOffer.Build(placeName);
+
+        yield return new ChatStreamChunk(offer.Question, null);
+        yield return new ChatStreamChunk(null, null, SuggestedActions: offer.Actions, SuggestedActionsQuestion: offer.Question);
+
+        var planJson = JsonSerializer.Serialize(new
+        {
+            intent = "Ambiguous",
+            flowKey = (string?)null,
+            slices = new[] { MapSnapshotCapability.CapabilityKey, ResolveLocationCapability.CapabilityKey },
+            degraded = false,
+        });
+        await turnRecorder.RecordAsync(
+            request.ChatId, userId, $"ambiguous: {placeName}", planJson, [],
+            $"The user asked about how {placeName} looks. Lucy offered a snapshot or a map move; nothing ran.", cancellationToken);
+
+        yield return new ChatStreamChunk(null, null, TurnOutcome: RecordedTurnOutcome.AnsweredInWords(DateTimeOffset.UtcNow));
+
+        backgroundJobClient.Enqueue<IMemoryExtractionJob>(j => j.RunAsync(request.ChatId, CancellationToken.None));
     }
 
     /// <summary>

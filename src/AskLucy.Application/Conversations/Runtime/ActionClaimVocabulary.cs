@@ -30,6 +30,7 @@ internal static partial class ActionClaimVocabulary
     private static readonly (string Key, string Label)[] Catalog =
     [
         (AdjustViewerFocusCapability.CapabilityKey, "Zoom the viewer"),
+        (MapSnapshotCapability.CapabilityKey, "Capture a snapshot"),
         (EditSiteBoundaryCapability.CapabilityKey, "Edit the outline"),
         (ResetSiteBoundaryCapability.CapabilityKey, "Reset the outline"),
         (LoadViewerContentCapability.CapabilityKey, "Load into the viewer"),

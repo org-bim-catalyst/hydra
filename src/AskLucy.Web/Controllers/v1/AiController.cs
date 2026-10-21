@@ -69,6 +69,9 @@ internal static partial class AiControllerLog
 
     [LoggerMessage(Level = LogLevel.Error, Message = "Could not persist the assistant message or its recorded turn outcome for chat {ChatId}; the turn was surfaced to the user as unsaved")]
     public static partial void TurnOutcomePersistFailed(ILogger logger, Exception exception, Guid chatId);
+
+    [LoggerMessage(Level = LogLevel.Error, Message = "Could not persist the captured map snapshot as a chat message for chat {ChatId}; the picture was still shown, but it will not be in the conversation's history")]
+    public static partial void SnapshotPersistFailed(ILogger logger, Exception exception, Guid chatId);
 }
 
 [ApiController]
@@ -196,6 +199,7 @@ public sealed partial class AiController(
         ViewerContentCommand? viewerContent = null;
         SolarAnalysisCommand? solarAnalysis = null;
         SiteBoundaryEditCommand? siteBoundaryEdit = null;
+        MapSnapshotCommand? mapSnapshot = null;
         IReadOnlyList<SuggestedAction>? suggestedActions = null;
         string? suggestedActionsQuestion = null;
 
@@ -321,6 +325,11 @@ public sealed partial class AiController(
                 if (chunk.SiteBoundaryEdit is not null)
                 {
                     siteBoundaryEdit = chunk.SiteBoundaryEdit;
+                }
+
+                if (chunk.MapSnapshot is not null)
+                {
+                    mapSnapshot = chunk.MapSnapshot;
                 }
 
                 // specs/045-conversational-agent-runtime FR-021 — rides its own chunk, with no
@@ -610,6 +619,37 @@ public sealed partial class AiController(
             {
                 var siteBoundaryEditPayload = new { chatId = siteBoundaryEdit.ChatId, revision = siteBoundaryEdit.Revision };
                 await Response.WriteAsync($"data: __SITE_BOUNDARY_EDIT__{JsonSerializer.Serialize(siteBoundaryEditPayload)}\n\n", cancellationToken);
+                await Response.Body.FlushAsync(cancellationToken);
+            }
+
+            // specs/083-map-snapshot — the captured picture, stored as its own image message so the
+            // conversation's history shows it after a reload, exactly as the /images endpoint
+            // stores a generated picture: the message's Content is the stored document's id and
+            // its SourceText is the alt text. A store that fails must not swallow the picture
+            // the user is already looking at — it is shown either way, and the notice says the
+            // reload will not bring it back.
+            if (mapSnapshot is not null)
+            {
+                try
+                {
+                    await mediator.Send(
+                        new AppendMessageCommand(
+                            request.ChatId, MessageRole.Assistant, MessageKind.Image,
+                            mapSnapshot.DocumentId, mapSnapshot.LocationName),
+                        cancellationToken);
+                }
+                catch (Exception persistException) when (!cancellationToken.IsCancellationRequested)
+                {
+                    AiControllerLog.SnapshotPersistFailed(logger, persistException, request.ChatId);
+
+                    const string snapshotPersistNotice =
+                        " I couldn't save the picture to your chat history, so it won't be here if you reload.";
+                    await Response.WriteAsync($"data: {snapshotPersistNotice}\n\n", cancellationToken);
+                    await Response.Body.FlushAsync(cancellationToken);
+                }
+
+                var snapshotPayload = new { documentId = mapSnapshot.DocumentId, locationName = mapSnapshot.LocationName };
+                await Response.WriteAsync($"data: __SNAPSHOT__{JsonSerializer.Serialize(snapshotPayload)}\n\n", cancellationToken);
                 await Response.Body.FlushAsync(cancellationToken);
             }
 
