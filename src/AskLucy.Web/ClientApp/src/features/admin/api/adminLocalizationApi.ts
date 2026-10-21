@@ -25,10 +25,10 @@ export interface LocalizationSettingsInput {
 
 export const ADMIN_LOCALIZATION_QUERY_KEY = ['admin', 'localization'] as const
 
-export const getLocalizationSettings = () => apiFetch<LocalizationSettings>('/admin/localization')
+export const getLocalizationSettings = () => apiFetch<LocalizationSettings>('/admin/notifications/localization')
 
 export const updateLocalizationSettings = (rowVersion: string, input: LocalizationSettingsInput) =>
-  apiFetch<LocalizationSettings>('/admin/localization', {
+  apiFetch<LocalizationSettings>('/admin/notifications/localization', {
     method: 'PUT',
     headers: { 'If-Match': rowVersion },
     body: JSON.stringify(input),

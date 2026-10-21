@@ -46,8 +46,8 @@ const server = setupServer(
       permissions: ['admin.notifications.view', 'admin.notifications.manage'],
     }),
   ),
-  http.get('*/api/v1/admin/localization', () => HttpResponse.json(current)),
-  http.put('*/api/v1/admin/localization', async ({ request }) => {
+  http.get('*/api/v1/admin/notifications/localization', () => HttpResponse.json(current)),
+  http.put('*/api/v1/admin/notifications/localization', async ({ request }) => {
     if (putResponse) return putResponse()
     const body = (await request.json()) as { isEnabled: boolean; supportedLanguages: string[] }
     current = settings({ ...body, rowVersion: 'AAAAAAAAB9I=' })
@@ -140,7 +140,7 @@ describe('AdminLocalizationPage in Arabic (T218)', () => {
 
   it('shows a failed load with an Arabic retry', async () => {
     server.use(
-      http.get('*/api/v1/admin/localization', () =>
+      http.get('*/api/v1/admin/notifications/localization', () =>
         HttpResponse.json({ title: 'Error', detail: 'تعذّر التحميل.' }, { status: 500 }),
       ),
     )

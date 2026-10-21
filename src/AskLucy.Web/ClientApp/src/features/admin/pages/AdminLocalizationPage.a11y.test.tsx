@@ -18,7 +18,7 @@ const server = setupServer(
       permissions: ['admin.notifications.view', 'admin.notifications.manage'],
     }),
   ),
-  http.get('*/api/v1/admin/localization', () =>
+  http.get('*/api/v1/admin/notifications/localization', () =>
     HttpResponse.json({
       isEnabled: true,
       supportedLanguages: ['en', 'ar'],

@@ -28,8 +28,8 @@ const server = setupServer(
   http.get('*/api/v1/auth/session', () =>
     HttpResponse.json({ authenticated: true, userId: 'admin-1', roles: ['User'], permissions }),
   ),
-  http.get('*/api/v1/admin/localization', () => HttpResponse.json(current)),
-  http.put('*/api/v1/admin/localization', async ({ request }) => {
+  http.get('*/api/v1/admin/notifications/localization', () => HttpResponse.json(current)),
+  http.put('*/api/v1/admin/notifications/localization', async ({ request }) => {
     puts.push({ ifMatch: request.headers.get('If-Match'), body: await request.json() })
     if (putResponse) return putResponse()
     const body = puts.at(-1)!.body as { isEnabled: boolean; supportedLanguages: string[] }
@@ -148,7 +148,7 @@ describe('AdminLocalizationPage (specs/067 US8, FR-044a)', () => {
 
   it('shows an error with a retry when the settings cannot be loaded', async () => {
     server.use(
-      http.get('*/api/v1/admin/localization', () =>
+      http.get('*/api/v1/admin/notifications/localization', () =>
         HttpResponse.json(
           { title: 'Server error', detail: 'The settings failed to load.' },
           { status: 500 },
