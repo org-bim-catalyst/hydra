@@ -124,6 +124,10 @@ Repository root is `E:\Workshop\BIM Catalyst\Web Apps\Platform\Ask Lucy`. Backen
 - [X] T027 [P] Update the Admin provider health notes in `docs/ENTITY_MODEL.md` if the new entities are listed there; keep the description of `ProviderHealthChecks` unchanged.
 - [X] T028 Run the full verification pass: `dotnet test "Ask Lucy.sln"`, frontend `npm run test`, `npx tsc -b --noEmit`, and `npm run lint` in `src/AskLucy.Web/ClientApp`.
 - [ ] T029 Execute the manual scenarios in `specs/082-editable-health-retention/quickstart.md` sections 3–5 (API, job, page), including the stale-version conflict and the view-only user.
+  - API scenarios (quickstart §3) are covered automatically by `AdminProviderHealthRetentionEndpointTests` against a real host and the real database: GET 200 with `source`/`rowVersion`, GET 403 without view, PUT 200, PUT 403 with view only, PUT 428 without `If-Match`, PUT 409 on a stale version, PUT 400 for 0/366, and the audit-row count after each.
+  - Job scenario (quickstart §4) is covered by `ProviderHealthCheckRetentionJobTests` — the stored value wins, configuration is the fallback.
+  - Page scenario (quickstart §5) is covered by `AdminProviderHealthRetentionPage.test.tsx` — load, save, range rejection, conflict-with-reload, and the read-only view.
+  - **Still manual**: the browser click-through in §5, and a production run of the job. The seeded local admin's password does not match the shared test database, so an authenticated local session could not be established for a hand-driven pass.
 
 ---
 
