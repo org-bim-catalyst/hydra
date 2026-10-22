@@ -949,7 +949,10 @@ app.MapHub<NotificationHub>("/hubs/notifications");
 // by routing precedence, with no list left to fall out of sync.
 app.MapFallback(async context =>
 {
-    if (!HttpMethods.IsGet(context.Request.Method))
+    // An unmatched request under /api/ is a wrong URL, not a client-side route: answering it with index.html
+    // turns a typo into a 200 the client cannot parse. 404 is the honest answer.
+    if (!HttpMethods.IsGet(context.Request.Method)
+        || context.Request.Path.StartsWithSegments("/api", StringComparison.OrdinalIgnoreCase))
     {
         context.Response.StatusCode = StatusCodes.Status404NotFound;
         return;
