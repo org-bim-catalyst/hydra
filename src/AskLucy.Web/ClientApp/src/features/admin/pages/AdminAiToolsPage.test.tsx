@@ -207,9 +207,9 @@ describe('AdminAiToolsPage settings column', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Settings for map_snapshot' }))
 
     expect(await screen.findByText('map_snapshot settings')).toBeInTheDocument()
-    expect(screen.getByText('Default imagery provider')).toBeInTheDocument()
+    // The labels are found through the controls they label, the way the number field's is.
+    expect(screen.getByLabelText('Default imagery provider')).toBeInTheDocument()
     expect(screen.getByText('Esri World Imagery')).toBeInTheDocument()
-    // The label of the number field is found through the input it labels.
     expect(screen.getByLabelText('Default crop')).toBeInTheDocument()
     expect(screen.getByText('How many pixels are cropped from each of the four edges.')).toBeInTheDocument()
   })

@@ -6,11 +6,8 @@ import {
   DialogActions,
   DialogContent,
   DialogTitle,
-  FormControl,
   FormControlLabel,
-  InputLabel,
   MenuItem,
-  Select,
   Stack,
   Switch,
   TextField,
@@ -191,27 +188,32 @@ function SettingControl({
         />
       )
     case 'Choice':
+      // A TextField with `select`, not a hand-built FormControl: the same component as the
+      // number field above, so the label is notched into the outline the same way and the two
+      // controls read as one form.
       return (
-        <FormControl size="small" fullWidth>
-          <InputLabel id={`${setting.key}-label`}>{setting.label}</InputLabel>
-          <Select
-            labelId={`${setting.key}-label`}
-            size="small"
-            value={value}
-            disabled={disabled}
-            onChange={(event) => onChange(String(event.target.value))}
+        <TextField
+          select
+          size="small"
+          fullWidth
+          label={setting.label}
+          value={value}
+          disabled={disabled}
+          onChange={(event) => onChange(String(event.target.value))}
+          slotProps={{
             // The stored value is the wire value; the administrator reads the option's label.
-            renderValue={(selected) =>
-              options.find((option) => option.value === selected)?.label ?? String(selected)
-            }
-          >
-            {options.map((option) => (
-              <MenuItem key={option.value} value={option.value}>
-                {option.label}
-              </MenuItem>
-            ))}
-          </Select>
-        </FormControl>
+            select: {
+              renderValue: (selected) =>
+                options.find((option) => option.value === selected)?.label ?? String(selected),
+            },
+          }}
+        >
+          {options.map((option) => (
+            <MenuItem key={option.value} value={option.value}>
+              {option.label}
+            </MenuItem>
+          ))}
+        </TextField>
       )
     case 'Integer':
       return (
