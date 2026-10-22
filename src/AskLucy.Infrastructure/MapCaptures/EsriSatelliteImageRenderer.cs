@@ -21,9 +21,9 @@ internal static partial class EsriSatelliteImageRendererLog
 }
 
 /// <summary>
-/// specs/083-viewer-map-capture T020 — the satellite-only fallback for deployments with no
-/// Google Maps key. It renders the same rectangle and the same 1280x1280 frame as the Google
-/// renderer, so the cropped output is identical in shape.
+/// The satellite renderer for Esri World Imagery: analysis-grade, saturated, and without a
+/// burned-in logo. It serves the same rectangle and the same frame as the Google renderer, so the
+/// crop and the output contract hold whichever provider served the request.
 /// </summary>
 public sealed class EsriSatelliteImageRenderer(
     IHttpClientFactory httpClientFactory,
@@ -33,10 +33,20 @@ public sealed class EsriSatelliteImageRenderer(
     ILogger<EsriSatelliteImageRenderer> logger) : IMapImageRenderer
 {
     private const string ClientName = "EsriWorldImagery";
-    private const string KeylessExportUrl =
+
+    /// <summary>
+    /// The World Imagery export endpoint.
+    /// <para>
+    /// This is the <c>services.arcgisonline.com</c> host, which serves the export directly. The
+    /// ArcGIS Location Platform host (<c>ibasemaps-api.arcgis.com</c>) does <b>not</b> serve this
+    /// path — it answers 404 for it — so a build pointed at that host could never capture anything.
+    /// The key, when one is configured, is passed as a query token; the endpoint accepts it with or
+    /// without a referer, and serves the same image either way.
+    /// </para>
+    /// </summary>
+    private const string ExportUrl =
         "https://services.arcgisonline.com/arcgis/rest/services/World_Imagery/MapServer/export";
-    private const string AuthenticatedExportUrl =
-        "https://ibasemaps-api.arcgis.com/arcgis/rest/services/World_Imagery/MapServer/export";
+
     private const int ImageSizePixels = 1280;
 
     public async Task<MapImageResult> RenderAsync(
@@ -49,8 +59,18 @@ public sealed class EsriSatelliteImageRenderer(
                 $"Mode '{WireNameOf(request.Mode)}' is not available on the ESRI fallback; only 'satellite' is.");
         }
 
+        if (request.Zoom is { } requestedZoom && requestedZoom > MapCaptureZoom.MaximumEsri)
+        {
+            // Refused rather than clamped: the export service cannot assemble its tiles past this
+            // level and answers with a server error, so a clamped answer would be a different
+            // picture from the one that was asked for.
+            return MapImageResult.Failure(
+                MapCaptureFailureReason.ZoomUnavailable,
+                $"ESRI World Imagery cannot be assembled past zoom {MapCaptureZoom.MaximumEsri}; this capture asked for {requestedZoom}.");
+        }
+
         var radiusMetres = Math.Max(request.ViewSizeMetres / 2, 1);
-        var zoom = StaticMapFraming.ChooseZoomToFit(request.Latitude, radiusMetres);
+        var zoom = request.Zoom ?? StaticMapFraming.ChooseZoomToFit(request.Latitude, radiusMetres);
         var center = new GeoPoint(request.Latitude, request.Longitude);
         var (west, south, east, north) = StaticMapFraming.CoveredBounds(center, zoom);
 
@@ -60,12 +80,6 @@ public sealed class EsriSatelliteImageRenderer(
             using var client = httpClientFactory.CreateClient(ClientName);
             using var httpRequest = new HttpRequestMessage(
                 HttpMethod.Get, BuildUrl(west, south, east, north));
-
-            var apiKey = esriOptions.Value.ApiKey;
-            if (!string.IsNullOrWhiteSpace(apiKey))
-            {
-                httpRequest.Headers.TryAddWithoutValidation("X-Esri-Authorization", $"Bearer {apiKey}");
-            }
 
             using var response = await client.SendAsync(httpRequest, cancellationToken);
 
@@ -102,28 +116,35 @@ public sealed class EsriSatelliteImageRenderer(
             }
             catch (Exception exception) when (exception is HttpRequestException or TaskCanceledException)
             {
-                EsriSatelliteImageRendererLog.FootprintLookupFailed(
-                    logger, exception, request.Latitude, request.Longitude);
+                EsriSatelliteImageRendererLog.FootprintLookupFailed(logger, exception, request.Latitude, request.Longitude);
                 return MapImageResult.Failure(
                     MapCaptureFailureReason.OverlayUnavailable,
                     "Building footprints could not be retrieved for this location.");
             }
         }
 
-        return composer.Compose(bytes, center, zoom, footprints);
+        // Esri's imagery is analysis-grade already — there is no web tone mapping to undo, so the
+        // colour correction is never applied to it.
+        return composer.Compose(
+            bytes, center, zoom, footprints, request.CropPerEdge, enhanceColour: false);
     }
 
     private string BuildUrl(double west, double south, double east, double north)
     {
-        var apiKey = esriOptions.Value.ApiKey;
-        var baseUrl = string.IsNullOrWhiteSpace(apiKey) ? KeylessExportUrl : AuthenticatedExportUrl;
+        var url = ExportUrl +
+                  $"?bbox={west.ToString("R", CultureInfo.InvariantCulture)},{south.ToString("R", CultureInfo.InvariantCulture)}," +
+                  $"{east.ToString("R", CultureInfo.InvariantCulture)},{north.ToString("R", CultureInfo.InvariantCulture)}" +
+                  "&bboxSR=4326" +
+                  $"&size={ImageSizePixels.ToString(CultureInfo.InvariantCulture)},{ImageSizePixels.ToString(CultureInfo.InvariantCulture)}" +
+                  "&imageSR=4326&format=png&f=image";
 
-        return baseUrl +
-               $"?bbox={west.ToString("R", CultureInfo.InvariantCulture)},{south.ToString("R", CultureInfo.InvariantCulture)}," +
-               $"{east.ToString("R", CultureInfo.InvariantCulture)},{north.ToString("R", CultureInfo.InvariantCulture)}" +
-               "&bboxSR=4326" +
-               $"&size={ImageSizePixels.ToString(CultureInfo.InvariantCulture)},{ImageSizePixels.ToString(CultureInfo.InvariantCulture)}" +
-               "&imageSR=4326&format=png&f=image";
+        var apiKey = esriOptions.Value.ApiKey;
+        if (!string.IsNullOrWhiteSpace(apiKey))
+        {
+            url += $"&token={Uri.EscapeDataString(apiKey)}";
+        }
+
+        return url;
     }
 
     private static string WireNameOf(MapCaptureMode mode) => mode switch

@@ -814,7 +814,7 @@ DELETE /agents/{id}
 POST /agents/{id}/execute
 ```
 
-### AI tools (administrator, read-only)
+### AI tools (administrator)
 
 Shipped in specs/083-viewer-map-capture. An administrator had nowhere to see the tools an
 agent can call — the admin panel showed providers, capabilities and system agents, but never
@@ -825,9 +825,9 @@ dispatches on, so it can never show a tool the runtime would refuse, or hide one
 GET /admin/ai-tools
 ```
 
-View-only by design: what a deployment can call is a fact about the deployment, not a setting
-an administrator edits (the same reasoning as the system-agents view). No write endpoint
-exists, and none is planned.
+The catalogue itself is read-only by design: what a deployment can call is a fact about the
+deployment, not a setting an administrator edits (the same reasoning as the system-agents view).
+A tool's own *defaults* are configuration, and are editable — see below.
 
 The response is the list of `AgentToolDto`:
 
@@ -844,6 +844,27 @@ The schemas are the tool's raw JSON, not a re-serialization: the tool owns that 
 re-emitting it here would quietly change what the platform tells a model it may send.
 
 Gated on `admin.ai-tools.view` and rate limited by `admin-endpoints`.
+
+#### Tool settings
+
+The map snapshot tool declares four defaults, editable from its gear on the AI Tools page:
+
+| Key | Type | Default | Meaning |
+|---|---|---|---|
+| `defaultSource` | choice | `esri` | Which imagery provider serves the capture. |
+| `defaultCropPixels` | number | `32` | Pixels cropped from each of the four edges. |
+| `defaultZoom` | choice | `auto` | The zoom level, or `auto` to fit the requested view size. |
+| `enhanceGoogleColour` | boolean | `true` | Whether Google's web tone-mapping is corrected before delivery. |
+
+```
+GET /admin/ai-tools/settings
+PUT /admin/ai-tools/{tool}/settings        (body: { "values": { "<key>": "<value>" } })
+```
+
+`GET` is gated on `admin.ai-tools.view`; `PUT` on `admin.ai-tools.manage`. Keys not named keep
+their current value; a key the tool does not declare, or a value outside its type's range, is
+refused with `400`. `GET` always returns the value that applies now — the saved one, or the
+default when none is saved — so a client never has to know whether a row exists.
 
 ---
 

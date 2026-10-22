@@ -7,16 +7,16 @@ namespace AskLucy.Domain.Tests.Authorization;
 public sealed class AdminPermissionCatalogTests
 {
     [Fact]
-    public void All_ShouldContainExactly26Permissions()
+    public void All_ShouldContainExactly27Permissions()
     {
-        AdminPermissionCatalog.All.Should().HaveCount(26);
+        AdminPermissionCatalog.All.Should().HaveCount(27);
     }
 
     [Fact]
     public void All_ShouldHaveUniqueKeys()
     {
         var keys = AdminPermissionCatalog.All.Select(p => p.Key).ToList();
-        keys.Distinct().Should().HaveCount(26, "all permission keys must be unique");
+        keys.Distinct().Should().HaveCount(27, "all permission keys must be unique");
     }
 
     [Theory]
@@ -46,6 +46,7 @@ public sealed class AdminPermissionCatalogTests
     [InlineData("admin.appearance.view")]
     [InlineData("admin.appearance.manage")]
     [InlineData("admin.ai-tools.view")]
+    [InlineData("admin.ai-tools.manage")]
     public void TryGet_ShouldReturnTrueForAllCatalogueKeys(string key)
     {
         var result = AdminPermissionCatalog.TryGet(key, out var permission);
@@ -152,7 +153,7 @@ public sealed class AdminPermissionCatalogTests
     [InlineData(AdminArea.OperationalFailures, 3)]
     [InlineData(AdminArea.Notifications, 2)]
     [InlineData(AdminArea.Appearance, 2)]
-    [InlineData(AdminArea.AiTools, 1)]
+    [InlineData(AdminArea.AiTools, 2)]
     public void ByArea_ShouldReturnCorrectCount(AdminArea area, int expected)
     {
         AdminPermissionCatalog.ByArea(area).Should().HaveCount(expected);

@@ -47,7 +47,17 @@ public sealed class GoogleStaticMapImageRenderer(
         }
 
         var radiusMetres = Math.Max(request.ViewSizeMetres / 2, 1);
-        var zoom = StaticMapFraming.ChooseZoomToFit(request.Latitude, radiusMetres);
+
+        if (request.Zoom is { } requestedZoom && !MapCaptureZoom.IsInRange(requestedZoom))
+        {
+            // Refused rather than clamped: Google answers a level above its own with the level
+            // below it, and a silently different picture is worse than an explicit refusal.
+            return MapImageResult.Failure(
+                MapCaptureFailureReason.ZoomUnavailable,
+                $"Zoom {requestedZoom} is outside the {MapCaptureZoom.Minimum}-{MapCaptureZoom.Maximum} range Google Static Maps serves.");
+        }
+
+        var zoom = request.Zoom ?? StaticMapFraming.ChooseZoomToFit(request.Latitude, radiusMetres);
         var url = BuildUrl(request, zoom, apiKey);
 
         byte[] bytes;
@@ -93,7 +103,9 @@ public sealed class GoogleStaticMapImageRenderer(
             footprints = lookup;
         }
 
-        return composer.Compose(bytes, new GeoPoint(request.Latitude, request.Longitude), zoom, footprints);
+        return composer.Compose(
+            bytes, new GeoPoint(request.Latitude, request.Longitude), zoom, footprints,
+            request.CropPerEdge, request.EnhanceColour);
     }
 
     private static string BuildUrl(MapImageRequest request, int zoom, string apiKey)

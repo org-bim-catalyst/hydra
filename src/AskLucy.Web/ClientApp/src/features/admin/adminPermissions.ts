@@ -48,6 +48,7 @@ export const ADMIN_PERMISSION_CATALOG: PermissionCatalogEntry[] = [
   { key: 'admin.appearance.manage', area: 'Appearance', areaLabel: 'Appearance', level: 'Manage', displayName: 'Manage appearance', description: "Change the presence sphere's dot size, size within its card, and whether it can be zoomed." },
 
   { key: 'admin.ai-tools.view', area: 'AiTools', areaLabel: 'AI tools', level: 'View', displayName: 'View AI tools', description: 'View the tools available to the AI, their risk level, and the permissions each one requires.' },
+  { key: 'admin.ai-tools.manage', area: 'AiTools', areaLabel: 'AI tools', level: 'Manage', displayName: 'Manage AI tools', description: "Change the defaults a tool runs with — which imagery provider the map snapshot uses, how much it crops, and how far it zooms." },
 ]
 
 export const ADMIN_PERMISSIONS = {
@@ -77,6 +78,7 @@ export const ADMIN_PERMISSIONS = {
   appearanceView: 'admin.appearance.view',
   appearanceManage: 'admin.appearance.manage',
   aiToolsView: 'admin.ai-tools.view',
+  aiToolsManage: 'admin.ai-tools.manage',
 } as const
 
 export type AdminPermissionKey = (typeof ADMIN_PERMISSIONS)[keyof typeof ADMIN_PERMISSIONS]

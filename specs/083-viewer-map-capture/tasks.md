@@ -101,6 +101,20 @@ The conversation capability `map_snapshot` is an `IAgentTool`, and an administra
 - [X] T038 [P] Update `tests/AskLucy.Domain.Tests/Authorization/AdminPermissionCatalogTests.cs` (counts 25 → 26, the new key's `[InlineData]`, `AdminArea.AiTools => "ai-tools"`, and the `ByArea` counts) and `tests/AskLucy.Domain.Tests/Authorization/PermissionSetTests.cs` (`HaveCount(25)` → `26`).
 - [X] T039 [P] Create `tests/AskLucy.Web.Tests/Admin/AdminAiToolsEndpointTests.cs` — a principal holding only `admin.ai-tools.view` reads the catalogue; a principal holding none is refused. (The shared `PermissionEnforcementMatrixTests` also covers the endpoint, but its rows are flaky against the shared test database — every one of its 403-path cases writes an audit row — so the dedicated test is the one that proves this endpoint.)
 
+### Phase 6: The imagery provider, the crop, the zoom, and the colour correction
+
+Added after the first delivery, once the deployed capture came back pale and stamped with Google's logo. Two problems, one root cause each.
+
+- [X] T040 [P] Fix the real bug in `src/AskLucy.Infrastructure/MapCaptures/EsriSatelliteImageRenderer.cs`: it asked `ibasemaps-api.arcgis.com/.../World_Imagery/MapServer/export`, which answers **404** — that host does not serve the export path, so the ESRI renderer could never have produced an image. The export lives on `services.arcgisonline.com`, which serves it and accepts the configured key as a `?token=` query parameter.
+- [X] T041 [P] Add `MapCaptureSource` (`Esri`, `Google`) and `MapCaptureZoom` to `src/AskLucy.Application/MapCaptures/`, with the wire spellings and the per-provider ceilings measured against the live services: Google serves zoom 0–21 and clamps silently above it; Esri's export cannot be assembled past zoom 18 and answers with a server error. Both are refused explicitly rather than clamped.
+- [X] T042 [P] Add `MapCaptureSource`, `CropPerEdge`, `Zoom` and `EnhanceColour` to `MapImageRequest` and `MapCaptureSource`/`CropPixels`/`Zoom` to `CaptureMapQuery`, with validation, and route the router by the requested source — never answering from the other provider when the chosen one cannot serve the request.
+- [X] T043 [P] Make the crop configurable and correct the colour: `MapImageComposer` takes the crop per edge and applies the level + saturation restore. The parameters were fitted by minimising the difference against Esri's render of the identical frame (Google's blacks sit at ~52% instead of ~7%, its contrast is a third of the truth, its colour half saturated) and verified against the real Magick.NET output, not only a model of it.
+- [X] T044 [P] Add the per-tool settings store: the `ToolSetting` entity and `ToolSettings` table (a new migration), `ToolSettingCatalog` declaring the map snapshot's four defaults, and `ToolSettingsReader` resolving them — a setting never saved, or whose saved value is no longer valid, falls back to the catalogue default.
+- [X] T045 [P] Add `admin.ai-tools.manage` to the permission catalogue and the `GET`/`PUT /api/v1/admin/ai-tools/settings` endpoints, so an administrator can switch the provider from the admin panel.
+- [X] T046 [P] Add the gear column to the admin AI Tools page, its settings dialog (a switch, a select and a number field, one per setting type), and the English and Arabic catalog entries for both.
+- [X] T047 [P] Add the Esri key to the untracked `appsettings.Development.json` and `appsettings.Production.json`. (No tracked config changed: the per-tool defaults live in the database, and the `MapCapture` section in the tracked `appsettings.json` already carries the capture options.)
+- [X] T048 Run the whole solution's build, the three test projects, the format gate and the frontend lint; confirm the new migration applies cleanly to the shared test database.
+
 ---
 
 ## Dependencies & Execution Order

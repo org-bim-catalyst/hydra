@@ -45,5 +45,20 @@ public sealed class CaptureMapQueryValidator : AbstractValidator<CaptureMapQuery
             .Must(overlays => MapCaptureWireFormat.TryParseOverlays(overlays, out _, out _))
             .When(x => !string.IsNullOrWhiteSpace(x.Overlays))
             .WithMessage("Overlays must be a comma-separated subset of: building-footprints, site-boundary.");
+
+        RuleFor(x => x.Source)
+            .Must(source => MapCaptureSourceWire.TryParse(source, out _))
+            .When(x => !string.IsNullOrWhiteSpace(x.Source))
+            .WithMessage("Source must be one of: esri, google.");
+
+        RuleFor(x => x.CropPixels)
+            .InclusiveBetween(0, 200)
+            .When(x => x.CropPixels is not null)
+            .WithMessage("Crop must be between 0 and 200 pixels from each edge.");
+
+        RuleFor(x => x.Zoom)
+            .Must(zoom => zoom is null || MapCaptureZoom.IsInRange(zoom.Value))
+            .When(x => x.Zoom is not null)
+            .WithMessage($"Zoom must be between {MapCaptureZoom.Minimum} and {MapCaptureZoom.Maximum}.");
     }
 }

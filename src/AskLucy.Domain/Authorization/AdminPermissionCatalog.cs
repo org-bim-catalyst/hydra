@@ -25,13 +25,15 @@ public static class AdminPermissionCatalog
 
     public const string AiToolsView = "admin.ai-tools.view";
 
+    public const string AiToolsManage = "admin.ai-tools.manage";
+
     /// <summary>
     /// Keys only a Super User may grant or revoke, and the only keys the built-in Administrator role
     /// does not hold implicitly (specs/074 research D14).
     /// </summary>
     public static IReadOnlySet<string> SuperUserControlledKeys { get; }
 
-    private static readonly List<AdminPermission> _allList = new(26);
+    private static readonly List<AdminPermission> _allList = new(27);
 
     static AdminPermissionCatalog()
     {
@@ -90,6 +92,7 @@ public static class AdminPermissionCatalog
         // AI tools (specs/083). View-only: the catalogue of what the platform can call is a
         // read-only fact about the deployment, like the registered system agents.
         _allList.Add(Permission(AiToolsView, AdminArea.AiTools, AdminPermissionLevel.View, "View AI tools", "View the tools available to the AI, their risk level, and the permissions each one requires."));
+        _allList.Add(Permission(AiToolsManage, AdminArea.AiTools, AdminPermissionLevel.Manage, "Manage AI tools", "Change the defaults a tool runs with — which imagery provider the map snapshot uses, how much it crops, and how far it zooms."));
 
         All = new ReadOnlyCollection<AdminPermission>(_allList);
         SuperUserControlledKeys = new HashSet<string>(StringComparer.Ordinal) { OperationalFailuresContentView };

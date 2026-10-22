@@ -14,7 +14,7 @@ import {
   THEME_MODES,
   watchI18nFallbacks,
 } from '../../../i18n/testUtils'
-import type { AdminAiTool } from '../api/adminAiToolsApi'
+import type { AdminAiTool, ToolSettings } from '../api/adminAiToolsApi'
 import { AdminAiToolsPage } from './AdminAiToolsPage'
 
 expect.extend(toHaveNoViolations)
@@ -41,11 +41,34 @@ const tools: AdminAiTool[] = [
   },
 ]
 
+const toolSettings: ToolSettings[] = [
+  {
+    tool: 'map_snapshot',
+    settings: [
+      {
+        key: 'defaultSource',
+        valueType: 'Choice',
+        label: 'Default imagery provider',
+        description: 'Which provider a snapshot uses when the request does not name one.',
+        value: 'esri',
+        defaultValue: 'esri',
+        options: [
+          { value: 'esri', label: 'Esri World Imagery' },
+          { value: 'google', label: 'Google Static Maps' },
+        ],
+        minimum: null,
+        maximum: null,
+      },
+    ],
+  },
+]
+
 const server = setupServer(
   http.get('*/api/v1/auth/session', () =>
     HttpResponse.json({ authenticated: true, userId: 'admin-1', roles: [], permissions: [] }),
   ),
   http.get('*/api/v1/admin/ai-tools', () => HttpResponse.json(tools)),
+  http.get('*/api/v1/admin/ai-tools/settings', () => HttpResponse.json(toolSettings)),
 )
 
 beforeAll(() => server.listen({ onUnhandledRequest: 'bypass' }))
@@ -79,6 +102,7 @@ describe('AdminAiToolsPage in Arabic', () => {
     expect(screen.getByRole('columnheader', { name: 'الأداة' })).toBeInTheDocument()
     expect(screen.getByRole('columnheader', { name: 'المصدر' })).toBeInTheDocument()
     expect(screen.getByRole('columnheader', { name: 'الخطورة' })).toBeInTheDocument()
+    expect(screen.getByRole('columnheader', { name: 'الإعدادات' })).toBeInTheDocument()
     expect(screen.getByText('منخفضة')).toBeInTheDocument()
     expect(screen.getByText('حرجة')).toBeInTheDocument()
     // The protected term stays Latin inside the Arabic phrase.

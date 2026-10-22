@@ -174,3 +174,53 @@ connection timeout against that database — a pre-existing flakiness, not a pro
 endpoint. `AdminAiToolsEndpointTests` therefore asserts the same two cases directly, so this
 area's authorization boundary has a test that does not depend on the shared database being
 healthy.
+
+---
+
+## Addendum (2026-10-21): the imagery provider, and the colour correction
+
+### Esri is the default; Google is the alternative
+
+The capture pipeline originally had one route: Google when a key was configured, ESRI when it was
+not. That made ESRI unreachable in any real deployment — a Google key is always configured — and
+the "vendor-agnostic" claim in the ADR above was structurally true but practically dead.
+
+The source is now a **parameter**, defaulting to ESRI, and settable per request and by an
+administrator on the admin AI Tools page. Two facts drove the default:
+
+- ESRI's export returns the **analysis-grade** rendering: dark asphalt, saturated vegetation, no
+  watermark. Google's Static Maps layer is the **same photography** — the attribution names the
+  same vendors (Airbus, CNES, Maxar) — but tone-mapped for a browser.
+- ESRI's export takes a bbox, so it can serve any rectangle. Google's Static Maps takes an
+  integer zoom, which is why a capture's framing is expressed as a zoom at all.
+
+### The ESRI endpoint was pointed at a host that 404s
+
+`EsriSatelliteImageRenderer` asked `ibasemaps-api.arcgis.com/.../World_Imagery/MapServer/export`.
+That host does not serve the export path — it answers `404` for it — so the ESRI path could
+never have produced an image. The export lives on `services.arcgisonline.com`, which serves it
+directly and accepts the configured key as a query token. Fixed; the key is now passed as
+`?token=`, which the endpoint accepts with or without a referer.
+
+### The two providers are not interchangeable, and nothing is quietly swapped
+
+ESRI serves **satellite only**, and its export cannot assemble its tiles past **zoom 18** (it
+answers with a server error). Google serves every mode and reaches **zoom 21**, clamping
+silently above it. A request that asks a provider for something it cannot serve is **refused
+with a reason** — never answered from the other provider, because a picture from a different
+provider is not the picture that was asked for.
+
+### Google's tone mapping is undone on the way out
+
+Measured against ESRI's render of the identical frame, Google's satellite layer has its blacks
+lifted to about 52% instead of about 7%, roughly a third of the true contrast, and about half
+the saturation. A level plus a saturation restore brings it back: the numbers were fitted by
+minimising the difference against the known-good rendering of the same scene, not guessed.
+
+What the correction **cannot** do is remove what is baked into the pixels — Google's logo and
+attribution line, or an aircraft that happened to be passing while the satellite went over. The
+crop is what removes the provider's own branding, which is why the default crop is 32 px rather
+than the 14 px the first contract specified.
+
+The correction is applied to Google's output only, and is a setting an administrator can turn
+off.

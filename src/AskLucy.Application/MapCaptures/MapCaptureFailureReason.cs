@@ -14,6 +14,9 @@ public enum MapCaptureFailureReason
     /// <summary>The requested overlay cannot be produced for this location or path.</summary>
     OverlayUnavailable,
 
+    /// <summary>The requested zoom is beyond what the chosen provider can serve.</summary>
+    ZoomUnavailable,
+
     /// <summary>Imagery provider failed, timed out, or returned a non-image.</summary>
     ProviderUnavailable,
 

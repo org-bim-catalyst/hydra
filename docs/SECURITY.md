@@ -682,12 +682,12 @@ Support rapid provider credential rotation.
 
 # 37a. AI Tools Admin View
 
-`admin.ai-tools.view` is a single read-only catalogue permission that allows one endpoint:
+`admin.ai-tools.view` is a catalogue permission that allows one endpoint:
 `GET /api/v1/admin/ai-tools`. It lists the tools the platform's agents can call — the native
 tools and the currently-active MCP tools — with each one's description, risk level, required
 permissions, and input/output JSON Schemas.
 
-There is no write endpoint, and none is planned. What a deployment can call is a fact about
+The catalogue itself is read-only by design: what a deployment can call is a fact about
 the deployment, not a setting an administrator edits, so the area observes rather than
 configures — the same reasoning as the system-agents view. A caller without the permission is
 refused with 403, and the endpoint is covered by the `admin-endpoints` rate limit.
@@ -696,7 +696,14 @@ The endpoint reads `AgentToolCatalog.All` — the same merged set the agent runt
 on — so the view can never show a tool the runtime would refuse, or hide one it would use.
 The schemas are the tool's own raw JSON, carried verbatim rather than re-serialized.
 
-The built-in Administrator role holds this key automatically: it derives from the full
+A tool's own *defaults* are configuration, and `admin.ai-tools.manage` is what gates them:
+`PUT /api/v1/admin/ai-tools/{tool}/settings`. Today the map snapshot tool declares four — which
+imagery provider serves the capture, how much is cropped from each edge, the zoom level, and
+whether Google's web tone-mapping is corrected before delivery. A key the tool does not declare,
+or a value outside its type's range, is refused with 400; the stored value is the effective
+one, and a setting that was never saved takes the catalogue's default.
+
+The built-in Administrator role holds the view key automatically: it derives from the full
 permission catalogue, so a new catalogue entry needs no per-role wiring. A custom role is
 granted it explicitly, like any other.
 

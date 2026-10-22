@@ -62,6 +62,67 @@ public sealed class AdminAiToolsEndpointTests(CustomWebApplicationFactory factor
             string.Join('\n', CapturedLogSink.Shared.Lines.TakeLast(20)));
     }
 
+    [Fact]
+    public async Task ShouldReturnTheToolSettings_ForAPrincipalHoldingOnlyTheViewPermission()
+    {
+        Authenticate("ai-tools-settings-viewer", [], [AdminPermissionCatalog.AiToolsView]);
+
+        var response = await _client.SendAsync(
+            new HttpRequestMessage(HttpMethod.Get, Url + "/settings"), TestContext.Current.CancellationToken);
+
+        response.StatusCode.Should().Be(
+            HttpStatusCode.OK,
+            "body was: {0}\nrecent log:\n{1}",
+            await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken),
+            string.Join('\n', CapturedLogSink.Shared.Lines.TakeLast(20)));
+
+        var settings = await response.Content.ReadFromJsonAsync<List<ToolSettingsResponse>>(
+            TestContext.Current.CancellationToken);
+        settings.Should().NotBeNull();
+        settings!.Should().Contain(s => s.Tool == "map_snapshot", "the map snapshot tool declares settings");
+        var mapSnapshot = settings!.First(s => s.Tool == "map_snapshot");
+        mapSnapshot.Settings.Should().NotBeEmpty();
+        mapSnapshot.Settings.Should().Contain(s => s.Key == "defaultSource");
+    }
+
+    [Fact]
+    public async Task ShouldBeForbidden_SavingSettings_WithoutTheManagePermission()
+    {
+        Authenticate("ai-tools-settings-viewer", [], [AdminPermissionCatalog.AiToolsView]);
+
+        var response = await _client.SendAsync(
+            new HttpRequestMessage(HttpMethod.Put, Url + "/map_snapshot/settings")
+            {
+                Content = JsonContent.Create(new { values = new Dictionary<string, string> { ["defaultSource"] = "google" } }),
+            },
+            TestContext.Current.CancellationToken);
+
+        response.StatusCode.Should().Be(
+            HttpStatusCode.Forbidden,
+            "body was: {0}\nrecent log:\n{1}",
+            await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken),
+            string.Join('\n', CapturedLogSink.Shared.Lines.TakeLast(20)));
+    }
+
+    [Fact]
+    public async Task ShouldRefuseAValueTheToolDoesNotDeclare()
+    {
+        Authenticate("ai-tools-settings-admin", [], [AdminPermissionCatalog.AiToolsManage]);
+
+        var response = await _client.SendAsync(
+            new HttpRequestMessage(HttpMethod.Put, Url + "/map_snapshot/settings")
+            {
+                Content = JsonContent.Create(new { values = new Dictionary<string, string> { ["notASetting"] = "x" } }),
+            },
+            TestContext.Current.CancellationToken);
+
+        response.StatusCode.Should().Be(
+            HttpStatusCode.BadRequest,
+            "body was: {0}\nrecent log:\n{1}",
+            await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken),
+            string.Join('\n', CapturedLogSink.Shared.Lines.TakeLast(20)));
+    }
+
     private sealed record AdminAiToolResponse(
         string Name,
         string Description,
@@ -69,4 +130,14 @@ public sealed class AdminAiToolsEndpointTests(CustomWebApplicationFactory factor
         string[] RequiredPermissions,
         string InputSchemaJson,
         string OutputSchemaJson);
+
+    private sealed record ToolSettingsResponse(string Tool, IReadOnlyList<ToolSettingResponse> Settings);
+
+    private sealed record ToolSettingResponse(
+        string Key,
+        string ValueType,
+        string Label,
+        string Description,
+        string Value,
+        string DefaultValue);
 }

@@ -17,7 +17,10 @@ using Xunit;
 
 namespace AskLucy.Infrastructure.Tests.MapCaptures;
 
-/// <summary>specs/083-viewer-map-capture T013 — Google primary, Esri satellite-only fallback.</summary>
+/// <summary>
+/// specs/083-viewer-map-capture T013 — the router picks the provider the request asked for, and
+/// refuses what that provider cannot serve rather than quietly answering from the other one.
+/// </summary>
 public sealed class MapImageRendererRouterTests
 {
     private static readonly byte[] ProviderPng = CreatePng();
@@ -40,7 +43,7 @@ public sealed class MapImageRendererRouterTests
         MapImageRendererRouter Router,
         StubHttpMessageHandler Google,
         StubHttpMessageHandler Esri,
-        IBuildingFootprintProvider Footprints) Create(string googleKey = "test-key")
+        IBuildingFootprintProvider Footprints) Create(string googleKey = "test-key", string? esriKey = null)
     {
         var googleHandler = NewHandler();
         var esriHandler = NewHandler();
@@ -59,7 +62,7 @@ public sealed class MapImageRendererRouterTests
         var google = new GoogleStaticMapImageRenderer(
             factory, googleOptions, footprints, composer, NullLogger<GoogleStaticMapImageRenderer>.Instance);
         var esri = new EsriSatelliteImageRenderer(
-            factory, Options.Create(new EsriOptions()), footprints, composer,
+            factory, Options.Create(new EsriOptions { ApiKey = esriKey }), footprints, composer,
             NullLogger<EsriSatelliteImageRenderer>.Instance);
 
         return (new MapImageRendererRouter(google, esri, googleOptions), googleHandler, esriHandler, footprints);
@@ -67,15 +70,30 @@ public sealed class MapImageRendererRouterTests
 
     private static MapImageRequest Request(
         MapCaptureMode mode = MapCaptureMode.Satellite,
-        IReadOnlyList<MapCaptureOverlay>? overlays = null) =>
-        new(25.2, 55.3, "Test", mode, overlays ?? [], 1000, "pipeline");
+        IReadOnlyList<MapCaptureOverlay>? overlays = null,
+        MapCaptureSource source = MapCaptureSource.Esri,
+        int? zoom = null) =>
+        new(25.2, 55.3, "Test", mode, overlays ?? [], 1000, "pipeline", source, 32, zoom, false);
 
     [Fact]
-    public async Task RenderAsync_ShouldUseGoogle_WhenAKeyIsConfigured()
+    public async Task RenderAsync_ShouldUseEsri_WhenTheRequestAsksForEsri()
     {
         var (router, google, esri, _) = Create();
 
         var result = await router.RenderAsync(Request(), TestContext.Current.CancellationToken);
+
+        result.IsSuccess.Should().BeTrue();
+        esri.LastRequest.Should().NotBeNull();
+        google.LastRequest.Should().BeNull();
+    }
+
+    [Fact]
+    public async Task RenderAsync_ShouldUseGoogle_WhenTheRequestAsksForGoogle()
+    {
+        var (router, google, esri, _) = Create();
+
+        var result = await router.RenderAsync(
+            Request(source: MapCaptureSource.Google), TestContext.Current.CancellationToken);
 
         result.IsSuccess.Should().BeTrue();
         google.LastRequest.Should().NotBeNull();
@@ -83,32 +101,12 @@ public sealed class MapImageRendererRouterTests
     }
 
     [Fact]
-    public async Task RenderAsync_ShouldUseEsriForSatellite_WhenNoGoogleKeyIsConfigured()
+    public async Task RenderAsync_ShouldRefuseGoogle_WhenNoKeyIsConfigured()
     {
         var (router, google, esri, _) = Create(googleKey: "");
 
-        var result = await router.RenderAsync(Request(), TestContext.Current.CancellationToken);
-
-        result.IsSuccess.Should().BeTrue();
-        google.LastRequest.Should().BeNull();
-        esri.LastRequest.Should().NotBeNull();
-
-        var query = HttpUtility.ParseQueryString(esri.LastRequest!.RequestUri!.Query);
-        query["size"].Should().Be("1280,1280");
-        query["format"].Should().Be("png");
-        query["bboxSR"].Should().Be("4326");
-    }
-
-    [Theory]
-    [InlineData(MapCaptureMode.Hybrid)]
-    [InlineData(MapCaptureMode.Roadmap)]
-    [InlineData(MapCaptureMode.BuildingsOnly)]
-    public async Task RenderAsync_ShouldReturnModeUnavailable_ForNonSatelliteModesWithoutAGoogleKey(
-        MapCaptureMode mode)
-    {
-        var (router, google, esri, _) = Create(googleKey: "");
-
-        var result = await router.RenderAsync(Request(mode), TestContext.Current.CancellationToken);
+        var result = await router.RenderAsync(
+            Request(source: MapCaptureSource.Google), TestContext.Current.CancellationToken);
 
         result.FailureReason.Should().Be(MapCaptureFailureReason.ModeUnavailable);
         google.LastRequest.Should().BeNull();
@@ -116,9 +114,62 @@ public sealed class MapImageRendererRouterTests
     }
 
     [Fact]
-    public async Task RenderAsync_ShouldPaintFootprintsOnTheEsriFallback()
+    public async Task RenderAsync_ShouldRefuseANonSatelliteMode_OnEsri()
     {
-        var (router, _, esri, footprints) = Create(googleKey: "");
+        var (router, google, esri, _) = Create();
+
+        var result = await router.RenderAsync(
+            Request(mode: MapCaptureMode.Hybrid), TestContext.Current.CancellationToken);
+
+        result.FailureReason.Should().Be(MapCaptureFailureReason.ModeUnavailable);
+        google.LastRequest.Should().BeNull();
+        esri.LastRequest.Should().BeNull();
+    }
+
+    [Fact]
+    public async Task RenderAsync_ShouldRequestTheEsriExportFromTheHostThatServesIt()
+    {
+        var (router, _, esri, _) = Create();
+
+        await router.RenderAsync(Request(), TestContext.Current.CancellationToken);
+
+        var request = esri.LastRequest!.RequestUri!;
+        request.Host.Should().Be("services.arcgisonline.com",
+            "the ArcGIS Location Platform host answers 404 for this export path");
+        var query = HttpUtility.ParseQueryString(request.Query);
+        query["size"].Should().Be("1280,1280");
+        query["format"].Should().Be("png");
+        query["bboxSR"].Should().Be("4326");
+        query["token"].Should().BeNull("no key is configured in this test");
+    }
+
+    [Fact]
+    public async Task RenderAsync_ShouldPassTheConfiguredEsriKeyAsAToken()
+    {
+        var (router, _, esri, _) = Create(esriKey: "test-esri-key");
+
+        await router.RenderAsync(Request(), TestContext.Current.CancellationToken);
+
+        HttpUtility.ParseQueryString(esri.LastRequest!.RequestUri!.Query)["token"].Should().Be("test-esri-key");
+    }
+
+    [Fact]
+    public async Task RenderAsync_ShouldRefuseAZoomEsriCannotAssemble()
+    {
+        var (router, google, esri, _) = Create();
+
+        var result = await router.RenderAsync(
+            Request(zoom: MapCaptureZoom.MaximumEsri + 1), TestContext.Current.CancellationToken);
+
+        result.FailureReason.Should().Be(MapCaptureFailureReason.ZoomUnavailable);
+        esri.LastRequest.Should().BeNull();
+        google.LastRequest.Should().BeNull();
+    }
+
+    [Fact]
+    public async Task RenderAsync_ShouldPaintFootprintsOnTheEsriPath()
+    {
+        var (router, _, esri, footprints) = Create();
 
         var result = await router.RenderAsync(
             Request(overlays: [MapCaptureOverlay.BuildingFootprints]),

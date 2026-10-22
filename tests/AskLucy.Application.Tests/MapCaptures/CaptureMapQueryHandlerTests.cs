@@ -1,3 +1,4 @@
+using AskLucy.Application.Agents.ToolSettings;
 using AskLucy.Application.Locations;
 using AskLucy.Application.MapCaptures;
 using AskLucy.Application.MapCaptures.Queries.CaptureMap;
@@ -18,21 +19,25 @@ public sealed class CaptureMapQueryHandlerTests
 {
     private readonly IGeocodingProvider _geocoding = Substitute.For<IGeocodingProvider>();
     private readonly IMapImageRenderer _renderer = Substitute.For<IMapImageRenderer>();
+    private readonly IToolSettingsReader _settings = Substitute.For<IToolSettingsReader>();
     private readonly MapCaptureOptions _options = new();
     private readonly CaptureMapQueryHandler _handler;
 
     public CaptureMapQueryHandlerTests()
     {
+        _settings.GetMapCaptureDefaultsAsync(Arg.Any<CancellationToken>())
+            .Returns(MapCaptureDefaults.Default);
+
         _handler = new CaptureMapQueryHandler(
-            _geocoding, _renderer, Microsoft.Extensions.Options.Options.Create(_options),
+            _geocoding, _renderer, _settings, Microsoft.Extensions.Options.Options.Create(_options),
             NullLogger<CaptureMapQueryHandler>.Instance);
     }
 
     private static CaptureMapQuery Query(
         string? location = null, double? latitude = null, double? longitude = null,
         int? viewSizeMetres = null, string? mode = null, string? overlays = null,
-        string caller = "pipeline") =>
-        new(location, latitude, longitude, viewSizeMetres, mode, overlays, caller);
+        string caller = "pipeline", string? source = null, int? crop = null, int? zoom = null) =>
+        new(location, latitude, longitude, viewSizeMetres, mode, overlays, caller, source, crop, zoom);
 
     private void RendererSucceeds() =>
         _renderer.RenderAsync(Arg.Any<MapImageRequest>(), Arg.Any<CancellationToken>())
@@ -171,10 +176,53 @@ public sealed class CaptureMapQueryHandlerTests
         var parameterTypes = typeof(CaptureMapQueryHandler).GetConstructors()
             .Single().GetParameters().Select(p => p.ParameterType).ToArray();
 
+        // The settings reader is a *read* of administrator configuration; the capture path still
+        // has no port through which it could write anything (FR-014).
         parameterTypes.Should().Equal(
             typeof(IGeocodingProvider),
             typeof(IMapImageRenderer),
+            typeof(IToolSettingsReader),
             typeof(IOptions<MapCaptureOptions>),
             typeof(ILogger<CaptureMapQueryHandler>));
+    }
+
+    [Fact]
+    public async Task Handle_ShouldApplyTheConfiguredDefaults_WhenTheRequestNamesNone()
+    {
+        RendererSucceeds();
+        _settings.GetMapCaptureDefaultsAsync(Arg.Any<CancellationToken>()).Returns(
+            new MapCaptureDefaults(MapCaptureSource.Google, 48, 19, EnhanceGoogleColour: false));
+
+        await _handler.Handle(
+            Query(latitude: 25.2, longitude: 55.3), TestContext.Current.CancellationToken);
+
+        await _renderer.Received(1).RenderAsync(
+            Arg.Is<MapImageRequest>(r =>
+                r != null &&
+                r.Source == MapCaptureSource.Google &&
+                r.CropPerEdge == 48 &&
+                r.Zoom == 19 &&
+                !r.EnhanceColour),
+            Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task Handle_ShouldPreferTheRequestOverTheConfiguredDefaults()
+    {
+        RendererSucceeds();
+        _settings.GetMapCaptureDefaultsAsync(Arg.Any<CancellationToken>()).Returns(
+            new MapCaptureDefaults(MapCaptureSource.Google, 48, 19, EnhanceGoogleColour: false));
+
+        await _handler.Handle(
+            Query(latitude: 25.2, longitude: 55.3, source: "esri", crop: 8, zoom: 16),
+            TestContext.Current.CancellationToken);
+
+        await _renderer.Received(1).RenderAsync(
+            Arg.Is<MapImageRequest>(r =>
+                r != null &&
+                r.Source == MapCaptureSource.Esri &&
+                r.CropPerEdge == 8 &&
+                r.Zoom == 16),
+            Arg.Any<CancellationToken>());
     }
 }

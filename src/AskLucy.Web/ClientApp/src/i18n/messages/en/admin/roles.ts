@@ -213,5 +213,10 @@ export const enAdminRoles = {
       description:
         'View the tools available to the AI, their risk level, and the permissions each one requires.',
     },
+    aiToolsManage: {
+      name: 'Manage AI tools',
+      description:
+        "Change the defaults a tool runs with — which imagery provider the map snapshot uses, how much it crops, and how far it zooms.",
+    },
   },
 } as const

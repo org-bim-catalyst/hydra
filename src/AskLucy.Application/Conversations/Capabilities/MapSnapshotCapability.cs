@@ -79,7 +79,7 @@ public sealed class MapSnapshotCapability(
         [AgentToolPermission.ExternalNetwork, AgentToolPermission.WriteFile];
 
     public string InputSchemaJson =>
-        """{"type":"object","properties":{"location":{"type":"string","minLength":1},"latitude":{"type":"number"},"longitude":{"type":"number"},"mode":{"type":"string"},"viewSizeMetres":{"type":"number"},"includeFootprints":{"type":"boolean"}}}""";
+        """{"type":"object","properties":{"location":{"type":"string","minLength":1},"latitude":{"type":"number"},"longitude":{"type":"number"},"mode":{"type":"string"},"viewSizeMetres":{"type":"number"},"includeFootprints":{"type":"boolean"},"source":{"type":"string","enum":["esri","google"]},"crop":{"type":"number"},"zoom":{"type":"number"}}}""";
 
     public string OutputSchemaJson =>
         """{"type":"object","properties":{"documentId":{"type":"string"},"locationName":{"type":"string"},"width":{"type":"number"},"height":{"type":"number"},"mode":{"type":"string"}}}""";
@@ -164,6 +164,33 @@ public sealed class MapSnapshotCapability(
             viewSizeMetres = viewSizeElement.GetInt32();
         }
 
+        // The provider, the crop and the zoom are optional: when the model names none, the
+        // defaults an administrator configured on the admin AI Tools page apply.
+        string? source = null;
+        if (root.TryGetProperty("source", out var sourceElement) && sourceElement.ValueKind == JsonValueKind.String)
+        {
+            var requested = sourceElement.GetString();
+            if (!string.IsNullOrWhiteSpace(requested) && !MapCaptureSourceWire.TryParse(requested, out _))
+            {
+                return AgentToolResult.Failure(
+                    $"'{requested}' is not an imagery provider. Use esri or google.");
+            }
+
+            source = requested;
+        }
+
+        int? crop = null;
+        if (root.TryGetProperty("crop", out var cropElement) && cropElement.ValueKind == JsonValueKind.Number)
+        {
+            crop = cropElement.GetInt32();
+        }
+
+        int? zoom = null;
+        if (root.TryGetProperty("zoom", out var zoomElement) && zoomElement.ValueKind == JsonValueKind.Number)
+        {
+            zoom = zoomElement.GetInt32();
+        }
+
         MapImageResult capture;
         try
         {
@@ -175,7 +202,10 @@ public sealed class MapSnapshotCapability(
                     ViewSizeMetres: viewSizeMetres,
                     Mode: MapCaptureWireFormatToString(mode),
                     Overlays: overlays,
-                    CallerName: $"conversation:{context.UserId}"),
+                    CallerName: $"conversation:{context.UserId}",
+                    Source: source,
+                    CropPixels: crop,
+                    Zoom: zoom),
                 cancellationToken);
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)

@@ -38,6 +38,9 @@ public sealed class MapCapturesController(ISender mediator) : ControllerBase
         [FromQuery] string? mode,
         [FromQuery] string? overlays,
         [FromQuery(Name = "viewSizeMeters")] int? viewSizeMetres,
+        [FromQuery] string? source,
+        [FromQuery] int? crop,
+        [FromQuery] int? zoom,
         CancellationToken cancellationToken)
     {
         var callerName = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? "unknown";
@@ -47,7 +50,8 @@ public sealed class MapCapturesController(ISender mediator) : ControllerBase
         {
             result = await mediator.Send(
                 new CaptureMapQuery(
-                    location, latitude, longitude, viewSizeMetres, mode, overlays, callerName),
+                    location, latitude, longitude, viewSizeMetres, mode, overlays, callerName,
+                    source, crop, zoom),
                 cancellationToken);
         }
         catch (ValidationException validation)
@@ -80,6 +84,7 @@ public sealed class MapCapturesController(ISender mediator) : ControllerBase
             MapCaptureFailureReason.GeocodingUnavailable => (StatusCodes.Status502BadGateway, "Upstream provider unavailable"),
             MapCaptureFailureReason.ModeUnavailable => (StatusCodes.Status422UnprocessableEntity, "Capture not available"),
             MapCaptureFailureReason.OverlayUnavailable => (StatusCodes.Status422UnprocessableEntity, "Capture not available"),
+            MapCaptureFailureReason.ZoomUnavailable => (StatusCodes.Status422UnprocessableEntity, "Capture not available"),
             MapCaptureFailureReason.ProviderUnavailable => (StatusCodes.Status502BadGateway, "Upstream provider unavailable"),
             MapCaptureFailureReason.CropTooSmall => (StatusCodes.Status400BadRequest, "Invalid capture request"),
             MapCaptureFailureReason.ImageTooLarge => (StatusCodes.Status422UnprocessableEntity, "Capture not available"),

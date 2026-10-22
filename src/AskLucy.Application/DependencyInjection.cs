@@ -3,6 +3,7 @@ using AskLucy.Application.Abstractions;
 using AskLucy.Application.Agents.Notifications;
 using AskLucy.Application.Agents.Runtime;
 using AskLucy.Application.Agents.Tools;
+using AskLucy.Application.Agents.ToolSettings;
 using AskLucy.Application.Ai;
 using AskLucy.Application.Ai.CapabilitySettings;
 using AskLucy.Application.Ai.Images;
@@ -68,6 +69,11 @@ public static class DependencyInjection
         // specs/077 — per-capability settings (the admin page's gear column).
         services.AddSingleton<CapabilitySettingCatalog>();
         services.AddScoped<ICapabilitySettingsReader, CapabilitySettingsReader>();
+
+        // specs/083 — per-tool settings (the AI Tools page's gear column): the map capture's
+        // default provider, crop and zoom.
+        services.AddSingleton<ToolSettingCatalog>();
+        services.AddScoped<IToolSettingsReader, ToolSettingsReader>();
 
         // specs/070: every voice-output handler speaks through the router, which orders the
         // Infrastructure-registered ITextToSpeechEngine set by the admin-configured VoiceProvider

@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using System.Globalization;
+using AskLucy.Application.Agents.ToolSettings;
 using AskLucy.Application.Locations;
 using MediatR;
 using Microsoft.Extensions.Logging;
@@ -35,6 +36,7 @@ internal static partial class CaptureMapLog
 public sealed class CaptureMapQueryHandler(
     IGeocodingProvider geocodingProvider,
     IMapImageRenderer renderer,
+    IToolSettingsReader settingsReader,
     IOptions<MapCaptureOptions> options,
     ILogger<CaptureMapQueryHandler> logger) : IRequestHandler<CaptureMapQuery, MapImageResult>
 {
@@ -99,8 +101,21 @@ public sealed class CaptureMapQueryHandler(
         }
 
         var viewSizeMetres = request.ViewSizeMetres ?? options.Value.DefaultViewSizeMetres;
+
+        // A request that names no source, crop or zoom takes the defaults an administrator
+        // configured; the reader falls back to the catalogue's defaults for anything never saved.
+        var defaults = await settingsReader.GetMapCaptureDefaultsAsync(cancellationToken);
+
+        var source = request.Source is { } requestedSource
+            ? MapCaptureSourceWire.TryParse(requestedSource, out var parsed) ? parsed : defaults.Source
+            : defaults.Source;
+
+        var cropPerEdge = request.CropPixels ?? defaults.CropPixels;
+        var zoom = request.Zoom ?? defaults.Zoom;
+
         var imageRequest = new MapImageRequest(
-            latitude, longitude, locationName, mode, overlays, viewSizeMetres, request.CallerName);
+            latitude, longitude, locationName, mode, overlays, viewSizeMetres, request.CallerName,
+            source, cropPerEdge, zoom, defaults.EnhanceGoogleColour);
 
         CaptureMapLog.CaptureStarted(
             logger, request.CallerName, request.Location, latitude, longitude,

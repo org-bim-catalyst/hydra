@@ -28,6 +28,7 @@ public sealed class PermissionEnforcementMatrixTests(CustomWebApplicationFactory
         { "GET", "/api/v1/admin/workflow-policies", "admin.workflow-policies.view", "custom" },
         { "GET", "/api/v1/admin/mcp/servers", "admin.mcp-servers.view", "custom" },
         { "GET", "/api/v1/admin/ai-tools", "admin.ai-tools.view", "custom" },
+        { "GET", "/api/v1/admin/ai-tools/settings", "admin.ai-tools.view", "custom" },
     };
 
     [Theory]
