@@ -703,6 +703,10 @@ whether Google's web tone-mapping is corrected before delivery. A key the tool d
 or a value outside its type's range, is refused with 400; the stored value is the effective
 one, and a setting that was never saved takes the catalogue's default.
 
+A provider and a zoom that cannot work together are refused with 400 as well: Esri's export
+cannot be assembled past zoom 18, and Google's reaches 21, so offering a level the chosen
+provider cannot serve would make every capture fail with a refusal.
+
 The built-in Administrator role holds the view key automatically: it derives from the full
 permission catalogue, so a new catalogue entry needs no per-role wiring. A custom role is
 granted it explicitly, like any other.

@@ -24,13 +24,20 @@ public sealed record ToolSettingDefinition(
 {
     /// <summary>The permitted values of a choice setting — empty for every other type.</summary>
     public IReadOnlyList<ToolSettingOption> Choices => Options ?? [];
+
     public static ToolSettingDefinition Boolean(
         string toolName,
         string key,
         string label,
         string description,
-        bool defaultValue) =>
-        new(toolName, key, ToolSettingValueType.Boolean, label, description, defaultValue ? "true" : "false");
+        bool defaultValue,
+        string? scopedBy = null,
+        string? scopeValue = null) =>
+        new(toolName, key, ToolSettingValueType.Boolean, label, description, defaultValue ? "true" : "false")
+        {
+            ScopedBy = scopedBy,
+            ScopeValue = scopeValue,
+        };
 
     public static ToolSettingDefinition Choice(
         string toolName,
@@ -38,8 +45,12 @@ public sealed record ToolSettingDefinition(
         string label,
         string description,
         string defaultValue,
-        IReadOnlyList<ToolSettingOption> options) =>
-        new(toolName, key, ToolSettingValueType.Choice, label, description, defaultValue, options);
+        IReadOnlyList<ToolSettingOption> options,
+        string? scopedBy = null) =>
+        new(toolName, key, ToolSettingValueType.Choice, label, description, defaultValue, options)
+        {
+            ScopedBy = scopedBy,
+        };
 
     public static ToolSettingDefinition WholeNumber(
         string toolName,
@@ -60,9 +71,28 @@ public sealed record ToolSettingDefinition(
 
     /// <summary>The inclusive bounds of an <see cref="ToolSettingValueType.Integer"/> setting.</summary>
     public int? Maximum { get; init; }
+
+    /// <summary>
+    /// The key of the setting whose value narrows this one's options — e.g. the zoom levels
+    /// depend on the provider that will serve the capture. Null when every option always applies.
+    /// </summary>
+    public string? ScopedBy { get; init; }
+
+    /// <summary>
+    /// The value of the scoping setting this setting applies to, or null when it always applies.
+    /// The colour correction, for instance, is Google's alone: it is not shown at all while Esri is
+    /// the provider, because there is nothing there for it to correct.
+    /// </summary>
+    public string? ScopeValue { get; init; }
 }
 
 /// <summary>One permitted value of a choice setting, with the label shown for it.</summary>
 /// <param name="Value">The stored value.</param>
 /// <param name="Label">What the administrator sees.</param>
-public sealed record ToolSettingOption(string Value, string Label);
+/// <param name="Scope">
+/// The value of the scoping setting this option belongs to, or null when it always applies. A
+/// zoom level, for instance, belongs to one provider: the levels Esri can assemble are not the
+/// ones Google can, and offering the other provider's levels would be offering a request that
+/// cannot be served.
+/// </param>
+public sealed record ToolSettingOption(string Value, string Label, string? Scope = null);

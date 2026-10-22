@@ -23,6 +23,11 @@ export type ToolSettingValueType = 'Boolean' | 'Choice' | 'Integer'
 export interface ToolSettingOption {
   value: string
   label: string
+  /**
+   * The value of the scoping setting this option belongs to, or null when it always applies —
+   * a zoom level, for instance, belongs to the one provider that can serve it.
+   */
+  scope: string | null
 }
 
 /**
@@ -43,6 +48,12 @@ export interface ToolSetting {
   minimum: number | null
   /** For `Integer`. */
   maximum: number | null
+  /**
+   * The key of the setting whose value narrows this one's options, and the value of that
+   * setting this one applies to. Both null when the setting always applies.
+   */
+  scopedBy: string | null
+  scopeValue: string | null
 }
 
 /** The settings one tool declares. A tool with none is absent from the list. */

@@ -39,11 +39,13 @@ const toolSettings: ToolSettings[] = [
         value: 'esri',
         defaultValue: 'esri',
         options: [
-          { value: 'esri', label: 'Esri World Imagery' },
-          { value: 'google', label: 'Google Static Maps' },
+          { value: 'esri', label: 'Esri World Imagery', scope: null },
+          { value: 'google', label: 'Google Static Maps', scope: null },
         ],
         minimum: null,
         maximum: null,
+        scopedBy: null,
+        scopeValue: null,
       },
       {
         key: 'defaultCropPixels',
@@ -55,6 +57,31 @@ const toolSettings: ToolSettings[] = [
         options: [],
         minimum: 0,
         maximum: 200,
+        scopedBy: null,
+        scopeValue: null,
+      },
+      {
+        key: 'defaultZoom',
+        valueType: 'Choice',
+        label: 'Default zoom',
+        description: 'The zoom a snapshot uses when the request does not say.',
+        value: 'auto',
+        defaultValue: 'auto',
+        options: [
+          { value: 'auto', label: 'Auto (fit the view size)', scope: null },
+          { value: '14', label: 'Level 14', scope: 'esri' },
+          { value: '15', label: 'Level 15', scope: 'esri' },
+          { value: '16', label: 'Level 16', scope: 'esri' },
+          { value: '17', label: 'Level 17', scope: 'esri' },
+          { value: '18', label: 'Level 18', scope: 'esri' },
+          { value: '19', label: 'Level 19', scope: 'google' },
+          { value: '20', label: 'Level 20', scope: 'google' },
+          { value: '21', label: 'Level 21', scope: 'google' },
+        ],
+        minimum: null,
+        maximum: null,
+        scopedBy: 'defaultSource',
+        scopeValue: null,
       },
       {
         key: 'enhanceGoogleColour',
@@ -66,6 +93,8 @@ const toolSettings: ToolSettings[] = [
         options: [],
         minimum: null,
         maximum: null,
+        scopedBy: 'defaultSource',
+        scopeValue: 'google',
       },
     ],
   },
@@ -183,8 +212,45 @@ describe('AdminAiToolsPage settings column', () => {
     // The label of the number field is found through the input it labels.
     expect(screen.getByLabelText('Default crop')).toBeInTheDocument()
     expect(screen.getByText('How many pixels are cropped from each of the four edges.')).toBeInTheDocument()
-    expect(screen.getByText("Correct Google's colour")).toBeInTheDocument()
-    expect(screen.getByText("Google tone-maps its satellite layer for the web.")).toBeInTheDocument()
+  })
+
+  it('offers only the zoom levels the selected provider can serve', async () => {
+    renderPage()
+
+    await screen.findByText('map_snapshot')
+    fireEvent.click(screen.getByRole('button', { name: 'Settings for map_snapshot' }))
+    await screen.findByText('map_snapshot settings')
+
+    // Esri cannot be assembled past zoom 18, so its levels are the ones on offer.
+    // The select is opened through its rendered value: a role query inside an open dialog
+    // trips jsdom's getComputedStyle, which cannot measure the portalled menu.
+    fireEvent.mouseDown(screen.getByText('Auto (fit the view size)'))
+    expect(await screen.findByText('Level 18')).toBeInTheDocument()
+    expect(screen.getByText('Level 14')).toBeInTheDocument()
+    expect(screen.queryByText('Level 19')).not.toBeInTheDocument()
+    expect(screen.queryByText('Level 21')).not.toBeInTheDocument()
+  })
+
+  it('offers Google’s levels and its colour correction once Google is the provider', async () => {
+    renderPage()
+
+    await screen.findByText('map_snapshot')
+    fireEvent.click(screen.getByRole('button', { name: 'Settings for map_snapshot' }))
+    await screen.findByText('map_snapshot settings')
+
+    // The colour correction is Google's alone, so it is not offered while Esri is the provider.
+    expect(screen.queryByText("Correct Google's colour")).not.toBeInTheDocument()
+
+    fireEvent.mouseDown(screen.getByText('Esri World Imagery'))
+    fireEvent.click(await screen.findByText('Google Static Maps'))
+
+    expect(await screen.findByText("Correct Google's colour")).toBeInTheDocument()
+
+    fireEvent.mouseDown(screen.getByText('Auto (fit the view size)'))
+    expect(await screen.findByText('Level 19')).toBeInTheDocument()
+    expect(screen.getByText('Level 21')).toBeInTheDocument()
+    expect(screen.queryByText('Level 14')).not.toBeInTheDocument()
+    expect(screen.queryByText('Level 18')).not.toBeInTheDocument()
   })
 
   it('saves the changed values and says so', async () => {
@@ -194,6 +260,11 @@ describe('AdminAiToolsPage settings column', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Settings for map_snapshot' }))
     await screen.findByText('map_snapshot settings')
 
+    // The colour correction belongs to Google, so the provider is switched to show it.
+    fireEvent.mouseDown(screen.getByText('Esri World Imagery'))
+    fireEvent.click(await screen.findByText('Google Static Maps'))
+    await screen.findByText("Correct Google's colour")
+
     fireEvent.change(screen.getByLabelText('Default crop'), { target: { value: '64' } })
     fireEvent.click(screen.getByLabelText("Correct Google's colour"))
 
@@ -201,8 +272,9 @@ describe('AdminAiToolsPage settings column', () => {
 
     await waitFor(() =>
       expect(savedValues).toEqual({
-        defaultSource: 'esri',
+        defaultSource: 'google',
         defaultCropPixels: '64',
+        defaultZoom: 'auto',
         enhanceGoogleColour: 'false',
       }),
     )

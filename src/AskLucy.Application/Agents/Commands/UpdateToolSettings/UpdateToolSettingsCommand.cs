@@ -15,7 +15,7 @@ public sealed record UpdateToolSettingsCommand(string Tool, IReadOnlyDictionary<
 
 public sealed class UpdateToolSettingsCommandValidator : AbstractValidator<UpdateToolSettingsCommand>
 {
-    public UpdateToolSettingsCommandValidator(ToolSettingCatalog catalog)
+    public UpdateToolSettingsCommandValidator(ToolSettingCatalog catalog, IToolSettingRepository settings)
     {
         RuleFor(c => c.Tool).NotEmpty().WithMessage("Name a tool.");
         RuleFor(c => c.Values).NotEmpty().WithMessage("Name at least one setting to change.");
@@ -32,6 +32,34 @@ public sealed class UpdateToolSettingsCommandValidator : AbstractValidator<Updat
                 context.AddFailure(entry.Key, $"'{definition.Label}' does not accept '{entry.Value}'.");
             }
         });
+
+        // The provider and the zoom have to work together: a level the chosen provider cannot
+        // assemble would make every capture fail with a refusal. The check needs the value that
+        // will be in force after the save, so the one being changed is read from the request and
+        // the one that is not from what is stored.
+        RuleFor(c => c)
+            .MustAsync(async (command, ct) =>
+            {
+                var source = command.Values.TryGetValue(ToolSettingCatalog.DefaultSourceKey, out var requested)
+                    ? requested
+                    : await StoredValueAsync(settings, command.Tool, ToolSettingCatalog.DefaultSourceKey, ct);
+
+                var zoom = command.Values.TryGetValue(ToolSettingCatalog.DefaultZoomKey, out var requestedZoom)
+                    ? requestedZoom
+                    : await StoredValueAsync(settings, command.Tool, ToolSettingCatalog.DefaultZoomKey, ct);
+
+                return source is null || ToolSettingCatalog.IsZoomServableBy(source, zoom);
+            })
+            .WithMessage("The chosen zoom cannot be served by the chosen imagery provider.")
+            .WithName("ProviderAndZoom");
+    }
+
+    /// <summary>The value stored for a setting, or null when it was never saved.</summary>
+    private static async Task<string?> StoredValueAsync(
+        IToolSettingRepository settings, string tool, string key, CancellationToken cancellationToken)
+    {
+        var stored = await settings.GetAsync(tool, key, cancellationToken);
+        return stored?.Value;
     }
 }
 

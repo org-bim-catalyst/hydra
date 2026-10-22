@@ -58,10 +58,11 @@ public sealed class ToolSettingCatalog
             DefaultZoomKey,
             "Default zoom",
             "The zoom a snapshot uses when the request does not say. Auto picks the level that fits the requested " +
-            "view size. A fixed level zooms in further; Esri's imagery cannot be assembled past 18, so a higher " +
-            "level applies to Google only.",
+            "view size. A fixed level zooms in further; each provider offers its own levels, and a level the other " +
+            "one cannot serve is not offered.",
             AutoZoomValue,
-            BuildZoomOptions()),
+            BuildZoomOptions(),
+            scopedBy: DefaultSourceKey),
 
         ToolSettingDefinition.Boolean(
             MapSnapshotToolName,
@@ -70,18 +71,36 @@ public sealed class ToolSettingCatalog
             "Google tone-maps its satellite layer for the web, which lifts the blacks and drains the colour. This " +
             "corrects both on the way out. It cannot remove Google's logo or anything baked into the picture, and it " +
             "is never applied to Esri's imagery, which needs no correction.",
-            true),
+            true,
+            scopedBy: DefaultSourceKey,
+            scopeValue: MapCaptureSourceWire.Google),
     ];
 
-    /// <summary>The permitted zoom values: auto, then every level either provider can serve.</summary>
+    /// <summary>
+    /// The zoom levels, each belonging to the provider that can serve it. Esri's export cannot be
+    /// assembled past zoom 18; Google's reaches 21.
+    /// </summary>
     private static List<ToolSettingOption> BuildZoomOptions()
     {
-        var options = new List<ToolSettingOption> { new(ToolSettingCatalog.AutoZoomValue, "Auto (fit the view size)") };
-        for (var zoom = MapCaptureZoom.Minimum; zoom <= MapCaptureZoom.Maximum; zoom++)
+        var options = new List<ToolSettingOption>
+        {
+            new(ToolSettingCatalog.AutoZoomValue, "Auto (fit the view size)"),
+        };
+
+        for (var zoom = MapCaptureZoom.Minimum; zoom <= MapCaptureZoom.MaximumEsri; zoom++)
         {
             options.Add(new(
                 zoom.ToString(System.Globalization.CultureInfo.InvariantCulture),
-                $"Level {zoom}" + (zoom > MapCaptureZoom.MaximumEsri ? " (Google only)" : string.Empty)));
+                $"Level {zoom}",
+                MapCaptureSourceWire.Esri));
+        }
+
+        for (var zoom = MapCaptureZoom.MaximumEsri + 1; zoom <= MapCaptureZoom.Maximum; zoom++)
+        {
+            options.Add(new(
+                zoom.ToString(System.Globalization.CultureInfo.InvariantCulture),
+                $"Level {zoom}",
+                MapCaptureSourceWire.Google));
         }
 
         return options;
@@ -117,5 +136,33 @@ public sealed class ToolSettingCatalog
                 && (definition.Maximum is null || number <= definition.Maximum),
             _ => false,
         };
+    }
+
+    /// <summary>
+    /// Whether the provider that will serve the capture can serve the zoom that was asked for.
+    /// <para>
+    /// This is the same rule the two providers really have — Esri's export cannot be assembled past
+    /// zoom 18 — so a saved pair that breaks it would make every capture fail with a refusal. The
+    /// rule is enforced when the settings are saved and again when they are read, so an
+    /// incompatible pair can never reach a capture.
+    /// </para>
+    /// </summary>
+    public static bool IsZoomServableBy(string source, string? zoom)
+    {
+        if (string.IsNullOrWhiteSpace(zoom) || string.Equals(zoom, AutoZoomValue, StringComparison.Ordinal))
+        {
+            return true;
+        }
+
+        if (!int.TryParse(zoom, System.Globalization.NumberStyles.Integer, System.Globalization.CultureInfo.InvariantCulture, out var level))
+        {
+            return false;
+        }
+
+        var maximum = string.Equals(source, MapCaptureSourceWire.Google, StringComparison.Ordinal)
+            ? MapCaptureZoom.Maximum
+            : MapCaptureZoom.MaximumEsri;
+
+        return level >= MapCaptureZoom.Minimum && level <= maximum;
     }
 }

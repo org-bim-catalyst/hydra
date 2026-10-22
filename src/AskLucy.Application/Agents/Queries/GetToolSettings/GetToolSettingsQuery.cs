@@ -13,6 +13,10 @@ public sealed record GetToolSettingsQuery : IRequest<IReadOnlyList<ToolSettingsD
 public sealed record ToolSettingsDto(string Tool, IReadOnlyList<ToolSettingDto> Settings);
 
 /// <param name="Value">The saved value, or <paramref name="DefaultValue"/> when none is saved — always the value that applies now.</param>
+/// <param name="ScopedBy">
+/// The key of the setting whose value narrows this one's options, and the value of that setting
+/// this one applies to. Both null when the setting always applies.
+/// </param>
 public sealed record ToolSettingDto(
     string Key,
     ToolSettingValueType ValueType,
@@ -22,9 +26,11 @@ public sealed record ToolSettingDto(
     string DefaultValue,
     IReadOnlyList<ToolSettingOptionDto> Options,
     int? Minimum,
-    int? Maximum);
+    int? Maximum,
+    string? ScopedBy = null,
+    string? ScopeValue = null);
 
-public sealed record ToolSettingOptionDto(string Value, string Label);
+public sealed record ToolSettingOptionDto(string Value, string Label, string? Scope = null);
 
 public sealed class GetToolSettingsQueryHandler(
     IToolSettingRepository settings, ToolSettingCatalog catalog)
@@ -51,9 +57,11 @@ public sealed class GetToolSettingsQueryHandler(
                     definition.Description,
                     value,
                     definition.DefaultValue,
-                    [.. definition.Choices.Select(o => new ToolSettingOptionDto(o.Value, o.Label))],
+                    [.. definition.Choices.Select(o => new ToolSettingOptionDto(o.Value, o.Label, o.Scope))],
                     definition.Minimum,
-                    definition.Maximum);
+                    definition.Maximum,
+                    definition.ScopedBy,
+                    definition.ScopeValue);
             })]))];
     }
 }

@@ -43,10 +43,22 @@ public sealed class ToolSettingsReader(
 
         var stored = rows.ToDictionary(s => s.Key);
 
+        var source = ReadSource(tool, stored);
+        var zoom = ReadZoom(tool, stored);
+
+        if (!ToolSettingCatalog.IsZoomServableBy(MapCaptureSourceWire.WireValueOf(source), zoom?.ToString(System.Globalization.CultureInfo.InvariantCulture)))
+        {
+            // A provider and a zoom that cannot work together would make every capture fail with
+            // a refusal. The save path refuses such a pair, so this only catches one stored
+            // before that rule existed — the level is dropped and the view size decides again.
+            ToolSettingsLog.ZoomNotServable(logger, tool, zoom?.ToString(System.Globalization.CultureInfo.InvariantCulture) ?? "auto", MapCaptureSourceWire.WireValueOf(source));
+            zoom = null;
+        }
+
         return new MapCaptureDefaults(
-            ReadSource(tool, stored),
+            source,
             ReadCropPixels(tool, stored),
-            ReadZoom(tool, stored),
+            zoom,
             ReadBoolean(tool, stored, ToolSettingCatalog.EnhanceGoogleColourKey));
     }
 
@@ -95,4 +107,9 @@ internal static partial class ToolSettingsLog
         Level = LogLevel.Warning,
         Message = "The settings for {Tool} could not be read, so the documented defaults apply")]
     public static partial void SettingsUnavailable(ILogger logger, string tool, Exception exception);
+
+    [LoggerMessage(
+        Level = LogLevel.Warning,
+        Message = "The saved zoom {Zoom} for {Tool} cannot be served by {Source}, so the view size decides the zoom again")]
+    public static partial void ZoomNotServable(ILogger logger, string tool, string zoom, string source);
 }

@@ -91,6 +91,57 @@ public sealed class ToolSettingsReaderTests
         _catalog.ConfigurableTools.Should().Contain(ToolSettingCatalog.MapSnapshotToolName);
     }
 
+    [Fact]
+    public void Catalog_ShouldScopeTheZoomLevelsToTheProviderThatCanServeThem()
+    {
+        var zoom = _catalog.Find(ToolSettingCatalog.MapSnapshotToolName, ToolSettingCatalog.DefaultZoomKey)!;
+
+        zoom.ScopedBy.Should().Be(ToolSettingCatalog.DefaultSourceKey);
+        zoom.Choices.Should().Contain(o => o.Scope == "esri" && o.Value == "18");
+        zoom.Choices.Should().Contain(o => o.Scope == "google" && o.Value == "19");
+        zoom.Choices.Should().Contain(o => o.Scope == "google" && o.Value == "21");
+        zoom.Choices.Should().NotContain(o => o.Scope == "esri" && o.Value == "19");
+        zoom.Choices.Should().NotContain(o => o.Scope == "google" && o.Value == "18");
+    }
+
+    [Fact]
+    public void Catalog_ShouldScopeTheColourCorrectionToGoogleAlone()
+    {
+        var colour = _catalog.Find(ToolSettingCatalog.MapSnapshotToolName, ToolSettingCatalog.EnhanceGoogleColourKey)!;
+
+        colour.ScopedBy.Should().Be(ToolSettingCatalog.DefaultSourceKey);
+        colour.ScopeValue.Should().Be("google");
+    }
+
+    [Theory]
+    [InlineData("esri", "14", true)]
+    [InlineData("esri", "18", true)]
+    [InlineData("esri", "19", false)]
+    [InlineData("esri", "21", false)]
+    [InlineData("google", "19", true)]
+    [InlineData("google", "21", true)]
+    [InlineData("google", "13", false)]
+    [InlineData("esri", "auto", true)]
+    [InlineData("google", "auto", true)]
+    public void IsZoomServableBy_ShouldFollowWhatEachProviderCanActuallyServe(string source, string zoom, bool expected)
+    {
+        ToolSettingCatalog.IsZoomServableBy(source, zoom).Should().Be(expected);
+    }
+
+    [Fact]
+    public async Task GetMapCaptureDefaultsAsync_ShouldDropAZoomTheChosenProviderCannotServe()
+    {
+        // A pair stored before the save-time rule existed must not make every capture fail.
+        Stored(
+            (ToolSettingCatalog.DefaultSourceKey, "esri"),
+            (ToolSettingCatalog.DefaultZoomKey, "20"));
+
+        var defaults = await Reader().GetMapCaptureDefaultsAsync(TestContext.Current.CancellationToken);
+
+        defaults.Source.Should().Be(MapCaptureSource.Esri);
+        defaults.Zoom.Should().BeNull("the view size decides the zoom again");
+    }
+
     [Theory]
     [InlineData(ToolSettingCatalog.DefaultSourceKey, "esri", true)]
     [InlineData(ToolSettingCatalog.DefaultSourceKey, "google", true)]

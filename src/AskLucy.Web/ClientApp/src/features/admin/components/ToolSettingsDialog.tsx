@@ -21,7 +21,7 @@ import { useT } from '../../../i18n/useT'
 import { ApiError } from '../../../api/httpClient'
 import { useCan } from '../../auth/hooks/usePermissions'
 import * as adminAiToolsApi from '../api/adminAiToolsApi'
-import type { ToolSetting, ToolSettings } from '../api/adminAiToolsApi'
+import type { ToolSetting, ToolSettingOption, ToolSettings } from '../api/adminAiToolsApi'
 
 interface ToolSettingsDialogProps {
   /** The tool being configured; the dialog is open while this is set. */
@@ -94,16 +94,41 @@ function ToolSettingsForm({
   const setValue = (key: string, value: string) =>
     setValues((current) => ({ ...current, [key]: value }))
 
+  /**
+   * Whether a setting applies right now. A setting scoped to another setting's value — the
+   * colour correction belongs to Google alone — is not shown at all while that value is
+   * something else, because there is nothing there for it to do.
+   */
+  const appliesNow = (setting: ToolSetting): boolean => {
+    if (!setting.scopedBy) return true
+    if (setting.scopeValue === null) return true
+    return values[setting.scopedBy] === setting.scopeValue
+  }
+
+  /**
+   * The options a choice setting offers right now: the ones that always apply, plus the ones
+   * belonging to the value the scoping setting currently holds. A zoom level the other provider
+   * cannot serve is not offered, because choosing it would make every capture fail.
+   */
+  const optionsNow = (setting: ToolSetting): ToolSettingOption[] => {
+    if (!setting.scopedBy) return setting.options
+    const scope = values[setting.scopedBy]
+    return setting.options.filter(
+      (option) => option.scope === null || option.scope === scope,
+    )
+  }
+
   return (
     <>
       <DialogTitle>{t('dialog.title', { tool: toolSettings.tool })}</DialogTitle>
       <DialogContent>
         {!canManage && <Alert severity="info" sx={{ mb: 2 }}>{t('dialog.viewOnly')}</Alert>}
         <Stack spacing={2} sx={{ mt: 1 }}>
-          {toolSettings.settings.map((setting) => (
+          {toolSettings.settings.filter(appliesNow).map((setting) => (
             <div key={setting.key}>
               <SettingControl
                 setting={setting}
+                options={optionsNow(setting)}
                 value={values[setting.key] ?? ''}
                 disabled={!canManage || saveMutation.isPending}
                 onChange={(value) => setValue(setting.key, value)}
@@ -139,11 +164,14 @@ function ToolSettingsForm({
 /** The control for one setting, chosen by its value type. */
 function SettingControl({
   setting,
+  options,
   value,
   disabled,
   onChange,
 }: {
   setting: ToolSetting
+  /** The options that apply right now — the server's own list, narrowed by the scoping setting. */
+  options: ToolSettingOption[]
   value: string
   disabled: boolean
   onChange: (value: string) => void
@@ -174,10 +202,10 @@ function SettingControl({
             onChange={(event) => onChange(String(event.target.value))}
             // The stored value is the wire value; the administrator reads the option's label.
             renderValue={(selected) =>
-              setting.options.find((option) => option.value === selected)?.label ?? String(selected)
+              options.find((option) => option.value === selected)?.label ?? String(selected)
             }
           >
-            {setting.options.map((option) => (
+            {options.map((option) => (
               <MenuItem key={option.value} value={option.value}>
                 {option.label}
               </MenuItem>

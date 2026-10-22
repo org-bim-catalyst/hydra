@@ -856,6 +856,11 @@ The map snapshot tool declares four defaults, editable from its gear on the AI T
 | `defaultZoom` | choice | `auto` | The zoom level, or `auto` to fit the requested view size. |
 | `enhanceGoogleColour` | boolean | `true` | Whether Google's web tone-mapping is corrected before delivery. |
 
+The last two follow the provider. The zoom levels on offer are the ones that provider can
+actually serve — Esri's 14 to 18, Google's 19 to 21 — and the colour correction is Google's
+alone, so it is not shown at all while Esri is the provider. A provider and a zoom that cannot
+work together are refused with `400`, because the pair would make every capture fail.
+
 ```
 GET /admin/ai-tools/settings
 PUT /admin/ai-tools/{tool}/settings        (body: { "values": { "<key>": "<value>" } })
