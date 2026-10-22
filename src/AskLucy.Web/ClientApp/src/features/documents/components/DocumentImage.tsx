@@ -1,7 +1,6 @@
 import { Box, Skeleton, Typography } from '@mui/material'
-import { useQuery } from '@tanstack/react-query'
-import { apiFetch } from '../../../api/httpClient'
 import { resolveSignedUrl } from '../api/documentsApi'
+import { useDocumentSignedUrl } from './useDocumentSignedUrl'
 
 interface DocumentImageProps {
   documentId: string
@@ -16,10 +15,7 @@ interface DocumentImageProps {
  * authorization ("not entitled" and "cannot be reached" both surface as an ordinary failed request).
  */
 export function DocumentImage({ documentId, alt }: DocumentImageProps) {
-  const { data, isLoading, isError } = useQuery({
-    queryKey: ['document-image', documentId],
-    queryFn: () => apiFetch<{ url: string }>(`/documents/${documentId}/download`),
-  })
+  const { data, isLoading, isError } = useDocumentSignedUrl(documentId)
 
   if (isLoading) {
     return <Skeleton variant="rectangular" height={160} sx={{ borderRadius: 1 }} />

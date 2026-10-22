@@ -10,7 +10,7 @@ import { Alert, Box, Button, Chip, IconButton, Paper, Stack, Tooltip, Typography
 import 'katex/dist/katex.min.css'
 import { useCallback, useState } from 'react'
 import ReactMarkdown from 'react-markdown'
-import { DocumentImage } from '../../documents/components/DocumentImage'
+import { ChatImageMessage } from './ChatImageMessage'
 import rehypeKatex from 'rehype-katex'
 import remarkGfm from 'remark-gfm'
 import remarkMath from 'remark-math'
@@ -203,7 +203,7 @@ export function MessageBubble({
             below it, which is the whole point of the wider bubble. */}
           <Typography component="div" variant="body1" sx={carriesOffer ? { maxWidth: '68ch' } : undefined}>
             {message.imageDocumentId ? (
-              <DocumentImage documentId={message.imageDocumentId} alt={message.content} />
+              <ChatImageMessage documentId={message.imageDocumentId} alt={message.content} />
             ) : (
               <ReactMarkdown remarkPlugins={[remarkGfm, remarkMath]} rehypePlugins={[rehypeKatex]}>
                 {message.content}
