@@ -36,8 +36,15 @@ public static class DependencyInjection
             // "network name no longer available"). Those are retried, a few times with a growing delay, rather
             // than failing the request on the first one. Explicit transactions must run inside the execution
             // strategy for this (see CustomModelRepository and OperationalFailureStore).
+            //
+            // Errors 40 ("the server was not found or was not accessible") and 53 ("the network path was not
+            // found") are the two the host actually produces when it refuses the TCP connection, and neither
+            // is in EF Core's built-in transient set — so with `errorNumbersToAdd: null` the retry this
+            // comment promises never happened, and every such blip surfaced as a 500. Both are raised while
+            // *opening* the connection, so nothing has executed yet and a retry is safe.
             options.UseSqlServer(connectionString, sql => sql.EnableRetryOnFailure(
-                       maxRetryCount: 5, maxRetryDelay: TimeSpan.FromSeconds(10), errorNumbersToAdd: null))
+                       maxRetryCount: 5, maxRetryDelay: TimeSpan.FromSeconds(10),
+                       errorNumbersToAdd: [40, 53]))
                    .AddInterceptors(
                        sp.GetRequiredService<AuditSaveChangesInterceptor>(),
                        sp.GetRequiredService<NotificationWakeInterceptor>());

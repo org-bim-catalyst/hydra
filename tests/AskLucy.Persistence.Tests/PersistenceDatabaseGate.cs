@@ -67,7 +67,28 @@ public static class PersistenceDatabaseGate
                 + $"{ConnectionStringEnvironmentVariable} at the dedicated test2 database (docs/TESTING.md §13).");
         }
 
-        return connectionString;
+        return WithPooling(connectionString);
+    }
+
+    /// <summary>
+    /// Turns connection pooling on, whatever the environment variable says.
+    /// <para>
+    /// This suite runs in the same CI job as Web.Tests, against the same server, at the same time.
+    /// With pooling off, every EF operation dials a brand-new TCP connection, so both suites
+    /// spend their time in TIME_WAIT and the server starts refusing the surplus ("the network path
+    /// was not found" — SQL error 53), which surfaces as a 500 in whichever test happened to be
+    /// running. Pooling reuses the connection instead of re-dialling it, which is what keeps the
+    /// concurrent count inside the server's budget.
+    /// </para>
+    /// <para>
+    /// The pool's maximum size is left at the default: it is a ceiling on what one host may hold,
+    /// not a reservation, and the pool shrinks back to nothing when a host goes idle.
+    /// </para>
+    /// </summary>
+    private static string WithPooling(string connectionString)
+    {
+        var builder = new SqlConnectionStringBuilder(connectionString) { Pooling = true };
+        return builder.ConnectionString;
     }
 
     private static bool SameDatabase(string first, string second)

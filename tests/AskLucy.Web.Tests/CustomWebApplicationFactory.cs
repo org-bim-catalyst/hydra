@@ -4,6 +4,7 @@ using AskLucy.Infrastructure.Notifications.Workers;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.AspNetCore.TestHost;
+using Microsoft.Data.SqlClient;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
@@ -19,6 +20,28 @@ namespace AskLucy.Web.Tests;
 // Not sealed: ForgotPasswordEndpointTests derives from it to stub the password email job.
 public class CustomWebApplicationFactory : WebApplicationFactory<Program>
 {
+    /// <summary>
+    /// Turns connection pooling on for the test host, whatever the environment variable says.
+    /// <para>
+    /// The shared test host allows only a handful of concurrent connections, and the CI job runs
+    /// four test projects at once. With pooling off, every EF operation dials a brand-new TCP
+    /// connection, so the run spends its time in TIME_WAIT and the host starts refusing the
+    /// surplus ("the network path was not found" — SQL error 53), which surfaces as a 500 in
+    /// whichever test happened to be running. Pooling reuses the connection instead of re-dialling
+    /// it, which is what actually keeps the concurrent count inside the host's budget.
+    /// </para>
+    /// <para>
+    /// The pool's maximum size is left at the default: this is a ceiling on what a single host may
+    /// hold, not a reservation, and the pool shrinks back to nothing when a host goes idle. Capping
+    /// it low would be the opposite of safe here — Hangfire's five workers each need one.
+    /// </para>
+    /// </summary>
+    private static string WithPooling(string connectionString)
+    {
+        var builder = new SqlConnectionStringBuilder(connectionString) { Pooling = true };
+        return builder.ConnectionString;
+    }
+
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
         builder.UseEnvironment("Testing");
@@ -33,9 +56,9 @@ public class CustomWebApplicationFactory : WebApplicationFactory<Program>
                 // against it by the same `backend-tests-shared-db` concurrency group in
                 // ci.yml. Falls back to LocalDB for local development machines that already
                 // have it provisioned and don't set the variable.
-                ["ConnectionStrings:DefaultConnection"] =
+                ["ConnectionStrings:DefaultConnection"] = WithPooling(
                     Environment.GetEnvironmentVariable("PERSISTENCE_TESTS_CONNECTION_STRING")
-                    ?? "Server=(localdb)\\mssqllocaldb;Database=AskLucyTests;Trusted_Connection=True;",
+                    ?? "Server=(localdb)\\mssqllocaldb;Database=AskLucyTests;Trusted_Connection=True;"),
                 ["Jwt:Issuer"] = "https://tests.asklucy.io",
                 ["Jwt:Audience"] = "https://tests.asklucy.io",
                 ["Jwt:SigningKey"] = "test-signing-key-not-for-production-use-minimum-32-chars",
