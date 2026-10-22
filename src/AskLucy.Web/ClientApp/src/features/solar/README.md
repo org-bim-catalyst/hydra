@@ -1,14 +1,15 @@
-# Solar Analysis (specs/052-solar-analysis, amended by specs/063 and specs/064)
+# Solar Analysis (specs/052-solar-analysis, amended by specs/063, specs/064 and specs/085)
 
 Sun path, real building shadows and time scrubbing over the active site — the first capability
 built entirely on the viewer extension framework (specs/049-051). See `specs/052-solar-analysis/`
 for the spec, plan, research and contracts; this file exists so the constraints the reference
 prototype discovered the hard way are not rediscovered.
 
-Two later features amended it in place rather than forking it: **specs/063** (accuracy and
+Three later features amended it in place rather than forking it: **specs/063** (accuracy and
 performance — refraction, the derived shadow radius, the merged footprint geometry, the split sun
-path) and **specs/064** (the time entry field and slider ticks). Where a constraint below names a
-spec, that spec is the one that owns it now.
+path), **specs/064** (the time entry field and slider ticks) and **specs/085** (the twilight
+figures and the year-long day-length chart). Where a constraint below names a spec, that spec is
+the one that owns it now.
 
 ## Module map
 

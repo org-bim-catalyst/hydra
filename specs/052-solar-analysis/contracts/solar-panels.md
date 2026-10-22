@@ -71,6 +71,12 @@ this explicitly.
 
 - **"Times shown in" is always present** (FR-003) — the zone id, or the explicit statement that it
   could not be determined and UTC is in use.
+- **The twilight rows are present** (specs/085 FR-001, FR-002): civil, nautical and astronomical,
+  each with its two crossing times and the length of its band. A phase whose threshold the sun
+  does not reach on that date is stated in words, naming the threshold, with no time shown for it.
+  The panel also states that the thresholds are the sun's centre before refraction, so the
+  altitude figure beside them reads a stated constant at each threshold. See
+  [specs/085's amendment](../../085-solar-twilight-daylength/contracts/solar-panels-amendment.md).
 - **The closing `text` block is always present** (FR-043, FR-044, SC-010): design-stage study, the
   calculation's accuracy, and the fact that heights may be assumed. It is content, not a tooltip,
   so a user encountering the results cannot miss it.
