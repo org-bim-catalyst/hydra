@@ -167,6 +167,13 @@ AutoTest.Net/
 # Web workbench (sass)
 .sass-cache/
 
+# Generated knowledge-graph output (graphify). Each graph.json is >100 MB, which
+# exceeds GitHub's per-file push limit, so the whole folder stays untracked.
+graphify-out/
+
+# Serena MCP local project state (per-machine tool cache/config)
+.serena/
+
 # Installshield output folder
 [Ee]xpress/
 
