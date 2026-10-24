@@ -549,3 +549,16 @@ describe('the dome draws as an overlay, not as scenery', () => {
     expect(material.depthWrite).toBe(false)
   })
 })
+
+describe('the dome draws last, over the massing (regression)', () => {
+  it('gives both dome groups a render order later than the scene’s own objects', () => {
+    const scene = new SolarScene(fakeDrawingSpace())
+
+    // The massing boxes are opaque meshes in the same render pass; with the default order they
+    // painted over the shell and the arcs wherever they stood in front of the dome.
+    expect(scene.sunPathFixedGroup.renderOrder).toBeGreaterThan(scene.buildingsGroup.renderOrder)
+    expect(scene.sunPathDatedGroup.renderOrder).toBeGreaterThan(scene.sunPathFixedGroup.renderOrder)
+
+    scene.disposeAll()
+  })
+})

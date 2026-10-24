@@ -89,6 +89,13 @@ export class SolarScene {
 
   constructor(drawingSpace: DrawingSpaceHandle) {
     this.drawingSpace = drawingSpace
+    // The dome is an overlay over the analysis, not part of the scene's depth-sorted furniture:
+    // the massing boxes are opaque and would be drawn in the same pass, painting over the shell and
+    // the arcs wherever they stand in front. A group's `renderOrder` is inherited by everything in
+    // it and sorted ahead of every default-order object, so the dome draws last either way. The
+    // dated group comes after the fixed one so its arcs and marker stay on top of the shell.
+    this.sunPathFixedGroup.renderOrder = 10
+    this.sunPathDatedGroup.renderOrder = 11
     drawingSpace.group.add(this.sunPathFixedGroup, this.sunPathDatedGroup, this.buildingsGroup, this.groundGroup, this.lightGroup)
   }
 
