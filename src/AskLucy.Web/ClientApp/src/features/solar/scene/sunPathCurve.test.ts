@@ -6,6 +6,7 @@ import type { SiteBuildingDto } from '../api/siteBuildingsApi'
 import { SolarScene } from './SolarScene'
 import {
   buildDatedPath,
+  buildDomeOccluder,
   buildDomeShell,
   buildFixedFurniture,
   buildHourLines,
@@ -560,5 +561,19 @@ describe('the dome draws last, over the massing (regression)', () => {
     expect(scene.sunPathDatedGroup.renderOrder).toBeGreaterThan(scene.sunPathFixedGroup.renderOrder)
 
     scene.disposeAll()
+  })
+})
+
+describe('the dome occluder (Maps draws its buildings after onDraw)', () => {
+  it('writes near-plane depth without writing colour', () => {
+    const occluder = buildDomeOccluder(120)
+    const material = occluder.material as THREE.ShaderMaterial
+
+    // Colour off: it must add nothing to the picture. Depth on and pinned to the near plane: a
+    // later pass's buildings behind the dome fail their depth test instead of painting over it.
+    expect(material.colorWrite).toBe(false)
+    expect(material.depthWrite).toBe(true)
+    expect(material.depthTest).toBe(false)
+    expect(material.vertexShader).toContain('-clip.w')
   })
 })

@@ -218,6 +218,7 @@ export class SolarScene {
       // Furniture is added before the dated group's arcs in scene order so the lattice sits behind
       // them; the shell carries its own `renderOrder` because it must still draw last of all.
       this.sunPathFixedGroup.add(
+        furniture.occluder,
         furniture.dial,
         furniture.mountPost,
         ...furniture.monthlyArcs,

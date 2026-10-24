@@ -222,6 +222,45 @@ export function buildCompassDial(radiusMetres: number): THREE.Mesh {
   return mesh
 }
 
+/**
+ * FOUND LIVE 2026-10-24 — why the dome still disappeared behind buildings after depth testing was
+ * switched off and the dome's groups were ordered last.
+ *
+ * Maps renders its own 3D building pass AFTER `WebGLOverlayView.onDraw` returns (the overlay shares
+ * the map's WebGL context and depth buffer — which is what Google documents as "depth occlusion
+ * with 3D building geometry"). Our colour is already in the buffer by then; their buildings then
+ * depth-test against whatever we left, pass, and paint over the dome. Nothing inside our own scene
+ * can out-rank a later pass.
+ *
+ * The one lever is the depth buffer. This mesh draws the dome's silhouette with colour writes off
+ * and its z pinned to the near plane, so every later fragment behind the dome fails its depth test
+ * and the dome stays visible. Our own materials render with `depthTest: false`, so they are
+ * unaffected by it; if Maps ever renders its buildings before the overlay, the mesh does nothing
+ * and the dome still draws on top, so the ordering is safe either way.
+ */
+export function buildDomeOccluder(radiusMetres: number): THREE.Mesh {
+  const occluder = new THREE.Mesh(
+    new THREE.SphereGeometry(radiusMetres, 48, 24, 0, Math.PI * 2, 0, Math.PI / 2),
+    new THREE.ShaderMaterial({
+      colorWrite: false,
+      depthWrite: true,
+      depthTest: false,
+      side: THREE.DoubleSide,
+      vertexShader: `
+        void main() {
+          vec4 clip = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+          gl_Position = vec4(clip.xy, -clip.w, clip.w);
+        }`,
+      fragmentShader: 'void main() { gl_FragColor = vec4(0.0); }',
+    }),
+  )
+  // The hemisphere opens along +Y; rotate it onto this scene's +Z up axis, exactly as the shell.
+  occluder.rotation.x = Math.PI / 2
+  // Before every visible dome object, so it masks the later pass without touching the dome itself.
+  occluder.renderOrder = 9
+  return occluder
+}
+
 /** The instrument's centre mounting post — a visual anchor tying the dome to the site point. */
 export function buildMountPost(heightMetres = 12, radiusMetres = 1.1): THREE.Group {
   const group = new THREE.Group()
@@ -374,6 +413,7 @@ export function buildMonthlyGridArcs(latitude: number, longitude: number, year: 
  * as flicker when the date changes.
  */
 export interface FixedFurnitureObjects {
+  occluder: THREE.Mesh
   dial: THREE.Mesh
   mountPost: THREE.Group
   shell: THREE.Mesh
@@ -422,6 +462,7 @@ export function buildFixedFurniture(
   shell.renderOrder = 1
 
   return {
+    occluder: buildDomeOccluder(radiusMetres),
     dial: buildCompassDial(radiusMetres),
     mountPost: buildMountPost(),
     shell,
