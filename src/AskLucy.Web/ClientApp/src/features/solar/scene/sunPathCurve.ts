@@ -256,6 +256,93 @@ export function buildDomeShell(radiusMetres: number): THREE.Mesh {
   return mesh
 }
 
+/** specs/086 research D8 — the hour lines are the densest family on the dome (up to 24), so they
+ * are drawn at half the monthly lattice's width and a shade brighter than its opacity: visible as
+ * background furniture, never competing with the day arc or the extremes. */
+const HOUR_LINE_TUBE_RADIUS = 0.15
+const HOUR_LINE_OPACITY = 0.5
+
+/** specs/086 FR-001 … FR-005, FR-009, FR-010 — the sun's position at one local clock hour on
+ * every calendar day of `year`: that hour's analemma. Each day is resolved through
+ * `fromLocalParts`, the same conversion the hour marks use, so a mark and its curve cannot
+ * disagree about the clock. Samples below the horizon are dropped, exactly as the day arcs drop
+ * them. The day count is the year's own, so 29 February is never skipped.
+ *
+ * Returns the above-horizon samples as contiguous runs — see `splitAboveHorizonRuns` for why a
+ * single curve through them would draw a chord across the missing days. */
+export function sampleHourLineRuns(
+  hour: number,
+  latitude: number,
+  longitude: number,
+  year: number,
+  timeZoneId: string,
+  radiusMetres: number,
+): THREE.Vector3[][] {
+  const daysInYear = (Date.UTC(year + 1, 0, 1) - Date.UTC(year, 0, 1)) / 86_400_000
+  const samples: Array<THREE.Vector3 | null> = []
+
+  for (let day = 0; day < daysInYear; day++) {
+    const date = new Date(Date.UTC(year, 0, 1 + day))
+    const localDate = `${year}-${String(date.getUTCMonth() + 1).padStart(2, '0')}-${String(date.getUTCDate()).padStart(2, '0')}`
+    const position = solarPosition(fromLocalParts(localDate, hour * 60, timeZoneId), latitude, longitude)
+
+    samples.push(
+      position.altitudeDegrees >= 0
+        ? sphericalToVec(position.azimuthDegrees, position.altitudeDegrees, radiusMetres)
+        : null,
+    )
+  }
+
+  return splitAboveHorizonRuns(samples)
+}
+
+/** specs/086 FR-004 — the run rule, split out as a pure function so it can be asserted without a
+ * site. A `null` marks a below-horizon day and closes the current run; runs are never joined
+ * across one. Without this, one curve through the surviving samples would draw a chord straight
+ * across the missing winter days and through the ground (research D4). */
+export function splitAboveHorizonRuns<T>(samples: ReadonlyArray<T | null>): T[][] {
+  const runs: T[][] = []
+  let current: T[] = []
+
+  for (const sample of samples) {
+    if (sample !== null) current.push(sample)
+    else if (current.length) {
+      runs.push(current)
+      current = []
+    }
+  }
+  if (current.length) runs.push(current)
+
+  return runs
+}
+
+/** specs/086 FR-001, FR-003, FR-006 — one tube per above-horizon run of every hour that sees the
+ * sun. An hour with no runs draws nothing (midnight at mid-latitudes); a run of fewer than two
+ * samples has no length to tube. The colour is the caller's — the scene passes the theme's — and
+ * there is deliberately no default: a literal here would bypass the theme (§7). */
+export function buildHourLines(
+  latitude: number,
+  longitude: number,
+  year: number,
+  timeZoneId: string,
+  radiusMetres: number,
+  color: number,
+): THREE.Mesh[] {
+  const meshes: THREE.Mesh[] = []
+
+  for (let hour = 0; hour < 24; hour++) {
+    for (const run of sampleHourLineRuns(hour, latitude, longitude, year, timeZoneId, radiusMetres)) {
+      const tube = buildTubeFromPoints(run, HOUR_LINE_TUBE_RADIUS, color, HOUR_LINE_OPACITY)
+      if (tube) {
+        tube.userData.localHour = hour
+        meshes.push(tube)
+      }
+    }
+  }
+
+  return meshes
+}
+
 /** The faint monthly lattice that gives the dome its characteristic woven look — the sun's arc on
  * the 15th of each month. Context for the chosen day and the two extremes, deliberately dim so it
  * never competes with them (FR-006 requires the extremes stay distinguishable). */
@@ -279,6 +366,8 @@ export interface FixedFurnitureObjects {
   mountPost: THREE.Group
   shell: THREE.Mesh
   monthlyArcs: THREE.Mesh[]
+  /** specs/086 — one run of each local clock hour's year-wide curve, in hour order. */
+  hourLines: THREE.Mesh[]
 }
 
 /**
@@ -296,17 +385,21 @@ export interface DatedPathObjects {
 
 /**
  * T042, FR-022, contracts/solar-scene.md — builds the compass dial, the mount post, the enclosing
- * shell and the monthly lattice. Depends on latitude, longitude, year and radius; deliberately NOT
- * on the date or the instant, which is the whole point of the split (FR-021, SC-008).
+ * shell, the monthly lattice and the hour lines. Depends on latitude, longitude, year, the site's
+ * time zone and the line colour; deliberately NOT on the date or the instant, which is the whole
+ * point of the split (FR-021, SC-008).
  *
  * The year is a parameter rather than being read off a date so the caller's own rebuild key and
  * this function's dependencies cannot drift apart: what the key says the furniture was built for
- * is exactly what was passed in.
+ * is exactly what was passed in. specs/086 applies the same discipline to the time zone: the
+ * hour lines are local clock hours, so the zone is an input here and part of the caller's key.
  */
 export function buildFixedFurniture(
   latitude: number,
   longitude: number,
   year: number,
+  timeZoneId: string,
+  hourLineColor: number,
   radiusMetres: number = SUN_PATH_DOME_RADIUS_METRES,
 ): FixedFurnitureObjects {
   const shell = buildDomeShell(radiusMetres)
@@ -321,6 +414,7 @@ export function buildFixedFurniture(
     mountPost: buildMountPost(),
     shell,
     monthlyArcs: buildMonthlyGridArcs(latitude, longitude, year, radiusMetres),
+    hourLines: buildHourLines(latitude, longitude, year, timeZoneId, radiusMetres, hourLineColor),
   }
 }
 

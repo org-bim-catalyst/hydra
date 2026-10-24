@@ -23,11 +23,12 @@ features/solar/
 │   ├── daySummary.ts              sunrise/sunset/day length, polar-condition handling
 │   ├── twilight.ts                the 6°/12°/18° thresholds, phase lengths, the year profile (085)
 │   ├── noaaFullDay.fixture.ts     NOAA's own published full-day table, the SC-002 reference (063)
-│   └── timeZone.ts                tz-lookup + Intl.DateTimeFormat (research D2)
+│   └── timeZone.ts                tz-lookup + Intl.DateTimeFormat (research D2; formatter memo 086)
 ├── buildings/footprintGeometry.ts ONE merged extrusion for every footprint; casts, never drawn (063)
 ├── scene/
 │   ├── SolarScene.ts              owns the extension's Drawing Space group and everything in it
-│   ├── sunPathCurve.ts            the dome, split by lifetime: fixed furniture vs dated path (063)
+│   ├── sunPathCurve.ts            the dome, split by lifetime: fixed furniture vs dated path (063);
+│   │                              the per-hour analemma curves are fixed furniture (086)
 │   ├── sunLight.ts                DirectionalLight + shadow camera, radius derived per-elevation (063)
 │   └── shadowGround.ts            ShadowMaterial ground plane, sized with sunLight from one radius
 ├── store/
@@ -165,13 +166,17 @@ movement gets caught.
 Two independent costs, two separate mechanisms, both in `scene/`:
 
 **`sunPathCurve.ts` splits the dome by what each piece depends on.** `buildFixedFurniture` (compass
-dial, mount post, shell, monthly lattice) is keyed on site + year; `buildDatedPath` (day arc,
-seasonal extremes, hour marks, current marker) is keyed additionally on the date. `SolarScene` holds
-them as **sibling groups, each its own disposal scope**, with independent rebuild keys. Stepping the
-date rebuilds only the second; a time-of-day tick rebuilds neither and just moves the marker. The
-thing this protects is the dial's baked 2048² canvas texture, which depends on nothing but the site
-and used to be thrown away on every date step. `sunPathCurve.test.ts` asserts it on object
-*identity*, not child counts — a rebuild producing the same number of children is the failure.
+dial, mount post, shell, monthly lattice, and since specs/086 the 24 hour lines) is keyed on site +
+year + time zone; `buildDatedPath` (day arc, seasonal extremes, hour marks, current marker) is keyed
+additionally on the date. `SolarScene` holds them as **sibling groups, each its own disposal
+scope**, with independent rebuild keys. Stepping the date rebuilds only the second; a time-of-day
+tick rebuilds neither and just moves the marker. The thing this protects is the dial's baked 2048²
+canvas texture, which depends on nothing but the site and used to be thrown away on every date
+step — and, since specs/086, the 8,760 samples that draw the hour lines. The time zone is in the
+fixed key because the hour lines are local clock hours and the zone resolves *after* the first draw
+(the fallback is UTC). A theme change re-tints the hour lines in place rather than rebuilding them.
+`sunPathCurve.test.ts` asserts all of it on object *identity*, not child counts — a rebuild
+producing the same number of children is the failure.
 
 **`aimSun` gates the shadow-map pass during continuous playback.** A sun movement smaller than
 `SHADOW_GATE_DEGREES` (0.25°) is skipped and `aimSun` returns `false`, and the caller withholds

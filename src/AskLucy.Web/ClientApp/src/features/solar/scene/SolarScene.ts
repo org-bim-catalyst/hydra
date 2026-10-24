@@ -82,6 +82,10 @@ export class SolarScene {
   /** The last `updateSunPath` arguments, so a new site building can resize the dome at once rather
    * than on the next tick — the buildings and the clock are driven by separate effects. */
   private lastSunPathArguments: Parameters<SolarScene['updateSunPath']> | null = null
+  /** specs/086 — the hour-line meshes and the colour they were built with. Kept so a theme change
+   * can re-tint them in place instead of rebuilding 8,760 samples for a colour. */
+  private hourLineMeshes: THREE.Mesh[] = []
+  private hourLineColorHex: number | null = null
 
   constructor(drawingSpace: DrawingSpaceHandle) {
     this.drawingSpace = drawingSpace
@@ -166,34 +170,64 @@ export class SolarScene {
    * T017, T042, T044, T051, FR-005…FR-008, FR-021, FR-022, FR-023, SC-004, SC-008 — updates the
    * dome, rebuilding as little of it as the change requires:
    *
-   * - the fixed furniture (dial, mount post, shell, monthly lattice) only when the SITE or the
-   *   YEAR changes;
+   * - the fixed furniture (dial, mount post, shell, monthly lattice, hour lines) only when the
+   *   SITE, the YEAR or the TIME ZONE changes;
    * - the dated path (day arc, seasonal extremes, hour marks, marker) only when the local DATE or
    *   the site changes;
-   * - on every other call, nothing is rebuilt at all — the existing marker is repositioned in
-   *   place, which is what keeps time-of-day scrubbing cheap.
+   * - on every other call, no geometry is rebuilt — the existing marker is repositioned in place,
+   *   which is what keeps time-of-day scrubbing cheap; a colour-only change re-tints the hour
+   *   lines and reports a rebuild so the caller still invalidates.
    *
    * Returns whether anything was rebuilt. T035's playback gate decides whether the SUN moved
    * enough to redraw; new geometry has to be drawn regardless, so the caller needs to tell the two
    * cases apart (a date change near a solstice can move the sun by less than the gate while
    * replacing every arc in the group).
    */
-  updateSunPath(localDate: string, latitude: number, longitude: number, currentInstantUtc: Date, azimuthDegrees: number, altitudeDegrees: number, timeZoneId: string): boolean {
-    this.lastSunPathArguments = [localDate, latitude, longitude, currentInstantUtc, azimuthDegrees, altitudeDegrees, timeZoneId]
+  updateSunPath(
+    localDate: string,
+    latitude: number,
+    longitude: number,
+    currentInstantUtc: Date,
+    azimuthDegrees: number,
+    altitudeDegrees: number,
+    timeZoneId: string,
+    hourLineColorCss: string,
+  ): boolean {
+    this.lastSunPathArguments = [localDate, latitude, longitude, currentInstantUtc, azimuthDegrees, altitudeDegrees, timeZoneId, hourLineColorCss]
     const [year] = localDate.split('-').map(Number)
     const radius = this.domeRadiusMetres
     const site = `${latitude.toFixed(6)}|${longitude.toFixed(6)}`
-    const fixedKey = `${site}|${year}|${radius}`
+    // specs/086 FR-008 — the time zone is part of the fixed furniture's identity: the hour lines
+    // are local clock hours, and the zone can resolve AFTER the first draw (the fallback is UTC).
+    // Without it in the key, the curves would stay drawn on the wrong clock with no rebuild.
+    const fixedKey = `${site}|${year}|${radius}|${timeZoneId}`
     const datedKey = `${localDate}|${site}|${radius}`
+    const hourLineColorHex = new THREE.Color(hourLineColorCss).getHex()
     let rebuilt = false
 
     if (this.fixedFurnitureBuiltForKey !== fixedKey) {
       this.disposeGroupContents(this.sunPathFixedGroup)
-      const furniture = buildFixedFurniture(latitude, longitude, year, radius)
+      const furniture = buildFixedFurniture(latitude, longitude, year, timeZoneId, hourLineColorHex, radius)
       // Furniture is added before the dated group's arcs in scene order so the lattice sits behind
       // them; the shell carries its own `renderOrder` because it must still draw last of all.
-      this.sunPathFixedGroup.add(furniture.dial, furniture.mountPost, ...furniture.monthlyArcs, furniture.shell)
+      this.sunPathFixedGroup.add(
+        furniture.dial,
+        furniture.mountPost,
+        ...furniture.monthlyArcs,
+        ...furniture.hourLines,
+        furniture.shell,
+      )
       this.fixedFurnitureBuiltForKey = fixedKey
+      this.hourLineMeshes = furniture.hourLines
+      this.hourLineColorHex = hourLineColorHex
+      rebuilt = true
+    } else if (this.hourLineColorHex !== hourLineColorHex) {
+      // A theme change re-tints in place: the shape of the hour lines does not depend on the
+      // colour, and rebuilding them would throw away 8,760 samples for a palette switch.
+      for (const mesh of this.hourLineMeshes) {
+        ;(mesh.material as THREE.MeshBasicMaterial).color.setHex(hourLineColorHex)
+      }
+      this.hourLineColorHex = hourLineColorHex
       rebuilt = true
     }
 

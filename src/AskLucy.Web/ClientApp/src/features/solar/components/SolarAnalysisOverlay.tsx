@@ -1,3 +1,4 @@
+import { useTheme } from '@mui/material'
 import { useEffect, useMemo, useSyncExternalStore } from 'react'
 import { useActiveLocationStore } from '../../../store/activeLocationStore'
 import { siteRingsOf, useActiveSiteBoundaryStore } from '../../../store/activeSiteBoundaryStore'
@@ -76,6 +77,10 @@ function calendarDateAsUtcMidnight(localDate: string): Date {
  */
 export function makeSolarAnalysisOverlay(context: ExtensionContext, sceneRef: { current: SolarScene | null }) {
   return function SolarAnalysisOverlay() {
+    // specs/086 FR-003, constitution §7 — the hour lines' colour is the theme's dim ink, resolved
+    // here rather than as a literal in the scene. The scene is built outside React, so this is the
+    // only place the theme can reach it; a theme change re-tints in place (SolarScene).
+    const hourLineColor = useTheme().palette.text.secondary
     const activation = useViewerExtensionStore((s) => s.extensions[EXTENSION_ID]?.activation)
     const latitude = useActiveLocationStore((s) => s.latitude)
     const longitude = useActiveLocationStore((s) => s.longitude)
@@ -248,6 +253,7 @@ export function makeSolarAnalysisOverlay(context: ExtensionContext, sceneRef: { 
         position.azimuthDegrees,
         position.altitudeDegrees,
         site.timeZoneId ?? FALLBACK_TIME_ZONE,
+        hourLineColor,
       )
 
       // T035, T036, FR-018, FR-020, FR-024 — during continuous playback only, a sun movement too
@@ -289,7 +295,7 @@ export function makeSolarAnalysisOverlay(context: ExtensionContext, sceneRef: { 
         // threshold statement ran past the bottom of it, so the astronomical row sat below the fold.
         chrome: { density: 'compact', defaultSize: { width: 260, height: 460 } },
       })
-    }, [activation, site, moment, status, siteBuildings])
+    }, [activation, site, moment, status, siteBuildings, hourLineColor])
 
     return null
   }

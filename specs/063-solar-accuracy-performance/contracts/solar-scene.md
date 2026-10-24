@@ -88,8 +88,12 @@ content-derived radii too, including the no-buildings fallback and the tall-lone
 
 | Builder | Produces | Depends on |
 |---|---|---|
-| Fixed furniture | Compass dial, mount post, monthly lattice | Radius; latitude, longitude, year |
+| Fixed furniture | Compass dial, mount post, monthly lattice, hour lines (specs/086) | Radius; latitude, longitude, year, **time zone, line colour** |
 | Dated path | Day arc, hour marks, seasonal extremes, current marker | The above, plus date and instant |
+
+> Amended by specs/086: the hour lines are fixed furniture, and their colour is re-tinted in place
+> rather than rebuilt. See
+> [specs/086's contract](../../086-solar-hour-lines/contracts/solar-hour-lines.md).
 
 **Contract**:
 - A date change MUST rebuild only the dated path. The fixed furniture MUST NOT flicker, move or
@@ -114,7 +118,7 @@ content-derived radii too, including the no-buildings fallback and the tall-lone
 - The fixed group and the dated group are siblings under the extension's Drawing Space group, each
   with its own disposal scope.
 - The dated group is disposed and rebuilt on date or instant change; the fixed group only on site
-  change, year change, or extension stop.
+  change, year change, time-zone change (specs/086) or extension stop.
 - `disposeAll` MUST cover both. Opening, exercising and closing the capability repeatedly MUST
   leave nothing accumulated.
 - `setGroundOffset` continues to move the extension's own group and MUST NOT call
