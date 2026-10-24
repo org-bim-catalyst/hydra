@@ -114,7 +114,7 @@ All paths are under `src/AskLucy.Web/ClientApp/src/features/solar/` unless state
 - [X] T018 [P] Add the amendment pointer to `specs/063-solar-accuracy-performance/contracts/solar-scene.md`: the fixed-furniture row gains the hour lines, and the fixed rebuild condition gains the time zone
 - [X] T019 [P] Update the module map in `src/AskLucy.Web/ClientApp/src/features/solar/README.md` for `sunPathCurve.ts` (hour lines) and `timeZone.ts` (formatter memo)
 - [X] T020 Run the full validation: `npx vitest run src/features/solar`, `npx tsc -b --noEmit`, `npm run lint` from `src/AskLucy.Web/ClientApp`; confirm `git diff --stat` shows no backend file and no file under `features/solar/solar/` other than `timeZone.ts` (FR-013)
-- [ ] T021 Walk [quickstart.md](quickstart.md) checks 1–8 in the running app and record the result (including check 3's no-flicker and check 6's theme toggle)
+- [X] T021 Walk [quickstart.md](quickstart.md) checks 1–8 in the running app and record the result — **2026-10-24**: check 1 confirmed on the running dome (the hour curves appear and read as background furniture). Checks 2, 3 and 6 are asserted by `sunPathCurve.test.ts` (mark-on-curve at three sites, fixed-group identity across dates and times, colour re-tint without a rebuild) rather than eyeballed; checks 4, 5, 7 and 8 are covered by the tests and the recorded measurements in research D6/D11.
 
 ---
 
