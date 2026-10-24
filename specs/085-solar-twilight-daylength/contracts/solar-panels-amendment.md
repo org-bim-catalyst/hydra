@@ -18,8 +18,6 @@ takes. The contract itself stays in force; this records what is added to it.
 | Civil twilight | FR-001, FR-002 | The two times the sun's centre crosses 6° below the horizon, and the length of the civil band. |
 | Nautical twilight | FR-001, FR-002 | The same for 12°. |
 | Astronomical twilight | FR-001, FR-002 | The same for 18°. |
-| Longest day | FR-002 | The site's longest daylight in the selected date's year, with its date. |
-| Shortest day | FR-002 | The site's shortest daylight in that year, with its date. |
 
 **Added**, among the panel's closing statements:
 
@@ -42,7 +40,7 @@ sun does not rise or set.
 
 | Control | Requirement | Behaviour |
 |---|---|---|
-| Day length chart | FR-011 … FR-019 | A live panel showing every day of the selected date's year, each day's phases in order across the local day, with the selected date marked, and the site's latitude and hemisphere stated. Read-only: it sets no time, changes no site and navigates nowhere. |
+| Day length chart | FR-011 … FR-019 | A live panel showing every day of the selected date's year, each day's phases in order across the local day, with the selected date marked, the site's latitude and hemisphere stated, a legend naming the bands, and the year's longest and shortest day in text. Read-only: it sets no time, changes no site and navigates nowhere. |
 
 The panel is registered through the extension's `registerLivePanelKind` path, the same as the Time
 of Day and Building Corrections panels, and opens when the solar analysis activates.

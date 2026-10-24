@@ -90,17 +90,17 @@ changes nothing; the chart's band for a chosen day matches that day's stated sun
 
 ### Tests for User Story 2
 
-- [ ] T011 [P] [US2] Extend `src/features/solar/solar/twilight.test.ts` (or add `yearProfile.test.ts`) for the year profile: one entry per day (365 and 366); contiguous segments covering the local day; a polar-night day as a single night segment and a midnight-sun day as a single day segment; the longest and shortest day computed from the same daylight minutes the chart draws; and that two reads for the same site and year return the same object instance (the cache, research D9).
-- [ ] T012 [P] [US2] Write `src/features/solar/panels/SolarDayLengthPanel.test.tsx` — renders one row per day, marks the selected date, states the latitude and hemisphere, carries a text description for assistive technology, and changes nothing when clicked (no store write, no time change, no selection change).
-- [ ] T013 [P] [US2] Write `src/features/solar/panels/SolarDayLengthPanel.a11y.test.tsx` — the panel's automated accessibility check passes in the light and dark themes.
+- [x] T011 [P] [US2] Extend `src/features/solar/solar/twilight.test.ts` (or add `yearProfile.test.ts`) for the year profile: one entry per day (365 and 366); contiguous segments covering the local day; a polar-night day as a single night segment and a midnight-sun day as a single day segment; the longest and shortest day computed from the same daylight minutes the chart draws; and that two reads for the same site and year return the same object instance (the cache, research D9).
+- [x] T012 [P] [US2] Write `src/features/solar/panels/SolarDayLengthPanel.test.tsx` — renders one row per day, marks the selected date, states the latitude and hemisphere, carries a text description for assistive technology, and changes nothing when clicked (no store write, no time change, no selection change).
+- [x] T013 [P] [US2] Write `src/features/solar/panels/SolarDayLengthPanel.a11y.test.tsx` — the panel's automated accessibility check passes in the light and dark themes.
 
 ### Implementation for User Story 2
 
-- [ ] T014 [US2] Add `yearProfile(latitude, longitude, year, timeZoneId)` to `src/features/solar/solar/twilight.ts` — build one day phase sequence per day from `twilightCrossings`, resolve the longest and shortest day, derive the hemisphere, and memoise by (site, year). Keep the DST case honest: measure segments in local minutes from the local day's start, so a 23- or 25-hour day is contiguous and proportional (research D12, spec FR-017 as amended).
-- [ ] T015 [P] [US2] Add the chart's strings and phase colours to `src/features/solar/copy.ts` — the panel title, the caption formatter (latitude + hemisphere), the "longest/shortest day" labels, the chart's accessible description, and the five phase names used as band labels.
-- [ ] T016 [US2] Add the chart panel's type key and its zod data schema to `src/features/solar/panels/panelContracts.ts`, following `SOLAR_TIME_CONTROL_TYPE_KEY`'s shape.
-- [ ] T017 [US2] Create `src/features/solar/panels/SolarDayLengthPanel.tsx` — a canvas chart, one row per day of the year, each row's phases in order with colours resolved from the MUI theme (research D11), the selected date's row marked, the latitude and hemisphere caption, and a text description for assistive technology. It reads the site and date from `solarAnalysisStore` and writes nothing (FR-015).
-- [ ] T018 [US2] Register and open the panel in `src/AskLucy.Web/ClientApp/src/viewer/extensions/builtin/solarAnalysisExtension.tsx` — `registerLivePanelKind` with compact chrome, and an `openPanel` in `activate()` beside the existing two, with a request id constant.
+- [x] T014 [US2] Add `yearProfile(latitude, longitude, year, timeZoneId)` to `src/features/solar/solar/twilight.ts` — build one day phase sequence per day from `twilightCrossings`, resolve the longest and shortest day, derive the hemisphere, and memoise by (site, year). Keep the DST case honest: measure segments in local minutes from the local day's start, so a 23- or 25-hour day is contiguous and proportional (research D12, spec FR-017 as amended).
+- [x] T015 [P] [US2] Add the chart's strings and phase colours to `src/features/solar/copy.ts` — the panel title, the caption formatter (latitude + hemisphere), the "longest/shortest day" labels, the chart's accessible description, and the five phase names used as band labels.
+- [x] T016 [US2] Add the chart panel's type key and its zod data schema to `src/features/solar/panels/panelContracts.ts`, following `SOLAR_TIME_CONTROL_TYPE_KEY`'s shape.
+- [x] T017 [US2] Create `src/features/solar/panels/SolarDayLengthPanel.tsx` — a canvas chart, one row per day of the year, each row's phases in order with colours resolved from the MUI theme (research D11), the selected date's row marked, the latitude and hemisphere caption, and a text description for assistive technology. It reads the site and date from `solarAnalysisStore` and writes nothing (FR-015).
+- [x] T018 [US2] Register and open the panel in `src/AskLucy.Web/ClientApp/src/viewer/extensions/builtin/solarAnalysisExtension.tsx` — `registerLivePanelKind` with compact chrome, and an `openPanel` in `activate()` beside the existing two, with a request id constant.
 
 **Checkpoint**: both stories work independently; the chart can be closed without affecting the figures.
 
@@ -110,7 +110,7 @@ changes nothing; the chart's band for a chosen day matches that day's stated sun
 
 - [ ] T019 Run the full solar suite (`npx vitest run src/features/solar`) and the full frontend suite (`npx vitest run` from `src/AskLucy.Web/ClientApp`). Known flakes: the ChatPage tests time out only under parallel load — rerun them alone before treating a failure as real.
 - [ ] T020 Run `npx tsc -b --noEmit` (never a bare `tsc --noEmit`) and `npx eslint src/features/solar` from `src/AskLucy.Web/ClientApp`; both clean.
-- [ ] T021 Update the module map in `src/features/solar/README.md` with `crossingSolver.ts`, `twilight.ts` and `SolarDayLengthPanel.tsx`, and record the twilight definition (centre, geometric, 6°/12°/18°) beside the existing tolerance notes.
+- [x] T021 Update the module map in `src/features/solar/README.md` with `crossingSolver.ts`, `twilight.ts` and `SolarDayLengthPanel.tsx`, and record the twilight definition (centre, geometric, 6°/12°/18°) beside the existing tolerance notes.
 - [ ] T022 Walk [quickstart.md](quickstart.md) checks 1–10 against a running app, recording the almanac reference values used for check 1 in `twilight.test.ts` so the check is against a published source rather than a recomputed value. Report the screenshots for the panel-content checks.
 
 ---

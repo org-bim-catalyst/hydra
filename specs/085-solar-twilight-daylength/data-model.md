@@ -117,7 +117,7 @@ The ordered phases of one day, which is what the chart draws.
 | `phase` | `'night' \| 'astronomical' \| 'nautical' \| 'civil' \| 'day'` | Which phase. |
 | `startMinute` | `number` | Local minutes from the start of the local day. |
 | `endMinute` | `number` | Local minutes from the start of the local day. |
-| `colorToken` | `string` | The theme colour resolved for the phase. |
+| — | — | The colour is not part of the data: the panel resolves it from the phase through the MUI theme, so the chart follows light and dark mode without the profile carrying a colour (research D11). |
 
 **Validation**: the segments of a day are contiguous and cover the whole local day, with no gap
 and no overlap. A day with no sunrise is one `night` segment; a day with no sunset is one `day`

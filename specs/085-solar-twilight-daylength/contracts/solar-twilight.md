@@ -22,8 +22,6 @@ sunrise, sunset and day-length rows.
 | Civil twilight | The two times the sun's centre crosses 6° below the horizon, and the length of the civil band. |
 | Nautical twilight | The same for 12°. |
 | Astronomical twilight | The same for 18°. |
-| Longest day *(year)* | The site's longest daylight of the selected date's year, with its date. |
-| Shortest day *(year)* | The site's shortest daylight of that year, with its date. |
 
 The three phase rows appear in that order — civil, nautical, astronomical — which is the order
 of increasing darkness.
@@ -105,6 +103,8 @@ shared content vocabulary (research D7, D8, D14).
 | The selected date | Marked on its row. |
 | The caption | The site's latitude, and which hemisphere it lies in. |
 | The description | A text description of the chart, for assistive technology. |
+| The legend | The five bands, named, so the chart is never read by colour alone. |
+| The extremes | The year's longest and shortest day, with their dates and lengths, as text — the chart shows the shape, these two numbers name it (research D13). |
 
 The daylight band's width follows the seasons: it is widest at the site's summer and narrowest at
 its winter, and the whole year reads as a gradient that narrows and widens.

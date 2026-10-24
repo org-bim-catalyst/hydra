@@ -19,7 +19,9 @@ features/solar/
 ├── solar/
 │   ├── solarPosition.ts           ported NOAA algorithm (research D1) — no runtime dependency
 │   ├── refraction.ts              NOAA's piecewise refraction correction, split from the semidiameter (063)
+│   ├── crossingSolver.ts          Newton on the instant, generalised to any target altitude (085)
 │   ├── daySummary.ts              sunrise/sunset/day length, polar-condition handling
+│   ├── twilight.ts                the 6°/12°/18° thresholds, phase lengths, the year profile (085)
 │   ├── noaaFullDay.fixture.ts     NOAA's own published full-day table, the SC-002 reference (063)
 │   └── timeZone.ts                tz-lookup + Intl.DateTimeFormat (research D2)
 ├── buildings/footprintGeometry.ts ONE merged extrusion for every footprint; casts, never drawn (063)
@@ -35,6 +37,7 @@ features/solar/
 │   ├── SolarTimeControlPanel.tsx  live panel: date, time slider/entry field, play/stop
 │   ├── timeEntry.ts               pure decision logic for the entry field + tick marks (specs/064)
 │   ├── BuildingCorrectionsPanel.tsx live panel: height correction, ground offset, reset
+│   ├── SolarDayLengthPanel.tsx    live panel: the year's day-length chart, read-only (085)
 │   ├── panelContracts.ts          the panels' type keys and zod `data` schemas, kept out of the
 │   │                              components so Fast Refresh can still hot-swap them
 │   └── solarFiguresContent.ts     content-panel document (specs/049 blocks), not a component
@@ -220,3 +223,19 @@ handle precision.
 Run the whole feature: `npx vitest run src/features/solar` (frontend) and
 `dotnet test "Ask Lucy.sln" --filter "FullyQualifiedName~Buildings|FullyQualifiedName~OpenSolarAnalysisCapability"`
 (backend, note the space in the solution name).
+
+## Twilight (specs/085)
+
+Twilight is defined on the sun's **centre** at 6°, 12° and 18° below the horizon, *geometrically* —
+the definition NOAA, the NWS and USNO publish, so a phase can be checked against an almanac. The
+rise/set upper-edge convention is not extended to twilight: no almanac defines it that way.
+
+`refraction.ts` holds the correction at a constant `HORIZON_REFRACTION_DEGREES` (0.5749°) for every
+geometric altitude at or below −0.575°, so a crossing is solved exactly as the instant the
+*apparent* altitude equals `−threshold + HORIZON_REFRACTION_DEGREES`. The panel therefore reports
+−5.43°, −11.43° and −17.43° at the three thresholds — one constant at every site and date, the
+same property sunrise has with its −0.27°.
+
+A threshold that the sun's centre never reaches on a date is stated in words for that phase alone.
+That is deliberately independent of the polar statement: a polar-night date can still have all
+three twilight crossings, and a midsummer date can have none.
