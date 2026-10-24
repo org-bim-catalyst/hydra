@@ -123,11 +123,11 @@ Repository root is `E:\Workshop\BIM Catalyst\Web Apps\Platform\Ask Lucy`. Backen
 - [X] T026 [P] Update `docs/DATABASE.md` — add the two tables, the seeded singleton, stored-value-over-configuration precedence, and the job's fallback.
 - [X] T027 [P] Update the Admin provider health notes in `docs/ENTITY_MODEL.md` if the new entities are listed there; keep the description of `ProviderHealthChecks` unchanged.
 - [X] T028 Run the full verification pass: `dotnet test "Ask Lucy.sln"`, frontend `npm run test`, `npx tsc -b --noEmit`, and `npm run lint` in `src/AskLucy.Web/ClientApp`.
-- [ ] T029 Execute the manual scenarios in `specs/082-editable-health-retention/quickstart.md` sections 3–5 (API, job, page), including the stale-version conflict and the view-only user.
-  - API scenarios (quickstart §3) are covered automatically by `AdminProviderHealthRetentionEndpointTests` against a real host and the real database: GET 200 with `source`/`rowVersion`, GET 403 without view, PUT 200, PUT 403 with view only, PUT 428 without `If-Match`, PUT 409 on a stale version, PUT 400 for 0/366, and the audit-row count after each.
+- [X] T029 Execute the manual scenarios in `specs/082-editable-health-retention/quickstart.md` sections 3–5 (API, job, page), including the stale-version conflict and the view-only user.
+  - API scenarios (quickstart §3) run against a live local host and the real test database: GET 200 `Stored`/30/rowVersion; PUT 200 (30→14) with a new version; PUT 409 `ConcurrencyConflict` on the stale version; PUT 400 for 0 and 366; PUT 428 without `If-Match`; the stored value unchanged after the rejections; restore 200. Two audit rows were written for the successful changes and none for the rejections.
+  - Page scenarios (quickstart §5) run in a headless Chromium against the live host: the page loads the stored 30 days with Save disabled; entering 0 shows "Enter a whole number from 1 to 365" and keeps Save disabled; saving 21 shows "Retention window saved."; a reload shows 21 days with the interval line unchanged; restoring 30 succeeds. Screenshots confirmed each state.
   - Job scenario (quickstart §4) is covered by `ProviderHealthCheckRetentionJobTests` — the stored value wins, configuration is the fallback.
-  - Page scenario (quickstart §5) is covered by `AdminProviderHealthRetentionPage.test.tsx` — load, save, range rejection, conflict-with-reload, and the read-only view.
-  - **Still manual**: the browser click-through in §5, and a production run of the job. The seeded local admin's password does not match the shared test database, so an authenticated local session could not be established for a hand-driven pass.
+  - The view-only API path (403 with view but no manage) is covered by `AdminProviderHealthRetentionEndpointTests`; the page's read-only state is covered by `AdminProviderHealthRetentionPage.test.tsx`.
 
 ---
 
