@@ -54,6 +54,12 @@ afterEach(() => server.resetHandlers())
 afterAll(() => server.close())
 
 beforeEach(() => {
+  // useSiteAnalysisRehydration fires for every conversation this page opens. Without a handler
+  // the request is bypassed to the real network, fails, and pops the "Some site analysis panels
+  // couldn't be restored." Snackbar — a second role="alert", which made `findByRole('alert')`
+  // below throw "Found multiple elements" on a loaded CI runner (2026-10-24). An empty list is
+  // the normal case for a chat that has no site analyses.
+  server.use(http.get('*/api/v1/site-analyses', () => HttpResponse.json([])))
   vi.spyOn(HTMLElement.prototype, 'clientHeight', 'get').mockReturnValue(600)
   vi.spyOn(HTMLElement.prototype, 'offsetHeight', 'get').mockReturnValue(56)
   HTMLElement.prototype.scrollIntoView = vi.fn()
