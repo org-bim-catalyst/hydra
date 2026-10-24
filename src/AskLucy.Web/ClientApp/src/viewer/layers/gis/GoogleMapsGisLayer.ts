@@ -333,6 +333,15 @@ export async function createGoogleMapsGisLayer(
       ...gl.getContextAttributes(),
     })
     renderer.autoClear = false
+    // Specs/063 FR-011, SC-005. Three's default shadow algorithm (`PCFShadowMap`) samples a narrow
+    // kernel, so at a low sun — where the shadow camera's texels are stretched along the light by
+    // 1/sin(elevation) — each texel edge lands as a hard step and a 1 km shadow reads as a
+    // staircase. `PCFSoftShadowMap` is the wider, bilinear kernel (and what the reference
+    // implementation this feature was measured against uses); it turns those steps into a soft
+    // edge without changing the map's resolution or cost. Set here, at construction, because the
+    // shader chunk is chosen when materials compile — changing it later needs every material
+    // recompiled. Renderer-global state stays in the viewer, never in a capability (FR-038).
+    renderer.shadowMap.type = THREE.PCFSoftShadowMap
     // T032a (FR-005a/SC-004a): a lower pixel ratio on detected low-end/mobile devices is a
     // cheap, broadly effective way to reduce GPU load for a bridged external renderer we
     // don't otherwise control the render loop of.
