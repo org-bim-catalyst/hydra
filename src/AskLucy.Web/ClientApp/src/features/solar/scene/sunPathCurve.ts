@@ -1,5 +1,6 @@
 import * as THREE from 'three'
 import { solarPosition } from '../solar/solarPosition'
+import { fromLocalParts } from '../solar/timeZone'
 
 /** research D17, contracts/solar-extension.md — the sun-path dome's radius, following the
  * reference implementation's proven value. */
@@ -337,6 +338,8 @@ export function buildDatedPath(
   latitude: number,
   longitude: number,
   currentInstantUtc: Date,
+  /** The site's time zone: the hour marks are local clock hours, so it cannot be omitted. */
+  timeZoneId: string,
   radiusMetres: number = SUN_PATH_DOME_RADIUS_METRES,
 ): DatedPathObjects {
   const chosenDayPoints = sampleDayArcPoints(dateUtc, latitude, longitude, radiusMetres)
@@ -347,12 +350,17 @@ export function buildDatedPath(
   const winterExtreme = buildTubeFromPoints(sampleDayArcPoints(winter, latitude, longitude, radiusMetres), 0.5, 0x4fb0ff, 0.8)
 
   const hourMarks: THREE.Sprite[] = []
-  const dayStart = Date.UTC(dateUtc.getUTCFullYear(), dateUtc.getUTCMonth(), dateUtc.getUTCDate())
+  // The marks belong to the site's own clock (data-model: `localHour`), not to UTC. This used to
+  // step 0–23 across UTC, which in Dubai put the "12" mark where the sun stands at 16:00 local —
+  // four hours out, and visible against any almanac. `fromLocalParts` resolves each hour in the
+  // site's zone, so a DST transition is handled by the same conversion the panels use.
+  const localDate = `${dateUtc.getUTCFullYear()}-${String(dateUtc.getUTCMonth() + 1).padStart(2, '0')}-${String(dateUtc.getUTCDate()).padStart(2, '0')}`
   for (let hour = 0; hour < 24; hour++) {
-    const position = solarPosition(new Date(dayStart + hour * 3_600_000), latitude, longitude)
+    const position = solarPosition(fromLocalParts(localDate, hour * 60, timeZoneId), latitude, longitude)
     if (position.altitudeDegrees >= 2) {
       const sprite = makeHourMarkSprite(String(hour).padStart(2, '0'))
       sprite.position.copy(sphericalToVec(position.azimuthDegrees, position.altitudeDegrees, radiusMetres))
+      sprite.userData.localHour = hour
       hourMarks.push(sprite)
     }
   }

@@ -178,8 +178,8 @@ export class SolarScene {
    * cases apart (a date change near a solstice can move the sun by less than the gate while
    * replacing every arc in the group).
    */
-  updateSunPath(localDate: string, latitude: number, longitude: number, currentInstantUtc: Date, azimuthDegrees: number, altitudeDegrees: number): boolean {
-    this.lastSunPathArguments = [localDate, latitude, longitude, currentInstantUtc, azimuthDegrees, altitudeDegrees]
+  updateSunPath(localDate: string, latitude: number, longitude: number, currentInstantUtc: Date, azimuthDegrees: number, altitudeDegrees: number, timeZoneId: string): boolean {
+    this.lastSunPathArguments = [localDate, latitude, longitude, currentInstantUtc, azimuthDegrees, altitudeDegrees, timeZoneId]
     const [year] = localDate.split('-').map(Number)
     const radius = this.domeRadiusMetres
     const site = `${latitude.toFixed(6)}|${longitude.toFixed(6)}`
@@ -203,7 +203,7 @@ export class SolarScene {
         const [y, month, day] = localDate.split('-').map(Number)
         return new Date(Date.UTC(y, month - 1, day))
       })()
-      const dated = buildDatedPath(dateForArc, latitude, longitude, currentInstantUtc, radius)
+      const dated = buildDatedPath(dateForArc, latitude, longitude, currentInstantUtc, timeZoneId, radius)
       for (const object of [dated.chosenDay, dated.summerExtreme, dated.winterExtreme, ...dated.hourMarks, dated.currentPositionMarker]) {
         if (object) this.sunPathDatedGroup.add(object)
       }

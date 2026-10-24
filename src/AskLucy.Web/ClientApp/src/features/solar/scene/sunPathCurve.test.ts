@@ -66,7 +66,7 @@ describe('sampleDayArcPoints', () => {
 
 describe('buildDatedPath — chosen day, seasonal extremes and hour marks are distinct objects (FR-005, FR-006, FR-007)', () => {
   it('produces separate, distinguishably-materialed meshes for chosen day, summer and winter extremes', () => {
-    const result = buildDatedPath(new Date(Date.UTC(2026, 8, 22)), 25.2, 55.3, new Date(Date.UTC(2026, 8, 22, 10, 0)))
+    const result = buildDatedPath(new Date(Date.UTC(2026, 8, 22)), 25.2, 55.3, new Date(Date.UTC(2026, 8, 22, 10, 0)), 'Asia/Dubai')
 
     expect(result.chosenDay).not.toBeNull()
     expect(result.summerExtreme).not.toBeNull()
@@ -85,8 +85,8 @@ describe('buildDatedPath — chosen day, seasonal extremes and hour marks are di
   })
 
   it('picks June as the summer extreme in the northern hemisphere and December in the southern', () => {
-    const north = buildDatedPath(new Date(Date.UTC(2026, 8, 22)), 51.5, -0.1, new Date(Date.UTC(2026, 8, 22, 10, 0)))
-    const south = buildDatedPath(new Date(Date.UTC(2026, 8, 22)), -54.8, -68.3, new Date(Date.UTC(2026, 8, 22, 10, 0)))
+    const north = buildDatedPath(new Date(Date.UTC(2026, 8, 22)), 51.5, -0.1, new Date(Date.UTC(2026, 8, 22, 10, 0)), 'Europe/London')
+    const south = buildDatedPath(new Date(Date.UTC(2026, 8, 22)), -54.8, -68.3, new Date(Date.UTC(2026, 8, 22, 10, 0)), 'America/Punta_Arenas')
     // Both hemispheres must produce a summer/winter pair; which calendar month backs each differs,
     // which is exercised indirectly through daySummary's own hemisphere test — this test only
     // confirms both tracks exist for both hemispheres.
@@ -97,16 +97,32 @@ describe('buildDatedPath — chosen day, seasonal extremes and hour marks are di
   })
 
   it('marks hours along the chosen day only when the sun is meaningfully above the horizon', () => {
-    const result = buildDatedPath(new Date(Date.UTC(2026, 5, 21)), 25.2, 55.3, new Date(Date.UTC(2026, 5, 21, 12, 0)))
+    const result = buildDatedPath(new Date(Date.UTC(2026, 5, 21)), 25.2, 55.3, new Date(Date.UTC(2026, 5, 21, 12, 0)), 'Asia/Dubai')
     expect(result.hourMarks.length).toBeGreaterThan(0)
     for (const sprite of result.hourMarks) {
       expect(sprite).toBeInstanceOf(THREE.Sprite)
     }
   })
 
+  it('labels the hour marks on the site’s own clock, not on UTC (data-model `localHour`)', () => {
+    const result = buildDatedPath(
+      new Date(Date.UTC(2026, 5, 21)),
+      25.2,
+      55.3,
+      new Date(Date.UTC(2026, 5, 21, 12, 0)),
+      'Asia/Dubai',
+    )
+
+    // Dubai's solar noon is a little after 12:00 local, so the 12:00 mark is the highest one on
+    // the dome. Stepping UTC hours instead put the "12" where the sun stands at 16:00 local —
+    // four hours out of place, which is exactly the bug this pins.
+    const highest = result.hourMarks.reduce((a, b) => (a.position.z >= b.position.z ? a : b))
+    expect(highest.userData.localHour).toBe(12)
+  })
+
   it('shows the current position marker in gold when above the horizon, dim when below', () => {
-    const day = buildDatedPath(new Date(Date.UTC(2026, 5, 21)), 25.2, 55.3, new Date(Date.UTC(2026, 5, 21, 10, 0)))
-    const night = buildDatedPath(new Date(Date.UTC(2026, 5, 21)), 25.2, 55.3, new Date(Date.UTC(2026, 5, 21, 0, 0)))
+    const day = buildDatedPath(new Date(Date.UTC(2026, 5, 21)), 25.2, 55.3, new Date(Date.UTC(2026, 5, 21, 10, 0)), 'Asia/Dubai')
+    const night = buildDatedPath(new Date(Date.UTC(2026, 5, 21)), 25.2, 55.3, new Date(Date.UTC(2026, 5, 21, 0, 0)), 'Asia/Dubai')
     const dayColor = (day.currentPositionMarker.material as THREE.MeshBasicMaterial).color.getHex()
     const nightColor = (night.currentPositionMarker.material as THREE.MeshBasicMaterial).color.getHex()
     expect(dayColor).not.toBe(nightColor)
@@ -134,7 +150,7 @@ function identitiesOf(group: THREE.Group): THREE.Object3D[] {
 describe('A date change rebuilds only the dated group (T038, FR-021, SC-008)', () => {
   it('leaves every fixed-furniture object identity untouched across a sequence of dates', () => {
     const scene = new SolarScene(fakeDrawingSpace())
-    scene.updateSunPath('2026-09-22', DUBAI.latitude, DUBAI.longitude, new Date(Date.UTC(2026, 8, 22, 10)), 180, 45)
+    scene.updateSunPath('2026-09-22', DUBAI.latitude, DUBAI.longitude, new Date(Date.UTC(2026, 8, 22, 10)), 180, 45, 'Asia/Dubai')
 
     const fixedBefore = identitiesOf(scene.sunPathFixedGroup)
     const datedBefore = identitiesOf(scene.sunPathDatedGroup)
@@ -142,7 +158,7 @@ describe('A date change rebuilds only the dated group (T038, FR-021, SC-008)', (
     expect(datedBefore.length).toBeGreaterThan(0)
 
     for (const date of ['2026-09-23', '2026-10-15', '2026-12-21', '2026-03-20']) {
-      const rebuilt = scene.updateSunPath(date, DUBAI.latitude, DUBAI.longitude, new Date(Date.UTC(2026, 8, 22, 10)), 180, 45)
+      const rebuilt = scene.updateSunPath(date, DUBAI.latitude, DUBAI.longitude, new Date(Date.UTC(2026, 8, 22, 10)), 180, 45, 'Asia/Dubai')
       expect(rebuilt).toBe(true)
     }
 
@@ -156,11 +172,11 @@ describe('A date change rebuilds only the dated group (T038, FR-021, SC-008)', (
 
   it('rebuilds nothing at all on a time-of-day tick within the same date', () => {
     const scene = new SolarScene(fakeDrawingSpace())
-    scene.updateSunPath('2026-09-22', DUBAI.latitude, DUBAI.longitude, new Date(Date.UTC(2026, 8, 22, 10)), 180, 45)
+    scene.updateSunPath('2026-09-22', DUBAI.latitude, DUBAI.longitude, new Date(Date.UTC(2026, 8, 22, 10)), 180, 45, 'Asia/Dubai')
     const fixedBefore = identitiesOf(scene.sunPathFixedGroup)
     const datedBefore = identitiesOf(scene.sunPathDatedGroup)
 
-    const rebuilt = scene.updateSunPath('2026-09-22', DUBAI.latitude, DUBAI.longitude, new Date(Date.UTC(2026, 8, 22, 14)), 240, 30)
+    const rebuilt = scene.updateSunPath('2026-09-22', DUBAI.latitude, DUBAI.longitude, new Date(Date.UTC(2026, 8, 22, 14)), 240, 30, 'Asia/Dubai')
 
     expect(rebuilt).toBe(false)
     expect(identitiesOf(scene.sunPathFixedGroup)).toEqual(fixedBefore)
@@ -173,11 +189,11 @@ describe('A date change rebuilds only the dated group (T038, FR-021, SC-008)', (
 describe('A site change or a year change rebuilds both groups (T039, FR-022)', () => {
   it('rebuilds the fixed furniture on a site change', () => {
     const scene = new SolarScene(fakeDrawingSpace())
-    scene.updateSunPath('2026-09-22', DUBAI.latitude, DUBAI.longitude, new Date(Date.UTC(2026, 8, 22, 10)), 180, 45)
+    scene.updateSunPath('2026-09-22', DUBAI.latitude, DUBAI.longitude, new Date(Date.UTC(2026, 8, 22, 10)), 180, 45, 'Asia/Dubai')
     const fixedBefore = identitiesOf(scene.sunPathFixedGroup)
 
     // London: a different latitude puts the monthly lattice and the dial somewhere else entirely.
-    scene.updateSunPath('2026-09-22', 51.5, -0.1, new Date(Date.UTC(2026, 8, 22, 10)), 180, 45)
+    scene.updateSunPath('2026-09-22', 51.5, -0.1, new Date(Date.UTC(2026, 8, 22, 10)), 180, 45, 'Europe/London')
 
     expect(identitiesOf(scene.sunPathFixedGroup)).not.toEqual(fixedBefore)
     scene.disposeAll()
@@ -185,10 +201,10 @@ describe('A site change or a year change rebuilds both groups (T039, FR-022)', (
 
   it('rebuilds the fixed furniture on a year change', () => {
     const scene = new SolarScene(fakeDrawingSpace())
-    scene.updateSunPath('2026-12-31', DUBAI.latitude, DUBAI.longitude, new Date(Date.UTC(2026, 11, 31, 10)), 180, 45)
+    scene.updateSunPath('2026-12-31', DUBAI.latitude, DUBAI.longitude, new Date(Date.UTC(2026, 11, 31, 10)), 180, 45, 'Asia/Dubai')
     const fixedBefore = identitiesOf(scene.sunPathFixedGroup)
 
-    scene.updateSunPath('2027-01-01', DUBAI.latitude, DUBAI.longitude, new Date(Date.UTC(2027, 0, 1, 10)), 180, 45)
+    scene.updateSunPath('2027-01-01', DUBAI.latitude, DUBAI.longitude, new Date(Date.UTC(2027, 0, 1, 10)), 180, 45, 'Asia/Dubai')
 
     expect(identitiesOf(scene.sunPathFixedGroup)).not.toEqual(fixedBefore)
     scene.disposeAll()
@@ -216,7 +232,7 @@ describe('A site change or a year change rebuilds both groups (T039, FR-022)', (
 
 describe('Arcs stay tubes, never THREE.Line (T040, README constraint 5)', () => {
   it('builds every dated arc and every monthly lattice arc from TubeGeometry', () => {
-    const dated = buildDatedPath(new Date(Date.UTC(2026, 8, 22)), DUBAI.latitude, DUBAI.longitude, new Date(Date.UTC(2026, 8, 22, 10)))
+    const dated = buildDatedPath(new Date(Date.UTC(2026, 8, 22)), DUBAI.latitude, DUBAI.longitude, new Date(Date.UTC(2026, 8, 22, 10)), 'Asia/Dubai')
     const furniture = buildFixedFurniture(DUBAI.latitude, DUBAI.longitude, 2026)
 
     for (const arc of [dated.chosenDay, dated.summerExtreme, dated.winterExtreme, ...furniture.monthlyArcs]) {
@@ -229,7 +245,7 @@ describe('Arcs stay tubes, never THREE.Line (T040, README constraint 5)', () => 
 
   it('introduces no THREE.Line anywhere in either assembled group', () => {
     const scene = new SolarScene(fakeDrawingSpace())
-    scene.updateSunPath('2026-09-22', DUBAI.latitude, DUBAI.longitude, new Date(Date.UTC(2026, 8, 22, 10)), 180, 45)
+    scene.updateSunPath('2026-09-22', DUBAI.latitude, DUBAI.longitude, new Date(Date.UTC(2026, 8, 22, 10)), 180, 45, 'Asia/Dubai')
 
     for (const group of [scene.sunPathFixedGroup, scene.sunPathDatedGroup]) {
       group.traverse((child) => {
@@ -245,13 +261,13 @@ describe('Arcs stay tubes, never THREE.Line (T040, README constraint 5)', () => 
 describe('Repeated changes accumulate nothing in either disposal scope (T041, FR-023, SC-010)', () => {
   it('holds child counts steady across many date changes and site changes', () => {
     const scene = new SolarScene(fakeDrawingSpace())
-    scene.updateSunPath('2026-09-22', DUBAI.latitude, DUBAI.longitude, new Date(Date.UTC(2026, 8, 22, 10)), 180, 45)
+    scene.updateSunPath('2026-09-22', DUBAI.latitude, DUBAI.longitude, new Date(Date.UTC(2026, 8, 22, 10)), 180, 45, 'Asia/Dubai')
     const fixedCount = scene.sunPathFixedGroup.children.length
     const datedCount = scene.sunPathDatedGroup.children.length
 
     for (let cycle = 0; cycle < 10; cycle++) {
-      scene.updateSunPath('2026-09-23', DUBAI.latitude, DUBAI.longitude, new Date(Date.UTC(2026, 8, 23, 10)), 180, 45)
-      scene.updateSunPath('2026-09-22', DUBAI.latitude, DUBAI.longitude, new Date(Date.UTC(2026, 8, 22, 10)), 180, 45)
+      scene.updateSunPath('2026-09-23', DUBAI.latitude, DUBAI.longitude, new Date(Date.UTC(2026, 8, 23, 10)), 180, 45, 'Asia/Dubai')
+      scene.updateSunPath('2026-09-22', DUBAI.latitude, DUBAI.longitude, new Date(Date.UTC(2026, 8, 22, 10)), 180, 45, 'Asia/Dubai')
     }
 
     // Same date and site as the very first call, so the same instrument — not ten of them stacked.
@@ -259,8 +275,8 @@ describe('Repeated changes accumulate nothing in either disposal scope (T041, FR
     expect(scene.sunPathDatedGroup.children.length).toBe(datedCount)
 
     for (let cycle = 0; cycle < 10; cycle++) {
-      scene.updateSunPath('2026-09-22', 51.5, -0.1, new Date(Date.UTC(2026, 8, 22, 10)), 180, 45)
-      scene.updateSunPath('2026-09-22', DUBAI.latitude, DUBAI.longitude, new Date(Date.UTC(2026, 8, 22, 10)), 180, 45)
+      scene.updateSunPath('2026-09-22', 51.5, -0.1, new Date(Date.UTC(2026, 8, 22, 10)), 180, 45, 'Europe/London')
+      scene.updateSunPath('2026-09-22', DUBAI.latitude, DUBAI.longitude, new Date(Date.UTC(2026, 8, 22, 10)), 180, 45, 'Asia/Dubai')
     }
 
     expect(scene.sunPathFixedGroup.children.length).toBe(fixedCount)
@@ -275,7 +291,7 @@ describe('Repeated changes accumulate nothing in either disposal scope (T041, FR
   it('empties both groups on every one of fifty open/close cycles (SC-010)', () => {
     for (let cycle = 0; cycle < 50; cycle++) {
       const scene = new SolarScene(fakeDrawingSpace())
-      scene.updateSunPath('2026-09-22', DUBAI.latitude, DUBAI.longitude, new Date(Date.UTC(2026, 8, 22, 10)), 180, 45)
+      scene.updateSunPath('2026-09-22', DUBAI.latitude, DUBAI.longitude, new Date(Date.UTC(2026, 8, 22, 10)), 180, 45, 'Asia/Dubai')
       expect(scene.sunPathFixedGroup.children.length).toBeGreaterThan(0)
 
       scene.disposeAll()
@@ -343,7 +359,7 @@ describe('The dome encloses the building under study (specs/076)', () => {
   it('redraws an already-drawn dome at once when a bigger site building arrives, leaving the shadow rig alone', () => {
     sceneAnchor.set(DUBAI)
     const scene = new SolarScene(fakeDrawingSpace())
-    scene.updateSunPath('2026-09-22', DUBAI.latitude, DUBAI.longitude, new Date(Date.UTC(2026, 8, 22, 10)), 180, 45)
+    scene.updateSunPath('2026-09-22', DUBAI.latitude, DUBAI.longitude, new Date(Date.UTC(2026, 8, 22, 10)), 180, 45, 'Asia/Dubai')
     expect(shellRadius(scene)).toBe(SUN_PATH_DOME_RADIUS_METRES)
 
     // BurJuman-sized: 200 m across, so its corners are ~141 m out — through the reference shell.

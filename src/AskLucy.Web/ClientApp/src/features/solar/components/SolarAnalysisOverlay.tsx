@@ -10,6 +10,7 @@ import { copy } from '../copy'
 import { daySummary } from '../solar/daySummary'
 import { twilightCrossings } from '../solar/twilight'
 import { solarPosition } from '../solar/solarPosition'
+import { FALLBACK_TIME_ZONE } from '../solar/timeZone'
 import { buildSolarFiguresContent } from '../panels/solarFiguresContent'
 import type { SolarScene } from '../scene/SolarScene'
 import { useCorrectionsStore } from '../store/correctionsStore'
@@ -239,7 +240,15 @@ export function makeSolarAnalysisOverlay(context: ExtensionContext, sceneRef: { 
 
       // T051, FR-019, FR-022, FR-023, SC-004 — rebuilds the dome only on a date/site change;
       // every other tick just moves the marker and the light, never rebuilding tube geometry.
-      const domeRebuilt = solarScene.updateSunPath(moment.localDate, site.latitude, site.longitude, moment.instantUtc, position.azimuthDegrees, position.altitudeDegrees)
+      const domeRebuilt = solarScene.updateSunPath(
+        moment.localDate,
+        site.latitude,
+        site.longitude,
+        moment.instantUtc,
+        position.azimuthDegrees,
+        position.altitudeDegrees,
+        site.timeZoneId ?? FALLBACK_TIME_ZONE,
+      )
 
       // T035, T036, FR-018, FR-020, FR-024 — during continuous playback only, a sun movement too
       // small to change the picture is skipped: `aimSun` returns false and no `invalidate()` is
