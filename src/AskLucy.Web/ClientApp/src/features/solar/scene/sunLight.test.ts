@@ -1,7 +1,15 @@
 import * as THREE from 'three'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { solarPosition, solarPositionToEnuUnitVector } from '../solar/solarPosition'
-import { MIN_SHADOW_ELEVATION_DEGREES, SHADOW_FRUSTUM_MARGIN, SunLight, shadowRadiusMetres } from './sunLight'
+import {
+  LOW_SUN_ELEVATION_DEGREES,
+  MIN_SHADOW_ELEVATION_DEGREES,
+  SHADOW_FRUSTUM_MARGIN,
+  SHADOW_MAP_SIZE,
+  SHADOW_MAP_SIZE_LOW_SUN,
+  SunLight,
+  shadowRadiusMetres,
+} from './sunLight'
 
 describe('SunLight — direction and shadow-casting behaviour (FR-016, FR-017)', () => {
   it('aims the light along the sun ENU unit vector, scaled by the light distance', () => {
@@ -44,6 +52,56 @@ describe('SunLight — direction and shadow-casting behaviour (FR-016, FR-017)',
     const shadowAzimuth = (position.azimuthDegrees + 180) % 360
     expect(shadowAzimuth).toBeGreaterThan(45)
     expect(shadowAzimuth).toBeLessThan(135) // east-southeast through east-northeast
+  })
+
+  // Reported 2026-10-24 from a screenshot at 7.6°: the shadow edges were a saw-tooth rather than a
+  // straight line. A shadow map's texel footprint stretches by 1/sin(elevation) along the light
+  // direction, so the fixed 2048² map that is crisp at noon covers metres of ground per texel at a
+  // grazing angle. The map doubles while the sun is low, and only then.
+  describe('shadow-map resolution at a low sun', () => {
+    it('uses the standard map while the sun is high', () => {
+      const light = new SunLight(200)
+      light.aimAt(180, 45)
+
+      expect(light.directionalLight.shadow.mapSize.x).toBe(SHADOW_MAP_SIZE)
+    })
+
+    it('doubles the map at or below the low-sun elevation', () => {
+      const light = new SunLight(200)
+      light.aimAt(263, 7.6)
+
+      expect(light.directionalLight.shadow.mapSize.x).toBe(SHADOW_MAP_SIZE_LOW_SUN)
+    })
+
+    it('releases the larger map when the sun climbs again', () => {
+      const light = new SunLight(200)
+      light.aimAt(263, 7.6)
+      expect(light.directionalLight.shadow.mapSize.x).toBe(SHADOW_MAP_SIZE_LOW_SUN)
+
+      light.aimAt(200, LOW_SUN_ELEVATION_DEGREES + 10)
+
+      expect(light.directionalLight.shadow.mapSize.x).toBe(SHADOW_MAP_SIZE)
+    })
+
+    it('keeps the standard map while the sun is down, when nothing casts', () => {
+      const light = new SunLight(200)
+      light.aimAt(263, 7.6)
+      light.aimAt(263, -5)
+
+      expect(light.directionalLight.shadow.mapSize.x).toBe(SHADOW_MAP_SIZE)
+    })
+
+    it('disposes and clears the allocated target when the size changes', () => {
+      const light = new SunLight(200)
+      const dispose = vi.fn()
+      // Three allocates the target on the first shadow render; this stands in for that target.
+      ;(light.directionalLight.shadow as unknown as { map: unknown }).map = { dispose }
+
+      light.aimAt(263, 7.6)
+
+      expect(dispose).toHaveBeenCalledTimes(1)
+      expect(light.directionalLight.shadow.map).toBeNull()
+    })
   })
 
   it('configures the orthographic shadow camera frustum to radius * the ground-clearance margin', () => {

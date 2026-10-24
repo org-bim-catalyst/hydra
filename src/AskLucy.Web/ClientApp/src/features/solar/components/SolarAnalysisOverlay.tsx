@@ -276,7 +276,9 @@ export function makeSolarAnalysisOverlay(context: ExtensionContext, sceneRef: { 
         content,
         // The reference page's compact look: this readout sits over the scene the analysis is
         // about, so it keeps its footprint small.
-        chrome: { density: 'compact', defaultSize: { width: 260, height: 320 } },
+        // specs/085 — taller than the 320 the rise/set figures needed: three twilight rows and the
+        // threshold statement ran past the bottom of it, so the astronomical row sat below the fold.
+        chrome: { density: 'compact', defaultSize: { width: 260, height: 460 } },
       })
     }, [activation, site, moment, status, siteBuildings])
 

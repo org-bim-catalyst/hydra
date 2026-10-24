@@ -25,6 +25,24 @@ export const MIN_SHADOW_ELEVATION_DEGREES = 1.0
  */
 export const SHADOW_FRUSTUM_MARGIN = 1.08
 
+/**
+ * FR-011, SC-005 — the shadow map's resolution.
+ *
+ * A shadow map is a grid over the light's view of the site, so each texel has a footprint on the
+ * ground. At a low sun that footprint is stretched along the light direction by `1 / sin(elevation)`:
+ * the same 2048² map that draws crisp edges at noon draws visible saw-teeth at 7°, where a
+ * ~0.45 m texel covers ~3.4 m of ground. The map is therefore doubled while the sun is low and
+ * released back when it is not, so the extra memory is paid only for the hours that need it.
+ */
+export const SHADOW_MAP_SIZE = 2048
+
+/** The resolution used while the sun is below `LOW_SUN_ELEVATION_DEGREES`. */
+export const SHADOW_MAP_SIZE_LOW_SUN = 4096
+
+/** Below this elevation the map doubles. Twenty degrees is where the stretch factor (1/sin) is
+ * still under 3, which the 2048² map covers without visible stepping. */
+export const LOW_SUN_ELEVATION_DEGREES = 20
+
 /** FR-013 — the stated extent used when the analysis area contains no buildings at all. Nothing
  * casts, so nothing has to be reached; this only has to give the ground plane a sensible size. */
 export const NO_BUILDINGS_FALLBACK_EXTENT_METRES = 200
@@ -77,7 +95,7 @@ export class SunLight {
   constructor(radiusMetres: number, tallestBuildingMetres: number = 50) {
     this.directionalLight = new THREE.DirectionalLight(0xfff2d0, 2.6)
     this.directionalLight.castShadow = true
-    this.directionalLight.shadow.mapSize.set(2048, 2048)
+    this.directionalLight.shadow.mapSize.set(SHADOW_MAP_SIZE, SHADOW_MAP_SIZE)
     this.directionalLight.shadow.bias = -0.0006
 
     this.ambientLight = new THREE.AmbientLight(0xffffff, 0.7)
@@ -126,6 +144,9 @@ export class SunLight {
     const castsShadows = altitudeDegrees > MIN_SHADOW_ELEVATION_DEGREES
     this.directionalLight.visible = castsShadows
     this.directionalLight.intensity = castsShadows ? 2.6 : 0
+    this.applyMapSize(
+      castsShadows && altitudeDegrees <= LOW_SUN_ELEVATION_DEGREES ? SHADOW_MAP_SIZE_LOW_SUN : SHADOW_MAP_SIZE,
+    )
 
     const direction = solarPositionToEnuUnitVector(azimuthDegrees, altitudeDegrees)
     this.directionalLight.position.set(
@@ -135,6 +156,20 @@ export class SunLight {
     )
     this.directionalLight.target.position.set(0, 0, 0)
     this.directionalLight.target.updateMatrixWorld()
+  }
+
+  /**
+   * Applies a shadow-map resolution. Three allocates the target from `mapSize` when it first
+   * renders the shadow pass, so a change after that only takes effect once the existing target is
+   * released — hence the dispose-and-null rather than a `mapSize.set` alone.
+   */
+  private applyMapSize(sizePx: number): void {
+    const shadow = this.directionalLight.shadow
+    if (shadow.mapSize.x === sizePx) return
+
+    shadow.mapSize.set(sizePx, sizePx)
+    shadow.map?.dispose()
+    shadow.map = null
   }
 
   addTo(group: THREE.Group): void {
