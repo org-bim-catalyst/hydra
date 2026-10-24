@@ -39,9 +39,18 @@ export const SHADOW_MAP_SIZE = 2048
 /** The resolution used while the sun is below `LOW_SUN_ELEVATION_DEGREES`. */
 export const SHADOW_MAP_SIZE_LOW_SUN = 4096
 
+/** The resolution used while the sun is below `VERY_LOW_SUN_ELEVATION_DEGREES`, where the stretch
+ * (`1/sin`) is past 5.7 and the 4096² map still leaves steps metres wide on the ground. */
+export const SHADOW_MAP_SIZE_VERY_LOW_SUN = 8192
+
 /** Below this elevation the map doubles. Twenty degrees is where the stretch factor (1/sin) is
  * still under 3, which the 2048² map covers without visible stepping. */
 export const LOW_SUN_ELEVATION_DEGREES = 20
+
+/** Below this elevation the map doubles again: at 10° a texel already covers 5.7× its size on the
+ * ground, so a 4096² map over a kilometre-long shadow still steps by a metre or two (SC-005). The
+ * extra memory — about 270 MB of shadow target — is paid only in that window. */
+export const VERY_LOW_SUN_ELEVATION_DEGREES = 10
 
 /** FR-013 — the stated extent used when the analysis area contains no buildings at all. Nothing
  * casts, so nothing has to be reached; this only has to give the ground plane a sensible size. */
@@ -145,7 +154,13 @@ export class SunLight {
     this.directionalLight.visible = castsShadows
     this.directionalLight.intensity = castsShadows ? 2.6 : 0
     this.applyMapSize(
-      castsShadows && altitudeDegrees <= LOW_SUN_ELEVATION_DEGREES ? SHADOW_MAP_SIZE_LOW_SUN : SHADOW_MAP_SIZE,
+      !castsShadows
+        ? SHADOW_MAP_SIZE
+        : altitudeDegrees <= VERY_LOW_SUN_ELEVATION_DEGREES
+          ? SHADOW_MAP_SIZE_VERY_LOW_SUN
+          : altitudeDegrees <= LOW_SUN_ELEVATION_DEGREES
+            ? SHADOW_MAP_SIZE_LOW_SUN
+            : SHADOW_MAP_SIZE,
     )
 
     const direction = solarPositionToEnuUnitVector(azimuthDegrees, altitudeDegrees)

@@ -7,6 +7,7 @@ import {
   SHADOW_FRUSTUM_MARGIN,
   SHADOW_MAP_SIZE,
   SHADOW_MAP_SIZE_LOW_SUN,
+  SHADOW_MAP_SIZE_VERY_LOW_SUN,
   SunLight,
   shadowRadiusMetres,
 } from './sunLight'
@@ -68,15 +69,22 @@ describe('SunLight — direction and shadow-casting behaviour (FR-016, FR-017)',
 
     it('doubles the map at or below the low-sun elevation', () => {
       const light = new SunLight(200)
-      light.aimAt(263, 7.6)
+      light.aimAt(263, 15)
 
       expect(light.directionalLight.shadow.mapSize.x).toBe(SHADOW_MAP_SIZE_LOW_SUN)
+    })
+
+    it('doubles it again at or below the very-low-sun elevation', () => {
+      const light = new SunLight(200)
+      light.aimAt(263, 7.6)
+
+      expect(light.directionalLight.shadow.mapSize.x).toBe(SHADOW_MAP_SIZE_VERY_LOW_SUN)
     })
 
     it('releases the larger map when the sun climbs again', () => {
       const light = new SunLight(200)
       light.aimAt(263, 7.6)
-      expect(light.directionalLight.shadow.mapSize.x).toBe(SHADOW_MAP_SIZE_LOW_SUN)
+      expect(light.directionalLight.shadow.mapSize.x).toBe(SHADOW_MAP_SIZE_VERY_LOW_SUN)
 
       light.aimAt(200, LOW_SUN_ELEVATION_DEGREES + 10)
 
