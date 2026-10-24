@@ -101,9 +101,17 @@ export class SunLight {
    * `configureShadowCamera`), so `aimAt` has to read it rather than a module constant. */
   private distanceMetres = 400
 
+  /** The content box the shadow camera has to cover: `radiusMetres` horizontally either side of
+   * the origin, and `tallestBuildingMetres` up. Re-fitted to its projection on every aim. */
+  private radiusMetres = 200
+  private tallestBuildingMetres = 50
+
   constructor(radiusMetres: number, tallestBuildingMetres: number = 50) {
     this.directionalLight = new THREE.DirectionalLight(0xfff2d0, 2.6)
     this.directionalLight.castShadow = true
+    // The scene is ENU (x east, y north, z up), so the world's up is +Z. Giving the shadow camera
+    // that up keeps its map aligned with the world instead of rolling with a horizontal axis.
+    ;(this.directionalLight.shadow.camera as THREE.OrthographicCamera).up.set(0, 0, 1)
     this.directionalLight.shadow.mapSize.set(SHADOW_MAP_SIZE, SHADOW_MAP_SIZE)
     this.directionalLight.shadow.bias = -0.0006
 
@@ -128,6 +136,8 @@ export class SunLight {
     // Every point of content lies within `radius + height` of the origin, so placing the light at
     // least that far out puts all of it in `(0, 2 × distance)` — comfortably inside `near`..`far`.
     this.distanceMetres = Math.max(400, radiusMetres + tallestBuildingMetres + 50)
+    this.radiusMetres = extent
+    this.tallestBuildingMetres = tallestBuildingMetres
 
     const camera = this.directionalLight.shadow.camera as THREE.OrthographicCamera
     camera.left = -extent
@@ -171,6 +181,57 @@ export class SunLight {
     )
     this.directionalLight.target.position.set(0, 0, 0)
     this.directionalLight.target.updateMatrixWorld()
+    this.fitShadowCamera(new THREE.Vector3(direction.x, direction.y, direction.z))
+  }
+
+  /**
+   * Fits the orthographic shadow camera to the content box's ACTUAL projection, instead of a
+   * square of `radius` on every side.
+   *
+   * A shadow map is a grid over the light's view. The content (a `2 × radius`-wide, `tallest`-high
+   * box of buildings and ground) projects onto that view as a shape far smaller than the square
+   * the camera used to allocate: seen from a 9° sun it is about seven times thinner along the
+   * light's own up axis, because the ground meets that axis at a glancing angle (`sin(elevation)`).
+   * Allocating the square therefore spent most of the texels on empty space — which is why a low
+   * sun drew metre-wide steps however large the map was.
+   *
+   * The camera's right/up axes are perpendicular to the light direction, so a world point's
+   * coordinates in them are the same measured from the origin as from the light: the bounds below
+   * are correct without knowing the light's distance.
+   */
+  private fitShadowCamera(sunDirection: THREE.Vector3): void {
+    const camera = this.directionalLight.shadow.camera as THREE.OrthographicCamera
+    const look = sunDirection.clone().negate()
+    const right = new THREE.Vector3().crossVectors(camera.up, look)
+    // A sun straight overhead makes `cross(up, look)` degenerate; fall back to a stable axis.
+    if (right.lengthSq() < 1e-8) right.set(1, 0, 0)
+    right.normalize()
+    const upAxis = new THREE.Vector3().crossVectors(look, right).normalize()
+
+    let minRight = Infinity
+    let maxRight = -Infinity
+    let minUp = Infinity
+    let maxUp = -Infinity
+    const corner = new THREE.Vector3()
+    for (const signX of [-1, 1]) {
+      for (const signY of [-1, 1]) {
+        for (const height of [0, this.tallestBuildingMetres]) {
+          corner.set(signX * this.radiusMetres, signY * this.radiusMetres, height)
+          const alongRight = corner.dot(right)
+          const alongUp = corner.dot(upAxis)
+          minRight = Math.min(minRight, alongRight)
+          maxRight = Math.max(maxRight, alongRight)
+          minUp = Math.min(minUp, alongUp)
+          maxUp = Math.max(maxUp, alongUp)
+        }
+      }
+    }
+
+    camera.left = minRight
+    camera.right = maxRight
+    camera.bottom = minUp
+    camera.top = maxUp
+    camera.updateProjectionMatrix()
   }
 
   /**

@@ -204,3 +204,66 @@ describe('Low-sun cut-off (T020, FR-012)', () => {
     expect(camera.far).toBeGreaterThan(light.lightDistanceMetres)
   })
 })
+
+describe('SunLight — the shadow camera is fitted to the content, not to a square', () => {
+  function frustum(light: SunLight): THREE.OrthographicCamera {
+    return light.directionalLight.shadow.camera as THREE.OrthographicCamera
+  }
+
+  it('allocates a fraction of the old square at a low sun', () => {
+    const light = new SunLight(400, 60)
+    light.aimAt(263, 7.6)
+
+    const camera = frustum(light)
+    const fitted = (camera.right - camera.left) * (camera.top - camera.bottom)
+    const square = (2 * 400 * SHADOW_FRUSTUM_MARGIN) ** 2
+
+    // Seen from 7.6°, the ground meets the light's up axis at sin(7.6°) ≈ 0.13, so the content's
+    // projection is a thin band — which is where the resolution for a straight shadow edge comes
+    // from. A square frustum spent most of its texels on empty space.
+    expect(fitted).toBeLessThan(square * 0.4)
+  })
+
+  it('leaves room above the buildings for the sun side, and little below the site', () => {
+    const light = new SunLight(400, 60)
+    light.aimAt(263, 7.6)
+
+    const camera = frustum(light)
+    // Horizontally the content is symmetric, so the gain is vertical: the band runs from a little
+    // below the ground up through the buildings, not the ±radius the square allocated.
+    expect(camera.right - camera.left).toBeGreaterThan(camera.top - camera.bottom)
+    expect(camera.top).toBeGreaterThan(0)
+    expect(camera.bottom).toBeLessThan(0)
+    expect(camera.top - camera.bottom).toBeLessThan(400)
+  })
+
+  it('still contains every corner of the content box', () => {
+    const light = new SunLight(400, 60)
+    light.aimAt(263, 7.6)
+    const camera = frustum(light)
+    light.directionalLight.updateMatrixWorld(true)
+    camera.updateMatrixWorld(true)
+
+    // Rebuilt from the documented convention rather than read off the camera, so the test fails
+    // if the fit stops covering the content.
+    const look = solarPositionToEnuUnitVector(263, 7.6)
+    const lookAxis = new THREE.Vector3(-look.x, -look.y, -look.z).normalize()
+    const rightAxis = new THREE.Vector3().crossVectors(new THREE.Vector3(0, 0, 1), lookAxis).normalize()
+    const upAxis = new THREE.Vector3().crossVectors(lookAxis, rightAxis).normalize()
+
+    const extent = 400 * SHADOW_FRUSTUM_MARGIN
+    for (const x of [-extent, extent]) {
+      for (const y of [-extent, extent]) {
+        for (const z of [0, 60]) {
+          const point = new THREE.Vector3(x, y, z)
+          const alongRight = point.dot(rightAxis)
+          const alongUp = point.dot(upAxis)
+          expect(alongRight).toBeGreaterThanOrEqual(camera.left - 1e-6)
+          expect(alongRight).toBeLessThanOrEqual(camera.right + 1e-6)
+          expect(alongUp).toBeGreaterThanOrEqual(camera.bottom - 1e-6)
+          expect(alongUp).toBeLessThanOrEqual(camera.top + 1e-6)
+        }
+      }
+    }
+  })
+})
