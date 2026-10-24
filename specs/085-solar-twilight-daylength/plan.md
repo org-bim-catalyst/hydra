@@ -88,9 +88,7 @@ src/AskLucy.Web/ClientApp/src/features/solar/
 │   └── panelContracts.ts         # MODIFIED — the chart panel's type key and data schema
 ├── components/
 │   └── SolarAnalysisOverlay.tsx  # MODIFIED — passes the day's crossings to the figures
-├── copy.ts                # MODIFIED — every new user-facing string
-└── store/
-    └── solarAnalysisStore.ts      # MODIFIED — holds the cached year profile
+└── copy.ts                # MODIFIED — every new user-facing string
 
 src/AskLucy.Web/ClientApp/src/viewer/extensions/builtin/
 └── solarAnalysisExtension.tsx     # MODIFIED — registers and opens the chart panel
