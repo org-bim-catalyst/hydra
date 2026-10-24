@@ -27,10 +27,12 @@ is *right* — only whether it matches the value stated here.
 **Expected**: the three times match the published twilight times for the same site and date, to
 within a minute at latitudes inside 72° of the equator.
 
-**Where to get the reference values**: the US Naval Observatory's year-long twilight table for
-the site's coordinates and year, or an equivalent published almanac. Record the values used in
-the test file, so the check is against a fixed published source rather than against a value
-recomputed by the same code being tested.
+**The reference values used** are recorded in `twilight.test.ts`: they come from
+`api.sunrise-sunset.org` (an independent implementation of NOAA's algorithm), fetched 2026-10-24,
+for Dubai on 2026-09-25 and London on 2026-06-21. Each is checked to within the module's stated
+rise/set tolerance. To re-verify against another source, use the US Naval Observatory's year-long
+twilight table and update the fixture, never the assertion — the check must compare against a
+published value, not one recomputed by the code under test.
 
 **If it does not match**: the threshold is being solved against the wrong quantity — see research
 D1 and D2. The reported altitude constant (−5.43° at a civil crossing) is the quickest tell.

@@ -340,6 +340,17 @@ describe('twilight rows (specs/085)', () => {
     expect(items.find((item) => item.label === copy.astronomicalTwilightLabel)!.value).toBe(copy.twilightNotReached(18))
   })
 
+  it('shows both crossings without a length on a polar-night date, where the sun never crosses the horizon', () => {
+    // Tromsø in midwinter: the sun does not rise (the polar statement says so), but it does descend
+    // through 6°, 12° and 18° — so the crossings exist and the civil band simply has no horizon to
+    // start from (research D5).
+    const { items } = rowsFor(69.6, 18.9, '2026-12-21', 'Europe/Oslo')
+    const civil = items.find((item) => item.label === copy.civilTwilightLabel)!
+
+    expect(items.find((item) => item.label === copy.sunriseLabel)!.value).toBe(copy.sunNeverRises)
+    expect(civil.value).toMatch(/^ends \d{2}:\d{2} · begins \d{2}:\d{2}$/)
+  })
+
   it('states that the thresholds are unrefracted, with the constants the altitude figure reads (FR-004, FR-005)', () => {
     const { text } = rowsFor(25.2, 55.3, '2026-09-13', 'Asia/Dubai')
 
