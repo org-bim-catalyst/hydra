@@ -286,14 +286,19 @@ scale-performance tests below require this gate as well as their own.
 set — the shared test DB, per the table above. It does not wipe anything, but its tests do create
 users and data there.
 
+Test hosts do not register the production recurring Hangfire jobs: `RegisterRecurringJob` is a
+no-op in the `Testing` environment. Registering roughly a dozen jobs per host wrote a burst of
+Hangfire rows while every host started, which exhausted the shared database's connections and
+failed host start-up whenever it was momentarily slow. Job logic is covered by direct unit tests.
+
 Avoid the EF Core InMemory provider for relational behavior.
 
 **Migration drift caused a production incident (specs/029-fix-chat-widget-bugs).** The
 `20260817110019_AddUserVoicePreferenceDefaultLanguage` migration was committed but never
-applied to production, and the app has no `Database.MigrateAsync()` call at startup (by
-design — see `PersistenceTestFixture`'s own doc comment on why this database can't run
-migrations itself). Every query against the affected table 500'd until someone noticed.
-Since then, `GET /health/ready` (tagged separately from the plain liveness `GET /health`)
+applied to production, and at the time the app had no `Database.MigrateAsync()` call at startup.
+Every query against the affected table 500'd until someone noticed. The app now applies pending
+migrations at startup (`Program.cs`; a failure is logged critical without crashing the host), and
+`GET /health/ready` (tagged separately from the plain liveness `GET /health`)
 reports `503` whenever `Database.GetPendingMigrationsAsync()` finds anything pending,
 listing the migration names — check it after every deploy, and whenever
 `PERSISTENCE_TESTS_CONNECTION_STRING`'s target database changes, remember to run
@@ -375,6 +380,10 @@ Every API endpoint should verify:
 ---
 
 # 15. Frontend Component Tests
+
+Test files run in series (`fileParallelism: false` in `vite.config.ts`). The ChatPage suites
+exceed the default 5 s timeout when many heavy jsdom files share the CPU; serial execution makes
+the result independent of runner load, at the cost of wall-clock time.
 
 Every reusable component should verify:
 
