@@ -31,7 +31,7 @@ frontend-only: no backend file, migration or endpoint is touched.
 **Purpose**: confirm the baseline this feature builds on is green, so a later failure is the
 feature's and not the tree's.
 
-- [ ] T001 Run `npx vitest run src/features/solar` from `src/AskLucy.Web/ClientApp` and record the pass count as the baseline. The suite must be green before anything below starts.
+- [x] T001 Run `npx vitest run src/features/solar` from `src/AskLucy.Web/ClientApp` and record the pass count as the baseline. The suite must be green before anything below starts.
 
 ---
 
@@ -42,9 +42,9 @@ it rather than duplicating it (research D4). Both user stories depend on this.
 
 **⚠️ CRITICAL**: no user-story work begins until this phase is complete.
 
-- [ ] T002 Write `src/features/solar/solar/crossingSolver.test.ts` — the solver converges on a known crossing; it returns `null` rather than a seed it did not converge to (the existing `maxIterations: 0` seam); it returns `null` when the slope vanishes (a grazing sun); and the instants it returns match `daySummary`'s current sunrise and sunset exactly, which is what proves the extraction is behaviour-preserving.
-- [ ] T003 Create `src/features/solar/solar/crossingSolver.ts` — move `solveCrossingMs`, its convergence constant, its iteration cap and its finite-difference step out of `daySummary.ts`, parameterised by (a) the quantity driven to zero and (b) its closed-form seed. Export it.
-- [ ] T004 Switch `src/features/solar/solar/daySummary.ts` to import the shared solver, deleting its private copy. `daySummary.test.ts` must stay green unchanged.
+- [x] T002 Write `src/features/solar/solar/crossingSolver.test.ts` — the solver converges on a known crossing; it returns `null` rather than a seed it did not converge to (the existing `maxIterations: 0` seam); it returns `null` when the slope vanishes (a grazing sun); and the instants it returns match `daySummary`'s current sunrise and sunset exactly, which is what proves the extraction is behaviour-preserving.
+- [x] T003 Create `src/features/solar/solar/crossingSolver.ts` — move `solveCrossingMs`, its convergence constant, its iteration cap and its finite-difference step out of `daySummary.ts`, parameterised by (a) the quantity driven to zero and (b) its closed-form seed. Export it.
+- [x] T004 Switch `src/features/solar/solar/daySummary.ts` to import the shared solver, deleting its private copy. `daySummary.test.ts` must stay green unchanged.
 
 **Checkpoint**: the solver is shared and `daySummary`'s behaviour is provably unchanged.
 
@@ -64,15 +64,15 @@ occur is stated in words with no time shown.
 
 > Write these first; they must fail before T006.
 
-- [ ] T005 [P] [US1] Write `src/features/solar/solar/twilight.test.ts` covering: each threshold's two crossings against published almanac values for at least two sites (one mid-latitude, one high-latitude) and both hemispheres; the phase lengths equal the band widths; a threshold not reached reports `reached: false` with no times; a crossing that does not converge reports `undetermined`; and the altitude at each reported crossing reads −5.43° / −11.43° / −17.43° within tolerance.
-- [ ] T006 [P] [US1] Extend `src/features/solar/panels/solarFiguresContent.test.ts` for: the three twilight rows in order; the "does not occur" wording naming the threshold; the threshold-definition statement; and that the existing sunrise, sunset, day-length, polar and accuracy rows are byte-for-byte unchanged.
+- [x] T005 [P] [US1] Write `src/features/solar/solar/twilight.test.ts` covering: each threshold's two crossings against published almanac values for at least two sites (one mid-latitude, one high-latitude) and both hemispheres; the phase lengths equal the band widths; a threshold not reached reports `reached: false` with no times; a crossing that does not converge reports `undetermined`; and the altitude at each reported crossing reads −5.43° / −11.43° / −17.43° within tolerance.
+- [x] T006 [P] [US1] Extend `src/features/solar/panels/solarFiguresContent.test.ts` for: the three twilight rows in order; the "does not occur" wording naming the threshold; the threshold-definition statement; and that the existing sunrise, sunset, day-length, polar and accuracy rows are byte-for-byte unchanged.
 
 ### Implementation for User Story 1
 
-- [ ] T007 [US1] Create `src/features/solar/solar/twilight.ts` — `TWILIGHT_THRESHOLDS` (6°, 12°, 18°, on the sun's centre, geometric); the geometric→apparent target conversion using `HORIZON_REFRACTION_DEGREES` (research D2); `twilightCrossings(dateUtc, latitude, longitude)` returning the crossings, the per-phase lengths and the `reached`/`undetermined` flags (research D5, D6); and a memoised per-(site, date) cache so a playback tick does not re-solve the same day.
-- [ ] T008 [P] [US1] Add the new strings to `src/features/solar/copy.ts` — the phase labels, the "does not reach N° below the horizon" statement, the "could not be determined" statement, the threshold-definition statement, and the three altitude constants as a formatter taking the tolerance constant rather than a literal.
-- [ ] T009 [US1] Extend `src/features/solar/panels/solarFiguresContent.ts` — add the crossings to `SolarFiguresInput`, emit the three twilight rows after the existing ones, and add the threshold-definition and not-occurs statements to the closing text. Keep every existing row and statement untouched.
-- [ ] T010 [US1] Pass the day's twilight summary through `src/AskLucy.Web/ClientApp/src/features/solar/components/SolarAnalysisOverlay.tsx` — compute it from the memoised `twilightCrossings` (not a fresh solve per tick) and hand it to `buildSolarFiguresContent` alongside the existing `daySummary`.
+- [x] T007 [US1] Create `src/features/solar/solar/twilight.ts` — `TWILIGHT_THRESHOLDS` (6°, 12°, 18°, on the sun's centre, geometric); the geometric→apparent target conversion using `HORIZON_REFRACTION_DEGREES` (research D2); `twilightCrossings(dateUtc, latitude, longitude)` returning the crossings, the per-phase lengths and the `reached`/`undetermined` flags (research D5, D6); and a memoised per-(site, date) cache so a playback tick does not re-solve the same day.
+- [x] T008 [P] [US1] Add the new strings to `src/features/solar/copy.ts` — the phase labels, the "does not reach N° below the horizon" statement, the "could not be determined" statement, the threshold-definition statement, and the three altitude constants as a formatter taking the tolerance constant rather than a literal.
+- [x] T009 [US1] Extend `src/features/solar/panels/solarFiguresContent.ts` — add the crossings to `SolarFiguresInput`, emit the three twilight rows after the existing ones, and add the threshold-definition and not-occurs statements to the closing text. Keep every existing row and statement untouched.
+- [x] T010 [US1] Pass the day's twilight summary through `src/AskLucy.Web/ClientApp/src/features/solar/components/SolarAnalysisOverlay.tsx` — compute it from the memoised `twilightCrossings` (not a fresh solve per tick) and hand it to `buildSolarFiguresContent` alongside the existing `daySummary`.
 
 **Checkpoint**: US1 is complete and testable on its own; the chart does not exist yet and nothing else changed.
 

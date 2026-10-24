@@ -4,6 +4,7 @@ import { sceneAnchor } from '../../../viewer/scene/SceneAnchor'
 import type { SiteBuildingDto } from '../api/siteBuildingsApi'
 import { buildFootprintGeometry, buildFootprintMeshes } from '../buildings/footprintGeometry'
 import { copy } from '../copy'
+import { twilightCrossings } from '../solar/twilight'
 import { buildSolarFiguresContent } from '../panels/solarFiguresContent'
 import { daySummary } from '../solar/daySummary'
 import { geometricAltitudeForApparentDegrees, HORIZON_REFRACTION_DEGREES } from '../solar/refraction'
@@ -103,6 +104,7 @@ describe('No shadows when the sun is below the horizon (FR-017, US2 scenario 3)'
       timeBasisLabel: 'Asia/Dubai',
       solarPosition: solarPosition(nightInstant, 25.2, 55.3),
       daySummary: daySummary(nightInstant, 25.2, 55.3),
+      twilight: twilightCrossings(nightInstant, 25.2, 55.3),
       siteBuildingHeightAssumed: null,
     })
     const textBlock = content.blocks.find((b) => (b as { kind: string }).kind === 'text') as unknown as { text: string }

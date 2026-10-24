@@ -8,6 +8,7 @@ import { getSiteBuildings } from '../api/siteBuildingsApi'
 import { siteBuildingsRadiusFor } from '../buildings/siteBuildingsRadius'
 import { copy } from '../copy'
 import { daySummary } from '../solar/daySummary'
+import { twilightCrossings } from '../solar/twilight'
 import { solarPosition } from '../solar/solarPosition'
 import { buildSolarFiguresContent } from '../panels/solarFiguresContent'
 import type { SolarScene } from '../scene/SolarScene'
@@ -253,6 +254,9 @@ export function makeSolarAnalysisOverlay(context: ExtensionContext, sceneRef: { 
       // playback even on a tick whose frame was skipped, and it costs no drawing.
 
       const summary = daySummary(dateForArc, site.latitude, site.longitude)
+      // specs/085 T010 — memoised per (site, date) inside the module, so a playback tick does not
+      // re-solve six thresholds; only a date or site change does.
+      const twilight = twilightCrossings(dateForArc, site.latitude, site.longitude)
       const siteBuilding = siteBuildings.find((b) => b.isSiteBuilding)
       const content = buildSolarFiguresContent({
         localDate: moment.localDate,
@@ -261,6 +265,7 @@ export function makeSolarAnalysisOverlay(context: ExtensionContext, sceneRef: { 
         timeBasisLabel: site.timeBasisLabel,
         solarPosition: position,
         daySummary: summary,
+        twilight,
         siteBuildingHeightAssumed: siteBuilding ? siteBuilding.heightProvenance === 'assumed' : null,
       })
 
