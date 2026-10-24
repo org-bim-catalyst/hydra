@@ -525,3 +525,27 @@ describe('The dome encloses the building under study (specs/076)', () => {
     scene.disposeAll()
   })
 })
+
+describe('the dome draws as an overlay, not as scenery', () => {
+  // The renderer shares Google Maps' depth buffer, so a building nearer the camera would otherwise
+  // cut the dome out of the picture — the bug this pins.
+  it('keeps the shell out of the depth buffer', () => {
+    const material = buildDomeShell(120).material as THREE.MeshStandardMaterial
+
+    expect(material.depthTest).toBe(false)
+    expect(material.depthWrite).toBe(false)
+  })
+
+  it('keeps the arcs out of the depth buffer, and writes no depth that could hole a building', () => {
+    const tube = buildTubeFromPoints(
+      [new THREE.Vector3(0, 0, 0), new THREE.Vector3(10, 10, 10)],
+      0.5,
+      0xff5a3c,
+      1,
+    )
+    const material = tube?.material as THREE.MeshBasicMaterial
+
+    expect(material.depthTest).toBe(false)
+    expect(material.depthWrite).toBe(false)
+  })
+})

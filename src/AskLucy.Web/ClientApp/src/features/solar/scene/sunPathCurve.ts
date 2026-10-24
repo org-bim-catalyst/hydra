@@ -61,7 +61,18 @@ export function buildTubeFromPoints(points: THREE.Vector3[], tubeRadius: number,
   const curve = new THREE.CatmullRomCurve3(points, false)
   const tubularSegments = Math.max(16, Math.min(400, points.length * 2))
   const geometry = new THREE.TubeGeometry(curve, tubularSegments, tubeRadius, 6, false)
-  const material = new THREE.MeshBasicMaterial({ color, transparent: opacity < 1, opacity, depthWrite: opacity >= 1 })
+  // The dome is an analysis overlay, not scenery: the renderer shares Google's depth buffer (it is
+  // constructed on Maps' GL context), so with depth testing on, any building nearer the camera cuts
+  // the arcs and the shell out of the picture. Nothing inside the dome occludes the diagram.
+  const material = new THREE.MeshBasicMaterial({
+    color,
+    transparent: opacity < 1,
+    opacity,
+    // No depth writes either: an overlay that wrote depth would punch holes in anything drawn
+    // after it (a building behind an arc would fail its own depth test).
+    depthWrite: false,
+    depthTest: false,
+  })
   return new THREE.Mesh(geometry, material)
 }
 
@@ -249,6 +260,7 @@ export function buildDomeShell(radiusMetres: number): THREE.Mesh {
       metalness: 0.0,
       side: THREE.DoubleSide,
       depthWrite: false,
+      depthTest: false,
     }),
   )
   // SphereGeometry's hemisphere opens along +Y; rotate so it opens along this scene's +Z up axis.
@@ -463,7 +475,11 @@ export function buildDatedPath(
   const clampedAltitude = Math.max(currentPosition.altitudeDegrees, -6)
   const currentPositionMarker = new THREE.Mesh(
     new THREE.SphereGeometry(6, 24, 24),
-    new THREE.MeshBasicMaterial({ color: currentPosition.altitudeDegrees >= 0 ? 0xffd700 : 0x555b6e }),
+    new THREE.MeshBasicMaterial({
+      color: currentPosition.altitudeDegrees >= 0 ? 0xffd700 : 0x555b6e,
+      depthTest: false,
+      depthWrite: false,
+    }),
   )
   currentPositionMarker.position.copy(sphericalToVec(currentPosition.azimuthDegrees, clampedAltitude, radiusMetres))
 
