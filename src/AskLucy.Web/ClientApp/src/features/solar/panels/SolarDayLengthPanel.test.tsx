@@ -109,29 +109,39 @@ describe('SolarDayLengthPanel (specs/085 US2, FR-011 … FR-019)', () => {
 describe('SolarDayLengthPanel — what it paints', () => {
   it('paints a band for every phase, for every day, and marks the selected date', () => {
     const fills: { style: string; x: number; y: number; width: number; height: number }[] = []
+    const texts: { text: string; x: number; y: number }[] = []
     let strokes = 0
+    let dashedStroke = false
+    let dashes: number[] = []
     const context = {
       fillStyle: '',
       strokeStyle: '',
       lineWidth: 1,
+      font: '',
+      textAlign: 'left',
+      textBaseline: 'alphabetic',
       setTransform: () => {},
       clearRect: () => {},
       beginPath: () => {},
       moveTo: () => {},
       lineTo: () => {},
-      stroke: () => { strokes += 1 },
+      setLineDash: (segments: number[]) => { dashes = segments },
+      stroke: () => { strokes += 1; dashedStroke = dashes.length > 0 },
       fillRect: (x: number, y: number, width: number, height: number) => {
         fills.push({ style: String(context.fillStyle), x, y, width, height })
+      },
+      fillText: (text: string, x: number, y: number) => {
+        texts.push({ text, x, y })
       },
     }
     vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue(context as unknown as CanvasRenderingContext2D)
     vi.spyOn(HTMLCanvasElement.prototype, 'getBoundingClientRect').mockReturnValue({
       width: 300,
-      height: 260,
+      height: 320,
       top: 0,
       left: 0,
       right: 300,
-      bottom: 260,
+      bottom: 320,
       x: 0,
       y: 0,
       toJSON: () => ({}),
@@ -139,16 +149,35 @@ describe('SolarDayLengthPanel — what it paints', () => {
 
     render(<SolarDayLengthPanel />)
 
+    // Gridlines span the plot; bands are column-width slivers. Separating them keeps the band
+    // assertions about bands.
+    const bands = fills.filter((fill) => fill.width < 5)
+    const gridlines = fills.filter((fill) => fill.width >= 5)
+
     // Five phases a day across the year: at least one band per phase per day.
-    expect(fills.length).toBeGreaterThanOrEqual(365 * 5)
-    expect(new Set(fills.map((fill) => fill.style)).size).toBe(5)
-    // Every band sits inside the chart and has a positive width.
+    expect(bands.length).toBeGreaterThanOrEqual(365 * 5)
+    expect(new Set(bands.map((fill) => fill.style)).size).toBe(5)
+    // Gridlines at 00, 02 … 24, plus the left-hand hour gutter they are labelled in.
+    expect(gridlines.length).toBe(13)
+    expect(Math.min(...fills.map((fill) => fill.x))).toBe(30)
+    // Every band sits inside the chart and has a positive extent.
     for (const fill of fills) {
       expect(fill.width).toBeGreaterThan(0)
+      expect(fill.height).toBeGreaterThan(0)
       expect(fill.x).toBeGreaterThanOrEqual(0)
       expect(fill.x + fill.width).toBeLessThanOrEqual(300.001)
+      expect(fill.y).toBeGreaterThanOrEqual(0)
+      expect(fill.y + fill.height).toBeLessThanOrEqual(321)
     }
-    // The selected date's marker is the one stroke drawn across the chart.
+    // The hour axis is labelled every two hours, and the selected day's two crossings read as
+    // times (06:… and 18:… in Dubai on 25 September) — the grid has readings, not just marks.
+    const hourLabels = texts.filter((text) => /^\d{2}$/.test(text.text)).map((text) => text.text)
+    expect(hourLabels).toEqual(['00', '02', '04', '06', '08', '10', '12', '14', '16', '18', '20', '22', '24'])
+    const crossings = texts.filter((text) => /^\d{2}:\d{2}$/.test(text.text)).map((text) => text.text)
+    expect(crossings).toHaveLength(2)
+    expect(crossings[0] < crossings[1]).toBe(true)
+    // The selected date's marker is the one stroke drawn across the chart, and it is dashed.
     expect(strokes).toBe(1)
+    expect(dashedStroke).toBe(true)
   })
 })

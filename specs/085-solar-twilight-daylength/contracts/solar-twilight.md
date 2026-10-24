@@ -98,9 +98,10 @@ shared content vocabulary (research D7, D8, D14).
 
 | Element | Value |
 |---|---|
-| The chart | One row per day of the selected date's year, in calendar order. Each row is that day's phases, in order, across the local day. |
+| The chart | One column per day of the selected date's year, in calendar order left to right. Each column is that day's phases, in order, down the local day from midnight at the top to midnight at the bottom. |
+| The axes | Day of the year across; hour of the local day down, with gridlines and labels every two hours. |
 | The bands | Night, then astronomical twilight, nautical twilight, civil twilight, daylight, then the same twilight phases in reverse, then night. |
-| The selected date | Marked on its row. |
+| The selected date | Marked on its column, with the two times its daylight begins and ends labelled beside the crossings. |
 | The caption | The site's latitude, and which hemisphere it lies in. |
 | The description | A text description of the chart, for assistive technology. |
 | The legend | The five bands, named, so the chart is never read by colour alone. |

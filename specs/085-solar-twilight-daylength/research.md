@@ -264,8 +264,19 @@ site and year, so changing the site or the year rebuilds it and nothing else doe
 
 ## D10 — The chart is drawn on a canvas, at the panel's compact width
 
-**Decision**: the chart renders into a canvas, one row per day of the year, the horizontal axis
-being the local day.
+**Decision**: the chart renders into a canvas, one column per day of the year — the year along the
+horizontal axis, the local day down the vertical axis from midnight at the top — with hour
+gridlines and labels, and the selected date's two daylight crossings labelled with their times.
+
+**Amendment (2026-10-24)**: this decision first read "one row per day, the horizontal axis being
+the local day", and that was built. It was the wrong way round: with hours across a 300 px width,
+a row is a third of a pixel tall and the day band can only be read as a shape, never as a time —
+the readings the user asked for (when does it get light, when does it get dark) had to be counted
+off the figures instead. Transposing it costs nothing: `DayPhaseSequence` already carries
+`startMinute`/`endMinute` in local minutes, so the same segments map onto either axis. The vertical
+axis is now the day's own span, normalised per column exactly as the row form normalised per row,
+so a 23- or 25-hour DST day stays contiguous (FR-017). The selected date's readings come from the
+same daylight segment the band is drawn from, so the label cannot disagree with the curve.
 
 **Rationale**: the Solar Analysis panel's default size is 260 × 320, and a year of days is 365
 rows. At that size each row is a third of a pixel: a row-per-day chart cannot be drawn as DOM

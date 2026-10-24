@@ -26,13 +26,23 @@ const PHASE_STRENGTH: Record<DayPhase, number> = {
   night: 0.07,
 }
 
-const CHART_HEIGHT_PX = 260
+const CHART_HEIGHT_PX = 320
+/** The gutter the hour labels sit in, left of the plot. */
+const HOUR_AXIS_WIDTH_PX = 30
+/** A label every two hours: every hour is 13 px of chart at this height, which reads as noise. */
+const AXIS_LABEL_STEP_HOURS = 2
+const AXIS_FONT = '9px ui-monospace, SFMono-Regular, Menlo, monospace'
 
 function formatShortDate(localDate: string): string {
   const [year, month, day] = localDate.split('-').map(Number)
   return new Intl.DateTimeFormat('en-GB', { timeZone: 'UTC', day: 'numeric', month: 'short' }).format(
     new Date(Date.UTC(year, month - 1, day, 12, 0, 0)),
   )
+}
+
+function formatLocalMinute(minuteOfDay: number): string {
+  const hour = Math.floor(minuteOfDay / 60) % 24
+  return `${String(hour).padStart(2, '0')}:${String(minuteOfDay % 60).padStart(2, '0')}`
 }
 
 /**
@@ -80,6 +90,9 @@ export function SolarDayLengthPanel(): React.JSX.Element | null {
     // environment that cannot draw it still gets the caption, the legend and the extremes.
     if (!context) return
 
+    const gridColor = alpha(theme.palette.text.primary, 0.12)
+    const labelColor = theme.palette.text.secondary
+
     const draw = (): void => {
       const { width, height } = canvas.getBoundingClientRect()
       if (width < 2 || height < 2) return
@@ -90,32 +103,70 @@ export function SolarDayLengthPanel(): React.JSX.Element | null {
       context.setTransform(dpr, 0, 0, dpr, 0, 0)
       context.clearRect(0, 0, width, height)
 
-      const rowHeight = height / profile.days.length
+      // The year runs left to right and the local day runs top to bottom, so the daylight region
+      // reads as two curves — the year's sunrise and sunset times (FR-012).
+      const plotLeft = HOUR_AXIS_WIDTH_PX
+      const plotWidth = Math.max(width - plotLeft, 1)
+      const columnWidth = plotWidth / profile.days.length
+
       profile.days.forEach((day, index) => {
         const spanMinutes = day.segments[day.segments.length - 1]?.endMinute || 1
         for (const segment of day.segments) {
           context.fillStyle = colors[segment.phase]
           context.fillRect(
-            (segment.startMinute / spanMinutes) * width,
-            index * rowHeight,
-            Math.max(((segment.endMinute - segment.startMinute) / spanMinutes) * width, 0.4),
-            // Half a pixel of overlap: at 365 rows the bands are sub-pixel and a gap between
-            // them would read as a stripe of the panel's background.
-            rowHeight + 0.5,
+            plotLeft + index * columnWidth,
+            (segment.startMinute / spanMinutes) * height,
+            // Half a pixel of overlap: at 365 columns the bands are sub-pixel and a gap between
+            // them would read as a stripe of the panel's background. The last column stops at
+            // the plot's edge rather than painting over the panel's border.
+            index === profile.days.length - 1 ? columnWidth : columnWidth + 0.5,
+            Math.max(((segment.endMinute - segment.startMinute) / spanMinutes) * height, 0.4) + 0.5,
           )
         }
       })
 
+      // Hour gridlines and labels, drawn over the bands so the curves can be read as times.
+      context.font = AXIS_FONT
+      context.textBaseline = 'middle'
+      context.textAlign = 'right'
+      for (let hour = 0; hour <= 24; hour += AXIS_LABEL_STEP_HOURS) {
+        const y = (hour / 24) * height
+        context.fillStyle = gridColor
+        context.fillRect(plotLeft, y, plotWidth, 1)
+        context.fillStyle = labelColor
+        // Clamped inwards: a label half outside the canvas at 00 and 24 is a clipped number.
+        context.fillText(String(hour).padStart(2, '0'), plotLeft - 4, Math.min(Math.max(y, 5), height - 5))
+      }
+
       if (!selectedDate) return
       const selectedIndex = profile.days.findIndex((day) => day.date === selectedDate)
       if (selectedIndex < 0) return
+
+      const x = plotLeft + (selectedIndex + 0.5) * columnWidth
       context.strokeStyle = theme.palette.text.primary
       context.lineWidth = 1
+      context.setLineDash([3, 3])
       context.beginPath()
-      const y = (selectedIndex + 0.5) * rowHeight
-      context.moveTo(0, y)
-      context.lineTo(width, y)
+      context.moveTo(x, 0)
+      context.lineTo(x, height)
       context.stroke()
+      context.setLineDash([])
+
+      // The selected day's own crossings, so the marked day can be read rather than only located.
+      const selected = profile.days[selectedIndex]
+      const daylight = selected.segments.find((segment) => segment.phase === 'day')
+      if (!daylight) return
+      const spanMinutes = selected.segments[selected.segments.length - 1]?.endMinute || 1
+      const alignRight = x > width - 40
+      context.textAlign = alignRight ? 'right' : 'left'
+      context.fillStyle = theme.palette.text.primary
+      for (const [minute, offset] of [
+        [daylight.startMinute, -8],
+        [daylight.endMinute, 8],
+      ] as const) {
+        const y = Math.min(Math.max((minute / spanMinutes) * height + offset, 6), height - 6)
+        context.fillText(formatLocalMinute(minute), x + (alignRight ? -4 : 4), y)
+      }
     }
 
     draw()

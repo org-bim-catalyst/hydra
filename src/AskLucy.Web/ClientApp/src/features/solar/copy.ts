@@ -150,7 +150,7 @@ export const copy = {
   dayLengthChartCaption: (latitude: number, hemisphere: 'northern' | 'southern') =>
     `${Math.abs(latitude).toFixed(2)}° ${hemisphere === 'northern' ? 'N' : 'S'} · ${hemisphere} hemisphere`,
   dayLengthChartDescription: (year: number, hemisphere: 'northern' | 'southern') =>
-    `Day length through ${year} in the ${hemisphere} hemisphere: night, the three twilight phases and daylight for each day of the year.`,
+    `Day length through ${year} in the ${hemisphere} hemisphere: one column per day of the year, each running from midnight at the top to midnight at the bottom, showing night, the three twilight phases and daylight.`,
   dayLengthChartSelectedDateLabel: 'Selected date',
   phaseNightLabel: 'Night',
   phaseAstronomicalLabel: 'Astronomical twilight',
