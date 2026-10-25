@@ -40,7 +40,7 @@ public sealed class RequestSiteAnalysisCapability(
         "place in depth — \"analyze this site\", \"do a full site analysis\", \"what can you tell " +
         "me about this site\" — for the site currently shown in the viewer, a named site, or explicit coordinates.";
 
-    public string ArgumentHint => "optional site name, or omit to use the active site; or explicit latitude/longitude";
+    public string ArgumentHint => "site: the name the user asked for; omit only for 'this site'; or lat/long";
 
     public string UsageGuidance =>
         "This dispatches background work and returns immediately — tell the user the analysis has " +

@@ -93,7 +93,7 @@ public sealed class TurnDecider(
 
             var messages = new List<ChatMessage>
             {
-                new(ChatRole.System, TurnDecisionPromptV2.Build(index, flowIndex, recentOutcomes)),
+                new(ChatRole.System, TurnDecisionPromptV3.Build(index, flowIndex, recentOutcomes)),
                 new(ChatRole.User, userMessage),
             };
 
@@ -131,7 +131,7 @@ public sealed class TurnDecider(
             }
 
             TurnDeciderLog.Decided(logger, context.UserChatId, result.Decision.Intent, result.Decision.Slices.Count,
-                provider.ProviderKey, model.ModelKey, TurnDecisionPromptV2.Version);
+                provider.ProviderKey, model.ModelKey, TurnDecisionPromptV3.Version);
 
             return result.Decision;
         }

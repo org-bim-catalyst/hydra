@@ -32,6 +32,18 @@ public sealed class RequestSiteAnalysisCapabilityTests
         new(Guid.NewGuid(), Guid.NewGuid(), UserId, Guid.NewGuid(), Guid.NewGuid(), userChatId);
 
     [Fact]
+    public void ArgumentHint_ShouldTellTheModelToPassANamedSite_AndReserveOmissionForTheActiveSite()
+    {
+        // specs/090 follow-up — "Run a site analysis for Al Safa Park 2" started an analysis for
+        // the site already on screen, because the hint allowed omitting a place the user typed.
+        var capability = BuildCapability();
+
+        capability.ArgumentHint.Should().Contain("the name the user asked for");
+        capability.ArgumentHint.Should().Contain("'this site'");
+        capability.ArgumentHint.Length.Should().BeLessThanOrEqualTo(80);
+    }
+
+    [Fact]
     public async Task ExecuteAsync_ShouldReturn_WithoutAwaitingTheWorkflowItself_WhenExplicitCoordinatesAreGiven()
     {
         _siteAnalysisRepository.FindRunningForSiteAsync(UserId, UserChatId, "the specified location", Arg.Any<CancellationToken>())
