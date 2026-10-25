@@ -2,6 +2,7 @@ using System.Text.Json;
 using AskLucy.Application.Abstractions;
 using AskLucy.Application.Agents.Tools;
 using AskLucy.Domain.Agents;
+using AskLucy.Domain.Common;
 using AskLucy.Domain.Documents;
 using FluentAssertions;
 using MediatR;

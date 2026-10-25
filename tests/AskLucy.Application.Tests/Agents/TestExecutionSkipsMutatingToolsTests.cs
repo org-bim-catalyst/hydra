@@ -7,6 +7,7 @@ using AskLucy.Application.Notifications.Abstractions;
 using AskLucy.Application.Options;
 using AskLucy.Domain.Agents;
 using AskLucy.Domain.Ai;
+using AskLucy.Domain.Common;
 using FluentAssertions;
 using NSubstitute;
 using Xunit;

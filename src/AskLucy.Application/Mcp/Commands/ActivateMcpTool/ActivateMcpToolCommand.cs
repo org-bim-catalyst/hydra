@@ -1,5 +1,6 @@
 using AskLucy.Application.Mcp;
 using AskLucy.Domain.Agents;
+using AskLucy.Domain.Common;
 using MediatR;
 
 namespace AskLucy.Application.Mcp.Commands.ActivateMcpTool;

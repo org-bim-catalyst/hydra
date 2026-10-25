@@ -2,6 +2,7 @@ using System.Text.Json;
 using AskLucy.Application.Abstractions;
 using AskLucy.Application.Mcp.Resilience;
 using AskLucy.Domain.Agents;
+using AskLucy.Domain.Common;
 using AskLucy.Domain.Mcp;
 using MediatR;
 

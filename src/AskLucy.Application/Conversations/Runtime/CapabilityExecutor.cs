@@ -4,6 +4,7 @@ using AskLucy.Application.Agents.Runtime;
 using AskLucy.Application.Agents.Tools;
 using AskLucy.Application.Conversations.Capabilities;
 using AskLucy.Application.Options;
+using AskLucy.Domain.Common;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
@@ -142,7 +143,7 @@ public sealed class CapabilityExecutor(
         // A risky capability needs a matching enabled policy. Without one it stops here rather
         // than running and reporting afterwards — the user confirms it as an offered action
         // instead, since a streaming turn has nowhere to suspend for out-of-band approval.
-        if (capability.RiskLevel is Domain.Agents.AgentToolRiskLevel.High or Domain.Agents.AgentToolRiskLevel.Critical)
+        if (capability.RiskLevel is AgentToolRiskLevel.High or AgentToolRiskLevel.Critical)
         {
             var policy = await policyEvaluator.FindMatchAsync(capability.Name, argumentsJson, cancellationToken);
             if (policy is null)

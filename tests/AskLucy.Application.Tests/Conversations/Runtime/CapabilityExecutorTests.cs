@@ -6,6 +6,7 @@ using AskLucy.Application.Conversations.Capabilities;
 using AskLucy.Application.Conversations.Runtime;
 using AskLucy.Application.Options;
 using AskLucy.Domain.Agents;
+using AskLucy.Domain.Common;
 using FluentAssertions;
 using Microsoft.Extensions.Logging.Abstractions;
 using NSubstitute;

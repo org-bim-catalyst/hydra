@@ -6,6 +6,7 @@ using AskLucy.Application.Ai.Commands.SendChatMessage;
 using AskLucy.Application.SiteBoundaries;
 using AskLucy.Domain.Agents;
 using AskLucy.Domain.Chats;
+using AskLucy.Domain.Common;
 using AskLucy.Domain.SiteBoundaries;
 
 namespace AskLucy.Application.Conversations.Capabilities;

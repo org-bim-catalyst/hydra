@@ -1,3 +1,4 @@
+using AskLucy.Domain.Common;
 using AskLucy.Domain.Mcp;
 
 namespace AskLucy.Application.Mcp;
@@ -5,11 +6,11 @@ namespace AskLucy.Application.Mcp;
 /// <summary>contracts/mcp-api.md's `GET /mcp/catalog/tools` shape — deliberately slimmer than the admin `McpToolDto` (no `Id`/`McpServerId`/activation metadata a non-admin user has no use for).</summary>
 public sealed record McpToolCatalogSummaryDto(
     string NamespacedName, string DisplayName, string Description, string SourceServerName,
-    AgentToolRiskLevelDto EffectiveRiskLevel, IReadOnlyList<string> RequiredPermissions)
+    AgentToolRiskLevel EffectiveRiskLevel, IReadOnlyList<string> RequiredPermissions)
 {
     public static McpToolCatalogSummaryDto Create(McpTool tool, string serverName) => new(
         tool.NamespacedName, tool.DisplayName, tool.Description, serverName,
-        (AgentToolRiskLevelDto)tool.EffectiveRiskLevel,
+        tool.EffectiveRiskLevel,
         System.Text.Json.JsonSerializer.Deserialize<List<string>>(tool.RequiredPermissionsJson) ?? []);
 }
 
@@ -17,13 +18,13 @@ public sealed record McpToolCatalogSummaryDto(
 public sealed record McpToolDetailDto(
     string NamespacedName, string DisplayName, string Description, string SourceServerName,
     string InputSchemaJson, string OutputSchemaJson, string? DeclaredCapabilitiesJson,
-    AgentToolRiskLevelDto EffectiveRiskLevel, IReadOnlyList<string> RequiredPermissions,
+    AgentToolRiskLevel EffectiveRiskLevel, IReadOnlyList<string> RequiredPermissions,
     string? Version, DateTime? LastUpdatedAtUtc)
 {
     public static McpToolDetailDto Create(McpTool tool, string serverName) => new(
         tool.NamespacedName, tool.DisplayName, tool.Description, serverName,
         tool.InputSchemaJson, tool.OutputSchemaJson, tool.DeclaredCapabilitiesJson,
-        (AgentToolRiskLevelDto)tool.EffectiveRiskLevel,
+        tool.EffectiveRiskLevel,
         System.Text.Json.JsonSerializer.Deserialize<List<string>>(tool.RequiredPermissionsJson) ?? [],
         tool.Version, tool.ModifiedAtUtc ?? tool.CreatedAtUtc);
 }

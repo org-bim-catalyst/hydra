@@ -6,6 +6,7 @@ using AskLucy.Application.Locations;
 using AskLucy.Application.SiteAnalysis;
 using AskLucy.Application.SiteBoundaries;
 using AskLucy.Domain.Agents;
+using AskLucy.Domain.Common;
 using SiteAnalysisAggregate = AskLucy.Domain.SiteAnalysis.SiteAnalysis;
 
 namespace AskLucy.Application.Conversations.Capabilities;

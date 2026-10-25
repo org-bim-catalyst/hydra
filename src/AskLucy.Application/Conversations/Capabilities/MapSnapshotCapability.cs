@@ -5,6 +5,7 @@ using AskLucy.Application.Documents.Commands;
 using AskLucy.Application.MapCaptures;
 using AskLucy.Application.MapCaptures.Queries.CaptureMap;
 using AskLucy.Domain.Agents;
+using AskLucy.Domain.Common;
 using MediatR;
 using Microsoft.Extensions.DependencyInjection;
 

@@ -3,6 +3,7 @@ using AskLucy.Application.Agents.Tools;
 using AskLucy.Application.Mcp;
 using AskLucy.Application.Mcp.Commands.ActivateMcpTool;
 using AskLucy.Domain.Agents;
+using AskLucy.Domain.Common;
 using AskLucy.Domain.Mcp;
 using FluentAssertions;
 using NSubstitute;
@@ -64,7 +65,7 @@ public sealed class ActivateMcpToolCommandHandlerTests
 
         var result = await handler.Handle(new ActivateMcpToolCommand(tool.McpServerId, tool.Id, AgentToolRiskLevel.High, "[\"ReadExternalData\"]"), CancellationToken.None);
 
-        result.EffectiveRiskLevel.Should().Be(AgentToolRiskLevelDto.High);
+        result.EffectiveRiskLevel.Should().Be(AgentToolRiskLevel.High);
         result.RequiredPermissions.Should().ContainSingle().Which.Should().Be("ReadExternalData");
     }
 

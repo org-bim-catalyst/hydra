@@ -5,6 +5,7 @@ using AskLucy.Application.Ai;
 using AskLucy.Application.Ai.Images;
 using AskLucy.Application.Documents.Commands;
 using AskLucy.Domain.Agents;
+using AskLucy.Domain.Common;
 using AskLucy.Domain.SiteAnalysis;
 using Microsoft.Extensions.DependencyInjection;
 

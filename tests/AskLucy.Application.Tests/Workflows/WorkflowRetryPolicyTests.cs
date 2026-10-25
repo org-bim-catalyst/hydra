@@ -6,6 +6,7 @@ using AskLucy.Application.Options;
 using AskLucy.Application.Workflows.Expressions;
 using AskLucy.Application.Workflows.Runtime;
 using AskLucy.Domain.Agents;
+using AskLucy.Domain.Common;
 using AskLucy.Domain.Workflows;
 using FluentAssertions;
 using NSubstitute;

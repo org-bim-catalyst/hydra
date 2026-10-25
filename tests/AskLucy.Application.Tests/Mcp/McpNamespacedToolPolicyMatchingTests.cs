@@ -1,6 +1,7 @@
 using AskLucy.Application.Abstractions;
 using AskLucy.Application.Agents.Runtime;
 using AskLucy.Domain.Agents;
+using AskLucy.Domain.Common;
 using FluentAssertions;
 using NSubstitute;
 using Xunit;

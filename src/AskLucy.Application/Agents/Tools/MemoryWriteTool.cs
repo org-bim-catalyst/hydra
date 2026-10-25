@@ -1,6 +1,7 @@
 using System.Text.Json;
 using AskLucy.Application.Memory.Commands.CreateMemoryCandidate;
 using AskLucy.Domain.Agents;
+using AskLucy.Domain.Common;
 using AskLucy.Domain.Memory;
 using MediatR;
 

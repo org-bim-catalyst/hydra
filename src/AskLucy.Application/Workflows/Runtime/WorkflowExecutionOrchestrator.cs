@@ -5,6 +5,7 @@ using AskLucy.Application.Agents.Tools;
 using AskLucy.Application.Notifications.Abstractions;
 using AskLucy.Application.Workflows.Expressions;
 using AskLucy.Domain.Agents;
+using AskLucy.Domain.Common;
 using AskLucy.Domain.Notifications;
 using AskLucy.Domain.Workflows;
 
