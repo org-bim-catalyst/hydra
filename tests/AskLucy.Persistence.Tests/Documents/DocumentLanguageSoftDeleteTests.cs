@@ -22,17 +22,22 @@ namespace AskLucy.Persistence.Tests.Documents;
 [Collection(PersistenceTestCollection.Name)]
 public sealed class DocumentLanguageSoftDeleteTests(PersistenceTestFixture fixture)
 {
-    private const string OwnerId = "owner-languages";
+    /// <summary>
+    /// A fresh owner per test: the fixture empties the database once per run, not between tests, so a
+    /// shared constant primary key would collide on the second insert into AspNetUsers.
+    /// </summary>
+    private static string NewOwnerId() => $"owner-languages-{Guid.NewGuid():N}";
 
-    private async Task<Guid> SeedDocumentWithLanguagesAsync(CancellationToken cancellationToken, params string[] languageCodes)
+    private async Task<Guid> SeedDocumentWithLanguagesAsync(
+        string ownerId, CancellationToken cancellationToken, params string[] languageCodes)
     {
         await using var dbContext = fixture.CreateDbContext();
-        dbContext.Users.Add(PersistenceTestFixture.CreateTestUser(OwnerId));
+        dbContext.Users.Add(PersistenceTestFixture.CreateTestUser(ownerId));
 
         var versionId = Guid.CreateVersion7();
-        var checksum = DocumentChecksum.Create($"{Guid.NewGuid():N}{Guid.NewGuid():N}"[..64], OwnerId);
-        var document = Document.Create(Guid.CreateVersion7(), OwnerId, "site.pdf", DocumentFileType.Pdf, 1024, versionId, OwnerId);
-        var version = DocumentVersion.Create(document.Id, 1, 0, "stored.bin", "site.pdf", 1024, checksum.Id, OwnerId);
+        var checksum = DocumentChecksum.Create($"{Guid.NewGuid():N}{Guid.NewGuid():N}"[..64], ownerId);
+        var document = Document.Create(Guid.CreateVersion7(), ownerId, "site.pdf", DocumentFileType.Pdf, 1024, versionId, ownerId);
+        var version = DocumentVersion.Create(document.Id, 1, 0, "stored.bin", "site.pdf", 1024, checksum.Id, ownerId);
 
         dbContext.Documents.Add(document);
         dbContext.DocumentChecksums.Add(checksum);
@@ -41,7 +46,7 @@ public sealed class DocumentLanguageSoftDeleteTests(PersistenceTestFixture fixtu
         foreach (var code in languageCodes)
         {
             dbContext.DocumentLanguages.Add(
-                DocumentLanguage.Create(document.Id, code, DocumentLanguageRole.Primary, 0.9m, OwnerId));
+                DocumentLanguage.Create(document.Id, code, DocumentLanguageRole.Primary, 0.9m, ownerId));
         }
 
         await dbContext.SaveChangesAsync(cancellationToken);
@@ -52,7 +57,7 @@ public sealed class DocumentLanguageSoftDeleteTests(PersistenceTestFixture fixtu
     public async Task RemoveLanguages_ShouldHideTheSoftDeletedRows_FromSubsequentReads()
     {
         var cancellationToken = TestContext.Current.CancellationToken;
-        var documentId = await SeedDocumentWithLanguagesAsync(cancellationToken, "en", "ar");
+        var documentId = await SeedDocumentWithLanguagesAsync(NewOwnerId(), cancellationToken, "en", "ar");
 
         // Exactly what ClassificationStageHandler does on reprocessing: read the current set, remove
         // it, then add the fresh one — through the audit interceptor, so the removal is a soft delete.
@@ -79,7 +84,8 @@ public sealed class DocumentLanguageSoftDeleteTests(PersistenceTestFixture fixtu
     public async Task RemoveLanguages_ShouldLeaveLiveLanguagesAlone()
     {
         var cancellationToken = TestContext.Current.CancellationToken;
-        var documentId = await SeedDocumentWithLanguagesAsync(cancellationToken, "en", "ar");
+        var ownerId = NewOwnerId();
+        var documentId = await SeedDocumentWithLanguagesAsync(ownerId, cancellationToken, "en", "ar");
 
         await using (var audited = fixture.CreateAuditedDbContext(
             Substitute.For<ICurrentUserAccessor>(), Substitute.For<ICorrelationIdAccessor>()))
@@ -89,7 +95,7 @@ public sealed class DocumentLanguageSoftDeleteTests(PersistenceTestFixture fixtu
             repository.RemoveLanguages(existing.Where(l => l.LanguageCode == "ar"));
             await audited.SaveChangesAsync(cancellationToken);
 
-            repository.AddLanguage(DocumentLanguage.Create(documentId, "fr", DocumentLanguageRole.Primary, 1m, OwnerId));
+            repository.AddLanguage(DocumentLanguage.Create(documentId, "fr", DocumentLanguageRole.Primary, 1m, ownerId));
             await audited.SaveChangesAsync(cancellationToken);
         }
 

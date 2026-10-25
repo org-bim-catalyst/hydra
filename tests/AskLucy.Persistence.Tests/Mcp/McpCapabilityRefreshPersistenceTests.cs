@@ -21,8 +21,12 @@ public sealed class McpCapabilityRefreshPersistenceTests(PersistenceTestFixture 
 {
     private const string AdminId = "admin-mcp";
 
+    /// <summary>
+    /// A fresh endpoint per test: <c>(Endpoint, Transport)</c> is unique (FR-005), and the fixture
+    /// wipes the database once per run rather than between tests, so a shared constant would collide.
+    /// </summary>
     private static McpServer RegisterServer() => McpServer.Register(
-        "Test", null, "https://mcp.example.com", McpServerTransport.StreamableHttp,
+        "Test", null, $"https://mcp-{Guid.NewGuid():N}.example.com", McpServerTransport.StreamableHttp,
         McpAuthenticationType.ApiKey, false, false, null, false, null, AdminId, 60);
 
     [Fact(Skip = PersistenceDatabaseGate.SkipReason, SkipWhen = nameof(PersistenceDatabaseGate.NotConfigured), SkipType = typeof(PersistenceDatabaseGate))]
