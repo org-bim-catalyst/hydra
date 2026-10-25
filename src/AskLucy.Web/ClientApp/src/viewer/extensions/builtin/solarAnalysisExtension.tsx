@@ -11,10 +11,13 @@ import {
 } from '../../../features/solar/components/SolarAnalysisOverlay'
 import { copy } from '../../../features/solar/copy'
 import { BuildingCorrectionsPanel } from '../../../features/solar/panels/BuildingCorrectionsPanel'
+import { SolarDayLengthPanel } from '../../../features/solar/panels/SolarDayLengthPanel'
 import {
   SOLAR_CORRECTIONS_TYPE_KEY,
+  SOLAR_DAY_LENGTH_TYPE_KEY,
   SOLAR_TIME_CONTROL_TYPE_KEY,
   solarCorrectionsDataSchema,
+  solarDayLengthDataSchema,
   solarTimeControlDataSchema,
 } from '../../../features/solar/panels/panelContracts'
 import { SolarTimeControlPanel } from '../../../features/solar/panels/SolarTimeControlPanel'
@@ -48,6 +51,7 @@ const sceneRef: { current: SolarScene | null } = { current: null }
 let savedContext: ExtensionContext | null = null
 const TIME_CONTROL_PANEL_REQUEST_ID = 'solar-time-control'
 const CORRECTIONS_PANEL_REQUEST_ID = 'solar-corrections'
+const DAY_LENGTH_PANEL_REQUEST_ID = 'solar-day-length'
 let unsubscribeSiteChange: (() => void) | null = null
 
 function toggleActivation(): void {
@@ -80,7 +84,7 @@ export const solarAnalysisExtension: ViewerExtension = {
     // measured in this headless environment — see the feature README for the human method.
     drawingSpace.declareDrawingRequirement('shadows')
     sceneRef.current = new SolarScene(drawingSpace)
-    sceneRef.current.drawingSpace.group.visible = false
+    sceneRef.current.setVisible(false)
 
     // FR-029 — reached without Lucy, through the viewer's own toolbar.
     context.contributeToolbarEntry({
@@ -145,6 +149,16 @@ export const solarAnalysisExtension: ViewerExtension = {
       chrome: { ...DEFAULT_CONTENT_CHROME, density: 'compact', defaultSize: { width: 280, height: 300 } },
     })
 
+    // specs/085 FR-011 … FR-019 — the year's day-length chart. A live panel for the same reason
+    // the two above are: it owns computed state (a year profile) and its own canvas rendering,
+    // which is what a live panel kind is for. Read-only: it registers no interaction.
+    context.registerLivePanelKind({
+      typeKey: SOLAR_DAY_LENGTH_TYPE_KEY,
+      renderer: SolarDayLengthPanel,
+      schema: solarDayLengthDataSchema,
+      chrome: { ...DEFAULT_CONTENT_CHROME, density: 'compact', defaultSize: { width: 300, height: 460 } },
+    })
+
     // research D9, FR-039 — registered ONCE. Inert unless playing, and critically, requests no
     // redraw when inert: `advanceBy` (and therefore `invalidate()`) is called only while playback
     // is running, which is what keeps the viewer quiet when the analysis is idle.
@@ -158,7 +172,7 @@ export const solarAnalysisExtension: ViewerExtension = {
 
   activate() {
     if (!sceneRef.current) return
-    sceneRef.current.drawingSpace.group.visible = true
+    sceneRef.current.setVisible(true)
     savedContext?.openPanel({
       kind: 'live',
       requestId: TIME_CONTROL_PANEL_REQUEST_ID,
@@ -173,12 +187,19 @@ export const solarAnalysisExtension: ViewerExtension = {
       typeKey: SOLAR_CORRECTIONS_TYPE_KEY,
       data: {},
     })
+    savedContext?.openPanel({
+      kind: 'live',
+      requestId: DAY_LENGTH_PANEL_REQUEST_ID,
+      title: copy.dayLengthChartTitle,
+      typeKey: SOLAR_DAY_LENGTH_TYPE_KEY,
+      data: {},
+    })
   },
 
   deactivate() {
     useSolarAnalysisStore.getState().setPlaying(false)
     useSolarAnalysisStore.getState().close()
-    if (sceneRef.current) sceneRef.current.drawingSpace.group.visible = false
+    if (sceneRef.current) sceneRef.current.setVisible(false)
     // Nothing is left for these to show once the analysis is closed — the figures would still
     // describe the site just left, and the two controls render empty.
     savedContext?.withdrawPanel(TIME_CONTROL_PANEL_REQUEST_ID)

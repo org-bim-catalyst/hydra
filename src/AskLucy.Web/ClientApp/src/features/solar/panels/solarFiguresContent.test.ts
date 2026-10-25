@@ -5,6 +5,7 @@ import { daySummary } from '../solar/daySummary'
 import { SOLAR_SEMIDIAMETER_DEGREES } from '../solar/refraction'
 import { MIN_SHADOW_ELEVATION_DEGREES } from '../scene/sunLight'
 import { SOLAR_POSITION_TOLERANCE_DEGREES, solarPosition } from '../solar/solarPosition'
+import { twilightCrossings } from '../solar/twilight'
 import { buildSolarFiguresContent } from './solarFiguresContent'
 
 const DUBAI = { latitude: 25.2, longitude: 55.3 }
@@ -17,6 +18,7 @@ function buildFor(instantUtc: Date, localDate: string, localMinuteOfDay: number)
     timeBasisLabel: 'Asia/Dubai',
     solarPosition: solarPosition(instantUtc, DUBAI.latitude, DUBAI.longitude),
     daySummary: daySummary(instantUtc, DUBAI.latitude, DUBAI.longitude),
+    twilight: twilightCrossings(instantUtc, DUBAI.latitude, DUBAI.longitude),
     siteBuildingHeightAssumed: true,
   })
 }
@@ -54,6 +56,7 @@ describe('buildSolarFiguresContent (contracts/solar-panels.md, FR-031)', () => {
       timeBasisLabel: 'Europe/Oslo',
       solarPosition: solarPosition(new Date(Date.UTC(2026, 5, 21, 12, 0)), 69.6, 18.9),
       daySummary: daySummary(new Date(Date.UTC(2026, 5, 21)), 69.6, 18.9),
+      twilight: twilightCrossings(new Date(Date.UTC(2026, 5, 21)), 69.6, 18.9),
       siteBuildingHeightAssumed: null,
     })
     const keyValueBlock = content.blocks.find((b) => (b as { kind: string }).kind === 'keyValue') as unknown as {
@@ -127,6 +130,7 @@ describe('buildSolarFiguresContent — no below-horizon notice at the reported s
       timeBasisLabel: site.timeZoneId,
       solarPosition: solarPosition(instantUtc, site.latitude, site.longitude),
       daySummary: daySummary(instantUtc, site.latitude, site.longitude),
+      twilight: twilightCrossings(instantUtc, site.latitude, site.longitude),
       siteBuildingHeightAssumed: null,
     })
     return (content.blocks.find((b) => (b as { kind: string }).kind === 'text') as unknown as { text: string }).text
@@ -218,6 +222,7 @@ describe('buildSolarFiguresContent — the sunrise, sunset and day-length rows a
       timeBasisLabel: site.timeZoneId,
       solarPosition: solarPosition(instantUtc, site.latitude, site.longitude),
       daySummary: daySummary(instantUtc, site.latitude, site.longitude),
+      twilight: twilightCrossings(instantUtc, site.latitude, site.longitude),
       siteBuildingHeightAssumed: null,
     })
     const block = content.blocks.find((b) => (b as { kind: string }).kind === 'keyValue') as unknown as {
@@ -264,5 +269,102 @@ describe('buildSolarFiguresContent — the sunrise, sunset and day-length rows a
     expect(clockToMinutes(sunset!) - clockToMinutes(sunrise!)).toBe(
       Number(/^(\d+) h/.exec(dayLength!)![1]) * 60 + Number(/(\d+) min$/.exec(dayLength!)![1]),
     )
+  })
+})
+
+// specs/085 FR-001 … FR-008 — the twilight figures beside the rise/set rows they continue.
+describe('twilight rows (specs/085)', () => {
+  const rowsFor = (latitude: number, longitude: number, date: string, timeZoneId: string) => {
+    const [year, month, day] = date.split('-').map(Number)
+    const dateUtc = new Date(Date.UTC(year, month - 1, day))
+    const content = buildSolarFiguresContent({
+      localDate: date,
+      localMinuteOfDay: 12 * 60,
+      timeZoneId,
+      timeBasisLabel: timeZoneId,
+      solarPosition: solarPosition(new Date(dateUtc.getTime() + 12 * 3_600_000), latitude, longitude),
+      daySummary: daySummary(dateUtc, latitude, longitude),
+      twilight: twilightCrossings(dateUtc, latitude, longitude),
+      siteBuildingHeightAssumed: null,
+    })
+    const keyValue = content.blocks.find((block) => block.kind === 'keyValue') as unknown as {
+      items: { label: string; value: string }[]
+    }
+    const text = content.blocks.find((block) => block.kind === 'text') as unknown as { text: string }
+    return { items: keyValue.items, text: text.text }
+  }
+
+  it('reports the three phases in order, after the day length and before the time basis', () => {
+    const { items } = rowsFor(25.2, 55.3, '2026-09-13', 'Asia/Dubai')
+    const labels = items.map((item) => item.label)
+
+    const dayLength = labels.indexOf(copy.dayLengthLabel)
+    const civil = labels.indexOf(copy.civilTwilightLabel)
+    const nautical = labels.indexOf(copy.nauticalTwilightLabel)
+    const astronomical = labels.indexOf(copy.astronomicalTwilightLabel)
+    const timeBasis = labels.indexOf(copy.timesShownInLabel)
+
+    expect(dayLength).toBeGreaterThanOrEqual(0)
+    expect(civil).toBe(dayLength + 1)
+    expect(nautical).toBe(civil + 1)
+    expect(astronomical).toBe(nautical + 1)
+    expect(timeBasis).toBe(astronomical + 1)
+  })
+
+  it('gives each phase both crossings and the length of its band (FR-001, FR-002)', () => {
+    const { items } = rowsFor(25.2, 55.3, '2026-09-13', 'Asia/Dubai')
+
+    for (const label of [copy.civilTwilightLabel, copy.nauticalTwilightLabel, copy.astronomicalTwilightLabel]) {
+      const row = items.find((item) => item.label === label)!
+      expect(row.value).toMatch(/^ends \d{2}:\d{2} · begins \d{2}:\d{2} · \d+ min$/)
+    }
+  })
+
+  it('says a phase does not occur, naming the threshold, with no time shown (FR-006)', () => {
+    // London in midsummer never reaches 18° below the horizon.
+    const { items } = rowsFor(51.5, -0.1, '2026-06-21', 'Europe/London')
+    const astronomical = items.find((item) => item.label === copy.astronomicalTwilightLabel)!
+
+    expect(astronomical.value).toBe(copy.twilightNotReached(18))
+    expect(astronomical.value).not.toMatch(/\d{2}:\d{2}/)
+  })
+
+  it('keeps saying the sun does not set where it always has, and reports every phase as not occurring', () => {
+    // Tromsø in midsummer: the sun never descends to 6°, so no twilight phase occurs — and the
+    // polar statement stays the only place that says the sun does not set (research D6).
+    const { items } = rowsFor(69.6, 18.9, '2026-06-21', 'Europe/Oslo')
+
+    expect(items.find((item) => item.label === copy.sunsetLabel)!.value).toBe(copy.sunNeverSets)
+    expect(items.find((item) => item.label === copy.civilTwilightLabel)!.value).toBe(copy.twilightNotReached(6))
+    expect(items.find((item) => item.label === copy.nauticalTwilightLabel)!.value).toBe(copy.twilightNotReached(12))
+    expect(items.find((item) => item.label === copy.astronomicalTwilightLabel)!.value).toBe(copy.twilightNotReached(18))
+  })
+
+  it('shows both crossings without a length on a polar-night date, where the sun never crosses the horizon', () => {
+    // Tromsø in midwinter: the sun does not rise (the polar statement says so), but it does descend
+    // through 6°, 12° and 18° — so the crossings exist and the civil band simply has no horizon to
+    // start from (research D5).
+    const { items } = rowsFor(69.6, 18.9, '2026-12-21', 'Europe/Oslo')
+    const civil = items.find((item) => item.label === copy.civilTwilightLabel)!
+
+    expect(items.find((item) => item.label === copy.sunriseLabel)!.value).toBe(copy.sunNeverRises)
+    expect(civil.value).toMatch(/^ends \d{2}:\d{2} · begins \d{2}:\d{2}$/)
+  })
+
+  it('states that the thresholds are unrefracted, with the constants the altitude figure reads (FR-004, FR-005)', () => {
+    const { text } = rowsFor(25.2, 55.3, '2026-09-13', 'Asia/Dubai')
+
+    expect(text).toContain(copy.twilightDefinitionStatement(-5.43, -11.43, -17.43))
+  })
+
+  it('leaves the existing rise/set figures byte-for-byte unchanged (SC-005)', () => {
+    const { items } = rowsFor(25.2, 55.3, '2026-09-13', 'Asia/Dubai')
+    const sunrise = items.find((item) => item.label === copy.sunriseLabel)!
+    const sunset = items.find((item) => item.label === copy.sunsetLabel)!
+    const dayLength = items.find((item) => item.label === copy.dayLengthLabel)!
+
+    expect(sunrise.value).toMatch(/^\d{2}:\d{2}$/)
+    expect(sunset.value).toMatch(/^\d{2}:\d{2}$/)
+    expect(dayLength.value).toMatch(/^\d+ h \d+ min$/)
   })
 })

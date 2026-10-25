@@ -4,7 +4,7 @@
 
 **Created**: 2026-10-18
 
-**Status**: Draft
+**Status**: Implemented 2026-10-19; verified against a live host 2026-10-24
 
 **Input**: User description: "Make the provider health-check retention window editable from the Admin Panel. Add a singleton setting row (RetentionDays, default 30) with admin GET/PUT using If-Match rowVersion, validation limits, and audit logging. Seed it from the current ProviderHealthCheck:RetentionDays value in the migration, and keep config as the fallback. The retention job reads the stored value. Add the edit control to the existing 'Provider health' page."
 

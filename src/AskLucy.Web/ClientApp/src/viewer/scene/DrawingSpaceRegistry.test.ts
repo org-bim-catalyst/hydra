@@ -125,11 +125,12 @@ describe('DrawingSpaceRegistry (FR-014, FR-015, FR-019, FR-033, research D3, D3a
     // space" call to even attempt.
     expect(contextA.acquireDrawingSpace().group).not.toBe(handleB.group)
 
-    // Attempt 2: DrawingSpaceHandle exposes only `group`/`invalidate`/`onFrame`/
+    // Attempt 2: DrawingSpaceHandle exposes only `group`/`overlayGroup`/`invalidate`/`onFrame`/
     // `declareDrawingRequirement` — none of which take another handle, group, or extension id as
-    // an argument, so there is no method call through which A could reach B's group.
+    // an argument, and none of which carry a renderer, camera or scene, so there is no method call
+    // (or field) through which A could reach B's groups or the shared surface.
     const handleAKeys = Object.keys(handleA)
-    expect(handleAKeys).toEqual(['group', 'invalidate', 'onFrame', 'declareDrawingRequirement'])
+    expect(handleAKeys).toEqual(['group', 'overlayGroup', 'invalidate', 'onFrame', 'declareDrawingRequirement'])
 
     // Attempt 3: A's own group has no reference to B's group or to the shared scene/camera/
     // renderer — walking A's group subtree never encounters B's mesh.
@@ -167,6 +168,73 @@ describe('DrawingSpaceRegistry (FR-014, FR-015, FR-019, FR-033, research D3, D3a
     registry.release('ext-a')
     registry.invokeFrameCallbacks(0.016)
     expect(fireCount).toBe(2)
+  })
+
+  describe('specs/087 — the overlay group', () => {
+    it('every handle gets its own overlay group, never the interleaved one', () => {
+      const scene = new THREE.Scene()
+      const registry = new DrawingSpaceRegistry(scene)
+
+      const a = registry.acquire('ext-a')
+      const b = registry.acquire('ext-b')
+
+      expect(a.overlayGroup).toBeInstanceOf(THREE.Group)
+      expect(a.overlayGroup).not.toBe(a.group)
+      expect(a.overlayGroup).not.toBe(b.overlayGroup)
+      expect(scene.children).not.toContain(a.overlayGroup)
+    })
+
+    it('bindOverlay() parents already-acquired groups in acquisition order and replays new ones', () => {
+      const registry = new DrawingSpaceRegistry()
+      const a = registry.acquire('ext-a')
+      const b = registry.acquire('ext-b')
+
+      const overlayScene = new THREE.Scene()
+      registry.bindOverlay(overlayScene)
+      expect(overlayScene.children).toEqual([a.overlayGroup, b.overlayGroup])
+
+      const c = registry.acquire('ext-c')
+      expect(overlayScene.children).toEqual([a.overlayGroup, b.overlayGroup, c.overlayGroup])
+    })
+
+    it('bindOverlay(null) unparents without disposing, so the next surface re-adopts them', () => {
+      const overlayScene = new THREE.Scene()
+      const registry = new DrawingSpaceRegistry()
+      registry.bindOverlay(overlayScene)
+      const handle = registry.acquire('ext-a')
+      const geometry = new THREE.BoxGeometry()
+      const material = new THREE.MeshBasicMaterial()
+      const disposeGeometry = vi.spyOn(geometry, 'dispose')
+      handle.overlayGroup.add(new THREE.Mesh(geometry, material))
+
+      registry.bindOverlay(null)
+
+      expect(overlayScene.children).toHaveLength(0)
+      expect(disposeGeometry).not.toHaveBeenCalled()
+      expect(handle.overlayGroup.children).toHaveLength(1)
+
+      const nextScene = new THREE.Scene()
+      registry.bindOverlay(nextScene)
+      expect(nextScene.children).toEqual([handle.overlayGroup])
+    })
+
+    it('release() removes and disposes the overlay group too', () => {
+      const overlayScene = new THREE.Scene()
+      const registry = new DrawingSpaceRegistry()
+      registry.bindOverlay(overlayScene)
+      const handle = registry.acquire('ext-a')
+      const geometry = new THREE.BoxGeometry()
+      const material = new THREE.MeshBasicMaterial()
+      const disposeGeometry = vi.spyOn(geometry, 'dispose')
+      const disposeMaterial = vi.spyOn(material, 'dispose')
+      handle.overlayGroup.add(new THREE.Mesh(geometry, material))
+
+      registry.release('ext-a')
+
+      expect(overlayScene.children).not.toContain(handle.overlayGroup)
+      expect(disposeGeometry).toHaveBeenCalled()
+      expect(disposeMaterial).toHaveBeenCalled()
+    })
   })
 
   it('T050 (US4, SC-005): fifty acquire/declare/subscribe/release cycles accumulate nothing', async () => {

@@ -5,6 +5,7 @@ import { validateGroundOffset, validateHeight } from './store/correctionsStore'
 import { daySummary } from './solar/daySummary'
 import { solarPosition } from './solar/solarPosition'
 import { FALLBACK_TIME_ZONE, resolveTimeZone } from './solar/timeZone'
+import { twilightCrossings } from './solar/twilight'
 
 /**
  * T071, SC-008, FR-045, FR-046, constitution §2.VIII — consolidated sweep over quickstart.md
@@ -40,6 +41,7 @@ describe('Failure-surface sweep (quickstart Scenario 7) — nothing is observabl
       timeBasisLabel: basis.timeBasisLabel,
       solarPosition: solarPosition(instant, 51.5, -0.1),
       daySummary: daySummary(instant, 51.5, -0.1),
+      twilight: twilightCrossings(instant, 51.5, -0.1),
       siteBuildingHeightAssumed: null,
     })
 

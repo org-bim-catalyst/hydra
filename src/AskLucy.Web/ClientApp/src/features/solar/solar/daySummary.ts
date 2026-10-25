@@ -1,5 +1,16 @@
+import {
+  CROSSING_SOLVER_MAX_ITERATIONS,
+  cosHourAngle,
+  crossingSeedMs,
+  solveCrossingMs,
+} from './crossingSolver'
 import { RISE_SET_GEOMETRIC_ALTITUDE_DEGREES, SOLAR_SEMIDIAMETER_DEGREES } from './refraction'
 import { solarPosition } from './solarPosition'
+
+/** specs/085 research D4 — the solver moved to `crossingSolver.ts` so the twilight thresholds
+ * reuse it. Re-exported under its original name because it is part of this module's published
+ * surface and `daySummary.test.ts` asserts against it. */
+export { CROSSING_SOLVER_CONVERGENCE_DEGREES as RISE_SET_SOLVER_CONVERGENCE_DEGREES } from './crossingSolver'
 
 /** data-model.md "Day Summary" — sunrise, sunset and day length for a site and date, including
  * the cases where the sun does not rise, does not set, or could not be determined (FR-002). */
@@ -20,29 +31,8 @@ export interface DaySummary {
   riseSetUndetermined: boolean
 }
 
-const toRad = (degrees: number): number => (degrees * Math.PI) / 180
 const toDeg = (radians: number): number => (radians * 180) / Math.PI
 
-/**
- * research D3 — the solver's evaluation cap. Newton roughly doubles the number of correct digits
- * per step and the closed-form seed already lands within about three minutes of the answer, so
- * convergence is reached in five or so. Twelve is a bound, not a working figure.
- */
-export const RISE_SET_SOLVER_MAX_ITERATIONS = 12
-
-/**
- * research D3 — the solver's convergence threshold, in degrees of apparent altitude.
- *
- * research D3 proposed 1e-7°, which is not attainable: `Date` resolves to whole milliseconds, and
- * at the equator the sun climbs about 4.2e-6° per millisecond, so the altitude the function can be
- * evaluated at is quantised more coarsely than 1e-7. 1e-5° sits comfortably above that quantum
- * everywhere — it is always reachable at the nearest millisecond — and corresponds to under three
- * milliseconds of time error, some four orders of magnitude inside `RISE_SET_TOLERANCE_SECONDS`.
- */
-export const RISE_SET_SOLVER_CONVERGENCE_DEGREES = 1e-5
-
-/** research D3 — the half-interval of the central finite difference used for Newton's slope. */
-const SLOPE_STEP_MS = 30_000
 
 export interface DaySummaryOptions {
   /**
@@ -71,41 +61,9 @@ function upperEdgeAltitudeDegrees(instantMs: number, latitude: number, longitude
   return solarPosition(new Date(instantMs), latitude, longitude).altitudeDegrees + SOLAR_SEMIDIAMETER_DEGREES
 }
 
-/**
- * research D3 — Newton iteration on the instant, seeded from the closed form. Iterating on whole
- * milliseconds means the instant that was tested is exactly the instant returned; no rounding
- * happens after the last check.
- *
- * Returns `null` on non-convergence. It deliberately does not fall back to the seed: a seed is
- * accurate to minutes, and returning it would present an approximation as a solved answer.
- */
-function solveCrossingMs(
-  seedMs: number,
-  latitude: number,
-  longitude: number,
-  maxIterations: number,
-): number | null {
-  let instantMs = Math.round(seedMs)
-
-  for (let iteration = 0; iteration < maxIterations; iteration += 1) {
-    const value = upperEdgeAltitudeDegrees(instantMs, latitude, longitude)
-    if (Math.abs(value) <= RISE_SET_SOLVER_CONVERGENCE_DEGREES) return instantMs
-
-    const slopeDegreesPerMs =
-      (upperEdgeAltitudeDegrees(instantMs + SLOPE_STEP_MS, latitude, longitude) -
-        upperEdgeAltitudeDegrees(instantMs - SLOPE_STEP_MS, latitude, longitude)) /
-      (2 * SLOPE_STEP_MS)
-
-    // A vanishing slope is the sun grazing the horizon — Newton has nothing to descend, and the
-    // answer is genuinely undetermined rather than merely slow to find.
-    if (!Number.isFinite(slopeDegreesPerMs) || slopeDegreesPerMs === 0) return null
-
-    const nextMs = Math.round(instantMs - value / slopeDegreesPerMs)
-    if (!Number.isFinite(nextMs)) return null
-    instantMs = nextMs
-  }
-
-  return null
+/** The quantity the rise/set solver drives to zero, bound to a site. */
+function riseSetQuantity(latitude: number, longitude: number): (instantMs: number) => number {
+  return (instantMs) => upperEdgeAltitudeDegrees(instantMs, latitude, longitude)
 }
 
 /**
@@ -131,18 +89,14 @@ export function daySummary(
   longitude: number,
   options: DaySummaryOptions = {},
 ): DaySummary {
-  const maxIterations = options.maxIterations ?? RISE_SET_SOLVER_MAX_ITERATIONS
+  const maxIterations = options.maxIterations ?? CROSSING_SOLVER_MAX_ITERATIONS
 
   const solarNoonReference = new Date(
     Date.UTC(dateUtc.getUTCFullYear(), dateUtc.getUTCMonth(), dateUtc.getUTCDate(), 12, 0, 0),
   )
   const { declination, eqTime } = solarPosition(solarNoonReference, latitude, longitude)
 
-  const latRad = toRad(latitude)
-  const declRad = toRad(declination)
-  const cosH0 =
-    (Math.sin(toRad(RISE_SET_GEOMETRIC_ALTITUDE_DEGREES)) - Math.sin(latRad) * Math.sin(declRad)) /
-    (Math.cos(latRad) * Math.cos(declRad))
+  const cosH0 = cosHourAngle(latitude, declination, RISE_SET_GEOMETRIC_ALTITUDE_DEGREES)
 
   // FR-004 — both polar branches are decided here, before a single iteration is attempted.
   if (cosH0 > 1) {
@@ -167,19 +121,17 @@ export function daySummary(
   }
 
   const H0 = toDeg(Math.acos(cosH0))
-  const solarNoonMinutes = 720 - 4 * longitude - eqTime
   const dayStartUtc = Date.UTC(dateUtc.getUTCFullYear(), dateUtc.getUTCMonth(), dateUtc.getUTCDate(), 0, 0, 0)
 
+  const evaluate = riseSetQuantity(latitude, longitude)
   const sunriseMs = solveCrossingMs(
-    dayStartUtc + (solarNoonMinutes - H0 * 4) * 60_000,
-    latitude,
-    longitude,
+    crossingSeedMs(dayStartUtc, longitude, eqTime, H0, 'morning'),
+    evaluate,
     maxIterations,
   )
   const sunsetMs = solveCrossingMs(
-    dayStartUtc + (solarNoonMinutes + H0 * 4) * 60_000,
-    latitude,
-    longitude,
+    crossingSeedMs(dayStartUtc, longitude, eqTime, H0, 'evening'),
+    evaluate,
     maxIterations,
   )
 

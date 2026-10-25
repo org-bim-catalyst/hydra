@@ -1,5 +1,6 @@
 import * as THREE from 'three'
 import { solarPosition } from '../solar/solarPosition'
+import { fromLocalParts } from '../solar/timeZone'
 
 /** research D17, contracts/solar-extension.md — the sun-path dome's radius, following the
  * reference implementation's proven value. */
@@ -60,7 +61,17 @@ export function buildTubeFromPoints(points: THREE.Vector3[], tubeRadius: number,
   const curve = new THREE.CatmullRomCurve3(points, false)
   const tubularSegments = Math.max(16, Math.min(400, points.length * 2))
   const geometry = new THREE.TubeGeometry(curve, tubularSegments, tubeRadius, 6, false)
-  const material = new THREE.MeshBasicMaterial({ color, transparent: opacity < 1, opacity, depthWrite: opacity >= 1 })
+  // specs/087 — the dome has its own surface, so its materials depth-sort normally against each
+  // other: an opaque arc writes depth and properly occludes the ones behind it, while a
+  // translucent line (below opacity 1) does not write depth and tints what is behind it instead of
+  // punching a hole in the dome.
+  const opaque = opacity >= 1
+  const material = new THREE.MeshBasicMaterial({
+    color,
+    transparent: !opaque,
+    opacity,
+    depthWrite: opaque,
+  })
   return new THREE.Mesh(geometry, material)
 }
 
@@ -97,6 +108,12 @@ function seasonalExtremeDates(year: number, latitude: number): { summer: Date; w
   return latitude >= 0 ? { summer: juneSolstice, winter: decemberSolstice } : { summer: decemberSolstice, winter: juneSolstice }
 }
 
+/** Where the dial's ring sits, as a fraction of its texture's size. The circle mesh is sized from
+ * this same value (its reciprocal, twice over) so the drawn ring lands exactly at the dome radius
+ * however the canvas is laid out — leaving room outside the ticks for the numbers and the
+ * cardinal letters without one crowding the other. */
+const DIAL_RING_FRACTION = 0.4
+
 /** The engraved compass dial the dome sits on — degree ticks every 5°, numbers every 30°, and
  * cardinal/intercardinal letters, baked into one canvas texture. This is not decoration: FR-005
  * requires the path be "correctly oriented against north", and a dial is what makes that legible
@@ -114,7 +131,7 @@ function makeCompassDialTexture(size = 2048): THREE.CanvasTexture {
   if (!ctx) return texture
 
   const centre = size / 2
-  const ringRadius = size * 0.42
+  const ringRadius = size * DIAL_RING_FRACTION
   const ink = 'rgba(15,18,24,0.95)'
   const halo = 'rgba(255,255,255,0.92)'
 
@@ -159,7 +176,7 @@ function makeCompassDialTexture(size = 2048): THREE.CanvasTexture {
     }, isMajor ? size * 0.0026 : size * 0.0015)
 
     if (isMajor) {
-      const labelRadius = outerRadius + size * 0.028
+      const labelRadius = outerRadius + size * 0.024
       outlinedText(
         String(degrees),
         centre + Math.cos(angle) * labelRadius,
@@ -176,7 +193,9 @@ function makeCompassDialTexture(size = 2048): THREE.CanvasTexture {
   for (const cardinal of cardinals) {
     const isPrimary = cardinal.label.length === 1
     const angle = ((cardinal.angle - 90) * Math.PI) / 180
-    const labelRadius = ringRadius + size * (isPrimary ? 0.062 : 0.053)
+    // Outside the degree numbers, not level with them: at the old radius both were drawn at
+    // almost the same distance and the letters sat on the numbers ("W" over "270").
+    const labelRadius = ringRadius + size * (isPrimary ? 0.08 : 0.07)
     outlinedText(
       cardinal.label,
       centre + Math.cos(angle) * labelRadius,
@@ -190,11 +209,11 @@ function makeCompassDialTexture(size = 2048): THREE.CanvasTexture {
   return texture
 }
 
-/** The dial platform the whole instrument reads as sitting on. `0.84` is twice the texture's own
- * ring-radius fraction (0.42), so the drawn ring lands exactly at `radiusMetres`. */
+/** The dial platform the whole instrument reads as sitting on. The circle is sized so the drawn
+ * ring — `DIAL_RING_FRACTION` of the texture — lands exactly at `radiusMetres`. */
 export function buildCompassDial(radiusMetres: number): THREE.Mesh {
   const mesh = new THREE.Mesh(
-    new THREE.CircleGeometry(radiusMetres / 0.84, 96),
+    new THREE.CircleGeometry(radiusMetres / (DIAL_RING_FRACTION * 2), 96),
     new THREE.MeshStandardMaterial({
       map: makeCompassDialTexture(),
       transparent: true,
@@ -255,6 +274,93 @@ export function buildDomeShell(radiusMetres: number): THREE.Mesh {
   return mesh
 }
 
+/** specs/086 research D8 — the hour lines are the densest family on the dome (up to 24), so they
+ * are drawn at half the monthly lattice's width and a shade brighter than its opacity: visible as
+ * background furniture, never competing with the day arc or the extremes. */
+const HOUR_LINE_TUBE_RADIUS = 0.15
+const HOUR_LINE_OPACITY = 0.5
+
+/** specs/086 FR-001 … FR-005, FR-009, FR-010 — the sun's position at one local clock hour on
+ * every calendar day of `year`: that hour's analemma. Each day is resolved through
+ * `fromLocalParts`, the same conversion the hour marks use, so a mark and its curve cannot
+ * disagree about the clock. Samples below the horizon are dropped, exactly as the day arcs drop
+ * them. The day count is the year's own, so 29 February is never skipped.
+ *
+ * Returns the above-horizon samples as contiguous runs — see `splitAboveHorizonRuns` for why a
+ * single curve through them would draw a chord across the missing days. */
+export function sampleHourLineRuns(
+  hour: number,
+  latitude: number,
+  longitude: number,
+  year: number,
+  timeZoneId: string,
+  radiusMetres: number,
+): THREE.Vector3[][] {
+  const daysInYear = (Date.UTC(year + 1, 0, 1) - Date.UTC(year, 0, 1)) / 86_400_000
+  const samples: Array<THREE.Vector3 | null> = []
+
+  for (let day = 0; day < daysInYear; day++) {
+    const date = new Date(Date.UTC(year, 0, 1 + day))
+    const localDate = `${year}-${String(date.getUTCMonth() + 1).padStart(2, '0')}-${String(date.getUTCDate()).padStart(2, '0')}`
+    const position = solarPosition(fromLocalParts(localDate, hour * 60, timeZoneId), latitude, longitude)
+
+    samples.push(
+      position.altitudeDegrees >= 0
+        ? sphericalToVec(position.azimuthDegrees, position.altitudeDegrees, radiusMetres)
+        : null,
+    )
+  }
+
+  return splitAboveHorizonRuns(samples)
+}
+
+/** specs/086 FR-004 — the run rule, split out as a pure function so it can be asserted without a
+ * site. A `null` marks a below-horizon day and closes the current run; runs are never joined
+ * across one. Without this, one curve through the surviving samples would draw a chord straight
+ * across the missing winter days and through the ground (research D4). */
+export function splitAboveHorizonRuns<T>(samples: ReadonlyArray<T | null>): T[][] {
+  const runs: T[][] = []
+  let current: T[] = []
+
+  for (const sample of samples) {
+    if (sample !== null) current.push(sample)
+    else if (current.length) {
+      runs.push(current)
+      current = []
+    }
+  }
+  if (current.length) runs.push(current)
+
+  return runs
+}
+
+/** specs/086 FR-001, FR-003, FR-006 — one tube per above-horizon run of every hour that sees the
+ * sun. An hour with no runs draws nothing (midnight at mid-latitudes); a run of fewer than two
+ * samples has no length to tube. The colour is the caller's — the scene passes the theme's — and
+ * there is deliberately no default: a literal here would bypass the theme (§7). */
+export function buildHourLines(
+  latitude: number,
+  longitude: number,
+  year: number,
+  timeZoneId: string,
+  radiusMetres: number,
+  color: number,
+): THREE.Mesh[] {
+  const meshes: THREE.Mesh[] = []
+
+  for (let hour = 0; hour < 24; hour++) {
+    for (const run of sampleHourLineRuns(hour, latitude, longitude, year, timeZoneId, radiusMetres)) {
+      const tube = buildTubeFromPoints(run, HOUR_LINE_TUBE_RADIUS, color, HOUR_LINE_OPACITY)
+      if (tube) {
+        tube.userData.localHour = hour
+        meshes.push(tube)
+      }
+    }
+  }
+
+  return meshes
+}
+
 /** The faint monthly lattice that gives the dome its characteristic woven look — the sun's arc on
  * the 15th of each month. Context for the chosen day and the two extremes, deliberately dim so it
  * never competes with them (FR-006 requires the extremes stay distinguishable). */
@@ -278,6 +384,8 @@ export interface FixedFurnitureObjects {
   mountPost: THREE.Group
   shell: THREE.Mesh
   monthlyArcs: THREE.Mesh[]
+  /** specs/086 — one run of each local clock hour's year-wide curve, in hour order. */
+  hourLines: THREE.Mesh[]
 }
 
 /**
@@ -295,24 +403,28 @@ export interface DatedPathObjects {
 
 /**
  * T042, FR-022, contracts/solar-scene.md — builds the compass dial, the mount post, the enclosing
- * shell and the monthly lattice. Depends on latitude, longitude, year and radius; deliberately NOT
- * on the date or the instant, which is the whole point of the split (FR-021, SC-008).
+ * shell, the monthly lattice and the hour lines. Depends on latitude, longitude, year, the site's
+ * time zone and the line colour; deliberately NOT on the date or the instant, which is the whole
+ * point of the split (FR-021, SC-008).
  *
  * The year is a parameter rather than being read off a date so the caller's own rebuild key and
  * this function's dependencies cannot drift apart: what the key says the furniture was built for
- * is exactly what was passed in.
+ * is exactly what was passed in. specs/086 applies the same discipline to the time zone: the
+ * hour lines are local clock hours, so the zone is an input here and part of the caller's key.
  */
 export function buildFixedFurniture(
   latitude: number,
   longitude: number,
   year: number,
+  timeZoneId: string,
+  hourLineColor: number,
   radiusMetres: number = SUN_PATH_DOME_RADIUS_METRES,
 ): FixedFurnitureObjects {
   const shell = buildDomeShell(radiusMetres)
-  // The shell writes no depth and encloses everything else, so it has to draw last or the arcs
-  // inside it come out tinted by nothing. It used to get that ordering for free by being appended
-  // last to a single group; now that it lives in the fixed group and the arcs live in a sibling
-  // group, the ordering has to be stated rather than inherited from assembly order.
+  // Intra-dome ordering only (specs/087): the shell writes no depth and encloses everything else,
+  // so among the dome's own transparent objects it draws last — otherwise it would tint the arcs
+  // and lines inside it with whatever was in the buffer behind them. This is unrelated to the map:
+  // the dome has its own surface and sorts against nothing else.
   shell.renderOrder = 1
 
   return {
@@ -320,6 +432,7 @@ export function buildFixedFurniture(
     mountPost: buildMountPost(),
     shell,
     monthlyArcs: buildMonthlyGridArcs(latitude, longitude, year, radiusMetres),
+    hourLines: buildHourLines(latitude, longitude, year, timeZoneId, radiusMetres, hourLineColor),
   }
 }
 
@@ -337,6 +450,8 @@ export function buildDatedPath(
   latitude: number,
   longitude: number,
   currentInstantUtc: Date,
+  /** The site's time zone: the hour marks are local clock hours, so it cannot be omitted. */
+  timeZoneId: string,
   radiusMetres: number = SUN_PATH_DOME_RADIUS_METRES,
 ): DatedPathObjects {
   const chosenDayPoints = sampleDayArcPoints(dateUtc, latitude, longitude, radiusMetres)
@@ -347,18 +462,25 @@ export function buildDatedPath(
   const winterExtreme = buildTubeFromPoints(sampleDayArcPoints(winter, latitude, longitude, radiusMetres), 0.5, 0x4fb0ff, 0.8)
 
   const hourMarks: THREE.Sprite[] = []
-  const dayStart = Date.UTC(dateUtc.getUTCFullYear(), dateUtc.getUTCMonth(), dateUtc.getUTCDate())
+  // The marks belong to the site's own clock (data-model: `localHour`), not to UTC. This used to
+  // step 0–23 across UTC, which in Dubai put the "12" mark where the sun stands at 16:00 local —
+  // four hours out, and visible against any almanac. `fromLocalParts` resolves each hour in the
+  // site's zone, so a DST transition is handled by the same conversion the panels use.
+  const localDate = `${dateUtc.getUTCFullYear()}-${String(dateUtc.getUTCMonth() + 1).padStart(2, '0')}-${String(dateUtc.getUTCDate()).padStart(2, '0')}`
   for (let hour = 0; hour < 24; hour++) {
-    const position = solarPosition(new Date(dayStart + hour * 3_600_000), latitude, longitude)
+    const position = solarPosition(fromLocalParts(localDate, hour * 60, timeZoneId), latitude, longitude)
     if (position.altitudeDegrees >= 2) {
       const sprite = makeHourMarkSprite(String(hour).padStart(2, '0'))
       sprite.position.copy(sphericalToVec(position.azimuthDegrees, position.altitudeDegrees, radiusMetres))
+      sprite.userData.localHour = hour
       hourMarks.push(sprite)
     }
   }
 
   const currentPosition = solarPosition(currentInstantUtc, latitude, longitude)
   const clampedAltitude = Math.max(currentPosition.altitudeDegrees, -6)
+  // Opaque and depth-writing: on the dome's own surface the marker stands in front of the arc it
+  // sits on by depth, exactly as a real instrument's pointer would (specs/087).
   const currentPositionMarker = new THREE.Mesh(
     new THREE.SphereGeometry(6, 24, 24),
     new THREE.MeshBasicMaterial({ color: currentPosition.altitudeDegrees >= 0 ? 0xffd700 : 0x555b6e }),

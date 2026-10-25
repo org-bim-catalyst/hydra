@@ -5,8 +5,11 @@ import { worldToLocal } from '../../api/coordinateFrame'
 import { sceneAnchor } from '../../scene/SceneAnchor'
 import { activeScene } from '../../scene/activeScene'
 import { drawingSpaceRegistry } from '../../scene/DrawingSpaceRegistry'
+import { applyMapTransformToCamera } from '../../scene/overlayCamera'
+import { OVERLAY_FLOOR_LAYER } from '../../scene/overlayLayers'
 import { redrawScheduler } from '../../scene/RedrawScheduler'
 import { rendererState } from '../../scene/rendererState'
+import { createOverlaySurface, type OverlaySurface } from './overlaySurface'
 import { BUILDING_FOOTPRINT_FILL_COLOR, BUILDING_FOOTPRINT_STROKE_COLOR } from './buildingFootprintColors'
 import { createSiteBoundaryRenderer } from './SiteBoundaryRenderer'
 import { siteBoundaryBorderRings, siteBoundaryPaths } from './siteBoundaryPaths'
@@ -252,6 +255,22 @@ export async function createGoogleMapsGisLayer(
   const camera = new THREE.PerspectiveCamera()
   let renderer: THREE.WebGLRenderer | undefined
 
+  // specs/087 — the sun-path dome is drawn here instead, on its own transparent surface above the
+  // map. Maps runs its 3D building pass AFTER `onDraw` returns and ignores the depth written there,
+  // so no ordering or depth trick inside the interleaved pass can keep the dome in front of a
+  // building; a surface composited above the map is the only place a later pass cannot reach.
+  // Same one ambient light as the interleaved scene: the dome's shell and compass dial are lit
+  // materials and would otherwise render black.
+  const overlayScene = new THREE.Scene()
+  const overlayLight = new THREE.AmbientLight(0xffffff, 1)
+  // The floor pass renders with a layer-restricted camera, and a light is only collected when it
+  // shares a layer with that camera — left on layer 0 alone, the dial (a lit material) rendered
+  // unlit and therefore black in that pass.
+  overlayLight.layers.enable(OVERLAY_FLOOR_LAYER)
+  overlayScene.add(overlayLight)
+  const overlayCamera = new THREE.PerspectiveCamera()
+  let overlaySurface: OverlaySurface | undefined
+
   // research D3/T037 (specs/051) — publishes this scene for viewer-owned content (loadContent's
   // model roots) and capability-owned drawing spaces to be added into. One scene, one binding.
   activeScene.bind(scene)
@@ -315,11 +334,22 @@ export async function createGoogleMapsGisLayer(
 
   const overlay = new google.maps.WebGLOverlayView()
 
+  /** specs/087 — releases the dome's surface and stops capabilities from drawing into its scene.
+   * Idempotent, so the paths below can all call it without ordering games. */
+  const disposeOverlaySurface = () => {
+    overlaySurface?.dispose()
+    overlaySurface = undefined
+    drawingSpaceRegistry.bindOverlay(null)
+  }
+
   // Google's WebGLOverlayView contract requires all four lifecycle callbacks — its own
   // internals call `onAdd`/`onRemove` unconditionally on mount/teardown. Omitting `onRemove`
   // previously threw "onRemove is not a function" as an unhandled rejection during cleanup.
+  // specs/087: a lost context means the overlay surface's own context is gone too (the GPU reset
+  // that loses one loses the other), so it is released rather than drawn against.
   overlay.onAdd = () => {}
-  overlay.onRemove = () => {}
+  overlay.onRemove = () => disposeOverlaySurface()
+  overlay.onContextLost = () => disposeOverlaySurface()
 
   // Tracks the canvas size the renderer's viewport was last set to (device pixels, since
   // `setPixelRatio(1)` means CSS pixels === device pixels here) — see the `setSize` calls below.
@@ -333,6 +363,15 @@ export async function createGoogleMapsGisLayer(
       ...gl.getContextAttributes(),
     })
     renderer.autoClear = false
+    // Specs/063 FR-011, SC-005. Three's default shadow algorithm (`PCFShadowMap`) samples a narrow
+    // kernel, so at a low sun — where the shadow camera's texels are stretched along the light by
+    // 1/sin(elevation) — each texel edge lands as a hard step and a 1 km shadow reads as a
+    // staircase. `PCFSoftShadowMap` is the wider, bilinear kernel (and what the reference
+    // implementation this feature was measured against uses); it turns those steps into a soft
+    // edge without changing the map's resolution or cost. Set here, at construction, because the
+    // shader chunk is chosen when materials compile — changing it later needs every material
+    // recompiled. Renderer-global state stays in the viewer, never in a capability (FR-038).
+    renderer.shadowMap.type = THREE.PCFSoftShadowMap
     // T032a (FR-005a/SC-004a): a lower pixel ratio on detected low-end/mobile devices is a
     // cheap, broadly effective way to reduce GPU load for a bridged external renderer we
     // don't otherwise control the render loop of.
@@ -383,6 +422,20 @@ export async function createGoogleMapsGisLayer(
     // bus by `MapRenderTarget.tsx` (which holds the `viewerEngine` reference this layer
     // deliberately does not depend on) immediately after this layer resolves.
     rendererState.bind(renderer, () => {})
+
+    // specs/087 — create the dome's surface. `onContextRestored` can fire more than once, so a
+    // surface left by an earlier restore is released first. A failure here (no WebGL context left,
+    // a driver refusal) is reported and leaves the map fully working; the dome is simply absent.
+    // Renderer creation and configuration stay in the viewer (specs/052 FR-038).
+    disposeOverlaySurface()
+    try {
+      overlaySurface = createOverlaySurface(options.container)
+      overlaySurface.resize(gl.canvas.width, gl.canvas.height)
+      drawingSpaceRegistry.bindOverlay(overlayScene)
+    } catch (error) {
+      disposeOverlaySurface()
+      console.error('[GoogleMapsGisLayer] Could not create the solar dome overlay surface:', error)
+    }
   }
 
   overlay.onDraw = ({ transformer, gl }) => {
@@ -392,6 +445,9 @@ export async function createGoogleMapsGisLayer(
     // every draw, not just once. Cheap (two integer comparisons) when nothing changed.
     if (gl.canvas.width !== lastCanvasWidth || gl.canvas.height !== lastCanvasHeight) {
       renderer?.setSize(gl.canvas.width, gl.canvas.height, false)
+      // specs/087 — the dome's surface is a separate canvas, so it needs the same resize (both
+      // renderers run at pixel ratio 1, so the map's device pixels are the exact buffer size).
+      overlaySurface?.resize(gl.canvas.width, gl.canvas.height)
       lastCanvasWidth = gl.canvas.width
       lastCanvasHeight = gl.canvas.height
     }
@@ -413,7 +469,9 @@ export async function createGoogleMapsGisLayer(
       lng: reference.longitude,
       altitude: 0,
     })
-    camera.projectionMatrix = new THREE.Matrix4().fromArray(matrix)
+    // Both cameras take the same transform through the same function, so the dome cannot drift from
+    // the map's own geometry (specs/087 FR-005).
+    applyMapTransformToCamera(camera, matrix)
 
     // Closes the coalescing window BEFORE the frame callbacks run, not after. Clearing it
     // afterwards (in a `finally`) meant every `invalidate()` raised from inside a frame callback
@@ -459,6 +517,29 @@ export async function createGoogleMapsGisLayer(
       renderer?.resetState()
     } catch (error) {
       console.error('[GoogleMapsGisLayer] Three.js site-boundary render failed:', error)
+    }
+
+    // specs/087 — the dome's own pass, on its own surface, at the same cadence as the map's draw
+    // (no second animation loop). Its own try/catch: a dome fault must not skip the map's content
+    // above, and the map's content failing must not hide the dome.
+    try {
+      if (overlaySurface) {
+        const overlayRenderer = overlaySurface.renderer
+        applyMapTransformToCamera(overlayCamera, matrix)
+        // Two passes on the same surface, one draw call each. The floor layer is drawn first, so
+        // content meant to lie on the ground is clipped by the building depths the scene has
+        // already written; the depth buffer is then cleared so everything else draws over the top
+        // (specs/087 follow-up: the dial reads as painted on the ground, the dome stays in front).
+        overlayRenderer.clear()
+        overlayCamera.layers.set(OVERLAY_FLOOR_LAYER)
+        overlayRenderer.render(overlayScene, overlayCamera)
+        overlayRenderer.clearDepth()
+        overlayCamera.layers.set(0)
+        overlayRenderer.render(overlayScene, overlayCamera)
+        overlayRenderer.resetState()
+      }
+    } catch (error) {
+      console.error('[GoogleMapsGisLayer] Solar dome overlay render failed:', error)
     }
   }
 
@@ -631,6 +712,7 @@ export async function createGoogleMapsGisLayer(
       overlay.setMap(null)
       boundaryPolygon?.setMap(null)
       siteBoundaryRenderer.dispose()
+      disposeOverlaySurface()
       renderer?.dispose()
     },
   }

@@ -25,6 +25,7 @@ function makeFakeDrawingSpace() {
   const invalidate = vi.fn()
   const handle: DrawingSpaceHandle = {
     group: new THREE.Group(),
+    overlayGroup: new THREE.Group(),
     invalidate,
     onFrame: (cb) => frameCallbacks.push(cb),
     declareDrawingRequirement: vi.fn(),

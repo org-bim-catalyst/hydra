@@ -1,14 +1,15 @@
-# Solar Analysis (specs/052-solar-analysis, amended by specs/063 and specs/064)
+# Solar Analysis (specs/052-solar-analysis, amended by specs/063, specs/064 and specs/085)
 
 Sun path, real building shadows and time scrubbing over the active site — the first capability
 built entirely on the viewer extension framework (specs/049-051). See `specs/052-solar-analysis/`
 for the spec, plan, research and contracts; this file exists so the constraints the reference
 prototype discovered the hard way are not rediscovered.
 
-Two later features amended it in place rather than forking it: **specs/063** (accuracy and
+Three later features amended it in place rather than forking it: **specs/063** (accuracy and
 performance — refraction, the derived shadow radius, the merged footprint geometry, the split sun
-path) and **specs/064** (the time entry field and slider ticks). Where a constraint below names a
-spec, that spec is the one that owns it now.
+path), **specs/064** (the time entry field and slider ticks) and **specs/085** (the twilight
+figures and the year-long day-length chart). Where a constraint below names a spec, that spec is
+the one that owns it now.
 
 ## Module map
 
@@ -18,13 +19,16 @@ features/solar/
 ├── solar/
 │   ├── solarPosition.ts           ported NOAA algorithm (research D1) — no runtime dependency
 │   ├── refraction.ts              NOAA's piecewise refraction correction, split from the semidiameter (063)
+│   ├── crossingSolver.ts          Newton on the instant, generalised to any target altitude (085)
 │   ├── daySummary.ts              sunrise/sunset/day length, polar-condition handling
+│   ├── twilight.ts                the 6°/12°/18° thresholds, phase lengths, the year profile (085)
 │   ├── noaaFullDay.fixture.ts     NOAA's own published full-day table, the SC-002 reference (063)
-│   └── timeZone.ts                tz-lookup + Intl.DateTimeFormat (research D2)
+│   └── timeZone.ts                tz-lookup + Intl.DateTimeFormat (research D2; formatter memo 086)
 ├── buildings/footprintGeometry.ts ONE merged extrusion for every footprint; casts, never drawn (063)
 ├── scene/
 │   ├── SolarScene.ts              owns the extension's Drawing Space group and everything in it
-│   ├── sunPathCurve.ts            the dome, split by lifetime: fixed furniture vs dated path (063)
+│   ├── sunPathCurve.ts            the dome, split by lifetime: fixed furniture vs dated path (063);
+│   │                              the per-hour analemma curves are fixed furniture (086)
 │   ├── sunLight.ts                DirectionalLight + shadow camera, radius derived per-elevation (063)
 │   └── shadowGround.ts            ShadowMaterial ground plane, sized with sunLight from one radius
 ├── store/
@@ -34,6 +38,7 @@ features/solar/
 │   ├── SolarTimeControlPanel.tsx  live panel: date, time slider/entry field, play/stop
 │   ├── timeEntry.ts               pure decision logic for the entry field + tick marks (specs/064)
 │   ├── BuildingCorrectionsPanel.tsx live panel: height correction, ground offset, reset
+│   ├── SolarDayLengthPanel.tsx    live panel: the year's day-length chart, read-only (085)
 │   ├── panelContracts.ts          the panels' type keys and zod `data` schemas, kept out of the
 │   │                              components so Fast Refresh can still hot-swap them
 │   └── solarFiguresContent.ts     content-panel document (specs/049 blocks), not a component
@@ -44,6 +49,8 @@ features/solar/
 
 viewer/extensions/builtin/solarAnalysisExtension.tsx  thin registration shim (the only viewer/ file)
 viewer/extensions/declared.ts                          one added id (the only other viewer/ file)
+viewer/layers/gis/overlaySurface.ts                   the dome's own transparent canvas + renderer (087)
+viewer/scene/overlayCamera.ts                         map transform → camera projection and pose (087)
 ```
 
 ## The ported NOAA algorithm — provenance and stated tolerances
@@ -118,9 +125,54 @@ binding on this implementation. Losing any of them is a regression, not a style 
    A plain transparent shell *is* built and *is* assembled — `buildDomeShell` returns a
    `MeshStandardMaterial` with `transparent: true`, `depthWrite: false` and no `envMap`. The
    binding rule is therefore "no `transmission`, no `envMap`", not "no shell". Because it encloses
-   everything and writes no depth it must draw last, which used to happen implicitly by being
-   appended last to a single group; now that specs/063 split the dome into sibling groups,
-   `renderOrder = 1` says so explicitly.
+   everything and writes no depth it draws last among the dome's own transparent objects:
+   `renderOrder = 1` says so explicitly (an intra-dome ordering, unrelated to the map — see the
+   next section).
+
+## The dome draws on its own surface, above the map (specs/087)
+
+The dome was moved out of the map's render pass because it could not win there. The viewer's
+renderer is constructed on the GL context Google Maps hands `WebGLOverlayView`, and **Maps draws
+its 3D buildings after `onDraw` returns and ignores the depth the overlay wrote** — Google
+documents the shared depth buffer as buildings occluding overlay content, not the reverse. Three
+attempts inside that pass all failed in production and have been deleted: `depthTest: false` on
+the dome's materials, `renderOrder` 10/11 on its groups, and a near-plane depth mask
+(`buildDomeOccluder`) whose shader pinned `gl_Position.z`. No in-pass ordering can outrank a later
+pass.
+
+The dome is now drawn by a **second renderer on its own transparent canvas** stacked above the
+map: `viewer/layers/gis/overlaySurface.ts` owns the canvas and renderer,
+`GoogleMapsGisLayer.ts` owns the overlay scene and camera, and `viewer/scene/overlayCamera.ts`
+copies the map's per-frame transform onto both cameras so the dome stays registered to the map.
+The extension reaches it only through `DrawingSpaceHandle.overlayGroup` — it still holds no
+renderer, camera or scene.
+
+**The dial is the one floor element.** The compass dial lies on the ground, so it alone is drawn
+in the overlay's *floor pass* (`viewer/scene/overlayLayers.ts`): the surface renders that pass
+first, against a depth buffer that already holds a depth-only mirror of our building footprints
+(`SolarScene.setDomeOccluder`, sharing the massing geometry — each renderer uploads its own GPU
+buffers), then clears depth and draws the rest of the dome over the top. The dial therefore reads
+as painted on the road and disappears behind a building, while the shell, arcs, marks and marker
+stay in front of everything. The overlay's ambient light must be enabled on that layer too:
+Three collects a light only when it shares a layer with the rendering camera, and the floor pass
+renders with a layer-restricted camera — without it the dial draws unlit, i.e. black. Two ceilings worth knowing: only buildings inside the fetched radius
+can hide it, and the occluder follows the massing toggle's *data*, not its display — showing or
+hiding the massing never changes whether buildings hide the dial.
+
+What must stay true:
+
+- **Only the dome moves.** The massing, the shadow ground plane and the sun light stay in the
+  interleaved pass; they need the map's own depth and lighting.
+- **Both groups move together.** The ground offset and visibility are applied to `group` *and*
+  `overlayGroup` (`SolarScene.setGroundOffset` / `setVisible`), or the dome floats over an analysis
+  that is not there.
+- **The surface is viewer-owned.** It is created, configured and disposed in `GoogleMapsGisLayer`
+  (specs/052 FR-038); a capability never creates or configures it. It is released on context loss,
+  on removal and on teardown, and unbound from the registry so nothing draws into a dead scene.
+- **Inside its own surface the dome sorts normally.** Opaque arcs write depth, translucent lines
+  do not; no material opts out of depth testing. The hour-mark sprite keeps `depthTest: false`
+  deliberately: labels must read through the dome's own geometry. The dial's clipping comes from
+  the floor pass's own depth clear, not from a material flag on the rest of the dome.
 
 ## Two live SC-009 risks (research D9, D17)
 
@@ -161,13 +213,17 @@ movement gets caught.
 Two independent costs, two separate mechanisms, both in `scene/`:
 
 **`sunPathCurve.ts` splits the dome by what each piece depends on.** `buildFixedFurniture` (compass
-dial, mount post, shell, monthly lattice) is keyed on site + year; `buildDatedPath` (day arc,
-seasonal extremes, hour marks, current marker) is keyed additionally on the date. `SolarScene` holds
-them as **sibling groups, each its own disposal scope**, with independent rebuild keys. Stepping the
-date rebuilds only the second; a time-of-day tick rebuilds neither and just moves the marker. The
-thing this protects is the dial's baked 2048² canvas texture, which depends on nothing but the site
-and used to be thrown away on every date step. `sunPathCurve.test.ts` asserts it on object
-*identity*, not child counts — a rebuild producing the same number of children is the failure.
+dial, mount post, shell, monthly lattice, and since specs/086 the 24 hour lines) is keyed on site +
+year + time zone; `buildDatedPath` (day arc, seasonal extremes, hour marks, current marker) is keyed
+additionally on the date. `SolarScene` holds them as **sibling groups, each its own disposal
+scope**, with independent rebuild keys. Stepping the date rebuilds only the second; a time-of-day
+tick rebuilds neither and just moves the marker. The thing this protects is the dial's baked 2048²
+canvas texture, which depends on nothing but the site and used to be thrown away on every date
+step — and, since specs/086, the 8,760 samples that draw the hour lines. The time zone is in the
+fixed key because the hour lines are local clock hours and the zone resolves *after* the first draw
+(the fallback is UTC). A theme change re-tints the hour lines in place rather than rebuilding them.
+`sunPathCurve.test.ts` asserts all of it on object *identity*, not child counts — a rebuild
+producing the same number of children is the failure.
 
 **`aimSun` gates the shadow-map pass during continuous playback.** A sun movement smaller than
 `SHADOW_GATE_DEGREES` (0.25°) is skipped and `aimSun` returns `false`, and the caller withholds
@@ -219,3 +275,19 @@ handle precision.
 Run the whole feature: `npx vitest run src/features/solar` (frontend) and
 `dotnet test "Ask Lucy.sln" --filter "FullyQualifiedName~Buildings|FullyQualifiedName~OpenSolarAnalysisCapability"`
 (backend, note the space in the solution name).
+
+## Twilight (specs/085)
+
+Twilight is defined on the sun's **centre** at 6°, 12° and 18° below the horizon, *geometrically* —
+the definition NOAA, the NWS and USNO publish, so a phase can be checked against an almanac. The
+rise/set upper-edge convention is not extended to twilight: no almanac defines it that way.
+
+`refraction.ts` holds the correction at a constant `HORIZON_REFRACTION_DEGREES` (0.5749°) for every
+geometric altitude at or below −0.575°, so a crossing is solved exactly as the instant the
+*apparent* altitude equals `−threshold + HORIZON_REFRACTION_DEGREES`. The panel therefore reports
+−5.43°, −11.43° and −17.43° at the three thresholds — one constant at every site and date, the
+same property sunrise has with its −0.27°.
+
+A threshold that the sun's centre never reaches on a date is stated in words for that phase alone.
+That is deliberately independent of the polar statement: a polar-night date can still have all
+three twilight crossings, and a midsummer date can have none.

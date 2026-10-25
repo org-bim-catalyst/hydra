@@ -21,3 +21,12 @@ export const SOLAR_CORRECTIONS_TYPE_KEY = 'solar.corrections'
 
 export const solarCorrectionsDataSchema = z.object({})
 export type SolarCorrectionsData = z.infer<typeof solarCorrectionsDataSchema>
+
+export const SOLAR_DAY_LENGTH_TYPE_KEY = 'solar.day-length'
+
+/** specs/085 — like the two panels above, this one is driven by `solarAnalysisStore`: the site and
+ * the selected date come from there, and the year profile is computed from them. `data` carries
+ * nothing, and the schema exists only to satisfy `PanelTypeDefinition`'s contract. The panel is
+ * read-only; it writes nothing back. */
+export const solarDayLengthDataSchema = z.object({})
+export type SolarDayLengthData = z.infer<typeof solarDayLengthDataSchema>

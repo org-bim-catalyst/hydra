@@ -49,17 +49,32 @@ interface LocalDateParts {
   minute: number
 }
 
+/** specs/086 research D6 — constructing the formatter is the dominant cost of a conversion: the
+ * hour-line build makes 8,760 of them, and measured in Node the same work costs ~476 ms with a
+ * fresh formatter against ~35 ms with one reused. The options are constant and the zone is the
+ * only other input, so one formatter per zone is the whole cache. Nothing about the result
+ * changes — this is the same object doing the same formatting. */
+const formattersByZone = new Map<string, Intl.DateTimeFormat>()
+
+function formatterFor(timeZoneId: string): Intl.DateTimeFormat {
+  let formatter = formattersByZone.get(timeZoneId)
+  if (!formatter) {
+    formatter = new Intl.DateTimeFormat('en-US', {
+      timeZone: timeZoneId,
+      hourCycle: 'h23',
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+    })
+    formattersByZone.set(timeZoneId, formatter)
+  }
+  return formatter
+}
+
 function formatParts(instantUtc: Date, timeZoneId: string): LocalDateParts {
-  const formatter = new Intl.DateTimeFormat('en-US', {
-    timeZone: timeZoneId,
-    hourCycle: 'h23',
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit',
-  })
-  const parts = formatter.formatToParts(instantUtc)
+  const parts = formatterFor(timeZoneId).formatToParts(instantUtc)
   const byType: Record<string, string> = {}
   for (const part of parts) byType[part.type] = part.value
   return {

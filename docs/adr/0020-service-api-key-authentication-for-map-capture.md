@@ -224,3 +224,21 @@ than the 14 px the first contract specified.
 
 The correction is applied to Google's output only, and is a setting an administrator can turn
 off.
+
+### The static keys are the interim form
+
+`MapCapture:ApiKeys` holds one `{ Name, Key }` pair per trusted service caller: `Name` is the
+caller's identity — the rate-limit bucket it is counted against, and the name it appears under in
+the log — and `Key` is the secret it sends as `X-Api-Key`. The list is empty by default, which
+means the capture endpoint answers `401` to every caller; a deployment without keys still starts,
+because the list is deliberately outside the startup validation.
+
+**This is the interim form, not the destination.** The intent is for Lucy to host an OAuth
+server: a service is issued a client id and a client secret, and exchanges them for a token at
+the endpoint, in place of a static key that has to be rotated by hand. The static scheme was
+chosen because it is the smallest thing that satisfies "trusted services" for one endpoint, and
+it should be replaced rather than extended — a second, parallel authentication scheme on the same
+endpoint is worse than either one alone.
+
+The chat is unaffected either way: Lucy's own snapshots run under the signed-in user's session
+and never touch these keys.

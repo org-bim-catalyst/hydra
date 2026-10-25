@@ -1,5 +1,6 @@
 import * as THREE from 'three'
 import type { DrawingSpaceHandle } from '../../../viewer/scene/DrawingSpaceRegistry'
+import { OVERLAY_FLOOR_LAYER } from '../../../viewer/scene/overlayLayers'
 import { buildFootprintMeshes, setShowMass, type FootprintBuildResult } from '../buildings/footprintGeometry'
 import type { SiteBuildingDto } from '../api/siteBuildingsApi'
 import { ShadowGround } from './shadowGround'
@@ -27,15 +28,20 @@ import {
 export const SHADOW_GATE_DEGREES = 0.25
 
 /**
- * Owns the extension's own `DrawingSpaceHandle` and everything drawn inside it — the sun-path
+ * Owns the extension's own `DrawingSpaceHandle` and everything drawn through it — the sun-path
  * dome, the buildings group, the shadow ground plane and the sun light. Nothing in this feature
  * ever holds a reference to the shared `THREE.Scene`, `Camera` or `WebGLRenderer` (FR-037); this
- * class is the single place that touches the drawing space's `group`.
+ * class is the single place that touches the drawing space's two groups.
  *
- * research D15 — the ground offset (FR-026) is applied by moving THIS group in Z
- * (`group.position.z`), never by re-anchoring the scene. Everything added as a child of this
- * group — dome, buildings, ground plane, light target — therefore moves together with one
- * assignment, and nothing outside the extension is affected.
+ * specs/087 — the DOME is drawn on the viewer's overlay surface (`overlayGroup`), above the map,
+ * because Maps runs its 3D building pass after the interleaved draw and would otherwise paint over
+ * it. The massing, the shadow ground and the sun light stay in the interleaved pass
+ * (`group`): they need the map's own depth and lighting, and nothing can occlude them that way.
+ *
+ * research D15 — the ground offset (FR-026) is applied by moving the extension's groups in Z
+ * (`setGroundOffset` writes both), never by re-anchoring the scene. Everything added as a child
+ * of either group — dome, buildings, ground plane, light target — therefore moves together, and
+ * nothing outside the extension is affected.
  */
 export class SolarScene {
   readonly drawingSpace: DrawingSpaceHandle
@@ -52,6 +58,11 @@ export class SolarScene {
    */
   readonly sunPathFixedGroup = new THREE.Group()
   readonly sunPathDatedGroup = new THREE.Group()
+  /** specs/087 follow-up — the building footprints as a depth-only mesh on the overlay's floor
+   * layer. The dial drawn in the same pass is clipped by it, so the dial reads as painted on the
+   * ground and disappears behind a building; the rest of the dome is drawn after the depth clear
+   * and stays in front of everything. */
+  readonly domeOccluderGroup = new THREE.Group()
   readonly buildingsGroup = new THREE.Group()
   readonly groundGroup = new THREE.Group()
   readonly lightGroup = new THREE.Group()
@@ -82,10 +93,17 @@ export class SolarScene {
   /** The last `updateSunPath` arguments, so a new site building can resize the dome at once rather
    * than on the next tick — the buildings and the clock are driven by separate effects. */
   private lastSunPathArguments: Parameters<SolarScene['updateSunPath']> | null = null
+  /** specs/086 — the hour-line meshes and the colour they were built with. Kept so a theme change
+   * can re-tint them in place instead of rebuilding 8,760 samples for a colour. */
+  private hourLineMeshes: THREE.Mesh[] = []
+  private hourLineColorHex: number | null = null
 
   constructor(drawingSpace: DrawingSpaceHandle) {
     this.drawingSpace = drawingSpace
-    drawingSpace.group.add(this.sunPathFixedGroup, this.sunPathDatedGroup, this.buildingsGroup, this.groundGroup, this.lightGroup)
+    // The dome goes on the viewer's overlay surface, above the map (specs/087). Inside its own
+    // surface it depth-sorts normally against itself — no render order, no depth opt-outs.
+    drawingSpace.overlayGroup.add(this.domeOccluderGroup, this.sunPathFixedGroup, this.sunPathDatedGroup)
+    drawingSpace.group.add(this.buildingsGroup, this.groundGroup, this.lightGroup)
   }
 
   /**
@@ -166,34 +184,68 @@ export class SolarScene {
    * T017, T042, T044, T051, FR-005…FR-008, FR-021, FR-022, FR-023, SC-004, SC-008 — updates the
    * dome, rebuilding as little of it as the change requires:
    *
-   * - the fixed furniture (dial, mount post, shell, monthly lattice) only when the SITE or the
-   *   YEAR changes;
+   * - the fixed furniture (dial, mount post, shell, monthly lattice, hour lines) only when the
+   *   SITE, the YEAR or the TIME ZONE changes;
    * - the dated path (day arc, seasonal extremes, hour marks, marker) only when the local DATE or
    *   the site changes;
-   * - on every other call, nothing is rebuilt at all — the existing marker is repositioned in
-   *   place, which is what keeps time-of-day scrubbing cheap.
+   * - on every other call, no geometry is rebuilt — the existing marker is repositioned in place,
+   *   which is what keeps time-of-day scrubbing cheap; a colour-only change re-tints the hour
+   *   lines and reports a rebuild so the caller still invalidates.
    *
    * Returns whether anything was rebuilt. T035's playback gate decides whether the SUN moved
    * enough to redraw; new geometry has to be drawn regardless, so the caller needs to tell the two
    * cases apart (a date change near a solstice can move the sun by less than the gate while
    * replacing every arc in the group).
    */
-  updateSunPath(localDate: string, latitude: number, longitude: number, currentInstantUtc: Date, azimuthDegrees: number, altitudeDegrees: number): boolean {
-    this.lastSunPathArguments = [localDate, latitude, longitude, currentInstantUtc, azimuthDegrees, altitudeDegrees]
+  updateSunPath(
+    localDate: string,
+    latitude: number,
+    longitude: number,
+    currentInstantUtc: Date,
+    azimuthDegrees: number,
+    altitudeDegrees: number,
+    timeZoneId: string,
+    hourLineColorCss: string,
+  ): boolean {
+    this.lastSunPathArguments = [localDate, latitude, longitude, currentInstantUtc, azimuthDegrees, altitudeDegrees, timeZoneId, hourLineColorCss]
     const [year] = localDate.split('-').map(Number)
     const radius = this.domeRadiusMetres
     const site = `${latitude.toFixed(6)}|${longitude.toFixed(6)}`
-    const fixedKey = `${site}|${year}|${radius}`
+    // specs/086 FR-008 — the time zone is part of the fixed furniture's identity: the hour lines
+    // are local clock hours, and the zone can resolve AFTER the first draw (the fallback is UTC).
+    // Without it in the key, the curves would stay drawn on the wrong clock with no rebuild.
+    const fixedKey = `${site}|${year}|${radius}|${timeZoneId}`
     const datedKey = `${localDate}|${site}|${radius}`
+    const hourLineColorHex = new THREE.Color(hourLineColorCss).getHex()
     let rebuilt = false
 
     if (this.fixedFurnitureBuiltForKey !== fixedKey) {
       this.disposeGroupContents(this.sunPathFixedGroup)
-      const furniture = buildFixedFurniture(latitude, longitude, year, radius)
+      const furniture = buildFixedFurniture(latitude, longitude, year, timeZoneId, hourLineColorHex, radius)
       // Furniture is added before the dated group's arcs in scene order so the lattice sits behind
-      // them; the shell carries its own `renderOrder` because it must still draw last of all.
-      this.sunPathFixedGroup.add(furniture.dial, furniture.mountPost, ...furniture.monthlyArcs, furniture.shell)
+      // them; the shell carries its own `renderOrder` because it must draw last among the dome's
+      // own transparent objects.
+      // The dial lies on the ground, so it alone is drawn in the overlay's floor pass and is
+      // clipped by the building depths (see `setDomeOccluder`); everything else stays in front.
+      furniture.dial.layers.set(OVERLAY_FLOOR_LAYER)
+      this.sunPathFixedGroup.add(
+        furniture.dial,
+        furniture.mountPost,
+        ...furniture.monthlyArcs,
+        ...furniture.hourLines,
+        furniture.shell,
+      )
       this.fixedFurnitureBuiltForKey = fixedKey
+      this.hourLineMeshes = furniture.hourLines
+      this.hourLineColorHex = hourLineColorHex
+      rebuilt = true
+    } else if (this.hourLineColorHex !== hourLineColorHex) {
+      // A theme change re-tints in place: the shape of the hour lines does not depend on the
+      // colour, and rebuilding them would throw away 8,760 samples for a palette switch.
+      for (const mesh of this.hourLineMeshes) {
+        ;(mesh.material as THREE.MeshBasicMaterial).color.setHex(hourLineColorHex)
+      }
+      this.hourLineColorHex = hourLineColorHex
       rebuilt = true
     }
 
@@ -203,7 +255,7 @@ export class SolarScene {
         const [y, month, day] = localDate.split('-').map(Number)
         return new Date(Date.UTC(y, month - 1, day))
       })()
-      const dated = buildDatedPath(dateForArc, latitude, longitude, currentInstantUtc, radius)
+      const dated = buildDatedPath(dateForArc, latitude, longitude, currentInstantUtc, timeZoneId, radius)
       for (const object of [dated.chosenDay, dated.summerExtreme, dated.winterExtreme, ...dated.hourMarks, dated.currentPositionMarker]) {
         if (object) this.sunPathDatedGroup.add(object)
       }
@@ -226,11 +278,35 @@ export class SolarScene {
     this.disposeGroupContents(this.buildingsGroup)
     const built = buildFootprintMeshes(buildings, this.showBuildingMass, siteRings)
     if (built.mesh) this.buildingsGroup.add(built.mesh)
+    this.setDomeOccluder(built.mesh)
     this.setContentBounds(built.extentMetres, built.tallestHeightMetres)
     this.fitDomeTo(built.siteReachMetres)
     // T032, FR-028 — returned rather than swallowed: footprints dropped here are buildings the
     // user can see on the basemap but which cast no shadow, and the caller has to say so.
     return built
+  }
+
+  /** specs/087 follow-up — mirrors the massing geometry as a depth-only mesh in the overlay's floor
+   * pass, so the dial is clipped wherever a building stands. The geometry is SHARED with the
+   * massing mesh (each renderer uploads its own GPU buffers, so one geometry serves both); only the
+   * material is this mesh's own. It deliberately ignores the "Show building massing" switch: that
+   * toggle is about drawing the massing, not about whether buildings hide the dial. */
+  private setDomeOccluder(source: THREE.Mesh | null): void {
+    for (const child of [...this.domeOccluderGroup.children]) {
+      this.domeOccluderGroup.remove(child)
+      const material = (child as THREE.Mesh).material
+      // The geometry belongs to the massing mesh and is disposed with it.
+      if (Array.isArray(material)) material.forEach((entry) => entry.dispose())
+      else material?.dispose()
+    }
+    if (!source) return
+
+    const occluder = new THREE.Mesh(
+      source.geometry,
+      new THREE.MeshBasicMaterial({ colorWrite: false, depthWrite: true }),
+    )
+    occluder.layers.set(OVERLAY_FLOOR_LAYER)
+    this.domeOccluderGroup.add(occluder)
   }
 
   /** specs/076 — grows or shrinks the dome to enclose the building under study, rebuilding it now if
@@ -284,11 +360,21 @@ export class SolarScene {
   }
 
   /** FR-026, research D15 — moves the whole analysis (dome, buildings, ground plane, light
-   * target) relative to the ground by translating the extension's own Drawing Space group in Z.
+   * target) relative to the ground by translating both of the extension's Drawing Space groups in
+   * Z — the dome is on the overlay group and must move with the massing it describes.
    * Never calls anything that sets the viewer's single reference point. */
   setGroundOffset(groundOffsetMetres: number): void {
     this.drawingSpace.group.position.z = groundOffsetMetres
+    this.drawingSpace.overlayGroup.position.z = groundOffsetMetres
     this.clearShadowGate() // FR-019 — a geometry change always redraws, however still the sun is.
+  }
+
+  /** specs/087 FR-014 — hides or shows everything the analysis draws. Both groups are written
+   * because the dome lives on the overlay surface and the massing on the map's; hiding only the
+   * latter left the dome floating over a site with no analysis under it. */
+  setVisible(visible: boolean): void {
+    this.drawingSpace.group.visible = visible
+    this.drawingSpace.overlayGroup.visible = visible
   }
 
   invalidate(): void {
@@ -300,7 +386,7 @@ export class SolarScene {
    * disposes the whole group when the extension stops (FR-040), so a unit test that constructs a
    * `SolarScene` around a bare `THREE.Group` (no registry) needs its own way to clean up. */
   disposeAll(): void {
-    for (const group of [this.sunPathFixedGroup, this.sunPathDatedGroup, this.buildingsGroup, this.groundGroup, this.lightGroup]) {
+    for (const group of [this.sunPathFixedGroup, this.sunPathDatedGroup, this.domeOccluderGroup, this.buildingsGroup, this.groundGroup, this.lightGroup]) {
       group.traverse((child) => {
         const mesh = child as THREE.Mesh
         mesh.geometry?.dispose()

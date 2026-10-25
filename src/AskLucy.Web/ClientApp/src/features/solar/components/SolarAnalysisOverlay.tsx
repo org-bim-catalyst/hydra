@@ -1,3 +1,4 @@
+import { useTheme } from '@mui/material'
 import { useEffect, useMemo, useSyncExternalStore } from 'react'
 import { useActiveLocationStore } from '../../../store/activeLocationStore'
 import { siteRingsOf, useActiveSiteBoundaryStore } from '../../../store/activeSiteBoundaryStore'
@@ -8,7 +9,9 @@ import { getSiteBuildings } from '../api/siteBuildingsApi'
 import { siteBuildingsRadiusFor } from '../buildings/siteBuildingsRadius'
 import { copy } from '../copy'
 import { daySummary } from '../solar/daySummary'
+import { twilightCrossings } from '../solar/twilight'
 import { solarPosition } from '../solar/solarPosition'
+import { FALLBACK_TIME_ZONE } from '../solar/timeZone'
 import { buildSolarFiguresContent } from '../panels/solarFiguresContent'
 import type { SolarScene } from '../scene/SolarScene'
 import { useCorrectionsStore } from '../store/correctionsStore'
@@ -74,6 +77,10 @@ function calendarDateAsUtcMidnight(localDate: string): Date {
  */
 export function makeSolarAnalysisOverlay(context: ExtensionContext, sceneRef: { current: SolarScene | null }) {
   return function SolarAnalysisOverlay() {
+    // specs/086 FR-003, constitution §7 — the hour lines' colour is the theme's dim ink, resolved
+    // here rather than as a literal in the scene. The scene is built outside React, so this is the
+    // only place the theme can reach it; a theme change re-tints in place (SolarScene).
+    const hourLineColor = useTheme().palette.text.secondary
     const activation = useViewerExtensionStore((s) => s.extensions[EXTENSION_ID]?.activation)
     const latitude = useActiveLocationStore((s) => s.latitude)
     const longitude = useActiveLocationStore((s) => s.longitude)
@@ -238,7 +245,16 @@ export function makeSolarAnalysisOverlay(context: ExtensionContext, sceneRef: { 
 
       // T051, FR-019, FR-022, FR-023, SC-004 — rebuilds the dome only on a date/site change;
       // every other tick just moves the marker and the light, never rebuilding tube geometry.
-      const domeRebuilt = solarScene.updateSunPath(moment.localDate, site.latitude, site.longitude, moment.instantUtc, position.azimuthDegrees, position.altitudeDegrees)
+      const domeRebuilt = solarScene.updateSunPath(
+        moment.localDate,
+        site.latitude,
+        site.longitude,
+        moment.instantUtc,
+        position.azimuthDegrees,
+        position.altitudeDegrees,
+        site.timeZoneId ?? FALLBACK_TIME_ZONE,
+        hourLineColor,
+      )
 
       // T035, T036, FR-018, FR-020, FR-024 — during continuous playback only, a sun movement too
       // small to change the picture is skipped: `aimSun` returns false and no `invalidate()` is
@@ -253,6 +269,9 @@ export function makeSolarAnalysisOverlay(context: ExtensionContext, sceneRef: { 
       // playback even on a tick whose frame was skipped, and it costs no drawing.
 
       const summary = daySummary(dateForArc, site.latitude, site.longitude)
+      // specs/085 T010 — memoised per (site, date) inside the module, so a playback tick does not
+      // re-solve six thresholds; only a date or site change does.
+      const twilight = twilightCrossings(dateForArc, site.latitude, site.longitude)
       const siteBuilding = siteBuildings.find((b) => b.isSiteBuilding)
       const content = buildSolarFiguresContent({
         localDate: moment.localDate,
@@ -261,6 +280,7 @@ export function makeSolarAnalysisOverlay(context: ExtensionContext, sceneRef: { 
         timeBasisLabel: site.timeBasisLabel,
         solarPosition: position,
         daySummary: summary,
+        twilight,
         siteBuildingHeightAssumed: siteBuilding ? siteBuilding.heightProvenance === 'assumed' : null,
       })
 
@@ -271,9 +291,11 @@ export function makeSolarAnalysisOverlay(context: ExtensionContext, sceneRef: { 
         content,
         // The reference page's compact look: this readout sits over the scene the analysis is
         // about, so it keeps its footprint small.
-        chrome: { density: 'compact', defaultSize: { width: 260, height: 320 } },
+        // specs/085 — taller than the 320 the rise/set figures needed: three twilight rows and the
+        // threshold statement ran past the bottom of it, so the astronomical row sat below the fold.
+        chrome: { density: 'compact', defaultSize: { width: 260, height: 460 } },
       })
-    }, [activation, site, moment, status, siteBuildings])
+    }, [activation, site, moment, status, siteBuildings, hourLineColor])
 
     return null
   }

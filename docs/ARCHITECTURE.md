@@ -464,6 +464,13 @@ Provider health records the same `Kind` alongside its coarse status, and the adm
 list returns a computed staleness horizon (3x the configured check interval) so a status that
 has not been reconfirmed is never presented as current fact.
 
+History pruning is configurable at runtime (specs/082). `ProviderHealthRetentionSetting` is a
+singleton row holding `RetentionDays` (1–365, seeded at 30); the daily
+`provider-health-check-retention` job reads it and falls back to
+`ProviderHealthCheck:RetentionDays` only when the row is missing. An administrator edits it on
+the Provider health page under `admin.operational-failures.manage`; the `PUT` is `If-Match`-
+guarded, and every accepted change appends one `ProviderHealthRetentionAuditLog` row.
+
 ---
 
 # 10. Chat Engine
@@ -1089,7 +1096,8 @@ another PDFium-wrapping package in the same process; see `pdfium_native_dll_coll
 memory note), image thumbnails, structured content (Office documents, extracted headings/
 paragraphs/tables/lists as JSON, rendered without pixel-perfect layout), and direct Markdown
 rendering (`react-markdown` with no raw-HTML passthrough plugin — deliberately, so an
-uploaded `.md` file can't inject a script tag).
+uploaded `.md` file can't inject a script tag). Raster decoding, thumbnailing and the boundary/
+footprint pixel analysis use Magick.NET (Apache-2.0; see ADR 0021).
 
 **Organization**: documents can live in a nested folder tree (`DocumentFolder`), carry
 system or user-defined categories/tags, and support cursor-based (keyset) pagination

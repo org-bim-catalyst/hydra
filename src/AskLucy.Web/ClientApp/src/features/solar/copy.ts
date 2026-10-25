@@ -115,6 +115,49 @@ export const copy = {
   sunsetLabel: 'Sunset',
   dayLengthLabel: 'Day length',
 
+  // Twilight figures (specs/085 FR-001 … FR-008)
+  civilTwilightLabel: 'Civil twilight',
+  nauticalTwilightLabel: 'Nautical twilight',
+  astronomicalTwilightLabel: 'Astronomical twilight',
+
+  /** FR-001, FR-002 — a phase's two crossings and the length of its band. The words carry the
+   * meaning the order alone cannot: the evening crossing is when the phase ends, the morning one
+   * when it begins again, and the length belongs to the band, not to the span between them. */
+  twilightRowValue: (ends: string, begins: string, minutes: number) =>
+    `ends ${ends} · begins ${begins} · ${minutes} min`,
+
+  /** The same row when the band has no length on this date — a polar night has no horizon
+   * crossing for the civil band to start from (research D5). */
+  twilightRowValueWithoutLength: (ends: string, begins: string) => `ends ${ends} · begins ${begins}`,
+
+  /** FR-006 — a phase whose threshold the sun does not reach. Names the threshold, and never
+   * reads as "the sun does not rise": those are different facts (research D6). */
+  twilightNotReached: (degreesBelowHorizon: number) =>
+    `Does not occur — the sun does not reach ${degreesBelowHorizon}° below the horizon on this date.`,
+
+  /** FR-008 — the threshold is reached but its crossing could not be solved. */
+  twilightUndetermined: 'Could not be determined for this date.',
+
+  /** FR-004 — the thresholds are unrefracted while the altitude figure is not, so the panel says
+   * which quantity each is and what the difference reads as (research D3). */
+  twilightDefinitionStatement: (civilDegrees: number, nauticalDegrees: number, astronomicalDegrees: number) =>
+    `Twilight is measured on the sun's centre before atmospheric refraction is applied, so the altitude shown at a crossing reads ${civilDegrees}°, ${nauticalDegrees}° and ${astronomicalDegrees}° rather than −6°, −12° and −18°.`,
+
+  // Year figures and the day-length chart (specs/085 FR-011 … FR-019)
+  longestDayLabel: 'Longest day',
+  shortestDayLabel: 'Shortest day',
+  dayLengthChartTitle: 'Day length through the year',
+  dayLengthChartCaption: (latitude: number, hemisphere: 'northern' | 'southern') =>
+    `${Math.abs(latitude).toFixed(2)}° ${hemisphere === 'northern' ? 'N' : 'S'} · ${hemisphere} hemisphere`,
+  dayLengthChartDescription: (year: number, hemisphere: 'northern' | 'southern') =>
+    `Day length through ${year} in the ${hemisphere} hemisphere: one column per day of the year, each running from midnight at the top to midnight at the bottom, showing night, the three twilight phases and daylight.`,
+  dayLengthChartSelectedDateLabel: 'Selected date',
+  phaseNightLabel: 'Night',
+  phaseAstronomicalLabel: 'Astronomical twilight',
+  phaseNauticalLabel: 'Nautical twilight',
+  phaseCivilLabel: 'Civil twilight',
+  phaseDayLabel: 'Daylight',
+
   // Camera attitude widget — north and tilt, both driven by the camera rather than by time.
   cameraAttitudeLabel: 'View orientation',
   /** The widget's accessible text equivalent: the needle and bubble are decorative, so the actual

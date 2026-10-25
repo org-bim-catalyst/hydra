@@ -4,6 +4,7 @@ import { describe, expect, it } from 'vitest'
 import { ContentRenderer } from '../../../viewer/panels/content/ContentRenderer'
 import { daySummary } from '../solar/daySummary'
 import { solarPosition } from '../solar/solarPosition'
+import { twilightCrossings } from '../solar/twilight'
 import { buildSolarFiguresContent } from './solarFiguresContent'
 
 expect.extend(toHaveNoViolations)
@@ -21,6 +22,7 @@ describe('Solar figures content accessibility (FR-031, FR-032, constitution §7 
       timeBasisLabel: 'Asia/Dubai',
       solarPosition: solarPosition(instant, 25.2, 55.3),
       daySummary: daySummary(instant, 25.2, 55.3),
+      twilight: twilightCrossings(instant, 25.2, 55.3),
       siteBuildingHeightAssumed: true,
     })
 

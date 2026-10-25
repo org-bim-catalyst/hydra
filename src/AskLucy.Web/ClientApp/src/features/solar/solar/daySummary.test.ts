@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { copy } from '../copy'
+import { twilightCrossings } from './twilight'
 import { buildSolarFiguresContent } from '../panels/solarFiguresContent'
 import { daySummary, RISE_SET_SOLVER_CONVERGENCE_DEGREES } from './daySummary'
 import { SOLAR_SEMIDIAMETER_DEGREES } from './refraction'
@@ -157,6 +158,7 @@ describe('daySummary — non-convergence surfaces rather than guesses (T008, FR-
       timeBasisLabel: 'Asia/Dubai',
       solarPosition: solarPosition(new Date(Date.UTC(2026, 8, 21, 8, 0, 0)), 25.2, 55.3),
       daySummary: summary,
+      twilight: twilightCrossings(new Date(Date.UTC(2026, 8, 21, 8, 0, 0)), 25.2, 55.3),
       siteBuildingHeightAssumed: null,
     })
 
@@ -165,10 +167,13 @@ describe('daySummary — non-convergence surfaces rather than guesses (T008, FR-
     const rendered = JSON.stringify(keyValue)
     expect(rendered).toContain(copy.riseSetUndetermined)
 
-    // And nothing in those rows that reads like a time — no "06:41", no day length, no polar
-    // wording. (The heading legitimately carries the analysis moment, which is why this looks at
-    // the key/value rows rather than the whole document.)
-    expect(rendered).not.toMatch(/\d{2}:\d{2}/)
+    // And no rise/set figure that reads like an answer — no "06:41", no day length, no polar
+    // wording. (The heading legitimately carries the analysis moment, and since specs/085 the
+    // twilight rows carry their own times — a separate computation, solved by a separate call —
+    // which is why this asserts about the rise/set rows rather than the whole block.)
+    const items = (keyValue as unknown as { items: { label: string; value: string }[] }).items
+    const riseSetRows = items.filter((item) => item.label !== copy.civilTwilightLabel && item.label !== copy.nauticalTwilightLabel && item.label !== copy.astronomicalTwilightLabel)
+    expect(JSON.stringify(riseSetRows)).not.toMatch(/\d{2}:\d{2}/)
     expect(rendered).not.toContain(copy.dayLengthLabel)
     expect(rendered).not.toContain(copy.sunNeverRises)
     expect(rendered).not.toContain(copy.sunNeverSets)

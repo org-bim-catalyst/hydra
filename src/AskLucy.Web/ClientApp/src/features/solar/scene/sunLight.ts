@@ -25,6 +25,33 @@ export const MIN_SHADOW_ELEVATION_DEGREES = 1.0
  */
 export const SHADOW_FRUSTUM_MARGIN = 1.08
 
+/**
+ * FR-011, SC-005 — the shadow map's resolution.
+ *
+ * A shadow map is a grid over the light's view of the site, so each texel has a footprint on the
+ * ground. At a low sun that footprint is stretched along the light direction by `1 / sin(elevation)`:
+ * the same 2048² map that draws crisp edges at noon draws visible saw-teeth at 7°, where a
+ * ~0.45 m texel covers ~3.4 m of ground. The map is therefore doubled while the sun is low and
+ * released back when it is not, so the extra memory is paid only for the hours that need it.
+ */
+export const SHADOW_MAP_SIZE = 2048
+
+/** The resolution used while the sun is below `LOW_SUN_ELEVATION_DEGREES`. */
+export const SHADOW_MAP_SIZE_LOW_SUN = 4096
+
+/** The resolution used while the sun is below `VERY_LOW_SUN_ELEVATION_DEGREES`, where the stretch
+ * (`1/sin`) is past 5.7 and the 4096² map still leaves steps metres wide on the ground. */
+export const SHADOW_MAP_SIZE_VERY_LOW_SUN = 8192
+
+/** Below this elevation the map doubles. Twenty degrees is where the stretch factor (1/sin) is
+ * still under 3, which the 2048² map covers without visible stepping. */
+export const LOW_SUN_ELEVATION_DEGREES = 20
+
+/** Below this elevation the map doubles again: at 10° a texel already covers 5.7× its size on the
+ * ground, so a 4096² map over a kilometre-long shadow still steps by a metre or two (SC-005). The
+ * extra memory — about 270 MB of shadow target — is paid only in that window. */
+export const VERY_LOW_SUN_ELEVATION_DEGREES = 10
+
 /** FR-013 — the stated extent used when the analysis area contains no buildings at all. Nothing
  * casts, so nothing has to be reached; this only has to give the ground plane a sensible size. */
 export const NO_BUILDINGS_FALLBACK_EXTENT_METRES = 200
@@ -74,10 +101,18 @@ export class SunLight {
    * `configureShadowCamera`), so `aimAt` has to read it rather than a module constant. */
   private distanceMetres = 400
 
+  /** The content box the shadow camera has to cover: `radiusMetres` horizontally either side of
+   * the origin, and `tallestBuildingMetres` up. Re-fitted to its projection on every aim. */
+  private radiusMetres = 200
+  private tallestBuildingMetres = 50
+
   constructor(radiusMetres: number, tallestBuildingMetres: number = 50) {
     this.directionalLight = new THREE.DirectionalLight(0xfff2d0, 2.6)
     this.directionalLight.castShadow = true
-    this.directionalLight.shadow.mapSize.set(2048, 2048)
+    // The scene is ENU (x east, y north, z up), so the world's up is +Z. Giving the shadow camera
+    // that up keeps its map aligned with the world instead of rolling with a horizontal axis.
+    ;(this.directionalLight.shadow.camera as THREE.OrthographicCamera).up.set(0, 0, 1)
+    this.directionalLight.shadow.mapSize.set(SHADOW_MAP_SIZE, SHADOW_MAP_SIZE)
     this.directionalLight.shadow.bias = -0.0006
 
     this.ambientLight = new THREE.AmbientLight(0xffffff, 0.7)
@@ -101,6 +136,8 @@ export class SunLight {
     // Every point of content lies within `radius + height` of the origin, so placing the light at
     // least that far out puts all of it in `(0, 2 × distance)` — comfortably inside `near`..`far`.
     this.distanceMetres = Math.max(400, radiusMetres + tallestBuildingMetres + 50)
+    this.radiusMetres = extent
+    this.tallestBuildingMetres = tallestBuildingMetres
 
     const camera = this.directionalLight.shadow.camera as THREE.OrthographicCamera
     camera.left = -extent
@@ -126,6 +163,15 @@ export class SunLight {
     const castsShadows = altitudeDegrees > MIN_SHADOW_ELEVATION_DEGREES
     this.directionalLight.visible = castsShadows
     this.directionalLight.intensity = castsShadows ? 2.6 : 0
+    this.applyMapSize(
+      !castsShadows
+        ? SHADOW_MAP_SIZE
+        : altitudeDegrees <= VERY_LOW_SUN_ELEVATION_DEGREES
+          ? SHADOW_MAP_SIZE_VERY_LOW_SUN
+          : altitudeDegrees <= LOW_SUN_ELEVATION_DEGREES
+            ? SHADOW_MAP_SIZE_LOW_SUN
+            : SHADOW_MAP_SIZE,
+    )
 
     const direction = solarPositionToEnuUnitVector(azimuthDegrees, altitudeDegrees)
     this.directionalLight.position.set(
@@ -135,6 +181,71 @@ export class SunLight {
     )
     this.directionalLight.target.position.set(0, 0, 0)
     this.directionalLight.target.updateMatrixWorld()
+    this.fitShadowCamera(new THREE.Vector3(direction.x, direction.y, direction.z))
+  }
+
+  /**
+   * Fits the orthographic shadow camera to the content box's ACTUAL projection, instead of a
+   * square of `radius` on every side.
+   *
+   * A shadow map is a grid over the light's view. The content (a `2 × radius`-wide, `tallest`-high
+   * box of buildings and ground) projects onto that view as a shape far smaller than the square
+   * the camera used to allocate: seen from a 9° sun it is about seven times thinner along the
+   * light's own up axis, because the ground meets that axis at a glancing angle (`sin(elevation)`).
+   * Allocating the square therefore spent most of the texels on empty space — which is why a low
+   * sun drew metre-wide steps however large the map was.
+   *
+   * The camera's right/up axes are perpendicular to the light direction, so a world point's
+   * coordinates in them are the same measured from the origin as from the light: the bounds below
+   * are correct without knowing the light's distance.
+   */
+  private fitShadowCamera(sunDirection: THREE.Vector3): void {
+    const camera = this.directionalLight.shadow.camera as THREE.OrthographicCamera
+    const look = sunDirection.clone().negate()
+    const right = new THREE.Vector3().crossVectors(camera.up, look)
+    // A sun straight overhead makes `cross(up, look)` degenerate; fall back to a stable axis.
+    if (right.lengthSq() < 1e-8) right.set(1, 0, 0)
+    right.normalize()
+    const upAxis = new THREE.Vector3().crossVectors(look, right).normalize()
+
+    let minRight = Infinity
+    let maxRight = -Infinity
+    let minUp = Infinity
+    let maxUp = -Infinity
+    const corner = new THREE.Vector3()
+    for (const signX of [-1, 1]) {
+      for (const signY of [-1, 1]) {
+        for (const height of [0, this.tallestBuildingMetres]) {
+          corner.set(signX * this.radiusMetres, signY * this.radiusMetres, height)
+          const alongRight = corner.dot(right)
+          const alongUp = corner.dot(upAxis)
+          minRight = Math.min(minRight, alongRight)
+          maxRight = Math.max(maxRight, alongRight)
+          minUp = Math.min(minUp, alongUp)
+          maxUp = Math.max(maxUp, alongUp)
+        }
+      }
+    }
+
+    camera.left = minRight
+    camera.right = maxRight
+    camera.bottom = minUp
+    camera.top = maxUp
+    camera.updateProjectionMatrix()
+  }
+
+  /**
+   * Applies a shadow-map resolution. Three allocates the target from `mapSize` when it first
+   * renders the shadow pass, so a change after that only takes effect once the existing target is
+   * released — hence the dispose-and-null rather than a `mapSize.set` alone.
+   */
+  private applyMapSize(sizePx: number): void {
+    const shadow = this.directionalLight.shadow
+    if (shadow.mapSize.x === sizePx) return
+
+    shadow.mapSize.set(sizePx, sizePx)
+    shadow.map?.dispose()
+    shadow.map = null
   }
 
   addTo(group: THREE.Group): void {
