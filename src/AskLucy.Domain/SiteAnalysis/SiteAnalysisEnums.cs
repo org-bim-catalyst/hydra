@@ -30,11 +30,13 @@ public enum SiteAnalysisConfidenceLevel
     High,
 }
 
-/// <summary>The specialist that produced a result. This release defines
-/// <see cref="SchematicImage"/> only; the extension point for FR-031 — a further specialist adds
-/// one member here, one <c>IAgentTool</c> class, and one provisioner branch entry, with no other
-/// structural change.</summary>
+/// <summary>The specialist that produced a result. The extension point for FR-031 — a further
+/// specialist adds one member here, one <c>IAgentTool</c> class, and one provisioner branch entry,
+/// with no other structural change. <see cref="SchematicImage"/> ships in SPEC-057;
+/// <see cref="UrbanContext"/> is the first follow-up specialist (the surroundings of a site —
+/// adjacent land use, nearby building density and typology, and notable nearby places).</summary>
 public enum SiteAnalysisType
 {
     SchematicImage,
+    UrbanContext,
 }
