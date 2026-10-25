@@ -46,6 +46,52 @@ public sealed class SiteAnalysisContentComposer
     }
 
     /// <summary>
+    /// Composes a heading + body text + one divider-separated section per labelled group of values,
+    /// with the provenance block last (FR-011). specs/088 — the environmental finding needs several
+    /// labelled groups (flood risk, climate and wind, sun and shadow, not assessed) that
+    /// <see cref="ComposeFinding"/>'s fixed heading+body+image shape cannot express. It emits the
+    /// same block kinds and the same envelope, so the client needs no change.
+    /// </summary>
+    public JsonDocument ComposeSections(
+        string heading,
+        string bodyText,
+        IReadOnlyList<SiteAnalysisContentSection> sections,
+        SiteAnalysisResultMetadata metadata)
+    {
+        var blocks = new JsonArray
+        {
+            HeadingBlock(heading),
+            TextBlock(bodyText),
+        };
+
+        foreach (var section in sections)
+        {
+            blocks.Add(DividerBlock());
+            blocks.Add(HeadingBlock(section.Title));
+
+            if (!string.IsNullOrWhiteSpace(section.BodyText))
+            {
+                blocks.Add(TextBlock(section.BodyText));
+            }
+
+            if (section.Items.Count > 0)
+            {
+                blocks.Add(KeyValueBlock(section.Items));
+            }
+        }
+
+        blocks.Add(BuildProvenanceBlock(metadata));
+
+        var envelope = new JsonObject
+        {
+            ["version"] = VocabularyVersion,
+            ["blocks"] = blocks,
+        };
+
+        return JsonSerializer.SerializeToDocument(envelope);
+    }
+
+    /// <summary>
     /// data-model.md § "Confidence assignment rule" rendered as a <c>keyValue</c> block (FR-011) —
     /// analysis type, data source, confidence level, and generation time. Public so a future
     /// specialist composing its own multi-block layout (rather than <see cref="ComposeFinding"/>'s
@@ -77,5 +123,31 @@ public sealed class SiteAnalysisContentComposer
 
     private static JsonObject ImageBlock(Guid fileId, string alt) =>
         new() { ["kind"] = "image", ["fileId"] = fileId.ToString(), ["alt"] = alt };
+
+    private static JsonObject DividerBlock() =>
+        new() { ["kind"] = "divider" };
+
+    private static JsonObject KeyValueBlock(IReadOnlyList<SiteAnalysisContentItem> items)
+    {
+        var itemArray = new JsonArray();
+        foreach (var item in items)
+        {
+            itemArray.Add(KeyValueItem(item.Label, item.Value));
+        }
+
+        return new JsonObject { ["kind"] = "keyValue", ["items"] = itemArray };
+    }
 #pragma warning restore CA1822
 }
+
+/// <summary>
+/// One labelled group inside a multi-section finding — e.g. "Flood risk". Carries a title, an
+/// optional body paragraph, and optional labelled values; the composer emits whichever are present.
+/// </summary>
+public sealed record SiteAnalysisContentSection(
+    string Title,
+    IReadOnlyList<SiteAnalysisContentItem> Items,
+    string? BodyText = null);
+
+/// <summary>One label/value row inside a <see cref="SiteAnalysisContentSection"/>.</summary>
+public sealed record SiteAnalysisContentItem(string Label, string Value);

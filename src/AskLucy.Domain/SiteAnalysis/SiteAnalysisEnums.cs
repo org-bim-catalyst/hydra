@@ -31,12 +31,14 @@ public enum SiteAnalysisConfidenceLevel
 }
 
 /// <summary>The specialist that produced a result. The extension point for FR-031 — a further
-/// specialist adds one member here, one <c>IAgentTool</c> class, and one provisioner branch entry,
-/// with no other structural change. <see cref="SchematicImage"/> ships in SPEC-057;
-/// <see cref="UrbanContext"/> is the first follow-up specialist (the surroundings of a site —
-/// adjacent land use, nearby building density and typology, and notable nearby places).</summary>
+/// specialist adds one member here, one <c>IAgentTool</c> class, and one entry in the shared
+/// fan-out declaration, with no other structural change. <see cref="SchematicImage"/> ships in
+/// SPEC-057; <see cref="UrbanContext"/> is the first follow-up specialist (the surroundings of a
+/// site — adjacent land use, nearby building density and typology, and notable nearby places);
+/// <see cref="EnvironmentalContext"/> adds flood risk and climate/wind conditions.</summary>
 public enum SiteAnalysisType
 {
     SchematicImage,
     UrbanContext,
+    EnvironmentalContext,
 }

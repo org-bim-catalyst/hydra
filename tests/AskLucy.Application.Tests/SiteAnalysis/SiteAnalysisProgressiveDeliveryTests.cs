@@ -45,29 +45,31 @@ public sealed class SiteAnalysisProgressiveDeliveryTests
     private SiteAnalysisResultRelay BuildRelay() =>
         new SiteAnalysisResultRelay(_repository, _messageRepository, _unitOfWork, _notifier, _panelNotifier, NullLogger<SiteAnalysisResultRelay>.Instance);
 
-    /// <summary>Stands in for a specialist tool: waits, then reports through the REAL relay — exactly what <c>SiteSchematicImageGenerationTool</c> does, minus the AI call.</summary>
+    /// <summary>Stands in for a specialist tool: waits, then reports through the REAL relay — exactly what a shipped specialist does, minus its own work.</summary>
     // CA1859: the parameter stays ISiteAnalysisResultRelay on purpose — a real specialist only ever
     // sees the interface, and this stand-in exists to prove the relay behaves correctly when driven
     // that way. Taking the concrete type would test a path production never uses.
 #pragma warning disable CA1859
     private static async Task RunFakeSpecialistAsync(
-        Guid siteAnalysisId, TimeSpan delay, ISiteAnalysisResultRelay relay, string name, List<string> deliveryOrder, bool shouldFail = false)
+        Guid siteAnalysisId, TimeSpan delay, ISiteAnalysisResultRelay relay, string name, List<string> deliveryOrder,
+        SiteAnalysisType analysisType, Guid? documentId, bool shouldFail = false)
     {
         await Task.Delay(delay);
 
         if (shouldFail)
         {
-            await relay.ReportFailureAsync(siteAnalysisId, SiteAnalysisType.SchematicImage, "simulated failure", cause: null);
+            await relay.ReportFailureAsync(siteAnalysisId, analysisType, "simulated failure", cause: null);
             lock (deliveryOrder) { deliveryOrder.Add(name); }
             return;
         }
 
-        var metadata = new SiteAnalysisResultMetadata(SiteAnalysisType.SchematicImage, "Test Site", "test-source", SiteAnalysisConfidenceLevel.Medium, DateTime.UtcNow, []);
+        var metadata = new SiteAnalysisResultMetadata(analysisType, "Test Site", "test-source", SiteAnalysisConfidenceLevel.Medium, DateTime.UtcNow, []);
         using var content = new SiteAnalysisContentComposer().ComposeFinding("Test Finding", "body", image: null, metadata);
 
         // SchematicImage is a document-bearing analysis type (SiteAnalysisResultRelay's
-        // AnalysisTypesRequiringDocument), so the validation gate requires a non-null documentId.
-        await relay.ReportSuccessAsync(siteAnalysisId, SiteAnalysisType.SchematicImage, metadata, content, documentId: Guid.NewGuid());
+        // AnalysisTypesRequiringDocument), so the validation gate requires a non-null documentId;
+        // every other specialist reports none.
+        await relay.ReportSuccessAsync(siteAnalysisId, analysisType, metadata, content, documentId);
         lock (deliveryOrder) { deliveryOrder.Add(name); }
     }
 #pragma warning restore CA1859
@@ -90,8 +92,8 @@ public sealed class SiteAnalysisProgressiveDeliveryTests
         var relay = BuildRelay();
 
         await Task.WhenAll(
-            RunFakeSpecialistAsync(fastAnalysis.Id, TimeSpan.FromMilliseconds(10), relay, "fast", deliveryOrder),
-            RunFakeSpecialistAsync(slowAnalysis.Id, TimeSpan.FromMilliseconds(200), relay, "slow", deliveryOrder));
+            RunFakeSpecialistAsync(fastAnalysis.Id, TimeSpan.FromMilliseconds(10), relay, "fast", deliveryOrder, SiteAnalysisType.SchematicImage, Guid.NewGuid()),
+            RunFakeSpecialistAsync(slowAnalysis.Id, TimeSpan.FromMilliseconds(200), relay, "slow", deliveryOrder, SiteAnalysisType.SchematicImage, Guid.NewGuid()));
 
         deliveryOrder.Should().Equal("fast", "slow");
         fastAnalysis.Status.Should().Be(SiteAnalysisStatus.Completed);
@@ -113,12 +115,43 @@ public sealed class SiteAnalysisProgressiveDeliveryTests
         var relay = BuildRelay();
 
         await Task.WhenAll(
-            RunFakeSpecialistAsync(okAnalysis.Id, TimeSpan.FromMilliseconds(10), relay, "ok", deliveryOrder),
-            RunFakeSpecialistAsync(failAnalysis.Id, TimeSpan.FromMilliseconds(20), relay, "fails", deliveryOrder, shouldFail: true));
+            RunFakeSpecialistAsync(okAnalysis.Id, TimeSpan.FromMilliseconds(10), relay, "ok", deliveryOrder, SiteAnalysisType.SchematicImage, Guid.NewGuid()),
+            RunFakeSpecialistAsync(failAnalysis.Id, TimeSpan.FromMilliseconds(20), relay, "fails", deliveryOrder, SiteAnalysisType.SchematicImage, Guid.NewGuid(), shouldFail: true));
 
         okAnalysis.Status.Should().Be(SiteAnalysisStatus.Completed);
         failAnalysis.Status.Should().Be(SiteAnalysisStatus.Failed);
         await _notifier.Received(1).ResultReceivedAsync(UserId, Arg.Any<SiteAnalysisResultReceivedDto>(), Arg.Any<CancellationToken>());
         await _panelNotifier.Received(1).PanelRequestedAsync(UserId, Arg.Any<PanelRequestDto>(), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task Relay_ShouldDeliverBothDistinctSpecialists_AndSettleOnlyAfterTheLastOneReports()
+    {
+        // specs/088 FR-003/FR-004, SC-011, SC-013 — two genuinely distinct analysis types in one
+        // analysis, which was not constructible while the release shipped a single SiteAnalysisType.
+        // The first report must leave the analysis Running; only the second settles it.
+        var analysis = Domain.SiteAnalysis.SiteAnalysis.Create(
+            UserId, UserChatId, "Test Site", 25.09, 55.20, null, expectedResultCount: 2, UserId);
+        _repository.GetByIdAsync(analysis.Id, Arg.Any<CancellationToken>()).Returns(analysis);
+
+        var deliveryOrder = new List<string>();
+        var relay = BuildRelay();
+
+        await RunFakeSpecialistAsync(
+            analysis.Id, TimeSpan.Zero, relay, "schematic", deliveryOrder, SiteAnalysisType.SchematicImage, Guid.NewGuid());
+
+        analysis.Results.Should().ContainSingle();
+        analysis.Status.Should().Be(SiteAnalysisStatus.Running, "one of two specialists has reported");
+
+        await RunFakeSpecialistAsync(
+            analysis.Id, TimeSpan.Zero, relay, "environmental", deliveryOrder, SiteAnalysisType.EnvironmentalContext, documentId: null);
+
+        deliveryOrder.Should().Equal("schematic", "environmental");
+        analysis.Results.Should().HaveCount(2);
+        analysis.Results.Should().OnlyContain(result => result.Status == SiteAnalysisResultStatus.Completed);
+        analysis.Status.Should().Be(SiteAnalysisStatus.Completed);
+
+        await _notifier.Received(1).AnalysisCompletedAsync(
+            UserId, Arg.Any<SiteAnalysisCompletedDto>(), Arg.Any<CancellationToken>());
     }
 }

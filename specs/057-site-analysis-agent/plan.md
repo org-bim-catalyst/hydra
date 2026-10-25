@@ -183,3 +183,41 @@ These are the traps that will bite an implementer who has not read research.md:
 **No ADR required.** Neither entry introduces a new datastore, a new cross-cutting pattern, nor an
 expensive-to-reverse decision (§17) — the first follows an existing precedent in the codebase, and the second is
 three interface declarations.
+
+## Follow-ups
+
+Five specialists were deferred by this feature, each to be delivered as its own specification. This section is
+the register of them; a specialist's row is the only place its ownership is recorded.
+
+| Specialist | Status | Spec |
+|---|---|---|
+| Site Geometry | Specified | [specs/085-site-geometry-specialist](../085-site-geometry-specialist/spec.md) |
+| Environmental Context | Specified | [specs/088-environmental-context-specialist](../088-environmental-context-specialist/spec.md) |
+| Urban Context | Not started | — |
+| Connectivity & Access | Not started | — |
+| Character Analysis | Not started | — |
+
+**Adding one is still one entry plus one class.** The complexity-tracking decision above stands: a follow-up
+supplies its own branch declaration and one `IAgentTool`, with no change to coordination, validation, delivery,
+persistence, or rehydration. The two specified follow-ups each record the same requirement.
+
+**The provider seams acquire their first implementation with the first specialist that consumes them.** The
+Environmental Context follow-up (088, FR-017/FR-018) supplies one deliberately empty implementation of
+`IFloodDataProvider` and `IClimateDataProvider` that reports *unavailable* with a reason, registered where a
+licensed source will later live. This does not license a source — it makes the seam constructible and expresses
+the absence of a source instead of assuming it. The decision to hold no implementation at all was correct for
+this release, which had no consumer; it is superseded only because a consumer now exists.
+
+**Expected-result count is a follow-up hazard.** This release's `ExpectedResultCount` is a hand-maintained `1`
+in `RequestSiteAnalysisCapability`. Once a second branch is provisioned, that constant closes the analysis after
+the first finding and the second is rejected as arriving at a finished analysis. Both specified follow-ups
+therefore require the count to be derived from the branch declaration (088 FR-003/FR-004). This is an FR-031
+defect in this release, not a defect in the follow-ups.
+
+**Map capture is the platform's imagery source, for imagery-based specialists.** The server-to-server
+map-capture endpoint ([specs/083](../083-viewer-map-capture/spec.md)) renders a real map of a location. It is
+designated as the imagery source for the schematic site-map specialist in this feature and for the
+imagery-based follow-ups (Urban Context, Character Analysis) — never for the Environmental Context figures,
+which are data, not pixels. The schematic specialist currently generates its image with an AI image model, so
+that finding is an interpretation and reports Medium confidence; replacing or supplementing the generated image
+with a real capture is a follow-up change to this feature, not part of it.

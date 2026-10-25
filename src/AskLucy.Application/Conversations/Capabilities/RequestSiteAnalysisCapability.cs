@@ -28,9 +28,6 @@ public sealed class RequestSiteAnalysisCapability(
     public const string CapabilityKey = "request_site_analysis";
     private const string Actor = "system:request-site-analysis";
 
-    /// <summary>data-model.md — how many specialists this release dispatches; grows as follow-up specs add more (FR-031), without any change to this capability.</summary>
-    private const int ExpectedResultCount = 1;
-
     public string Name => CapabilityKey;
 
     public string Description =>
@@ -108,7 +105,11 @@ public sealed class RequestSiteAnalysisCapability(
             return AgentToolResult.Success(JsonSerializer.SerializeToDocument(new { started = true, siteName }));
         }
 
-        var analysis = SiteAnalysisAggregate.Create(context.UserId, userChatId, siteName, latitude, longitude, boundaryGeoJson, ExpectedResultCount, Actor);
+        // specs/088 FR-003/FR-004 — the count comes from the same declaration the provisioner
+        // publishes branches from. A hand-maintained constant here silently closes the analysis
+        // after the first specialist reports, and later findings are rejected as arriving at a
+        // finished analysis.
+        var analysis = SiteAnalysisAggregate.Create(context.UserId, userChatId, siteName, latitude, longitude, boundaryGeoJson, SiteAnalysisSpecialists.Count, Actor);
         siteAnalysisRepository.Add(analysis);
         await unitOfWork.SaveChangesAsync(cancellationToken);
 

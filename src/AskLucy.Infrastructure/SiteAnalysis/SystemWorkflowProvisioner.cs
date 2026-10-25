@@ -49,14 +49,14 @@ public sealed class SystemWorkflowProvisioner(
     private const string ChangeDescriptionHashPrefix = "definition-hash:";
 
     /// <summary>
-    /// specs/057-site-analysis-agent FR-031 — the extension point. Adding a further specialist is
-    /// one entry here (a tool name + a stable node key) and one provisioner branch entry; no other
-    /// change to coordination, validation, delivery, persistence, or rehydration.
+    /// specs/057-site-analysis-agent FR-031, specs/088 FR-004 — the extension point, projected from
+    /// <see cref="SiteAnalysisSpecialists.All"/> so the published branches and the analysis's
+    /// expected-result count cannot diverge. Adding a specialist is one entry there and one
+    /// <c>IAgentTool</c> class; no other change to coordination, validation, delivery, persistence,
+    /// or rehydration.
     /// </summary>
     private static readonly IReadOnlyList<(string ToolName, string NodeKey)> SpecialistBranches =
-    [
-        ("site_analysis_schematic_image", "schematic_image"),
-    ];
+        [.. SiteAnalysisSpecialists.All.Select(specialist => (specialist.ToolName, specialist.NodeKey))];
 
     public async Task ProvisionAsync(CancellationToken cancellationToken)
     {
