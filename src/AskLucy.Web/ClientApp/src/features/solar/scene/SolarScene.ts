@@ -1,5 +1,6 @@
 import * as THREE from 'three'
 import type { DrawingSpaceHandle } from '../../../viewer/scene/DrawingSpaceRegistry'
+import { OVERLAY_FLOOR_LAYER } from '../../../viewer/scene/overlayLayers'
 import { buildFootprintMeshes, setShowMass, type FootprintBuildResult } from '../buildings/footprintGeometry'
 import type { SiteBuildingDto } from '../api/siteBuildingsApi'
 import { ShadowGround } from './shadowGround'
@@ -57,6 +58,11 @@ export class SolarScene {
    */
   readonly sunPathFixedGroup = new THREE.Group()
   readonly sunPathDatedGroup = new THREE.Group()
+  /** specs/087 follow-up — the building footprints as a depth-only mesh on the overlay's floor
+   * layer. The dial drawn in the same pass is clipped by it, so the dial reads as painted on the
+   * ground and disappears behind a building; the rest of the dome is drawn after the depth clear
+   * and stays in front of everything. */
+  readonly domeOccluderGroup = new THREE.Group()
   readonly buildingsGroup = new THREE.Group()
   readonly groundGroup = new THREE.Group()
   readonly lightGroup = new THREE.Group()
@@ -96,7 +102,7 @@ export class SolarScene {
     this.drawingSpace = drawingSpace
     // The dome goes on the viewer's overlay surface, above the map (specs/087). Inside its own
     // surface it depth-sorts normally against itself — no render order, no depth opt-outs.
-    drawingSpace.overlayGroup.add(this.sunPathFixedGroup, this.sunPathDatedGroup)
+    drawingSpace.overlayGroup.add(this.domeOccluderGroup, this.sunPathFixedGroup, this.sunPathDatedGroup)
     drawingSpace.group.add(this.buildingsGroup, this.groundGroup, this.lightGroup)
   }
 
@@ -219,6 +225,9 @@ export class SolarScene {
       // Furniture is added before the dated group's arcs in scene order so the lattice sits behind
       // them; the shell carries its own `renderOrder` because it must draw last among the dome's
       // own transparent objects.
+      // The dial lies on the ground, so it alone is drawn in the overlay's floor pass and is
+      // clipped by the building depths (see `setDomeOccluder`); everything else stays in front.
+      furniture.dial.layers.set(OVERLAY_FLOOR_LAYER)
       this.sunPathFixedGroup.add(
         furniture.dial,
         furniture.mountPost,
@@ -269,11 +278,35 @@ export class SolarScene {
     this.disposeGroupContents(this.buildingsGroup)
     const built = buildFootprintMeshes(buildings, this.showBuildingMass, siteRings)
     if (built.mesh) this.buildingsGroup.add(built.mesh)
+    this.setDomeOccluder(built.mesh)
     this.setContentBounds(built.extentMetres, built.tallestHeightMetres)
     this.fitDomeTo(built.siteReachMetres)
     // T032, FR-028 — returned rather than swallowed: footprints dropped here are buildings the
     // user can see on the basemap but which cast no shadow, and the caller has to say so.
     return built
+  }
+
+  /** specs/087 follow-up — mirrors the massing geometry as a depth-only mesh in the overlay's floor
+   * pass, so the dial is clipped wherever a building stands. The geometry is SHARED with the
+   * massing mesh (each renderer uploads its own GPU buffers, so one geometry serves both); only the
+   * material is this mesh's own. It deliberately ignores the "Show building massing" switch: that
+   * toggle is about drawing the massing, not about whether buildings hide the dial. */
+  private setDomeOccluder(source: THREE.Mesh | null): void {
+    for (const child of [...this.domeOccluderGroup.children]) {
+      this.domeOccluderGroup.remove(child)
+      const material = (child as THREE.Mesh).material
+      // The geometry belongs to the massing mesh and is disposed with it.
+      if (Array.isArray(material)) material.forEach((entry) => entry.dispose())
+      else material?.dispose()
+    }
+    if (!source) return
+
+    const occluder = new THREE.Mesh(
+      source.geometry,
+      new THREE.MeshBasicMaterial({ colorWrite: false, depthWrite: true }),
+    )
+    occluder.layers.set(OVERLAY_FLOOR_LAYER)
+    this.domeOccluderGroup.add(occluder)
   }
 
   /** specs/076 — grows or shrinks the dome to enclose the building under study, rebuilding it now if
@@ -353,7 +386,7 @@ export class SolarScene {
    * disposes the whole group when the extension stops (FR-040), so a unit test that constructs a
    * `SolarScene` around a bare `THREE.Group` (no registry) needs its own way to clean up. */
   disposeAll(): void {
-    for (const group of [this.sunPathFixedGroup, this.sunPathDatedGroup, this.buildingsGroup, this.groundGroup, this.lightGroup]) {
+    for (const group of [this.sunPathFixedGroup, this.sunPathDatedGroup, this.domeOccluderGroup, this.buildingsGroup, this.groundGroup, this.lightGroup]) {
       group.traverse((child) => {
         const mesh = child as THREE.Mesh
         mesh.geometry?.dispose()

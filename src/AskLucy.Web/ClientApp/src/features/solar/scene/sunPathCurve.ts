@@ -108,6 +108,12 @@ function seasonalExtremeDates(year: number, latitude: number): { summer: Date; w
   return latitude >= 0 ? { summer: juneSolstice, winter: decemberSolstice } : { summer: decemberSolstice, winter: juneSolstice }
 }
 
+/** Where the dial's ring sits, as a fraction of its texture's size. The circle mesh is sized from
+ * this same value (its reciprocal, twice over) so the drawn ring lands exactly at the dome radius
+ * however the canvas is laid out — leaving room outside the ticks for the numbers and the
+ * cardinal letters without one crowding the other. */
+const DIAL_RING_FRACTION = 0.4
+
 /** The engraved compass dial the dome sits on — degree ticks every 5°, numbers every 30°, and
  * cardinal/intercardinal letters, baked into one canvas texture. This is not decoration: FR-005
  * requires the path be "correctly oriented against north", and a dial is what makes that legible
@@ -125,7 +131,7 @@ function makeCompassDialTexture(size = 2048): THREE.CanvasTexture {
   if (!ctx) return texture
 
   const centre = size / 2
-  const ringRadius = size * 0.42
+  const ringRadius = size * DIAL_RING_FRACTION
   const ink = 'rgba(15,18,24,0.95)'
   const halo = 'rgba(255,255,255,0.92)'
 
@@ -170,7 +176,7 @@ function makeCompassDialTexture(size = 2048): THREE.CanvasTexture {
     }, isMajor ? size * 0.0026 : size * 0.0015)
 
     if (isMajor) {
-      const labelRadius = outerRadius + size * 0.028
+      const labelRadius = outerRadius + size * 0.024
       outlinedText(
         String(degrees),
         centre + Math.cos(angle) * labelRadius,
@@ -187,7 +193,9 @@ function makeCompassDialTexture(size = 2048): THREE.CanvasTexture {
   for (const cardinal of cardinals) {
     const isPrimary = cardinal.label.length === 1
     const angle = ((cardinal.angle - 90) * Math.PI) / 180
-    const labelRadius = ringRadius + size * (isPrimary ? 0.062 : 0.053)
+    // Outside the degree numbers, not level with them: at the old radius both were drawn at
+    // almost the same distance and the letters sat on the numbers ("W" over "270").
+    const labelRadius = ringRadius + size * (isPrimary ? 0.08 : 0.07)
     outlinedText(
       cardinal.label,
       centre + Math.cos(angle) * labelRadius,
@@ -201,11 +209,11 @@ function makeCompassDialTexture(size = 2048): THREE.CanvasTexture {
   return texture
 }
 
-/** The dial platform the whole instrument reads as sitting on. `0.84` is twice the texture's own
- * ring-radius fraction (0.42), so the drawn ring lands exactly at `radiusMetres`. */
+/** The dial platform the whole instrument reads as sitting on. The circle is sized so the drawn
+ * ring — `DIAL_RING_FRACTION` of the texture — lands exactly at `radiusMetres`. */
 export function buildCompassDial(radiusMetres: number): THREE.Mesh {
   const mesh = new THREE.Mesh(
-    new THREE.CircleGeometry(radiusMetres / 0.84, 96),
+    new THREE.CircleGeometry(radiusMetres / (DIAL_RING_FRACTION * 2), 96),
     new THREE.MeshStandardMaterial({
       map: makeCompassDialTexture(),
       transparent: true,

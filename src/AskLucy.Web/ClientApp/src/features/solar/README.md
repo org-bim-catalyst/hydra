@@ -147,6 +147,18 @@ copies the map's per-frame transform onto both cameras so the dome stays registe
 The extension reaches it only through `DrawingSpaceHandle.overlayGroup` — it still holds no
 renderer, camera or scene.
 
+**The dial is the one floor element.** The compass dial lies on the ground, so it alone is drawn
+in the overlay's *floor pass* (`viewer/scene/overlayLayers.ts`): the surface renders that pass
+first, against a depth buffer that already holds a depth-only mirror of our building footprints
+(`SolarScene.setDomeOccluder`, sharing the massing geometry — each renderer uploads its own GPU
+buffers), then clears depth and draws the rest of the dome over the top. The dial therefore reads
+as painted on the road and disappears behind a building, while the shell, arcs, marks and marker
+stay in front of everything. The overlay's ambient light must be enabled on that layer too:
+Three collects a light only when it shares a layer with the rendering camera, and the floor pass
+renders with a layer-restricted camera — without it the dial draws unlit, i.e. black. Two ceilings worth knowing: only buildings inside the fetched radius
+can hide it, and the occluder follows the massing toggle's *data*, not its display — showing or
+hiding the massing never changes whether buildings hide the dial.
+
 What must stay true:
 
 - **Only the dome moves.** The massing, the shadow ground plane and the sun light stay in the
@@ -159,7 +171,8 @@ What must stay true:
   on removal and on teardown, and unbound from the registry so nothing draws into a dead scene.
 - **Inside its own surface the dome sorts normally.** Opaque arcs write depth, translucent lines
   do not; no material opts out of depth testing. The hour-mark sprite keeps `depthTest: false`
-  deliberately: labels must read through the dome's own geometry.
+  deliberately: labels must read through the dome's own geometry. The dial's clipping comes from
+  the floor pass's own depth clear, not from a material flag on the rest of the dome.
 
 ## Two live SC-009 risks (research D9, D17)
 

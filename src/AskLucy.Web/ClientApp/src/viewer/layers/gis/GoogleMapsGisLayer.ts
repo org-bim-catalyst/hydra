@@ -6,6 +6,7 @@ import { sceneAnchor } from '../../scene/SceneAnchor'
 import { activeScene } from '../../scene/activeScene'
 import { drawingSpaceRegistry } from '../../scene/DrawingSpaceRegistry'
 import { applyMapTransformToCamera } from '../../scene/overlayCamera'
+import { OVERLAY_FLOOR_LAYER } from '../../scene/overlayLayers'
 import { redrawScheduler } from '../../scene/RedrawScheduler'
 import { rendererState } from '../../scene/rendererState'
 import { createOverlaySurface, type OverlaySurface } from './overlaySurface'
@@ -261,7 +262,12 @@ export async function createGoogleMapsGisLayer(
   // Same one ambient light as the interleaved scene: the dome's shell and compass dial are lit
   // materials and would otherwise render black.
   const overlayScene = new THREE.Scene()
-  overlayScene.add(new THREE.AmbientLight(0xffffff, 1))
+  const overlayLight = new THREE.AmbientLight(0xffffff, 1)
+  // The floor pass renders with a layer-restricted camera, and a light is only collected when it
+  // shares a layer with that camera — left on layer 0 alone, the dial (a lit material) rendered
+  // unlit and therefore black in that pass.
+  overlayLight.layers.enable(OVERLAY_FLOOR_LAYER)
+  overlayScene.add(overlayLight)
   const overlayCamera = new THREE.PerspectiveCamera()
   let overlaySurface: OverlaySurface | undefined
 
@@ -518,9 +524,19 @@ export async function createGoogleMapsGisLayer(
     // above, and the map's content failing must not hide the dome.
     try {
       if (overlaySurface) {
+        const overlayRenderer = overlaySurface.renderer
         applyMapTransformToCamera(overlayCamera, matrix)
-        overlaySurface.renderer.render(overlayScene, overlayCamera)
-        overlaySurface.renderer.resetState()
+        // Two passes on the same surface, one draw call each. The floor layer is drawn first, so
+        // content meant to lie on the ground is clipped by the building depths the scene has
+        // already written; the depth buffer is then cleared so everything else draws over the top
+        // (specs/087 follow-up: the dial reads as painted on the ground, the dome stays in front).
+        overlayRenderer.clear()
+        overlayCamera.layers.set(OVERLAY_FLOOR_LAYER)
+        overlayRenderer.render(overlayScene, overlayCamera)
+        overlayRenderer.clearDepth()
+        overlayCamera.layers.set(0)
+        overlayRenderer.render(overlayScene, overlayCamera)
+        overlayRenderer.resetState()
       }
     } catch (error) {
       console.error('[GoogleMapsGisLayer] Solar dome overlay render failed:', error)

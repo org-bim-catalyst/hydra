@@ -44,6 +44,9 @@ export function createOverlaySurface(
   // page's GPU budget (see GoogleMapsGisLayer's onContextRestored). The colour treatment is
   // mirrored too, so the dome's lit dial and shell look the same on both surfaces.
   renderer.setPixelRatio(1)
+  // The bridge renders in two passes (floor layer, then the rest) with an explicit depth clear
+  // between them, so it clears the surface itself rather than letting each render() do it.
+  renderer.autoClear = false
   renderer.setClearColor(0x000000, 0)
   renderer.outputColorSpace = THREE.SRGBColorSpace
   renderer.toneMapping = THREE.ACESFilmicToneMapping

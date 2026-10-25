@@ -12,6 +12,7 @@ function fakeRenderer() {
     dispose: vi.fn(),
     outputColorSpace: '',
     toneMapping: THREE.NoToneMapping,
+    autoClear: true,
   }
   return { renderer, asThree: renderer as unknown as THREE.WebGLRenderer }
 }
@@ -48,6 +49,8 @@ describe('createOverlaySurface (specs/087 FR-004, FR-006)', () => {
     createOverlaySurface(container(), () => asThree)
 
     expect(renderer.setPixelRatio).toHaveBeenCalledWith(1)
+    // The bridge renders two passes with its own depth clear between them.
+    expect(renderer.autoClear).toBe(false)
     expect(renderer.setClearColor).toHaveBeenCalledWith(0x000000, 0)
     expect(renderer.outputColorSpace).toBe(THREE.SRGBColorSpace)
     expect(renderer.toneMapping).toBe(THREE.ACESFilmicToneMapping)
