@@ -17,7 +17,13 @@ import { useCorrectionsStore } from '../store/correctionsStore'
 const SITE_KEY = 'site:25.155500,55.221500'
 
 function fakeDrawingSpace(): DrawingSpaceHandle {
-  return { group: new THREE.Group(), invalidate: () => {}, onFrame: () => {}, declareDrawingRequirement: () => {} }
+  return {
+    group: new THREE.Group(),
+    overlayGroup: new THREE.Group(),
+    invalidate: () => {},
+    onFrame: () => {},
+    declareDrawingRequirement: () => {},
+  }
 }
 
 function building(id: string, latitude: number, longitude: number, heightMetres: number, isSiteBuilding = false): SiteBuildingDto {

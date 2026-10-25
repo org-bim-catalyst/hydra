@@ -27,15 +27,20 @@ import {
 export const SHADOW_GATE_DEGREES = 0.25
 
 /**
- * Owns the extension's own `DrawingSpaceHandle` and everything drawn inside it — the sun-path
+ * Owns the extension's own `DrawingSpaceHandle` and everything drawn through it — the sun-path
  * dome, the buildings group, the shadow ground plane and the sun light. Nothing in this feature
  * ever holds a reference to the shared `THREE.Scene`, `Camera` or `WebGLRenderer` (FR-037); this
- * class is the single place that touches the drawing space's `group`.
+ * class is the single place that touches the drawing space's two groups.
  *
- * research D15 — the ground offset (FR-026) is applied by moving THIS group in Z
- * (`group.position.z`), never by re-anchoring the scene. Everything added as a child of this
- * group — dome, buildings, ground plane, light target — therefore moves together with one
- * assignment, and nothing outside the extension is affected.
+ * specs/087 — the DOME is drawn on the viewer's overlay surface (`overlayGroup`), above the map,
+ * because Maps runs its 3D building pass after the interleaved draw and would otherwise paint over
+ * it. The massing, the shadow ground and the sun light stay in the interleaved pass
+ * (`group`): they need the map's own depth and lighting, and nothing can occlude them that way.
+ *
+ * research D15 — the ground offset (FR-026) is applied by moving the extension's groups in Z
+ * (`setGroundOffset` writes both), never by re-anchoring the scene. Everything added as a child
+ * of either group — dome, buildings, ground plane, light target — therefore moves together, and
+ * nothing outside the extension is affected.
  */
 export class SolarScene {
   readonly drawingSpace: DrawingSpaceHandle
@@ -89,14 +94,10 @@ export class SolarScene {
 
   constructor(drawingSpace: DrawingSpaceHandle) {
     this.drawingSpace = drawingSpace
-    // The dome is an overlay over the analysis, not part of the scene's depth-sorted furniture:
-    // the massing boxes are opaque and would be drawn in the same pass, painting over the shell and
-    // the arcs wherever they stand in front. A group's `renderOrder` is inherited by everything in
-    // it and sorted ahead of every default-order object, so the dome draws last either way. The
-    // dated group comes after the fixed one so its arcs and marker stay on top of the shell.
-    this.sunPathFixedGroup.renderOrder = 10
-    this.sunPathDatedGroup.renderOrder = 11
-    drawingSpace.group.add(this.sunPathFixedGroup, this.sunPathDatedGroup, this.buildingsGroup, this.groundGroup, this.lightGroup)
+    // The dome goes on the viewer's overlay surface, above the map (specs/087). Inside its own
+    // surface it depth-sorts normally against itself — no render order, no depth opt-outs.
+    drawingSpace.overlayGroup.add(this.sunPathFixedGroup, this.sunPathDatedGroup)
+    drawingSpace.group.add(this.buildingsGroup, this.groundGroup, this.lightGroup)
   }
 
   /**
@@ -216,9 +217,9 @@ export class SolarScene {
       this.disposeGroupContents(this.sunPathFixedGroup)
       const furniture = buildFixedFurniture(latitude, longitude, year, timeZoneId, hourLineColorHex, radius)
       // Furniture is added before the dated group's arcs in scene order so the lattice sits behind
-      // them; the shell carries its own `renderOrder` because it must still draw last of all.
+      // them; the shell carries its own `renderOrder` because it must draw last among the dome's
+      // own transparent objects.
       this.sunPathFixedGroup.add(
-        furniture.occluder,
         furniture.dial,
         furniture.mountPost,
         ...furniture.monthlyArcs,
@@ -326,11 +327,21 @@ export class SolarScene {
   }
 
   /** FR-026, research D15 — moves the whole analysis (dome, buildings, ground plane, light
-   * target) relative to the ground by translating the extension's own Drawing Space group in Z.
+   * target) relative to the ground by translating both of the extension's Drawing Space groups in
+   * Z — the dome is on the overlay group and must move with the massing it describes.
    * Never calls anything that sets the viewer's single reference point. */
   setGroundOffset(groundOffsetMetres: number): void {
     this.drawingSpace.group.position.z = groundOffsetMetres
+    this.drawingSpace.overlayGroup.position.z = groundOffsetMetres
     this.clearShadowGate() // FR-019 — a geometry change always redraws, however still the sun is.
+  }
+
+  /** specs/087 FR-014 — hides or shows everything the analysis draws. Both groups are written
+   * because the dome lives on the overlay surface and the massing on the map's; hiding only the
+   * latter left the dome floating over a site with no analysis under it. */
+  setVisible(visible: boolean): void {
+    this.drawingSpace.group.visible = visible
+    this.drawingSpace.overlayGroup.visible = visible
   }
 
   invalidate(): void {

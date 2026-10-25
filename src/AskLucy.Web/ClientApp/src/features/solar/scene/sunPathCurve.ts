@@ -61,17 +61,16 @@ export function buildTubeFromPoints(points: THREE.Vector3[], tubeRadius: number,
   const curve = new THREE.CatmullRomCurve3(points, false)
   const tubularSegments = Math.max(16, Math.min(400, points.length * 2))
   const geometry = new THREE.TubeGeometry(curve, tubularSegments, tubeRadius, 6, false)
-  // The dome is an analysis overlay, not scenery: the renderer shares Google's depth buffer (it is
-  // constructed on Maps' GL context), so with depth testing on, any building nearer the camera cuts
-  // the arcs and the shell out of the picture. Nothing inside the dome occludes the diagram.
+  // specs/087 — the dome has its own surface, so its materials depth-sort normally against each
+  // other: an opaque arc writes depth and properly occludes the ones behind it, while a
+  // translucent line (below opacity 1) does not write depth and tints what is behind it instead of
+  // punching a hole in the dome.
+  const opaque = opacity >= 1
   const material = new THREE.MeshBasicMaterial({
     color,
-    transparent: opacity < 1,
+    transparent: !opaque,
     opacity,
-    // No depth writes either: an overlay that wrote depth would punch holes in anything drawn
-    // after it (a building behind an arc would fail its own depth test).
-    depthWrite: false,
-    depthTest: false,
+    depthWrite: opaque,
   })
   return new THREE.Mesh(geometry, material)
 }
@@ -222,45 +221,6 @@ export function buildCompassDial(radiusMetres: number): THREE.Mesh {
   return mesh
 }
 
-/**
- * FOUND LIVE 2026-10-24 — why the dome still disappeared behind buildings after depth testing was
- * switched off and the dome's groups were ordered last.
- *
- * Maps renders its own 3D building pass AFTER `WebGLOverlayView.onDraw` returns (the overlay shares
- * the map's WebGL context and depth buffer — which is what Google documents as "depth occlusion
- * with 3D building geometry"). Our colour is already in the buffer by then; their buildings then
- * depth-test against whatever we left, pass, and paint over the dome. Nothing inside our own scene
- * can out-rank a later pass.
- *
- * The one lever is the depth buffer. This mesh draws the dome's silhouette with colour writes off
- * and its z pinned to the near plane, so every later fragment behind the dome fails its depth test
- * and the dome stays visible. Our own materials render with `depthTest: false`, so they are
- * unaffected by it; if Maps ever renders its buildings before the overlay, the mesh does nothing
- * and the dome still draws on top, so the ordering is safe either way.
- */
-export function buildDomeOccluder(radiusMetres: number): THREE.Mesh {
-  const occluder = new THREE.Mesh(
-    new THREE.SphereGeometry(radiusMetres, 48, 24, 0, Math.PI * 2, 0, Math.PI / 2),
-    new THREE.ShaderMaterial({
-      colorWrite: false,
-      depthWrite: true,
-      depthTest: false,
-      side: THREE.DoubleSide,
-      vertexShader: `
-        void main() {
-          vec4 clip = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
-          gl_Position = vec4(clip.xy, -clip.w, clip.w);
-        }`,
-      fragmentShader: 'void main() { gl_FragColor = vec4(0.0); }',
-    }),
-  )
-  // The hemisphere opens along +Y; rotate it onto this scene's +Z up axis, exactly as the shell.
-  occluder.rotation.x = Math.PI / 2
-  // Before every visible dome object, so it masks the later pass without touching the dome itself.
-  occluder.renderOrder = 9
-  return occluder
-}
-
 /** The instrument's centre mounting post — a visual anchor tying the dome to the site point. */
 export function buildMountPost(heightMetres = 12, radiusMetres = 1.1): THREE.Group {
   const group = new THREE.Group()
@@ -299,7 +259,6 @@ export function buildDomeShell(radiusMetres: number): THREE.Mesh {
       metalness: 0.0,
       side: THREE.DoubleSide,
       depthWrite: false,
-      depthTest: false,
     }),
   )
   // SphereGeometry's hemisphere opens along +Y; rotate so it opens along this scene's +Z up axis.
@@ -413,7 +372,6 @@ export function buildMonthlyGridArcs(latitude: number, longitude: number, year: 
  * as flicker when the date changes.
  */
 export interface FixedFurnitureObjects {
-  occluder: THREE.Mesh
   dial: THREE.Mesh
   mountPost: THREE.Group
   shell: THREE.Mesh
@@ -455,14 +413,13 @@ export function buildFixedFurniture(
   radiusMetres: number = SUN_PATH_DOME_RADIUS_METRES,
 ): FixedFurnitureObjects {
   const shell = buildDomeShell(radiusMetres)
-  // The shell writes no depth and encloses everything else, so it has to draw last or the arcs
-  // inside it come out tinted by nothing. It used to get that ordering for free by being appended
-  // last to a single group; now that it lives in the fixed group and the arcs live in a sibling
-  // group, the ordering has to be stated rather than inherited from assembly order.
+  // Intra-dome ordering only (specs/087): the shell writes no depth and encloses everything else,
+  // so among the dome's own transparent objects it draws last — otherwise it would tint the arcs
+  // and lines inside it with whatever was in the buffer behind them. This is unrelated to the map:
+  // the dome has its own surface and sorts against nothing else.
   shell.renderOrder = 1
 
   return {
-    occluder: buildDomeOccluder(radiusMetres),
     dial: buildCompassDial(radiusMetres),
     mountPost: buildMountPost(),
     shell,
@@ -514,13 +471,11 @@ export function buildDatedPath(
 
   const currentPosition = solarPosition(currentInstantUtc, latitude, longitude)
   const clampedAltitude = Math.max(currentPosition.altitudeDegrees, -6)
+  // Opaque and depth-writing: on the dome's own surface the marker stands in front of the arc it
+  // sits on by depth, exactly as a real instrument's pointer would (specs/087).
   const currentPositionMarker = new THREE.Mesh(
     new THREE.SphereGeometry(6, 24, 24),
-    new THREE.MeshBasicMaterial({
-      color: currentPosition.altitudeDegrees >= 0 ? 0xffd700 : 0x555b6e,
-      depthTest: false,
-      depthWrite: false,
-    }),
+    new THREE.MeshBasicMaterial({ color: currentPosition.altitudeDegrees >= 0 ? 0xffd700 : 0x555b6e }),
   )
   currentPositionMarker.position.copy(sphericalToVec(currentPosition.azimuthDegrees, clampedAltitude, radiusMetres))
 

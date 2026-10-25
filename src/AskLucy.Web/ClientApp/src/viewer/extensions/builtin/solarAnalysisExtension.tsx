@@ -84,7 +84,7 @@ export const solarAnalysisExtension: ViewerExtension = {
     // measured in this headless environment — see the feature README for the human method.
     drawingSpace.declareDrawingRequirement('shadows')
     sceneRef.current = new SolarScene(drawingSpace)
-    sceneRef.current.drawingSpace.group.visible = false
+    sceneRef.current.setVisible(false)
 
     // FR-029 — reached without Lucy, through the viewer's own toolbar.
     context.contributeToolbarEntry({
@@ -172,7 +172,7 @@ export const solarAnalysisExtension: ViewerExtension = {
 
   activate() {
     if (!sceneRef.current) return
-    sceneRef.current.drawingSpace.group.visible = true
+    sceneRef.current.setVisible(true)
     savedContext?.openPanel({
       kind: 'live',
       requestId: TIME_CONTROL_PANEL_REQUEST_ID,
@@ -199,7 +199,7 @@ export const solarAnalysisExtension: ViewerExtension = {
   deactivate() {
     useSolarAnalysisStore.getState().setPlaying(false)
     useSolarAnalysisStore.getState().close()
-    if (sceneRef.current) sceneRef.current.drawingSpace.group.visible = false
+    if (sceneRef.current) sceneRef.current.setVisible(false)
     // Nothing is left for these to show once the analysis is closed — the figures would still
     // describe the site just left, and the two controls render empty.
     savedContext?.withdrawPanel(TIME_CONTROL_PANEL_REQUEST_ID)

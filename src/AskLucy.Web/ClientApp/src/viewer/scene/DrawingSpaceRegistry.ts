@@ -6,9 +6,13 @@ type FrameCallback = (deltaSeconds: number) => void
 type FailureReporter = (extensionId: string, message: string) => void
 
 /** contracts/coordinate-frame-and-drawing-space.md — what a capability draws through. Never
- * carries a reference to the `THREE.Scene`, `Camera` or `WebGLRenderer` — only its own `group`. */
+ * carries a reference to the `THREE.Scene`, `Camera` or `WebGLRenderer` — only its own groups. */
 export interface DrawingSpaceHandle {
+  /** Drawn inside the map's own render pass, together with its buildings. */
   readonly group: THREE.Group
+  /** specs/087 — drawn on the viewer-owned transparent surface above the map, so the map's later
+   * 3D building pass cannot paint over it. Empty and unattached until that surface exists. */
+  readonly overlayGroup: THREE.Group
   invalidate(): void
   onFrame(callback: FrameCallback): void
   declareDrawingRequirement(requirement: DrawingRequirement): void
@@ -37,11 +41,15 @@ function disposeMaterial(material: THREE.Material): void {
 }
 
 /** research D3, D3a — issues each drawing capability its own isolated `THREE.Group` ("Drawing
- * Space"), appended to the one shared scene in acquisition order (FR-015), and contains any
+ * Space") — plus, since specs/087, a second group on the viewer's overlay surface — appended to
+ * the one shared scene in acquisition order (FR-015), and contains any
  * exception a capability's `onFrame` callback throws (FR-019, constitution §2.VIII) so one
  * capability's failure never stops another's callback or the render loop. */
 export class DrawingSpaceRegistry {
   private scene: THREE.Scene | null
+  /** specs/087 — the scene drawn on the transparent surface above the map, when the viewer has
+   * one. Bound and unbound by the map bridge; a capability never touches it. */
+  private overlayScene: THREE.Scene | null = null
   private onFailure: FailureReporter
   private readonly handles = new Map<string, DrawingSpaceHandle>()
   private readonly frameCallbacks = new Map<string, FrameCallback[]>()
@@ -73,6 +81,23 @@ export class DrawingSpaceRegistry {
     }
   }
 
+  /** specs/087 — parents every acquired overlay group into the surface's scene (replaying groups
+   * acquired before that scene existed), and unparents them on `null` when the surface is lost or
+   * torn down. Groups are kept, not disposed: the next surface re-adopts them. Called only by the
+   * map bridge. */
+  bindOverlay(scene: THREE.Scene | null): void {
+    if (this.overlayScene) {
+      for (const handle of this.handles.values()) {
+        this.overlayScene.remove(handle.overlayGroup)
+      }
+    }
+    this.overlayScene = scene
+    if (!scene) return
+    for (const handle of this.handles.values()) {
+      scene.add(handle.overlayGroup)
+    }
+  }
+
   /** Idempotent per extension — calling it twice for the same id returns the same handle rather
    * than creating a second group (mirrors specs/050's start-when-started posture). */
   acquire(extensionId: string): DrawingSpaceHandle {
@@ -81,9 +106,12 @@ export class DrawingSpaceRegistry {
 
     const group = new THREE.Group()
     this.scene?.add(group)
+    const overlayGroup = new THREE.Group()
+    this.overlayScene?.add(overlayGroup)
 
     const handle: DrawingSpaceHandle = {
       group,
+      overlayGroup,
       invalidate: () => redrawScheduler.invalidate(),
       onFrame: (callback) => {
         const callbacks = this.frameCallbacks.get(extensionId) ?? []
@@ -105,7 +133,9 @@ export class DrawingSpaceRegistry {
     if (!handle) return
 
     this.scene?.remove(handle.group)
+    this.overlayScene?.remove(handle.overlayGroup)
     disposeObject3D(handle.group)
+    disposeObject3D(handle.overlayGroup)
     this.frameCallbacks.delete(extensionId)
     rendererState.withdrawRequirements(extensionId)
     this.handles.delete(extensionId)

@@ -6,7 +6,6 @@ import type { SiteBuildingDto } from '../api/siteBuildingsApi'
 import { SolarScene } from './SolarScene'
 import {
   buildDatedPath,
-  buildDomeOccluder,
   buildDomeShell,
   buildFixedFurniture,
   buildHourLines,
@@ -220,7 +219,13 @@ describe('Hour-line runs are split at the horizon (specs/086 US3)', () => {
  * the dial's baked 2048² texture being thrown away and rebuilt on every date step.
  */
 function fakeDrawingSpace(): DrawingSpaceHandle {
-  return { group: new THREE.Group(), invalidate: () => {}, onFrame: () => {}, declareDrawingRequirement: () => {} }
+  return {
+    group: new THREE.Group(),
+    overlayGroup: new THREE.Group(),
+    invalidate: () => {},
+    onFrame: () => {},
+    declareDrawingRequirement: () => {},
+  }
 }
 
 const DUBAI = { latitude: 25.2, longitude: 55.3 }
@@ -527,17 +532,18 @@ describe('The dome encloses the building under study (specs/076)', () => {
   })
 })
 
-describe('the dome draws as an overlay, not as scenery', () => {
-  // The renderer shares Google Maps' depth buffer, so a building nearer the camera would otherwise
-  // cut the dome out of the picture — the bug this pins.
-  it('keeps the shell out of the depth buffer', () => {
+describe('the dome depth-sorts normally inside its own surface (specs/087 FR-012)', () => {
+  // It no longer shares Maps' depth buffer: the map runs its building pass after our draw and
+  // painted over the dome regardless of what we wrote, so the dome moved to its own surface above
+  // the map. There the only depth it must respect is its own — no opt-outs, no ordering tricks.
+  it('the shell tests depth (and still writes none, so it encloses without hiding)', () => {
     const material = buildDomeShell(120).material as THREE.MeshStandardMaterial
 
-    expect(material.depthTest).toBe(false)
+    expect(material.depthTest).toBe(true)
     expect(material.depthWrite).toBe(false)
   })
 
-  it('keeps the arcs out of the depth buffer, and writes no depth that could hole a building', () => {
+  it('an opaque arc tests and writes depth, so a nearer arc occludes a farther one by depth', () => {
     const tube = buildTubeFromPoints(
       [new THREE.Vector3(0, 0, 0), new THREE.Vector3(10, 10, 10)],
       0.5,
@@ -546,34 +552,31 @@ describe('the dome draws as an overlay, not as scenery', () => {
     )
     const material = tube?.material as THREE.MeshBasicMaterial
 
-    expect(material.depthTest).toBe(false)
-    expect(material.depthWrite).toBe(false)
-  })
-})
-
-describe('the dome draws last, over the massing (regression)', () => {
-  it('gives both dome groups a render order later than the scene’s own objects', () => {
-    const scene = new SolarScene(fakeDrawingSpace())
-
-    // The massing boxes are opaque meshes in the same render pass; with the default order they
-    // painted over the shell and the arcs wherever they stood in front of the dome.
-    expect(scene.sunPathFixedGroup.renderOrder).toBeGreaterThan(scene.buildingsGroup.renderOrder)
-    expect(scene.sunPathDatedGroup.renderOrder).toBeGreaterThan(scene.sunPathFixedGroup.renderOrder)
-
-    scene.disposeAll()
-  })
-})
-
-describe('the dome occluder (Maps draws its buildings after onDraw)', () => {
-  it('writes near-plane depth without writing colour', () => {
-    const occluder = buildDomeOccluder(120)
-    const material = occluder.material as THREE.ShaderMaterial
-
-    // Colour off: it must add nothing to the picture. Depth on and pinned to the near plane: a
-    // later pass's buildings behind the dome fail their depth test instead of painting over it.
-    expect(material.colorWrite).toBe(false)
+    expect(material.depthTest).toBe(true)
     expect(material.depthWrite).toBe(true)
-    expect(material.depthTest).toBe(false)
-    expect(material.vertexShader).toContain('-clip.w')
+    expect(material.transparent).toBe(false)
+  })
+
+  it('a translucent line tints what is behind it instead of punching a hole', () => {
+    const tube = buildTubeFromPoints(
+      [new THREE.Vector3(0, 0, 0), new THREE.Vector3(10, 10, 10)],
+      0.5,
+      0xe8a03d,
+      0.4,
+    )
+    const material = tube?.material as THREE.MeshBasicMaterial
+
+    expect(material.depthTest).toBe(true)
+    expect(material.depthWrite).toBe(false)
+    expect(material.transparent).toBe(true)
+  })
+
+  it('the current-position marker is ordinary opaque, depth-tested geometry', () => {
+    const marker = buildDatedPath(new Date(Date.UTC(2026, 5, 21)), DUBAI.latitude, DUBAI.longitude, new Date(Date.UTC(2026, 5, 21, 7)), 'Asia/Dubai')
+      .currentPositionMarker
+    const material = marker.material as THREE.MeshBasicMaterial
+
+    expect(material.depthTest).toBe(true)
+    expect(material.depthWrite).toBe(true)
   })
 })

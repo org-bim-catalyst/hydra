@@ -62,7 +62,13 @@ describe('ShadowGround / SunLight frustum sizing (FR-009, research D16)', () => 
 const DUBAI = { latitude: 25.1555, longitude: 55.2215 }
 
 function fakeDrawingSpace(): DrawingSpaceHandle {
-  return { group: new THREE.Group(), invalidate: () => {}, onFrame: () => {}, declareDrawingRequirement: () => {} }
+  return {
+    group: new THREE.Group(),
+    overlayGroup: new THREE.Group(),
+    invalidate: () => {},
+    onFrame: () => {},
+    declareDrawingRequirement: () => {},
+  }
 }
 
 function building(id: string, latitude: number, longitude: number, heightMetres: number): SiteBuildingDto {
