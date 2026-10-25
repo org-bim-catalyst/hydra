@@ -10,10 +10,6 @@ namespace AskLucy.Infrastructure.Boundaries;
 
 internal static partial class OverpassBoundaryCandidateProviderLog
 {
-    [LoggerMessage(Level = LogLevel.Information,
-        Message = "Overpass boundary search failed transiently (attempt {Attempt} of {MaxAttempts}); retrying")]
-    public static partial void RetryingAfterTransientFailure(ILogger logger, int attempt, int maxAttempts);
-
     [LoggerMessage(Level = LogLevel.Warning, Message = "Overpass boundary search failed for ({Latitude}, {Longitude})")]
     public static partial void SearchFailed(ILogger logger, Exception exception, double latitude, double longitude);
 }
@@ -80,25 +76,26 @@ internal sealed class OverpassBoundaryCandidateProvider(
     private readonly OverpassOptions _options = options.Value;
 
     /// <summary>
-    /// Attempts against Overpass before giving up, and the pause between them.
+    /// How long an endpoint has to answer on its own before the next one is started as well.
     ///
     /// <para>
-    /// The public Overpass endpoint is a free, shared, frequently-saturated service: it answers
-    /// in a second or two most of the time and returns 504 or 429 the rest, for the same query,
-    /// seconds apart. Measured here on three consecutive identical requests — 504, then 200 in
-    /// 3.3 s, then 200 in 1.7 s. Without a retry the first of those told the user "I couldn't
-    /// look up the site boundary right now" for a boundary that was there all along.
+    /// The public Overpass endpoints are free, shared and frequently saturated: the same query
+    /// returned 504, then 200 in 3.3 s, then 200 in 1.7 s, seconds apart. Waiting for one host to
+    /// fail before trying the next meant a single saturated entry point cost the user their
+    /// boundary. Starting the next host as soon as the current one looks slow removes that, and
+    /// keeps the normal path to one request.
     /// </para>
     ///
     /// <para>
-    /// Three attempts at roughly a second apart stays well inside the 45 s budget
-    /// <c>SendChatMessageCommandHandler</c> allows the whole boundary step, so a genuinely down
-    /// Overpass still fails fast rather than holding the turn.
+    /// Staggered rather than all at once, deliberately. These are donated servers with fair-use
+    /// limits, and cancelling a client request frees our socket, not their CPU — a query already
+    /// running server-side is not aborted by a disconnect, which is why Overpass publishes
+    /// <c>/api/kill_my_queries</c> for the ones that outlive their callers. Fanning out to every
+    /// mirror on every lookup would triple that load to answer one question; a half-second head
+    /// start does not.
     /// </para>
     /// </summary>
-    private const int MaxAttempts = 3;
-
-    private static readonly TimeSpan RetryDelay = TimeSpan.FromSeconds(1);
+    private static readonly TimeSpan HedgeDelay = TimeSpan.FromMilliseconds(500);
 
     /// <summary>
     /// The primary endpoint first, then each mirror. Retries within a host are pointless when the
@@ -117,22 +114,93 @@ internal sealed class OverpassBoundaryCandidateProvider(
         }
     }
 
+    /// <summary>
+    /// Asks every configured endpoint, staggered by <see cref="HedgeDelay"/>, and returns the first
+    /// answer. The losers are cancelled.
+    ///
+    /// <para>
+    /// This replaces a fixed three-attempt loop that moved to the next host only after the current
+    /// one failed. That shape had two faults. A host that blackholes the connection (no RST, no
+    /// answer — the case observed on a network that blocks Overpass) cost its entire 30 s client
+    /// timeout before the next endpoint was even started, so the whole extended budget could be
+    /// spent on hosts that were never going to answer. And because the attempt count was fixed at
+    /// three while the endpoint list is configuration, a fourth mirror added to
+    /// <see cref="OverpassOptions.MirrorBaseUrls"/> was never reached at all. Here every configured
+    /// endpoint is started, and the fast one wins.
+    /// </para>
+    /// </summary>
     public async Task<IReadOnlyList<BoundaryCandidate>> SearchAsync(GeoPoint center, int radiusMeters, CancellationToken cancellationToken = default)
     {
         var endpoints = Endpoints().ToList();
-        for (var attempt = 1; ; attempt++)
+
+        using var hedge = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        var pending = new List<Task<IReadOnlyList<BoundaryCandidate>>>(endpoints.Count);
+        for (var i = 0; i < endpoints.Count; i++)
         {
-            // Each attempt moves to the next host, wrapping once the list is exhausted.
-            var endpoint = endpoints[(attempt - 1) % endpoints.Count];
-            try
+            pending.Add(SearchStaggeredAsync(endpoints[i], HedgeDelay * i, center, radiusMeters, hedge.Token));
+        }
+
+        var failures = new List<Exception>();
+        while (pending.Count > 0)
+        {
+            var finished = await Task.WhenAny(pending).ConfigureAwait(false);
+            pending.Remove(finished);
+
+            if (finished.IsCompletedSuccessfully)
             {
-                return await SearchOnceAsync(endpoint, center, radiusMeters, cancellationToken);
+                // One endpoint answered: the rest are no longer wanted. Their requests are aborted
+                // rather than left to burn a shared server's time and this turn's connection.
+                await hedge.CancelAsync().ConfigureAwait(false);
+                await ObserveLosersAsync(pending).ConfigureAwait(false);
+                return finished.Result;
             }
-            catch (BoundaryProviderUnavailableException) when (attempt < MaxAttempts && !cancellationToken.IsCancellationRequested)
+
+            if (finished.IsCanceled)
             {
-                OverpassBoundaryCandidateProviderLog.RetryingAfterTransientFailure(logger, attempt, MaxAttempts);
-                await Task.Delay(RetryDelay, cancellationToken);
+                // Only the caller's token can cancel an attempt before some other attempt has
+                // answered (a success returns above), so this is the caller giving up.
+                cancellationToken.ThrowIfCancellationRequested();
+                continue;
             }
+
+            failures.AddRange(finished.Exception!.Flatten().InnerExceptions);
+        }
+
+        // Nothing answered. Every endpoint's own failure was already logged by SearchOnceAsync;
+        // this carries them back to the caller instead of collapsing them into one message
+        // (constitution §2.VIII — the cause travels with the failure).
+        throw new BoundaryProviderUnavailableException(
+            $"Every Overpass endpoint was unavailable for ({center.Latitude}, {center.Longitude}).",
+            new AggregateException(failures));
+    }
+
+    /// <summary>Starts one endpoint's attempt after its own head start, then runs the search.</summary>
+    private async Task<IReadOnlyList<BoundaryCandidate>> SearchStaggeredAsync(
+        string endpoint, TimeSpan delay, GeoPoint center, int radiusMeters, CancellationToken cancellationToken)
+    {
+        if (delay > TimeSpan.Zero)
+        {
+            await Task.Delay(delay, cancellationToken).ConfigureAwait(false);
+        }
+
+        return await SearchOnceAsync(endpoint, center, radiusMeters, cancellationToken).ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// Waits for the losing attempts to unwind so their cancellation is observed rather than left
+    /// behind as unobserved task exceptions. They are expected to be cancelled — the answer has
+    /// already been returned by another endpoint — so nothing here can change the outcome.
+    /// </summary>
+    private static async Task ObserveLosersAsync(IEnumerable<Task> losers)
+    {
+        try
+        {
+            await Task.WhenAll(losers).ConfigureAwait(false);
+        }
+        catch (Exception)
+        {
+            // Intentional: every one of these belongs to a request nobody is waiting for any more.
+            // A loser that had genuinely failed was already logged by SearchOnceAsync.
         }
     }
 
@@ -170,6 +238,15 @@ internal sealed class OverpassBoundaryCandidateProvider(
         }
         catch (BoundaryProviderUnavailableException)
         {
+            throw;
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            // The caller gave up, or another endpoint already answered and the hedge cancelled
+            // this one. Neither is a failure of this endpoint, so it must not be logged or wrapped
+            // as one — that would report a healthy lookup as unavailable. A client timeout is a
+            // different thing: it cancels the request without cancelling this token, so it falls
+            // through to the catch below.
             throw;
         }
         catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException or JsonException)
