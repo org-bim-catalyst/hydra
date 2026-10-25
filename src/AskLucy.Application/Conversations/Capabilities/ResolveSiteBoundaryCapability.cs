@@ -168,7 +168,23 @@ public sealed class ResolveSiteBoundaryCapability(
 
             if (outcome.ConfirmedBoundary is not { } boundary)
             {
-                return AgentToolResult.Failure(outcome.ConfirmationText ?? "No site boundary could be resolved.");
+                // The reply says both halves of what the user is about to see: the outline did not
+                // happen, and the map still moved to the site. Leaving the second half unsaid read
+                // as a bare failure while the viewer visibly zoomed.
+                var failureText = $"{outcome.ConfirmationText ?? "No site boundary could be resolved."} " +
+                                  "I've still zoomed the map in on the site.";
+
+                // No boundary is drawn — by exhaustion (Unavailable is the only outcome without
+                // one, specs/042 FR-012) — but the site's location is confirmed, so the viewer can
+                // still be taken to it. That zoom is the whole visual answer this turn has, and it
+                // is safe here in a way it was not on the success path: the flow's own focus step
+                // was removed in 5b51722c because it stacked a second zoom on top of the one the
+                // client already performs when __LOCATION__ frames the site. With nothing drawn
+                // there is nothing to stack on. Reported as the same command adjust_viewer_focus
+                // emits, so the client needs no new handling.
+                return AgentToolResult.FailureWithViewerPayload(
+                    failureText,
+                    JsonSerializer.SerializeToDocument(new { direction = "in" }));
             }
 
             return AgentToolResult.Success(SiteBoundaryPayload.Write(boundary));

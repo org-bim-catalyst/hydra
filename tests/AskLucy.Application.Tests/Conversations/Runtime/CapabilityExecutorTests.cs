@@ -64,6 +64,36 @@ public sealed class CapabilityExecutorTests
         capability.WasInvoked.Should().BeTrue();
     }
 
+    /// <summary>
+    /// A capability can fail its own job and still have something for the viewer — a boundary that
+    /// could not be drawn still knows where the site is. The failure stays a failure (its reason is
+    /// what gets narrated, and the step is recorded as failed), but the viewer payload survives so
+    /// the turn can still move the map.
+    /// </summary>
+    [Fact]
+    public async Task ExecuteAsync_ShouldCarryTheViewerPayloadOfAFailedCapability()
+    {
+        using var payload = JsonDocument.Parse("""{"direction":"in"}""");
+        var capability = new StubCapability { FailWith = "the source was unreachable", ViewerPayloadOnFailure = payload };
+
+        var result = await _executor.ExecuteAsync(capability, Context(), "{}", CancellationToken.None);
+
+        result.Succeeded.Should().BeFalse();
+        result.ResultJson.Should().Be("the source was unreachable");
+        result.ViewerPayloadJson.Should().Be("""{"direction":"in"}""");
+    }
+
+    /// <summary>A failure that attached nothing must never hand its own sentence to the payload extractor.</summary>
+    [Fact]
+    public async Task ExecuteAsync_ShouldExposeNoViewerPayload_WhenAFailedCapabilityAttachedNone()
+    {
+        var capability = new StubCapability { FailWith = "something went wrong" };
+
+        var result = await _executor.ExecuteAsync(capability, Context(), "{}", CancellationToken.None);
+
+        result.ViewerPayloadJson.Should().BeNull();
+    }
+
     [Fact]
     public async Task ExecuteAsync_ShouldRefuse_WhenArgumentsFailTheSchema()
     {
@@ -214,6 +244,9 @@ public sealed class CapabilityExecutorTests
 
         public string? FailWith { get; init; }
 
+        /// <summary>A viewer payload a failed capability still issues — see <see cref="AgentToolResult.FailureWithViewerPayload"/>.</summary>
+        public JsonDocument? ViewerPayloadOnFailure { get; init; }
+
         /// <summary>Awaits the token it's given until cancelled, rather than returning immediately — the shape a slow real dependency actually has.</summary>
         public bool HangUntilCancelled { get; init; }
 
@@ -266,9 +299,14 @@ public sealed class CapabilityExecutorTests
                 await Task.Delay(Timeout.InfiniteTimeSpan, cancellationToken);
             }
 
-            return FailWith is not null
-                ? AgentToolResult.Failure(FailWith)
-                : AgentToolResult.Success(JsonSerializer.SerializeToDocument(new { status = "done" }));
+            if (FailWith is not null)
+            {
+                return ViewerPayloadOnFailure is not null
+                    ? AgentToolResult.FailureWithViewerPayload(FailWith, ViewerPayloadOnFailure)
+                    : AgentToolResult.Failure(FailWith);
+            }
+
+            return AgentToolResult.Success(JsonSerializer.SerializeToDocument(new { status = "done" }));
         }
     }
 }

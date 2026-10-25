@@ -46,6 +46,16 @@ public static class StructuredPayloadExtractor
                                 viewportEl.GetProperty("southwestLng").GetDouble())
                             : null));
 
+                // A boundary lookup that could not draw an outline still moved the viewer: the
+                // site's location is confirmed, there is just no shape to show. Emitted in the
+                // same shape as adjust_viewer_focus so the client runs its existing zoom command.
+                // Deliberately carries no siteName/polygon — nothing approximate is ever dressed
+                // up as a confirmed outline (specs/042 FR-012).
+                case ResolveSiteBoundaryCapability.CapabilityKey
+                    when root.TryGetProperty("direction", out var boundaryDirectionEl):
+                    return new ChatStreamChunk(null, null,
+                        ViewerZoom: new ViewerZoomCommand(boundaryDirectionEl.GetString() ?? "in"));
+
                 // specs/077 — choosing which buildings the site includes redraws it exactly as
                 // resolving it did, so both results share SiteBoundaryPayload's one shape.
                 case ResolveSiteBoundaryCapability.CapabilityKey or SetSiteBoundaryMembersCapability.CapabilityKey or ResetSiteBoundaryCapability.CapabilityKey

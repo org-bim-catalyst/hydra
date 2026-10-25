@@ -36,12 +36,30 @@ public enum AgentToolPermission
 /// <summary>Per-call context passed to every <see cref="IAgentTool"/> (contracts/agent-tool-contract.md). <see cref="UserChatId"/> is the execution's linked conversation, if any (FR-051/FR-052) — surfaced here so <see cref="ConversationTool"/> doesn't need its own repository round-trip just to resolve it.</summary>
 public sealed record AgentToolExecutionContext(Guid ExecutionId, Guid StepId, string UserId, Guid AgentId, Guid AgentVersionId, Guid? UserChatId);
 
-/// <summary>Result of one tool execution — exactly one of <see cref="Output"/>/<see cref="FailureReason"/> is set.</summary>
+/// <summary>
+/// Result of one tool execution. A success always carries <see cref="Output"/> and no
+/// <see cref="FailureReason"/>; a failure always carries a <see cref="FailureReason"/>.
+/// <para>
+/// A failure may <b>additionally</b> carry an <see cref="Output"/> payload when the capability
+/// still has something the viewer can act on even though its own job did not complete — the site
+/// boundary lookup knowing exactly where the site is but being unable to draw its outline, for
+/// instance. That payload never reaches the narration or the background agent runtime as a result:
+/// only the conversational viewer-payload extractor reads it, and only for the viewer commands it
+/// recognises. The failure itself stays a failure — nothing here may be read as "it worked".
+/// </para>
+/// </summary>
 public sealed record AgentToolResult(bool Succeeded, JsonDocument? Output, string? FailureReason)
 {
     public static AgentToolResult Success(JsonDocument output) => new(true, output, null);
 
     public static AgentToolResult Failure(string failureReason) => new(false, null, failureReason);
+
+    /// <summary>
+    /// A failure that still gives the viewer something to do. See the type remarks — the failure
+    /// reason is what gets narrated; <paramref name="viewerPayload"/> is not reported as a result.
+    /// </summary>
+    public static AgentToolResult FailureWithViewerPayload(string failureReason, JsonDocument viewerPayload) =>
+        new(false, viewerPayload, failureReason);
 }
 
 /// <summary>

@@ -581,9 +581,11 @@ public sealed class ConversationTurnOrchestrator(
             result.Succeeded ? narration : $"That didn't work this time either. {narration}",
             null);
 
-        if (result.Succeeded)
+        // Not gated on success: a capability that failed its own job can still have a viewer
+        // command to issue, and ViewerPayloadJson is null for a failure that has none.
+        if (result.ViewerPayloadJson is { } viewerJson)
         {
-            var structured = StructuredPayloadExtractor.TryExtract(capability.Name, result.ResultJson);
+            var structured = StructuredPayloadExtractor.TryExtract(capability.Name, viewerJson);
             if (structured is not null)
             {
                 yield return structured;
@@ -644,9 +646,10 @@ public sealed class ConversationTurnOrchestrator(
                 var narration = await narrator.NarrateAsync(request, capability, result, nextStepLabel: null, cancellationToken);
                 yield return new ChatStreamChunk(narration, null);
 
-                if (result.Succeeded)
+                // Same rule as the retry path above: a failed capability may still move the viewer.
+                if (result.ViewerPayloadJson is { } viewerJson)
                 {
-                    var structured = StructuredPayloadExtractor.TryExtract(capability.Name, result.ResultJson);
+                    var structured = StructuredPayloadExtractor.TryExtract(capability.Name, viewerJson);
                     if (structured is not null)
                     {
                         yield return structured;

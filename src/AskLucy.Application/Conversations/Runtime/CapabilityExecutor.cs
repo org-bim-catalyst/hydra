@@ -33,11 +33,26 @@ internal static partial class CapabilityExecutorLog
 /// <param name="Succeeded">Whether it produced a usable result.</param>
 /// <param name="ResultJson">Its output, or the reason it failed — always something the narration step can report.</param>
 /// <param name="Elapsed">How long it took, for the turn record and the cost budget.</param>
+/// <param name="ViewerJson">
+/// The capability's structure payload for the viewer, when it produced one. On success this is the
+/// same text as <paramref name="ResultJson"/>; on failure it is populated only by a capability that
+/// failed its own job but still has a viewer command to issue (<see cref="Agents.Tools.AgentToolResult.FailureWithViewerPayload"/>),
+/// and is <see langword="null"/> otherwise. Never narrated and never recorded as a result.
+/// </param>
 public sealed record CapabilityExecutionResult(
     string CapabilityKey,
     bool Succeeded,
     string ResultJson,
-    TimeSpan Elapsed);
+    TimeSpan Elapsed,
+    string? ViewerJson = null)
+{
+    /// <summary>
+    /// What <see cref="StructuredPayloadExtractor"/> should read. On success that is the result
+    /// itself; on failure it is <see langword="null"/> unless the capability deliberately attached
+    /// a viewer payload — a failed result's own text is a sentence, never a payload.
+    /// </summary>
+    public string? ViewerPayloadJson => Succeeded ? ResultJson : ViewerJson;
+}
 
 /// <summary>
 /// Runs one capability on behalf of a conversation turn (specs/045 FR-015).
@@ -163,7 +178,8 @@ public sealed class CapabilityExecutor(
                 capability.Name,
                 result.Succeeded,
                 result.Succeeded ? result.Output?.RootElement.GetRawText() ?? "{}" : result.FailureReason ?? "it did not succeed",
-                elapsed);
+                elapsed,
+                result.Output?.RootElement.GetRawText());
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
