@@ -82,7 +82,7 @@ public sealed class SaveSiteBoundaryEditCommandHandler(
 
         await unitOfWork.SaveChangesAsync(cancellationToken);
 
-        var inForce = found.WithCorrection(correction);
+        var inForce = found.ApplyCorrection(correction);
         return new SaveSiteBoundaryEditResult(ChatActiveBoundaryDto.FromEntity(inForce), AppendMessageCommandHandler.ToDto(message));
     }
 

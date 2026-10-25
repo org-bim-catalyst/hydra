@@ -6,17 +6,15 @@ using Xunit;
 
 namespace AskLucy.Domain.Tests.Chats;
 
-/// <summary>specs/079 — <see cref="ActiveSiteBoundary.WithCorrection"/> and the chat's link to a correction.</summary>
+/// <summary>
+/// specs/079 — the chat's link to a correction. The projection that applies a correction to the
+/// outline in force moved to <c>CorrectionOutline.ApplyCorrection</c> in Application (the value
+/// object must not know another bounded context's aggregate root); its tests live there.
+/// </summary>
 public sealed class ActiveSiteBoundaryCorrectionTests
 {
     private static readonly IReadOnlyList<GeoPoint> FoundRing =
         [new(25.1560, 55.2210), new(25.1560, 55.2220), new(25.1550, 55.2220)];
-
-    private static readonly IReadOnlyList<GeoPoint> EditedRing =
-        [new(25.1561, 55.2211), new(25.1561, 55.2221), new(25.1551, 55.2221), new(25.1551, 55.2211)];
-
-    private static readonly IReadOnlyList<GeoPoint> SecondRing =
-        [new(25.1570, 55.2230), new(25.1570, 55.2235), new(25.1565, 55.2235)];
 
     private static UserChat ChatWithBoundary()
     {
@@ -26,46 +24,6 @@ public sealed class ActiveSiteBoundaryCorrectionTests
             BoundaryConfidenceLevel.Medium, SiteBoundarySource.OsmBoundary, "OpenStreetMap", "user-1",
             corePolygon: FoundRing);
         return chat;
-    }
-
-    private static SiteBoundaryCorrection CorrectionFor(UserChat chat) =>
-        SiteBoundaryCorrection.Create(
-            "user-1", chat.ActiveBoundary!.SiteName, 25.156, 55.221,
-            new FoundSiteBoundarySnapshot(FoundRing, [], FoundRing, 15_000, 0.7, BoundaryConfidenceLevel.Medium,
-                SiteBoundarySource.OsmBoundary, "OpenStreetMap", []),
-            [EditedRing, SecondRing], 12_345, [], "user-1");
-
-    [Fact]
-    public void WithCorrection_ShouldReplaceShapeAreaAndRevisionButKeepIdentity()
-    {
-        var chat = ChatWithBoundary();
-        var correction = CorrectionFor(chat);
-
-        var effective = chat.ActiveBoundary!.WithCorrection(correction);
-
-        effective.Polygon.Should().BeEquivalentTo(EditedRing);
-        effective.AdditionalPolygons.Should().ContainSingle().Which.Should().BeEquivalentTo(SecondRing);
-        effective.AreaSquareMeters.Should().Be(12_345);
-        effective.Source.Should().Be(SiteBoundarySource.UserCorrected);
-        effective.IsHandEdited.Should().BeTrue();
-        effective.ConfidenceLevel.Should().Be(BoundaryConfidenceLevel.High);
-        effective.Revision.Should().Be(correction.Revision);
-        effective.CorrectionId.Should().Be(correction.Id);
-        effective.SiteName.Should().Be("Muscat Grand Mall");
-        effective.CorePolygon.Should().BeEquivalentTo(FoundRing);
-        effective.CentroidLatitude.Should().Be(25.156);
-    }
-
-    [Fact]
-    public void WithCorrection_ShouldNotTouchTheStoredBoundary()
-    {
-        var chat = ChatWithBoundary();
-
-        _ = chat.ActiveBoundary!.WithCorrection(CorrectionFor(chat));
-
-        chat.ActiveBoundary!.Polygon.Should().BeEquivalentTo(FoundRing);
-        chat.ActiveBoundary.IsHandEdited.Should().BeFalse();
-        chat.ActiveBoundary.AreaSquareMeters.Should().Be(15_000);
     }
 
     [Fact]

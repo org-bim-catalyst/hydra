@@ -2,6 +2,9 @@ using AskLucy.Domain.SiteBoundaries;
 
 namespace AskLucy.Domain.Chats;
 
+// The projection that applies a SiteBoundaryCorrection lives in Application (CorrectionOutline),
+// not here: this value object must not know another bounded context's aggregate root.
+
 /// <summary>
 /// specs/042-site-boundary-resolution — the currently confirmed site boundary the viewer has
 /// highlighted, mirroring <see cref="ActiveSiteLocation"/> exactly (research.md #10/#11).
@@ -51,27 +54,4 @@ public sealed record ActiveSiteBoundary(
     /// <summary>specs/079 — true when this is a boundary built from a hand edit (<see cref="SiteBoundarySource.UserCorrected"/>).</summary>
     public bool IsHandEdited => Source == SiteBoundarySource.UserCorrected;
 
-    /// <summary>
-    /// specs/079 — the outline in force for a chat linked to <paramref name="correction"/>. Replaces
-    /// the rings, area, members and revision; keeps the site name, core polygon and centroid. Pure:
-    /// the stored boundary is never overwritten, so a reset restores it untouched.
-    /// </summary>
-    public ActiveSiteBoundary WithCorrection(SiteBoundaryCorrection correction)
-    {
-        ArgumentNullException.ThrowIfNull(correction);
-
-        return this with
-        {
-            Polygon = correction.EditedRings[0],
-            AreaSquareMeters = correction.AreaSquareMeters,
-            ConfidenceLevel = BoundaryConfidenceLevel.High,
-            Source = SiteBoundarySource.UserCorrected,
-            SourceDetail = "Hand-edited by the user",
-            AdditionalPolygons = correction.EditedRings.Skip(1).ToList(),
-            Voids = correction.EditedVoids,
-            Members = correction.Members,
-            Revision = correction.Revision,
-            CorrectionId = correction.Id,
-        };
-    }
 }
