@@ -255,7 +255,7 @@ public sealed class SiteAnalysisResultRelay(
 
     private static string FormatAnalysisTypeName(SiteAnalysisType analysisType) => analysisType switch
     {
-        SiteAnalysisType.SchematicImage => "schematic site map",
+        SiteAnalysisType.SchematicImage => "site map",
         SiteAnalysisType.EnvironmentalContext => "environmental context",
         _ => analysisType.ToString(),
     };

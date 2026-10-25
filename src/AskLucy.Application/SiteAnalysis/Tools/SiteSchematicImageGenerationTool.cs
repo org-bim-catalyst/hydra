@@ -1,36 +1,64 @@
 using System.Text.Json;
 using AskLucy.Application.Abstractions;
 using AskLucy.Application.Agents.Tools;
-using AskLucy.Application.Ai;
-using AskLucy.Application.Ai.Images;
 using AskLucy.Application.Documents.Commands;
+using AskLucy.Application.MapCaptures;
+using AskLucy.Application.MapCaptures.Queries.CaptureMap;
 using AskLucy.Domain.Agents;
 using AskLucy.Domain.Common;
 using AskLucy.Domain.SiteAnalysis;
+using MediatR;
 using Microsoft.Extensions.DependencyInjection;
+using SiteAnalysisAggregate = AskLucy.Domain.SiteAnalysis.SiteAnalysis;
 
 namespace AskLucy.Application.SiteAnalysis.Tools;
 
 /// <summary>
-/// contracts/schematic-image-prompt.md — the one specialist shipped in this release. Generates a
-/// top-down schematic site map through <see cref="IImageGenerationService"/> — i.e. whichever
-/// provider and image model the administrator assigned to the <c>ImageGeneration</c> capability,
-/// never a model of its own — persists it as a platform Document (FR-029), and reports the result inline to
-/// <see cref="ISiteAnalysisResultRelay"/> (tasks.md rule 1 — never via workflow node events).
-/// Invoked by a <c>NativeTool</c> workflow node, never <c>AiAgent</c> (research.md D2).
+/// contracts/site-map-capture-tool.md — the site-analysis specialist that shows the platform's
+/// <b>real map capture</b> of the analysed site (specs/090-real-map-capture). The image comes from
+/// the capture built in specs/083, reached in-process through <see cref="CaptureMapQuery"/> — never
+/// the HTTP endpoint, its service-key authentication or its rate-limit bucket — and is centred on
+/// the coordinates frozen onto the <see cref="SiteAnalysisAggregate"/> at dispatch. No image model
+/// is involved: capture replaces generation outright, and there is no generated fallback.
+///
+/// <para>
+/// The returned bytes are persisted as a platform Document through the existing
+/// <see cref="DocumentUploadFinalizer"/> — the capture itself persists nothing (083 FR-014) — and
+/// only the document id reaches the finding's image block. Reporting is exclusively through
+/// <see cref="ISiteAnalysisResultRelay"/>, inline as the last step of <see cref="ExecuteAsync"/>
+/// (057 tasks rule 1). Every failure is recorded there with the capture's own reason vocabulary and
+/// delivers nothing, per 057 FR-024's deliberate user silence.
+/// </para>
+///
+/// <para>
+/// The class name mirrors the stable tool name (<c>site_analysis_schematic_image</c>) that the
+/// published system workflow, the provisioner and the DI registration all reference; it is
+/// deliberately not renamed. The user-visible label is "Site Map" — see the content below.
+/// </para>
 /// </summary>
 public sealed class SiteSchematicImageGenerationTool(
     IServiceScopeFactory scopeFactory,
     SiteAnalysisContentComposer composer,
     ISiteAnalysisResultRelay relay) : IAgentTool
 {
-    public string Name => "site_analysis_schematic_image";
+    public const string ToolName = "site_analysis_schematic_image";
 
-    public string Description => "Generates a top-down schematic site analysis map for a resolved site and reports it to the site analysis coordinator.";
+    private const string Heading = "Site Map";
+
+    /// <summary>SPEC-083's default for an unnamed request, and the only mode the default (Esri) source serves.</summary>
+    private const string CaptureMode = "satellite";
+
+    private const string DocumentActor = "system:site-analysis-map-capture";
+
+    public string Name => ToolName;
+
+    public string Description =>
+        "Captures the platform's real map of the analysed site and reports it to the site analysis coordinator.";
 
     public AgentToolRiskLevel RiskLevel => AgentToolRiskLevel.Low;
 
-    public IReadOnlyList<AgentToolPermission> RequiredPermissions => [AgentToolPermission.ExternalNetwork, AgentToolPermission.WriteFile];
+    public IReadOnlyList<AgentToolPermission> RequiredPermissions =>
+        [AgentToolPermission.ExternalNetwork, AgentToolPermission.WriteFile];
 
     public string InputSchemaJson =>
         """{"type":"object","required":["siteAnalysisId","siteName","siteLocation"],"properties":{"siteAnalysisId":{"type":"string"},"siteName":{"type":"string"},"siteLocation":{"type":"string"}}}""";
@@ -38,7 +66,8 @@ public sealed class SiteSchematicImageGenerationTool(
     public string OutputSchemaJson =>
         """{"type":"object","required":["reported"],"properties":{"reported":{"type":"boolean"}}}""";
 
-    public async Task<AgentToolResult> ExecuteAsync(AgentToolExecutionContext context, JsonDocument input, CancellationToken cancellationToken = default)
+    public async Task<AgentToolResult> ExecuteAsync(
+        AgentToolExecutionContext context, JsonDocument input, CancellationToken cancellationToken = default)
     {
         var root = input.RootElement;
         if (!root.TryGetProperty("siteAnalysisId", out var idElement) || !Guid.TryParse(idElement.GetString(), out var siteAnalysisId))
@@ -46,26 +75,91 @@ public sealed class SiteSchematicImageGenerationTool(
             return AgentToolResult.Failure("A valid siteAnalysisId is required.");
         }
 
-        var siteName = root.TryGetProperty("siteName", out var nameElement) ? nameElement.GetString() ?? string.Empty : string.Empty;
-        var siteLocation = root.TryGetProperty("siteLocation", out var locationElement) ? locationElement.GetString() ?? string.Empty : string.Empty;
-
         try
         {
-            var (documentId, dataSource) = await GenerateAndPersistImageAsync(context.UserId, siteName, siteLocation, cancellationToken);
+            // Everything that touches the database — the analysis read, the capture's settings
+            // read and the document write — runs in this isolated scope: concurrent workflow
+            // branches share the job's scoped DbContext, which is not safe for concurrent use even
+            // for reads (057 research D2, mirroring SiteEnvironmentalContextTool).
+            using var scope = scopeFactory.CreateScope();
 
-            // contracts/schematic-image-prompt.md § Provenance reported — Medium: the site and its
-            // coordinates are exact (not sparse or nearby-only), but a generated image is a
-            // generative interpretation rather than a direct, measured description of the site, so
-            // it does not qualify as High under SiteAnalysisConfidence's rule.
-            var confidence = SiteAnalysisConfidence.ResolveConfidence(dataDirectlyDescribesSite: false, dataIsSparseOrApproximate: true);
+            var repository = scope.ServiceProvider.GetRequiredService<ISiteAnalysisRepository>();
+            var site = await repository.GetByIdAsync(siteAnalysisId, cancellationToken);
+            if (site is null)
+            {
+                const string notFound = "The site analysis this finding belongs to could not be found.";
+                await relay.ReportFailureAsync(siteAnalysisId, SiteAnalysisType.SchematicImage, notFound, cause: null, cancellationToken);
+                return AgentToolResult.Failure(notFound);
+            }
+
+            var sender = scope.ServiceProvider.GetRequiredService<ISender>();
+            var capture = await sender.Send(
+                new CaptureMapQuery(
+                    // The point frozen at dispatch. Never the site name: a name costs an extra
+                    // geocoding call and can resolve a different place from the one analysed.
+                    Location: null,
+                    Latitude: site.Latitude,
+                    Longitude: site.Longitude,
+                    // The capture's own configured neighbourhood view, source, crop and zoom are
+                    // administrator-controlled (083) and are deliberately not named here.
+                    ViewSizeMetres: null,
+                    Mode: CaptureMode,
+                    Overlays: null,
+                    CallerName: $"site-analysis:{siteAnalysisId}",
+                    Source: null,
+                    CropPixels: null,
+                    Zoom: null),
+                cancellationToken);
+
+            if (!capture.IsSuccess)
+            {
+                // FR-018/FR-019 — the capture's own reason vocabulary, recorded rather than shown.
+                var failure = $"{capture.FailureReason}: {capture.FailureDetail}";
+                await relay.ReportFailureAsync(siteAnalysisId, SiteAnalysisType.SchematicImage, failure, cause: null, cancellationToken);
+                return AgentToolResult.Failure(failure);
+            }
+
+            if (capture.Png is not { } png)
+            {
+                // A success with no bytes violates the capture's contract; it is still a failure,
+                // never an empty finding (FR-020).
+                const string unusable = "The capture reported success but returned no image bytes.";
+                await relay.ReportFailureAsync(siteAnalysisId, SiteAnalysisType.SchematicImage, unusable, cause: null, cancellationToken);
+                return AgentToolResult.Failure(unusable);
+            }
+
+            if (capture.Source is not { } source)
+            {
+                // Provenance must name the source that actually served the pixels (FR-015); a
+                // guessed source would be worse than no finding.
+                const string noSource = "The capture did not report which imagery source served the image.";
+                await relay.ReportFailureAsync(siteAnalysisId, SiteAnalysisType.SchematicImage, noSource, cause: null, cancellationToken);
+                return AgentToolResult.Failure(noSource);
+            }
+
+            var documentId = await PersistDocumentAsync(scope, site.UserId, png, cancellationToken);
+
+            // FR-024 — the frame is centred on the exact coordinates frozen at dispatch, with no
+            // geocoding and no candidate selection, and the pixels are a real record of the place:
+            // nothing was interpolated, substituted from a nearby point, or generated. The imagery
+            // is undated, which limits the temporal claim the body states — not whether the image
+            // directly describes the site. GeocodingCandidate.Importance is never consulted.
+            var confidence = SiteAnalysisConfidence.ResolveConfidence(
+                dataDirectlyDescribesSite: true,
+                dataIsSparseOrApproximate: false);
+
             var metadata = new SiteAnalysisResultMetadata(
-                SiteAnalysisType.SchematicImage, siteName, dataSource,
-                confidence, DateTime.UtcNow, []);
+                SiteAnalysisType.SchematicImage,
+                site.SiteName,
+                $"map-capture:{MapCaptureSourceWire.WireValueOf(source)}",
+                confidence,
+                DateTime.UtcNow,
+                []);
 
             using var content = composer.ComposeFinding(
-                "Schematic Site Map",
-                $"A generated top-down schematic map of {siteName}, showing streets, buildings, green space and water bodies with a legend.",
-                (documentId, $"Schematic top-down site analysis map of {siteName}"),
+                Heading,
+                DescribeCapture(site.SiteName),
+                (documentId, AltText(site.SiteName)),
                 metadata);
 
             await relay.ReportSuccessAsync(siteAnalysisId, SiteAnalysisType.SchematicImage, metadata, content, documentId, cancellationToken);
@@ -75,49 +169,52 @@ public sealed class SiteSchematicImageGenerationTool(
         {
             throw;
         }
-        catch (Exception ex) when (ex is NotSupportedException or AiProviderException or AiCapabilityNotConfiguredException or InvalidGeneratedImageException)
-        {
-            // FR-030 — no image model is assigned, the provider cannot generate images, it
-            // returned something unusable, or the call otherwise failed in a classified way. Reuse the existing exception hierarchy; never invent a new one.
-            // Reported to the relay (captured, persisted, logged — FR-022) AND returned as an
-            // AgentToolResult.Failure, so the workflow's own node/audit trail also reflects the
-            // failure and the AnyCompleted merge strategy's tolerance is genuinely exercised
-            // (tasks.md rule 5), not masked by an artificially "successful" node.
-            await relay.ReportFailureAsync(siteAnalysisId, SiteAnalysisType.SchematicImage, ex.Message, ex, cancellationToken);
-            return AgentToolResult.Failure(ex.Message);
-        }
         catch (Exception ex)
         {
-            // Any other failure (download, storage quota, validation) — still captured and
-            // reported through the relay (FR-022), never silently discarded (constitution §2 VIII).
+            // Any other failure — the record, the document write, an unexpected fault — is
+            // captured and reported with its cause (FR-021), never swallowed (constitution §2 VIII).
             await relay.ReportFailureAsync(siteAnalysisId, SiteAnalysisType.SchematicImage, ex.Message, ex, cancellationToken);
             return AgentToolResult.Failure(ex.Message);
         }
     }
 
-    private async Task<(Guid DocumentId, string DataSource)> GenerateAndPersistImageAsync(
-        string ownerId, string siteName, string siteLocation, CancellationToken cancellationToken)
+    /// <summary>
+    /// Stores the capture PNG as a platform Document in the same isolated scope. The finalizer
+    /// performs magic-byte validation, storage-quota enforcement, checksum de-duplication and the
+    /// Document/version/checksum creation; the unit of work commits them (057 research D8).
+    /// </summary>
+    private static async Task<Guid> PersistDocumentAsync(
+        IServiceScope scope, string ownerId, byte[] png, CancellationToken cancellationToken)
     {
-        var prompt = SiteAnalysisPrompts.BuildSchematicImagePrompt(siteName, siteLocation);
-
-        // Everything that touches the database — the ImageGeneration capability lookup inside
-        // IImageGenerationService as well as the document write — runs in this isolated scope:
-        // the tool may execute inside a concurrent workflow branch that shares the job's own
-        // scoped DbContext, and a DbContext is not safe for concurrent use even for reads
-        // (research.md D2, mirroring ScopeIsolatedSiteAnalysisResultRelay).
-        using var scope = scopeFactory.CreateScope();
-        var imageGeneration = scope.ServiceProvider.GetRequiredService<IImageGenerationService>();
         var finalizer = scope.ServiceProvider.GetRequiredService<DocumentUploadFinalizer>();
         var unitOfWork = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
 
-        var generated = await imageGeneration.GenerateAsync(prompt, cancellationToken);
+        using var content = new MemoryStream(png, writable: false);
 
-        using var content = new MemoryStream(generated.Image.Content, writable: false);
-        var fileName = $"site-analysis-schematic-{Guid.CreateVersion7()}{generated.Image.FileExtension}";
-        var result = await finalizer.FinalizeAsync(ownerId, fileName, content, content.Length, "system:site-analysis-schematic-image", cancellationToken);
-        var documentId = result.IsDuplicate ? result.DuplicateOfDocumentId!.Value : result.Document!.Id;
+        // The extension must be exactly ".png": the upload validator sniffs the magic bytes and
+        // rejects a PNG whose name says otherwise.
+        var fileName = $"site-analysis-site-map-{Guid.CreateVersion7()}.png";
+
+        var result = await finalizer.FinalizeAsync(
+            ownerId, fileName, content, content.Length, DocumentActor, cancellationToken);
 
         await unitOfWork.SaveChangesAsync(cancellationToken);
-        return (documentId, $"{generated.ProviderName}:{generated.ModelKey}");
+
+        var documentId = result.IsDuplicate ? result.DuplicateOfDocumentId : result.Document?.Id;
+        return documentId
+            ?? throw new InvalidOperationException("The captured image could not be stored as a document.");
     }
+
+    /// <summary>
+    /// FR-012 — the finding says what the image is and is not. The imagery is the provider's most
+    /// recent available capture: it is not live and carries no capture date, and the wording must
+    /// never imply otherwise. This mirrors the platform's guidance for the map-snapshot capability.
+    /// </summary>
+    private static string DescribeCapture(string siteName) =>
+        $"The platform's map capture of {siteName}, centred on the site's coordinates. The imagery is " +
+        "the provider's most recent available capture of this area; it is not a live view, and it " +
+        "carries no capture date.";
+
+    private static string AltText(string siteName) =>
+        $"Satellite map centred on {siteName}, captured by the platform";
 }

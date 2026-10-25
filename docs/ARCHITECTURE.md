@@ -1579,9 +1579,20 @@ those two registrations, and no specialist changes.
 
 **No new content vocabulary.** Findings compose entirely from the existing panel content-block
 vocabulary (heading/text/keyValue/image) — the same envelope `PresentPanelContentCapability`
-already produces. Two specialists ship. `SiteSchematicImageGenerationTool` generates through the
-platform-wide `IImageGenerationService` and persists the result through the existing
-`DocumentUploadFinalizer` — only a platform `Document` id ever reaches an `ImageBlock`.
+already produces. Two specialists ship. `SiteSchematicImageGenerationTool` no longer generates:
+since specs/090 it shows the platform's **real map capture** of the analysed site, obtained
+in-process through SPEC-083's `CaptureMapQuery` (never the HTTP endpoint, its service-key
+authentication or its rate-limit bucket) and centred on the coordinates frozen on the
+`SiteAnalysis` record — never the site name, which would geocode again and could resolve a
+different place. The specialist names only the mode (`satellite`); the administrator's configured
+source, crop, zoom and view size resolve inside the capture. The returned PNG is persisted through
+the existing `DocumentUploadFinalizer` — the capture itself persists nothing — and only a platform
+`Document` id ever reaches an `ImageBlock`. The finding reports **High** confidence because the
+frame is centred on the exact site point with no geocoding and the pixels are a real record of the
+place, while its body states plainly that the imagery is the provider's most recent available
+capture, not a live view, with no capture date. A failed capture is recorded through the relay with
+SPEC-083's own reason vocabulary and delivers nothing; there is deliberately no generated fallback,
+because a drawing that looks like the site is the one failure a user cannot detect.
 `SiteEnvironmentalContextTool` reports flood risk and climate/wind from the provider seams, with
 every figure carrying either a value or an explicit state (no data source / no candidate data /
 conflicting data / not reported by the source / unusable value). An unavailable figure lowers the
@@ -1592,7 +1603,7 @@ referenced to the viewer's client-side Solar Analysis, never computed server-sid
 contains no solar figure.
 
 **Image generation (platform-wide).** One service, `IImageGenerationService`, serves every caller —
-the chat's image command and the site-analysis map. Its provider **and model** come from the
+currently the chat's image command (the site-analysis map stopped generating with specs/090). Its provider **and model** come from the
 `ImageGeneration` AI capability: `AiCapabilityAssignment` gained an optional `ModelId` that pins one
 of the provider's models (null everywhere else keeps following the provider's default), and
 `ImageGeneration` requires a pinned `SupportsImageOutput` model with **no platform-default fallback**

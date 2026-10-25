@@ -325,3 +325,7 @@ Two notes for whoever implements either specified follow-up:
 - **The map-capture endpoint ([specs/083](../083-viewer-map-capture/spec.md)) is designated as the imagery
   source** for the schematic site-map specialist and for the imagery-based follow-ups (Urban Context,
   Character Analysis). It is not a source of the Environmental Context figures, which are data, not pixels.
+  **Implemented for the schematic specialist in [specs/090-real-map-capture](../090-real-map-capture/spec.md)
+  (2026-10-25):** that finding now shows the platform's real capture instead of a generated image, reports
+  High confidence, and no longer calls `IImageGenerationService`. The versioned image prompt was removed from
+  the code; its contract is retained as a superseded historical record.

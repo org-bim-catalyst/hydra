@@ -475,6 +475,31 @@ Never skip architecture in favor of speed.
 
 ---
 
+# Testing Environment
+
+## The test-database variables are GitHub secrets — empty in a local shell is not "missing"
+
+`PERSISTENCE_TESTS_CONNECTION_STRING` (shared test DB, used by `AskLucy.Web.Tests` and the dev
+server) and `PERSISTENCE_TESTS_2_CONNECTION_STRING` (dedicated Persistence-test DB) are **GitHub
+Actions secrets**, injected only into CI jobs (`.github/workflows/ci.yml`). A developer shell never
+inherits them, so `echo $PERSISTENCE_TESTS_CONNECTION_STRING` returning empty says nothing about
+whether the repository is configured. Never report them as "not set" or as a blocker before doing
+what this section says.
+
+Locally, derive the values from the untracked `src/AskLucy.Web/appsettings.Development.json`
+(see `docs/TESTING.md` § "Two test databases" for the full rules):
+
+```powershell
+$c = (Get-Content 'src/AskLucy.Web/appsettings.Development.json' -Raw | ConvertFrom-Json).ConnectionStrings
+$env:PERSISTENCE_TESTS_CONNECTION_STRING   = $c.DefaultConnection      # shared test DB — Web.Tests
+$env:PERSISTENCE_TESTS_2_CONNECTION_STRING = $c.PersistenceTests       # Persistence only — destructive
+```
+
+`AskLucy.Persistence.Tests` is skipped unless the second variable is set, and **wipes its database**
+when it runs — never point it at the shared test DB. Never print either connection string.
+
+---
+
 # Documentation
 
 Whenever a major feature is added:

@@ -218,6 +218,12 @@ defect in this release, not a defect in the follow-ups.
 map-capture endpoint ([specs/083](../083-viewer-map-capture/spec.md)) renders a real map of a location. It is
 designated as the imagery source for the schematic site-map specialist in this feature and for the
 imagery-based follow-ups (Urban Context, Character Analysis) — never for the Environmental Context figures,
-which are data, not pixels. The schematic specialist currently generates its image with an AI image model, so
-that finding is an interpretation and reports Medium confidence; replacing or supplementing the generated image
-with a real capture is a follow-up change to this feature, not part of it.
+which are data, not pixels. The schematic specialist originally generated its image with an AI image model, so
+that finding was an interpretation and reported Medium confidence.
+
+**Implemented (2026-10-25): [specs/090-real-map-capture](../090-real-map-capture/spec.md).** The generated
+image has been replaced — not supplemented — by the platform's real capture, obtained in-process through SPEC-083
+and centred on the coordinates frozen on the analysis record. There is no generated fallback; the versioned image
+prompt is superseded (its contract is retained as history), and a successful capture reports **High** confidence
+because the image directly describes the analysed site. Capture failures are recorded through the relay with
+SPEC-083's own reason vocabulary and deliver nothing to the user.
