@@ -44,7 +44,7 @@ public sealed class McpMaliciousOutputSecurityTests
     [Fact]
     public async Task ExecuteAsync_ShouldRejectAnOversizedResponse_EvenWhenItIsOtherwiseSchemaValid()
     {
-        var tool = McpTool.CreateFromDiscovery(Guid.NewGuid(), Guid.NewGuid(), "search", "Search", "desc", "{}", "{}", null, null, "[]", null, null);
+        var tool = McpTool.CreateFromDiscovery(Guid.NewGuid(), Guid.NewGuid(), "search", "Search", "desc", "{}", "{}", null, null, "[]", null);
         var hugePayload = JsonDocument.Parse($$"""{"result":"{{new string('a', 10_000)}}"}""");
         _client.CallToolAsync(tool.ToolName, Arg.Any<JsonDocument>(), Arg.Any<CancellationToken>()).Returns(new McpToolCallResult(false, hugePayload, null));
         var adapter = CreateAdapter(tool, maxResponseSizeBytes: 1024);
@@ -59,7 +59,7 @@ public sealed class McpMaliciousOutputSecurityTests
     public async Task ExecuteAsync_ShouldAccept_AResponseAtExactlyTheSizeLimit()
     {
         // Boundary check — the limit itself is inclusive, not off-by-one.
-        var tool = McpTool.CreateFromDiscovery(Guid.NewGuid(), Guid.NewGuid(), "search", "Search", "desc", "{}", "{}", null, null, "[]", null, null);
+        var tool = McpTool.CreateFromDiscovery(Guid.NewGuid(), Guid.NewGuid(), "search", "Search", "desc", "{}", "{}", null, null, "[]", null);
         var payload = JsonDocument.Parse("""{}""");
         var byteCount = System.Text.Encoding.UTF8.GetByteCount(payload.RootElement.GetRawText());
         _client.CallToolAsync(tool.ToolName, Arg.Any<JsonDocument>(), Arg.Any<CancellationToken>()).Returns(new McpToolCallResult(false, payload, null));

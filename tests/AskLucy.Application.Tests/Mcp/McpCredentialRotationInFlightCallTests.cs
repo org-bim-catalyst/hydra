@@ -43,7 +43,7 @@ public sealed class McpCredentialRotationInFlightCallTests
     public async Task ExecuteAsync_ShouldReturnARecordedFailure_ForACallHeldOnTheConnectionOpenedWithTheOldCredential_AfterRotation()
     {
         var server = McpServer.Register("Test", null, "https://mcp.example.com", McpServerTransport.StreamableHttp, McpAuthenticationType.ApiKey, false, false, null, false, null, AdminId, 60);
-        var tool = McpTool.CreateFromDiscovery(server.Id, Guid.NewGuid(), "search", "Search", "desc", "{}", "{}", null, null, "[]", null, null);
+        var tool = McpTool.CreateFromDiscovery(server.Id, Guid.NewGuid(), "search", "Search", "desc", "{}", "{}", null, null, "[]", null);
 
         var staleClient = Substitute.For<IMcpClient>();
         // The old connection's baked-in Authorization header is now rejected by the server —
@@ -84,7 +84,7 @@ public sealed class McpCredentialRotationInFlightCallTests
     public async Task ExecuteAsync_ShouldSucceed_ForTheNextCallAfterRotation_UsingTheNewConnection()
     {
         var server = McpServer.Register("Test", null, "https://mcp.example.com", McpServerTransport.StreamableHttp, McpAuthenticationType.ApiKey, false, false, null, false, null, AdminId, 60);
-        var tool = McpTool.CreateFromDiscovery(server.Id, Guid.NewGuid(), "search", "Search", "desc", "{}", "{}", null, null, "[]", null, null);
+        var tool = McpTool.CreateFromDiscovery(server.Id, Guid.NewGuid(), "search", "Search", "desc", "{}", "{}", null, null, "[]", null);
 
         var freshClient = Substitute.For<IMcpClient>();
         freshClient.CallToolAsync(tool.ToolName, Arg.Any<JsonDocument>(), Arg.Any<CancellationToken>())

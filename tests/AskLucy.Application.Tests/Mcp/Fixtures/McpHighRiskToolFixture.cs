@@ -25,7 +25,7 @@ public static class McpHighRiskToolFixture
     {
         var tool = McpTool.CreateFromDiscovery(
             serverId ?? Guid.NewGuid(), Guid.NewGuid(), toolName, toolName, $"A simulated {riskLevel} MCP action (test/dev only). Performs no real effect.",
-            "{}", "{}", null, riskLevel, "[]", null, null);
+            "{}", "{}", null, riskLevel, "[]", null);
         tool.Activate(actor, null, null);
         return tool;
     }

@@ -83,28 +83,36 @@ public sealed class RefreshMcpCapabilitiesCommandHandler(
             var prior = await toolRepository.GetLatestByServerAndToolNameAsync(server.Id, discoveredTool.Name, cancellationToken);
             var inputSchemaJson = discoveredTool.InputSchema.GetRawText();
             var outputSchemaJson = discoveredTool.OutputSchema?.GetRawText() ?? "{}";
+            var displayName = discoveredTool.Title ?? discoveredTool.Name;
+            var description = discoveredTool.Description ?? string.Empty;
 
-            (McpToolActivationStatus Status, string? ActivatedByUserId, DateTime? ActivatedAtUtc)? carriedForward = null;
             if (prior is null)
             {
                 added++;
+                toolRepository.Add(McpTool.CreateFromDiscovery(
+                    server.Id, snapshot.Id, discoveredTool.Name, displayName, description,
+                    inputSchemaJson, outputSchemaJson, null, null, "[]", null));
+                continue;
             }
-            else if (prior.InputSchemaJson == inputSchemaJson && prior.OutputSchemaJson == outputSchemaJson && prior.Description == (discoveredTool.Description ?? string.Empty))
-            {
-                // Unchanged since the last snapshot — carry the administrator's prior review
-                // forward rather than requiring re-review on every routine refresh
-                // (contracts/mcp-lifecycle-events.md's re-review rule).
-                carriedForward = (prior.ActivationStatus, prior.ActivatedByUserId, prior.ActivatedAtUtc);
-            }
-            else
+
+            // Already known: refresh its row in place. NamespacedName is stable across discoveries
+            // and unique in the database, so adding a second row for this snapshot collides with
+            // the row it is meant to replace (see McpTool.RefreshFromSnapshot). RefreshFromSnapshot
+            // carries an unchanged tool's review — activation, risk level and permissions
+            // included — forward; a changed definition goes back to PendingReview instead
+            // (contracts/mcp-lifecycle-events.md's re-review rule).
+            var definitionChanged =
+                prior.InputSchemaJson != inputSchemaJson ||
+                prior.OutputSchemaJson != outputSchemaJson ||
+                prior.Description != description;
+
+            if (definitionChanged)
             {
                 changed++;
             }
 
-            var tool = McpTool.CreateFromDiscovery(
-                server.Id, snapshot.Id, discoveredTool.Name, discoveredTool.Title ?? discoveredTool.Name, discoveredTool.Description ?? string.Empty,
-                inputSchemaJson, outputSchemaJson, null, null, "[]", null, carriedForward);
-            toolRepository.Add(tool);
+            prior.RefreshFromSnapshot(
+                snapshot.Id, displayName, description, inputSchemaJson, outputSchemaJson, null, null, definitionChanged, userId);
         }
 
         var removedToolCount = await MarkRemovedAsync(
@@ -112,8 +120,18 @@ public sealed class RefreshMcpCapabilitiesCommandHandler(
 
         foreach (var discoveredResource in discoveredResources ?? [])
         {
-            var resource = McpResource.CreateFromDiscovery(server.Id, snapshot.Id, discoveredResource.Uri, discoveredResource.Name ?? discoveredResource.Uri, discoveredResource.Description, discoveredResource.MimeType);
-            resourceRepository.Add(resource);
+            var resourceName = discoveredResource.Name ?? discoveredResource.Uri;
+            var existingResource = await resourceRepository.GetLatestByServerAndUriAsync(server.Id, discoveredResource.Uri, cancellationToken);
+            if (existingResource is not null)
+            {
+                // Same reasoning as McpTool above: mcp:{serverId}:{uri} is unique, so a known
+                // resource is refreshed in place rather than duplicated per snapshot.
+                existingResource.RefreshFromSnapshot(snapshot.Id, resourceName, discoveredResource.Description, discoveredResource.MimeType);
+                continue;
+            }
+
+            resourceRepository.Add(McpResource.CreateFromDiscovery(
+                server.Id, snapshot.Id, discoveredResource.Uri, resourceName, discoveredResource.Description, discoveredResource.MimeType));
         }
 
         foreach (var discoveredPrompt in discoveredPrompts ?? [])

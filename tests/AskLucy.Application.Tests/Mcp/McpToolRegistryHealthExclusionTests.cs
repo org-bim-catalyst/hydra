@@ -43,7 +43,7 @@ public sealed class McpToolRegistryHealthExclusionTests
     [Fact]
     public async Task InvalidateAsync_ShouldExcludeTheTool_WhenTheLatestQueryNoLongerReturnsIt_SimulatingHealthLeavingHealthy()
     {
-        var tool = McpTool.CreateFromDiscovery(Guid.NewGuid(), Guid.NewGuid(), "search", "Search", "desc", "{}", "{}", null, null, "[]", null, null);
+        var tool = McpTool.CreateFromDiscovery(Guid.NewGuid(), Guid.NewGuid(), "search", "Search", "desc", "{}", "{}", null, null, "[]", null);
         var toolRepository = Substitute.For<IMcpToolRepository>();
         toolRepository.ListActiveAvailableAsync(Arg.Any<CancellationToken>()).Returns((IReadOnlyList<(McpTool Tool, string ServerName)>)[(tool, "Acme Docs")]);
         var registry = CreateRegistry(toolRepository);
@@ -62,7 +62,7 @@ public sealed class McpToolRegistryHealthExclusionTests
     [Fact]
     public async Task InvalidateAsync_ShouldReincludeTheTool_WhenTheServerRecovers()
     {
-        var tool = McpTool.CreateFromDiscovery(Guid.NewGuid(), Guid.NewGuid(), "search", "Search", "desc", "{}", "{}", null, null, "[]", null, null);
+        var tool = McpTool.CreateFromDiscovery(Guid.NewGuid(), Guid.NewGuid(), "search", "Search", "desc", "{}", "{}", null, null, "[]", null);
         var toolRepository = Substitute.For<IMcpToolRepository>();
         toolRepository.ListActiveAvailableAsync(Arg.Any<CancellationToken>()).Returns((IReadOnlyList<(McpTool Tool, string ServerName)>)[]);
         var registry = CreateRegistry(toolRepository);

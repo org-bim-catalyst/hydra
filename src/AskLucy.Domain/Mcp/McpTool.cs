@@ -60,10 +60,11 @@ public sealed class McpTool : BaseEntity
     }
 
     /// <summary>
-    /// Creates a newly-discovered (or re-discovered/changed) tool row — always
+    /// Creates a tool row that has never been seen on this server before — always
     /// <see cref="McpToolActivationStatus.PendingReview"/> (FR-022, contracts/mcp-lifecycle-events.md's
-    /// re-review rule); <paramref name="carriedForwardActivation"/> lets the caller preserve a prior
-    /// activation decision when the discovery diff shows this tool is unchanged from the last snapshot.
+    /// re-review rule). A tool the server already publishes is re-pointed at the new snapshot with
+    /// <see cref="RefreshFromSnapshot"/> instead; it must never be re-created, because
+    /// <see cref="NamespacedName"/> is stable across discoveries and unique in the database.
     /// </summary>
     public static McpTool CreateFromDiscovery(
         Guid mcpServerId,
@@ -76,8 +77,7 @@ public sealed class McpTool : BaseEntity
         string? declaredCapabilitiesJson,
         AgentToolRiskLevel? serverDeclaredRiskLevel,
         string requiredPermissionsJson,
-        string? version,
-        (McpToolActivationStatus Status, string? ActivatedByUserId, DateTime? ActivatedAtUtc)? carriedForwardActivation)
+        string? version)
     {
         if (string.IsNullOrWhiteSpace(toolName))
         {
@@ -113,14 +113,57 @@ public sealed class McpTool : BaseEntity
             CreatedBy = "system",
         };
 
-        if (carriedForwardActivation is { } carried)
+        return tool;
+    }
+
+    /// <summary>
+    /// Re-points an already-discovered tool at the latest snapshot and refreshes the metadata its
+    /// server may have changed. A refresh mutates the existing row rather than inserting a new one:
+    /// <see cref="NamespacedName"/> is <c>mcp:{serverId}:{toolName}</c>, identical on every
+    /// discovery, and <c>McpTools.NamespacedName</c> carries an unfiltered unique index — a
+    /// per-snapshot insert therefore collides with the very row it is meant to replace.
+    /// <para>
+    /// An unchanged definition keeps the administrator's review intact, including the risk level
+    /// and permission set they overrode at activation: a routine refresh must never silently widen
+    /// a tool that was deliberately narrowed. A changed definition invalidates that review
+    /// (FR-022's re-review rule), so the tool returns to
+    /// <see cref="McpToolActivationStatus.PendingReview"/> with the platform's most restrictive
+    /// classification and no permissions.
+    /// </para>
+    /// </summary>
+    public void RefreshFromSnapshot(
+        Guid mcpCapabilitySnapshotId,
+        string displayName,
+        string description,
+        string inputSchemaJson,
+        string outputSchemaJson,
+        string? declaredCapabilitiesJson,
+        string? version,
+        bool definitionChanged,
+        string actor)
+    {
+        McpCapabilitySnapshotId = mcpCapabilitySnapshotId;
+        DisplayName = displayName;
+        Description = description;
+        InputSchemaJson = inputSchemaJson;
+        OutputSchemaJson = outputSchemaJson;
+        DeclaredCapabilitiesJson = declaredCapabilitiesJson;
+        Version = version;
+
+        // A tool that reappears after being marked removed is available again.
+        IsAvailable = true;
+
+        if (definitionChanged)
         {
-            tool.ActivationStatus = carried.Status;
-            tool.ActivatedByUserId = carried.ActivatedByUserId;
-            tool.ActivatedAtUtc = carried.ActivatedAtUtc;
+            ActivationStatus = McpToolActivationStatus.PendingReview;
+            ActivatedByUserId = null;
+            ActivatedAtUtc = null;
+            EffectiveRiskLevel = AgentToolRiskLevel.Critical;
+            RequiredPermissionsJson = "[]";
         }
 
-        return tool;
+        ModifiedAtUtc = DateTime.UtcNow;
+        ModifiedBy = actor;
     }
 
     public void Activate(string actor, AgentToolRiskLevel? effectiveRiskLevelOverride, string? requiredPermissionsJsonOverride)

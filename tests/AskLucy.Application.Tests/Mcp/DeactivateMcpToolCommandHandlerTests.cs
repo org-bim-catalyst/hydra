@@ -25,7 +25,7 @@ public sealed class DeactivateMcpToolCommandHandlerTests
     [Fact]
     public async Task Handle_ShouldDeactivateTool_AndInvalidateRegistry()
     {
-        var tool = McpTool.CreateFromDiscovery(Guid.NewGuid(), Guid.NewGuid(), "search", "Search", "Searches things.", "{}", "{}", null, null, "[]", null, null);
+        var tool = McpTool.CreateFromDiscovery(Guid.NewGuid(), Guid.NewGuid(), "search", "Search", "Searches things.", "{}", "{}", null, null, "[]", null);
         tool.Activate(AdminId, null, null);
         _toolRepository.GetByIdAsync(tool.Id, Arg.Any<CancellationToken>()).Returns(tool);
         var handler = CreateHandler();
@@ -51,7 +51,7 @@ public sealed class DeactivateMcpToolCommandHandlerTests
     [Fact]
     public async Task Handle_ShouldThrow_WhenToolDoesNotBelongToTheRouteServer()
     {
-        var tool = McpTool.CreateFromDiscovery(Guid.NewGuid(), Guid.NewGuid(), "search", "Search", "Searches things.", "{}", "{}", null, null, "[]", null, null);
+        var tool = McpTool.CreateFromDiscovery(Guid.NewGuid(), Guid.NewGuid(), "search", "Search", "Searches things.", "{}", "{}", null, null, "[]", null);
         tool.Activate(AdminId, null, null);
         _toolRepository.GetByIdAsync(tool.Id, Arg.Any<CancellationToken>()).Returns(tool);
         var handler = CreateHandler();

@@ -107,6 +107,8 @@ Normalized tool metadata from one capability snapshot, adapted into `IAgentTool`
 
 **Business rules**: `NamespacedName` is globally unique. A tool call is only permitted when `ActivationStatus == Active AND IsAvailable == true` and its `McpServer.IsEnabled == true` and server health is not `Unavailable`/`AuthenticationFailed` (FR-024).
 
+Because `NamespacedName` is unique, a capability refresh **re-points the existing row at the new snapshot** (`McpTool.RefreshFromSnapshot`) rather than inserting a row per snapshot — an insert-per-snapshot refresh collides with the row it is meant to replace. An unchanged definition carries the administrator's review forward (activation, `EffectiveRiskLevel`, `RequiredPermissionsJson` included); a changed one returns the tool to `PendingReview` with `EffectiveRiskLevel = Critical` and no permissions (FR-022's re-review rule). `McpResource` refreshes the same way.
+
 ### McpResource
 
 Normalized resource metadata (FR-036–FR-040).

@@ -14,7 +14,7 @@ public sealed class GetMcpToolQueryHandlerTests
     [Fact]
     public async Task Handle_ShouldReturnFullDetail_WhenTheToolIsActiveAndAvailable()
     {
-        var tool = McpTool.CreateFromDiscovery(Guid.NewGuid(), Guid.NewGuid(), "search", "Search", "Searches things.", "{}", "{}", null, null, "[]", "1.0", null);
+        var tool = McpTool.CreateFromDiscovery(Guid.NewGuid(), Guid.NewGuid(), "search", "Search", "Searches things.", "{}", "{}", null, null, "[]", "1.0");
         tool.Activate("admin-1", null, null);
         _toolRepository.GetActiveAvailableByNamespacedNameAsync(tool.NamespacedName, Arg.Any<CancellationToken>()).Returns((tool, "Acme Docs"));
         var handler = new GetMcpToolQueryHandler(_toolRepository);

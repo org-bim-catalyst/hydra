@@ -48,7 +48,7 @@ public sealed class McpToolExecutionOrchestratorIntegrationTests
     private static McpTool CreateActiveMcpTool()
     {
         var tool = McpTool.CreateFromDiscovery(
-            Guid.NewGuid(), Guid.NewGuid(), "search", "Search", "Searches things.", "{}", "{}", null, AgentToolRiskLevel.Low, "[]", null, null);
+            Guid.NewGuid(), Guid.NewGuid(), "search", "Search", "Searches things.", "{}", "{}", null, AgentToolRiskLevel.Low, "[]", null);
         tool.Activate(OwnerId, null, null);
         return tool;
     }

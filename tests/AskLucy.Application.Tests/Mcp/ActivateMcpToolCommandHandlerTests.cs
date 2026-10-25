@@ -23,7 +23,7 @@ public sealed class ActivateMcpToolCommandHandlerTests
     private ActivateMcpToolCommandHandler CreateHandler() => new(_toolRepository, _auditLogRepository, _mcpToolRegistry, _unitOfWork, _currentUser);
 
     private static McpTool CreatePendingReviewTool(Guid? mcpServerId = null) => McpTool.CreateFromDiscovery(
-        mcpServerId ?? Guid.NewGuid(), Guid.NewGuid(), "search", "Search", "Searches things.", "{}", "{}", null, null, "[]", null, null);
+        mcpServerId ?? Guid.NewGuid(), Guid.NewGuid(), "search", "Search", "Searches things.", "{}", "{}", null, null, "[]", null);
 
     public ActivateMcpToolCommandHandlerTests() => _currentUser.UserId.Returns(AdminId);
 
