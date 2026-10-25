@@ -20,6 +20,13 @@ public sealed class DocumentLanguageConfiguration : IEntityTypeConfiguration<Doc
         builder.Property(l => l.CreatedBy).IsRequired();
         builder.Property(l => l.RowVersion).IsRowVersion();
 
+        // specs/015 US5 reprocessing replaces a document's language set with
+        // DocumentRepository.RemoveLanguages, which is a RemoveRange — and AuditSaveChangesInterceptor
+        // turns every BaseEntity delete into a soft delete. Without this filter those rows stay
+        // readable, so GetLanguagesByDocumentIdAsync keeps returning them and the set grows on every
+        // reprocess. Every other soft-deletable entity in this project declares the same filter.
+        builder.HasQueryFilter(l => l.DeletedAtUtc == null);
+
         builder.HasIndex(l => l.DocumentId);
 
         builder.HasOne<Document>()
