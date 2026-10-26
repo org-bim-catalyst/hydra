@@ -409,3 +409,4 @@ src/AskLucy.Web/appsettings.Development.json
 # password was found committed in 11 of its allow-rules (a permission entry stores the whole
 # literal command, credentials included). The shared `.claude/settings.json` stays tracked.
 .claude/settings.local.json
+/.claude/settings.json
