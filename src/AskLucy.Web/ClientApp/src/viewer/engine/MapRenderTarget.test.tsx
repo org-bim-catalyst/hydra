@@ -1,5 +1,6 @@
-import { render, waitFor } from '@testing-library/react'
+import { act, render, waitFor } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { useActiveLocationStore } from '../../store/activeLocationStore'
 import { setCameraMemoryChat } from '../session/chatCameraMemory'
 import { viewerSession } from '../session/viewerSession'
 import { useViewerEngineStore } from '../store/viewerEngineStore'
@@ -15,6 +16,7 @@ const { createGoogleMapsGisLayerMock, shouldReduceMapQualityMock, fakeHandle } =
     setHeading: vi.fn(),
     setTilt: vi.fn(),
     setMarkerHighlighted: vi.fn(),
+    setMarkerPosition: vi.fn(),
     setMapTypeId: vi.fn(),
     dispose: vi.fn(),
   }
@@ -35,6 +37,7 @@ const initialState = useViewerEngineStore.getState()
 describe('MapRenderTarget (US5, FR-018 — highlight wiring)', () => {
   beforeEach(() => {
     useViewerEngineStore.setState(initialState, true)
+    useActiveLocationStore.getState().clear()
     vi.clearAllMocks()
     createGoogleMapsGisLayerMock.mockResolvedValue(fakeHandle)
     vi.stubEnv('VITE_GOOGLE_MAPS_API_KEY', 'test-key')
@@ -83,6 +86,43 @@ describe('MapRenderTarget (US5, FR-018 — highlight wiring)', () => {
     const result = engine.select('gis-current-location', 'not-a-real-marker')
 
     expect(result.ok).toBe(false)
+  })
+
+  it('plants the map at the live active location, not the center captured when the effect ran', async () => {
+    // A site confirmed while the Maps chunk was importing: the prop still names the place the
+    // viewer opened at, the store names the site (found live 2026-10-26).
+    act(() => useActiveLocationStore.getState().setFromAgent(25.1558, 55.2218, 'Al Safa Park 2', 0.9))
+    const engine = new ViewerEngine()
+    render(
+      <MapRenderTarget
+        viewerEngine={engine}
+        layerId="gis-current-location"
+        center={{ latitude: 51.5074, longitude: -0.1278 }}
+        onError={() => {}}
+      />,
+    )
+
+    await waitFor(() => expect(createGoogleMapsGisLayerMock).toHaveBeenCalled())
+    expect(createGoogleMapsGisLayerMock.mock.calls[0][0]).toMatchObject({
+      center: { latitude: 25.1558, longitude: 55.2218 },
+    })
+  })
+
+  it('moves the current-location marker when the active location changes', async () => {
+    const engine = new ViewerEngine()
+    render(
+      <MapRenderTarget
+        viewerEngine={engine}
+        layerId="gis-current-location"
+        center={{ latitude: 51.5074, longitude: -0.1278 }}
+        onError={() => {}}
+      />,
+    )
+    await waitFor(() => expect(createGoogleMapsGisLayerMock).toHaveBeenCalled())
+
+    act(() => useActiveLocationStore.getState().setFromAgent(25.1558, 55.2218, 'Al Safa Park 2', 0.9))
+
+    expect(fakeHandle.setMarkerPosition).toHaveBeenCalledWith(25.1558, 55.2218)
   })
 
   it('calls onError instead of rendering a blank map when no API key is configured (spec.md Edge Cases)', async () => {

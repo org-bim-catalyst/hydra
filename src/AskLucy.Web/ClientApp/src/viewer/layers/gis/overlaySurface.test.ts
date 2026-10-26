@@ -73,6 +73,66 @@ describe('resize (specs/087 FR-004)', () => {
   })
 })
 
+describe('alignTo (specs/087 D4, corrected live 2026-10-26)', () => {
+  function rect(left: number, top: number, width: number, height: number): DOMRect {
+    return {
+      left,
+      top,
+      width,
+      height,
+      right: left + width,
+      bottom: top + height,
+      x: left,
+      y: top,
+      toJSON: () => ({}),
+    } as DOMRect
+  }
+
+  it('takes the canvas box from the map canvas, not from the container', () => {
+    const host = container()
+    host.getBoundingClientRect = () => rect(100, 50, 1600, 872)
+    const mapCanvas = document.createElement('canvas')
+    // The measured real-world case: the map's canvas is narrower and shorter than its container.
+    mapCanvas.getBoundingClientRect = () => rect(100, 50, 1592, 868)
+    const { asThree } = fakeRenderer()
+    const surface = createOverlaySurface(host, () => asThree)
+
+    surface.alignTo(mapCanvas)
+
+    expect(surface.canvas.style.left).toBe('0px')
+    expect(surface.canvas.style.top).toBe('0px')
+    expect(surface.canvas.style.width).toBe('1592px')
+    expect(surface.canvas.style.height).toBe('868px')
+  })
+
+  it('keeps the map canvas offset relative to the container', () => {
+    const host = container()
+    host.getBoundingClientRect = () => rect(100, 50, 1600, 872)
+    const mapCanvas = document.createElement('canvas')
+    mapCanvas.getBoundingClientRect = () => rect(104, 52, 1592, 868)
+    const { asThree } = fakeRenderer()
+    const surface = createOverlaySurface(host, () => asThree)
+
+    surface.alignTo(mapCanvas)
+
+    expect(surface.canvas.style.left).toBe('4px')
+    expect(surface.canvas.style.top).toBe('2px')
+  })
+
+  it('leaves the starting box alone until the map canvas has been laid out', () => {
+    const host = container()
+    const mapCanvas = document.createElement('canvas')
+    // jsdom reports a zero box for everything; a real browser does the same before layout.
+    const { asThree } = fakeRenderer()
+    const surface = createOverlaySurface(host, () => asThree)
+
+    surface.alignTo(mapCanvas)
+
+    expect(surface.canvas.style.width).toBe('')
+    expect(surface.canvas.style.height).toBe('')
+  })
+})
+
 describe('dispose (specs/087 FR-009, SC-005)', () => {
   it('releases the context, disposes the renderer and removes the canvas once', () => {
     const host = container()

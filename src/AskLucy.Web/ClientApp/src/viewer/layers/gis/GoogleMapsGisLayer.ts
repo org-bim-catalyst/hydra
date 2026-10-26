@@ -91,6 +91,12 @@ export interface GoogleMapsGisLayerHandle {
   currentLocationMarkerId: string
   /** US5 (FR-018): visually distinguishes the marker as selected/unselected. */
   setMarkerHighlighted(highlighted: boolean): void
+  /** Moves the current-location marker to the active location. The marker is planted once when
+   * the map is created, and the active location can be confirmed afterwards — without this the
+   * pin stayed at wherever the map first opened while everything positioned from the scene anchor
+   * followed the site (found live 2026-10-26: the solar dome's dial was being read against a pin
+   * kilometres from the outline it was meant to sit on). */
+  setMarkerPosition(latitude: number, longitude: number): void
   /** specs/042-site-boundary-resolution: shows/updates/clears the animated site-boundary highlight. Pass `null` to remove it. */
   /**
    * `additionalRings` (specs/077) are the site's outlines that do not touch the exterior ring —
@@ -431,6 +437,10 @@ export async function createGoogleMapsGisLayer(
     try {
       overlaySurface = createOverlaySurface(options.container)
       overlaySurface.resize(gl.canvas.width, gl.canvas.height)
+      // The map's canvas is not guaranteed to fill the container (measured 1592×868 inside a
+      // 1600×872 container), and the overlay is composited against the container, so its box is
+      // taken from the map canvas itself rather than assumed.
+      overlaySurface.alignTo(gl.canvas)
       drawingSpaceRegistry.bindOverlay(overlayScene)
     } catch (error) {
       disposeOverlaySurface()
@@ -448,6 +458,7 @@ export async function createGoogleMapsGisLayer(
       // specs/087 — the dome's surface is a separate canvas, so it needs the same resize (both
       // renderers run at pixel ratio 1, so the map's device pixels are the exact buffer size).
       overlaySurface?.resize(gl.canvas.width, gl.canvas.height)
+      overlaySurface?.alignTo(gl.canvas)
       lastCanvasWidth = gl.canvas.width
       lastCanvasHeight = gl.canvas.height
     }
@@ -628,6 +639,9 @@ export async function createGoogleMapsGisLayer(
     setMarkerHighlighted: (highlighted) => {
       pin.background = highlighted ? '#FBBC04' : '#4285F4'
       pin.scale = highlighted ? 1.3 : 1
+    },
+    setMarkerPosition: (latitude, longitude) => {
+      marker.position = { lat: latitude, lng: longitude }
     },
     setSiteBoundary: (input) => {
       if (!input) {

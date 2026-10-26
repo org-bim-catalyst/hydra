@@ -20,6 +20,7 @@ function fakeHandle(): GoogleMapsGisLayerHandle {
   setCamera: vi.fn(),
     setMapTypeId: vi.fn(),
     setMarkerHighlighted: vi.fn(),
+    setMarkerPosition: vi.fn(),
     setSiteBoundary: vi.fn(),
     advanceSiteBoundaryAnimation: vi.fn(),
     setOutlineVisible: vi.fn(),

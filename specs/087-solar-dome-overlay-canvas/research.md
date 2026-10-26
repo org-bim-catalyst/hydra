@@ -86,25 +86,35 @@ the pose" explicit and testable instead of an accident of construction defaults.
 
 ## D4 — Sizing, pixel ratio and pointer input
 
-**Decision**: the canvas is `position: absolute; inset: 0; pointer-events: none` with a z-index
-above the map's canvas, appended to the same container the map is constructed in. Its drawing
-buffer is resized to the map canvas's `width`/`height` (device pixels) in the same block of
-`onDraw` that already tracks `lastCanvasWidth`/`lastCanvasHeight`; `setPixelRatio(1)` and
-`setSize(width, height, false)` mirror the interleaved renderer.
+**Decision**: the canvas is `position: absolute; pointer-events: none` with a z-index above the
+map's canvas, appended to the same container the map is constructed in. Its drawing buffer is
+resized to the map canvas's `width`/`height` (device pixels) in the same block of `onDraw` that
+already tracks `lastCanvasWidth`/`lastCanvasHeight`; `setPixelRatio(1)` and
+`setSize(width, height, false)` mirror the interleaved renderer. Its **CSS box is copied from the
+map canvas itself** (`alignTo`, reading both rects relative to the container) at the same moments,
+rather than being assumed to equal the container's.
 
-**Rationale**: the map container is the full-size positioned element (`position:absolute; inset:0`
-in `MapRenderTarget`), and Maps sizes its own canvas to that box. `inset: 0` therefore matches the
-map canvas's CSS box without reading or copying styles that Maps owns, and it follows container
-resizes for free. Device pixels follow the map canvas because the interleaved path already
-derives them from `gl.canvas.width/height`. The `false` third argument keeps Three from writing
-CSS size onto a canvas whose CSS box is owned by the positioning rule.
+**Rationale**: Device pixels follow the map canvas because the interleaved path already derives
+them from `gl.canvas.width/height`. The `false` third argument keeps Three from writing CSS size
+onto a canvas whose CSS box is this rule's.
+
+**Corrected live (2026-10-26)**: the original decision used `inset: 0`, on the assumption that
+"Maps sizes its own canvas to that box". A field measurement disproved it on one machine: the map
+canvas was 1592×868 inside a 1600×872 container at dpr 2. The projection matrix is the map
+canvas's, so the overlay image was rendered correctly but composited into a 0.5 % larger box —
+the dome drifted against the map whenever the camera moved, by up to 8 px at the far edge. This
+is exactly the registration check T022 asks a human to run, and it is why the box is now read
+from the map canvas instead of inferred from the container.
 
 **Alternatives considered**:
 
 - *Cloning the map canvas's inline `width`/`height` styles.* Rejected: Maps owns those; copying
   them creates two writers for the same box.
-- *ResizeObserver on the container.* Rejected: the bridge already has a per-draw size check that
-  costs two integer comparisons; a second observation mechanism is redundant.
+- *Keeping `inset: 0` and ignoring the difference.* Rejected once measured: 0.5 % is small on
+  screen but it is the one surface whose whole job is to register with the map.
+- *ResizeObserver on the container.* Still rejected: the map's drawing buffer changes whenever its
+  CSS box does (`width`/`height` = CSS size × pixel ratio), so the existing per-draw size check
+  fires on exactly the resize this alignment needs to follow.
 - *`pointer-events: auto` on the canvas.* Rejected: the dome is not interactive; the map must keep
   every gesture.
 

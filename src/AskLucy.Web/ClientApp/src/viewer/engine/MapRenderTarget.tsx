@@ -108,6 +108,7 @@ export function MapRenderTarget({ viewerEngine, layerId, center, zoom, onError }
     let rotationDriver: RotationDriver | undefined
     let unregister: (() => void) | undefined
     let unsubscribeStore: (() => void) | undefined
+    let unsubscribeLocation: (() => void) | undefined
     let reducedQuality = false
     let cancelled = false
     let creationMapStyle: MapStyleId | undefined
@@ -151,11 +152,21 @@ export function MapRenderTarget({ viewerEngine, layerId, center, zoom, onError }
         // deliberately doesn't re-run on a style change, so the store is the only reliable
         // source for "the style the map is being built at".
         creationMapStyle = useViewerEngineStore.getState().mapStyle
+        // The `center` prop is the value captured by the render that scheduled this effect, and
+        // this effect does not re-run on a location change. A site confirmed while the Maps chunk
+        // was still importing would therefore plant the marker — and seed the scene anchor — at
+        // the place the map happened to open rather than at the site (found live 2026-10-26: the
+        // dome's dial sat kilometres from the outline it belongs to). Read the live store instead.
+        const liveLocation = useActiveLocationStore.getState()
+        const centerAtCreation =
+          liveLocation.latitude !== null && liveLocation.longitude !== null
+            ? { latitude: liveLocation.latitude, longitude: liveLocation.longitude }
+            : center
         handle = await createGoogleMapsGisLayer({
           apiKey,
           mapId: effectiveMapId,
           container,
-          center,
+          center: centerAtCreation,
           mapStyle: creationMapStyle,
           cameraStart: viewerSession.camera ?? undefined,
           zoom: viewerSession.camera?.zoom ?? zoom,
@@ -186,6 +197,18 @@ export function MapRenderTarget({ viewerEngine, layerId, center, zoom, onError }
       // specs/042-site-boundary-resolution: expose the full handle so SiteBoundaryOverlay can
       // call setSiteBoundary() without knowing about MapRenderTarget's internals.
       useGoogleMapsStore.getState().setHandle(handle)
+
+      // The marker marks a place in the world, not wherever the map first opened: the active
+      // location changes whenever Lucy confirms a site, and a pin left behind claims "you are
+      // here" about a place the user merely started from (found live 2026-10-26 — the solar
+      // dome's dial was being measured against exactly such a stale pin). The scene anchor
+      // follows the same store through viewer/session/anchorFollowsActiveLocation.
+      const createdHandle = handle
+      unsubscribeLocation = useActiveLocationStore.subscribe((state, previous) => {
+        if (state.latitude === null || state.longitude === null) return
+        if (state.latitude === previous.latitude && state.longitude === previous.longitude) return
+        createdHandle.setMarkerPosition(state.latitude, state.longitude)
+      })
 
       // specs/051 research D3a/D3 — routes DrawingSpaceRegistry's onFrame-containment failures
       // and rendererState's requirement conflicts to the real viewer event bus. GoogleMapsGisLayer.ts
@@ -359,6 +382,7 @@ export function MapRenderTarget({ viewerEngine, layerId, center, zoom, onError }
       unregister = () => {
         unregisterRenderTarget()
         unregisterSelectable()
+        unsubscribeLocation?.()
         container.removeEventListener('wheel', releaseGuard)
         window.removeEventListener('pagehide', onPageHide)
         document.removeEventListener('visibilitychange', onVisibilityChange)
