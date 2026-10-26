@@ -204,7 +204,11 @@ render into, and viewer-owned redraw scheduling. See
 `specs/051-viewer-scene-content-api/` for the full spec, plan, research, data model and contracts.
 
 - `scene/SceneAnchor.ts` — the one published `ReferencePoint` (FR-008). No capability sets it
-  directly; it is set once, by the engine, when the first content loads.
+  directly; it seeds from the live active location when the first content loads and then follows
+  that location (`session/anchorFollowsActiveLocation.ts`), so a site Lucy confirms moves it —
+  amended 2026-09-14, and re-seeded from the live store rather than a captured `center` on
+  2026-10-26 (see specs/051 research D2). The current-location marker follows the same store
+  (`setMarkerPosition`), so the pin and the point never disagree.
 - `api/coordinateFrame.ts` — `worldToLocal`/`localToWorld`, the one published conversion between
   real-world coordinates and the viewer's local positioning space. **ENU convention: X = East,
   Y = North, Z = Up** — stated once here, referenced everywhere else. Maps directly onto this

@@ -82,12 +82,15 @@ interface ReferencePoint {
 }
 ```
 
-Only the viewer sets this: the engine on first content load, and the viewer again whenever the
-active location changes (`viewer/session/anchorFollowsActiveLocation.ts` — amended 2026-09-14, see
-research D2). No capability ever sets it, and there is still exactly one at a time (spec Out of
-Scope excludes multiple simultaneous reference points). Read via `engine.getReferencePoint()`;
-consumed internally by `worldToLocal`/`localToWorld` (below). `subscribe(listener)` and `version`
-let content positioned from it re-position when it moves; setting the same point notifies nobody.
+Only the viewer sets this: the engine when first content loads and nothing has set the point yet,
+and the viewer again whenever the active location changes
+(`viewer/session/anchorFollowsActiveLocation.ts` — amended 2026-09-14, see research D2). That
+fallback is seeded from the live active location, never from a `center` captured earlier in the
+session (amended 2026-10-26, see research D2). No capability ever sets it, and there is still
+exactly one at a time (spec Out of Scope excludes multiple simultaneous reference points). Read via
+`engine.getReferencePoint()`; consumed internally by `worldToLocal`/`localToWorld` (below).
+`subscribe(listener)` and `version` let content positioned from it re-position when it moves;
+setting the same point notifies nobody.
 
 ## Local Positioning Space (ENU)
 

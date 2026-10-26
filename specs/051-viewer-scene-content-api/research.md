@@ -104,6 +104,21 @@ still holds.
   implementation detail of the current map-bridge approach into every capability's mental model,
   and would need re-deriving if the render-target implementation ever changes.
 
+**Amendment 2026-10-26 — the reference point's fallback and the location marker are seeded from
+the live active location.** Both were taken from the `center` captured by the render that scheduled
+`MapRenderTarget`'s effect, and that effect deliberately does not re-run on a location change. A
+site confirmed while the Maps chunk was still importing therefore planted the pin — and, when
+nothing had set the point yet, the point itself — at the place the map opened rather than at the
+site. Found live: the solar dome's dial sat on that stale pin, kilometres from the outline it
+belongs to. The dome is the *only* content whose ground position is the reference point itself;
+building massing and the boundary ring are built from their own coordinates relative to it, so
+they landed correctly and only the dome looked wrong — an asymmetry worth remembering when
+diagnosing the next report of "the dome is in the wrong place". Now `MapRenderTarget` builds the
+map at `useActiveLocationStore.getState()`'s location, the point moves only through
+`anchorFollowsActiveLocation` as above, and `GoogleMapsGisLayerHandle.setMarkerPosition` follows
+the same store on every change: a pin left behind claims "you are here" about a place the user
+merely started from.
+
 ---
 
 ## D3 — Drawing spaces and isolation (FR-014–FR-018)

@@ -19,7 +19,9 @@ export interface GoogleMapsGisLayerOptions {
   apiKey: string
   container: HTMLElement
   /** The active location — where the current-location marker is planted and the scene anchor
-   * falls back to. Not necessarily where the camera opens: see `cameraStart`. */
+   * falls back to. Not necessarily where the camera opens: see `cameraStart`. Callers must pass
+   * the location live at creation, not one captured earlier in the session; the marker is moved
+   * afterwards through `setMarkerPosition` as the store changes. */
   center: { latitude: number; longitude: number }
   /** Where the camera opens, when that differs from `center`. `MapRenderTarget` passes the
    * previous map's live position here so a recreation (theme toggle, Map ID change, returning to
