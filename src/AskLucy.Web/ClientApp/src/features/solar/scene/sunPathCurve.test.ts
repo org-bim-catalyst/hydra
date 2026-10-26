@@ -434,7 +434,9 @@ describe('Repeated changes accumulate nothing in either disposal scope (T041, FR
     scene.disposeAll()
     expect(scene.sunPathFixedGroup.children.length).toBe(0)
     expect(scene.sunPathDatedGroup.children.length).toBe(0)
-  })
+    // Same reason as the fifty-cycle case below: since specs/086 every rebuild also draws the 24
+    // hour curves (8,760 samples), and the forty-odd rebuilds here run past vitest's 5 s default.
+  }, 30_000)
 
   // specs/086 — each cycle now builds the 24 hour curves (8,760 samples) as well as the lattice,
   // so fifty of them exceeds vitest's 5 s default. The assertion is unchanged: nothing accumulates.
