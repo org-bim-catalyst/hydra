@@ -92,4 +92,8 @@ export const arNotifications = {
     label: 'اللغة',
     changeFailed: 'تعذّر تغيير اللغة. {detail}',
   },
+  session: {
+    signOutFailed:
+      'تم تسجيل خروجك هنا، لكن تعذّر الوصول إلى Ask Lucy لإنهاء الجلسة على الخادم. ستنتهي الجلسة تلقائيًا عند انتهاء صلاحيتها.',
+  },
 } satisfies MessagesOf<typeof enNotifications>

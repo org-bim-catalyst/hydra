@@ -55,7 +55,9 @@ export function UserMenu({ renderTrigger }: UserMenuProps) {
 
   const handleLogout = () => {
     setAnchorEl(null)
-    logout.mutate(undefined, { onSuccess: () => navigate('/', { replace: true }) })
+    // `onSettled`, not `onSuccess`: the local session is cleared whatever the server answers, so a
+    // failed or refused logout must still take the user off the page (`LogoutErrorToast` reports it).
+    logout.mutate(undefined, { onSettled: () => navigate('/', { replace: true }) })
   }
 
   const hoverTint = (t: Theme, color: string) => alpha(color, t.palette.mode === 'dark' ? 0.16 : 0.08)

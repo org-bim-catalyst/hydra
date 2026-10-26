@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { render, screen } from '@testing-library/react'
+import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { http, HttpResponse } from 'msw'
 import { setupServer } from 'msw/node'
@@ -21,7 +21,11 @@ afterAll(() => server.close())
 
 function LocationProbe() {
   const location = useLocation()
-  return <div data-testid="location">{`${location.pathname}${JSON.stringify(location.state)}`}</div>
+  return (
+    <div data-testid="location" data-pathname={location.pathname}>
+      {`${location.pathname}${JSON.stringify(location.state)}`}
+    </div>
+  )
 }
 
 function renderMenu() {
@@ -97,5 +101,19 @@ describe('UserMenu (specs/025-chat-configuration-settings FR-011)', () => {
 
     expect(await screen.findByText('Lucy Ali')).toBeInTheDocument()
     expect(screen.getByText('lucy@example.com')).toBeInTheDocument()
+  })
+
+  // The reported bug — signing out from Account settings left the page open under a header that
+  // already said "Sign in". The local session is cleared either way, so the navigation must not
+  // wait on the server answering.
+  it('leaves the app even when the logout request fails', async () => {
+    server.use(http.post('*/api/v1/auth/logout', () => HttpResponse.json({ title: 'boom' }, { status: 500 })))
+    const user = userEvent.setup()
+    renderMenu()
+
+    await user.click(screen.getByRole('button', { name: 'Account menu' }))
+    await user.click(await screen.findByText('Log out'))
+
+    await waitFor(() => expect(screen.getByTestId('location').dataset.pathname).toBe('/'))
   })
 })

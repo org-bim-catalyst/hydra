@@ -88,4 +88,8 @@ export const enNotifications = {
     label: 'Language',
     changeFailed: "Couldn't change the language. {detail}",
   },
+  session: {
+    signOutFailed:
+      "You're signed out here, but we couldn't reach Ask Lucy to end the session on the server. It will end by itself when it expires.",
+  },
 } satisfies MessageTree

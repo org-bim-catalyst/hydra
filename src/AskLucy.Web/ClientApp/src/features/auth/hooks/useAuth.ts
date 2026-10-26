@@ -104,12 +104,17 @@ export function useRequestAccountSupport() {
   })
 }
 
+export const LOGOUT_MUTATION_KEY = ['auth', 'logout'] as const
+
 export function useLogout() {
   const clear = useAuthStore((s) => s.clear)
   const queryClient = useQueryClient()
 
   return useMutation({
+    mutationKey: LOGOUT_MUTATION_KEY,
     mutationFn: () => authApi.logout(),
+    // Settling, not succeeding: signing out is a local act. A server that refuses or never receives
+    // the logout must not leave the user inside an app they have already been cleared out of.
     onSettled: () => {
       clear()
       // Everything the signed-in account left behind goes too, so the next account starts from nothing: the
@@ -117,14 +122,30 @@ export function useLogout() {
       // site outline on the map, and every cached query (chats, messages, boundaries, profile).
       useActiveConversationStore.getState().setActiveChatId(null)
       useActiveSiteBoundaryStore.getState().clearBoundary()
-      queryClient.clear()
-      // Set the cache synchronously rather than only invalidating — invalidateQueries schedules
+      // Set the session synchronously rather than only invalidating — invalidateQueries schedules
       // a background refetch, leaving `data` at its stale "authenticated: true" value for that
       // request's round trip. In that window ProtectedRoute still renders ConsentGate (reading
       // this same query), which fires its own now-unauthorized request and surfaces its "Couldn't
       // load your cookie preferences" error — even though the URL has already changed to /login.
+      //
+      // Order matters: the session entry is updated while the mounted guards still hold the live
+      // query, and only then is the rest of the cache evicted. `queryClient.clear()` here would take
+      // the session query away too, and a mounted ProtectedRoute keeps reading the removed query
+      // object — still "authenticated: true" — so nothing redirects and the sign-out leaves the page
+      // open under a header that already says "Sign in".
       queryClient.setQueryData(SESSION_QUERY_KEY, LOGGED_OUT_SESSION)
-      void queryClient.invalidateQueries({ queryKey: SESSION_QUERY_KEY })
+      const sessionQuery = queryClient.getQueryCache().find({ queryKey: SESSION_QUERY_KEY })
+      queryClient.removeQueries({ predicate: (query) => query !== sessionQuery })
+      // The mutation cache used to go with `clear()`; keep the account's other attempts (and the
+      // variables they carry) out of the next session's keyed toasts, except the sign-out itself —
+      // `LogoutErrorToast` reads this one to report a logout the server refused.
+      const signOuts = new Set(queryClient.getMutationCache().findAll({ mutationKey: LOGOUT_MUTATION_KEY }))
+      for (const mutation of queryClient.getMutationCache().getAll()) {
+        if (!signOuts.has(mutation)) queryClient.getMutationCache().remove(mutation)
+      }
+      // Deliberately not refetched: a logout the server refused or never received leaves the refresh
+      // cookie valid, so a refetch would answer "authenticated: true" and pull the user back into the
+      // page they just signed out of. The local session is gone either way.
     },
   })
 }
