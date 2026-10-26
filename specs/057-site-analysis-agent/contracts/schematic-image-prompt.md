@@ -2,6 +2,13 @@
 
 **Spec**: SPEC-057 | **Requirements**: FR-028, FR-029, FR-030
 
+> **Superseded (2026-10-25) — [SPEC-090](../../090-real-map-capture/spec.md).** The site-map specialist no
+> longer generates an image. It shows the platform's **real map capture** of the analysed site (SPEC-083),
+> persisted as a platform Document, and reports High confidence because the image directly describes the site.
+> Generation was replaced, not supplemented: there is no generated fallback, and the prompt constant was removed
+> from the code. This document is retained as the historical record of the generated-image contract.
+> **Replacement**: [site-map-capture-tool.md](../../090-real-map-capture/contracts/site-map-capture-tool.md).
+
 A versioned prompt artifact. Per constitution §9, prompts are reviewed like code and MUST NOT live as inline
 string literals in a handler. The specialist loads this template and substitutes its placeholders; changing the
 wording is an edit to this file, reviewed in its own right.
@@ -11,6 +18,7 @@ wording is an edit to this file, reviewed in its own right.
 | Version | Date | Change |
 |---|---|---|
 | 1 | 2026-09-17 | Initial. Authored from the project brief. |
+| 2 | 2026-10-25 | Superseded by SPEC-090 — the finding shows a real map capture, and no image is generated. |
 
 ## Placeholders
 

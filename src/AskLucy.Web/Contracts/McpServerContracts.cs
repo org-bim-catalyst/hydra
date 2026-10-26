@@ -1,4 +1,5 @@
 using AskLucy.Domain.Agents;
+using AskLucy.Domain.Common;
 using AskLucy.Domain.Mcp;
 
 namespace AskLucy.Web.Contracts;

@@ -1,4 +1,5 @@
 using AskLucy.Domain.Agents;
+using AskLucy.Domain.Common;
 using AskLucy.Domain.Mcp;
 using FluentAssertions;
 using Xunit;
@@ -14,7 +15,7 @@ public sealed class McpToolTests
 
     private static McpTool DiscoverTool(AgentToolRiskLevel? serverDeclaredRiskLevel = null) => McpTool.CreateFromDiscovery(
         ServerId, SnapshotId, "search", "Search", "Searches things.", "{}", "{}", null,
-        serverDeclaredRiskLevel, "[]", version: "1", carriedForwardActivation: null);
+        serverDeclaredRiskLevel, "[]", version: "1");
 
     [Fact]
     public void CreateFromDiscovery_ShouldStartPendingReview()
@@ -74,17 +75,60 @@ public sealed class McpToolTests
         tool.EffectiveRiskLevel.Should().Be(AgentToolRiskLevel.High);
     }
 
+    /// <summary>
+    /// A routine refresh re-points the same row at the new snapshot — it never creates a second one,
+    /// because NamespacedName is stable across discoveries and unique in the database.
+    /// </summary>
     [Fact]
-    public void CreateFromDiscovery_ShouldCarryForwardActivation_WhenProvided()
+    public void RefreshFromSnapshot_ShouldCarryAnUnchangedToolsReviewForward()
     {
-        var activatedAt = DateTime.UtcNow.AddDays(-1);
-        var tool = McpTool.CreateFromDiscovery(
-            ServerId, SnapshotId, "search", "Search", "desc", "{}", "{}", null, AgentToolRiskLevel.Low, "[]", "1",
-            carriedForwardActivation: (McpToolActivationStatus.Active, Actor, activatedAt));
+        var tool = DiscoverTool(serverDeclaredRiskLevel: AgentToolRiskLevel.Low);
+        tool.Activate(Actor, effectiveRiskLevelOverride: AgentToolRiskLevel.Medium, requiredPermissionsJsonOverride: "[\"ReadExternalData\"]");
+        var activatedAt = tool.ActivatedAtUtc;
+        var newSnapshotId = Guid.NewGuid();
 
+        tool.RefreshFromSnapshot(newSnapshotId, "Search v2", "New description.", "{\"x\":1}", "{}", null, "2", definitionChanged: false, Actor);
+
+        tool.McpCapabilitySnapshotId.Should().Be(newSnapshotId);
+        tool.DisplayName.Should().Be("Search v2");
+        tool.InputSchemaJson.Should().Be("{\"x\":1}");
+        tool.Version.Should().Be("2");
         tool.ActivationStatus.Should().Be(McpToolActivationStatus.Active);
         tool.ActivatedByUserId.Should().Be(Actor);
         tool.ActivatedAtUtc.Should().Be(activatedAt);
+        tool.EffectiveRiskLevel.Should().Be(AgentToolRiskLevel.Medium);
+        tool.RequiredPermissionsJson.Should().Be("[\"ReadExternalData\"]");
+    }
+
+    /// <summary>
+    /// FR-022's re-review rule: a changed definition invalidates the administrator's review, so the
+    /// tool returns to PendingReview with the most restrictive classification and no permissions.
+    /// </summary>
+    [Fact]
+    public void RefreshFromSnapshot_ShouldReturnToPendingReview_WhenTheDefinitionChanged()
+    {
+        var tool = DiscoverTool();
+        tool.Activate(Actor, effectiveRiskLevelOverride: AgentToolRiskLevel.Low, requiredPermissionsJsonOverride: "[\"ExternalNetwork\"]");
+
+        tool.RefreshFromSnapshot(Guid.NewGuid(), "Search", "Searches things.", "{\"x\":1}", "{}", null, "2", definitionChanged: true, Actor);
+
+        tool.ActivationStatus.Should().Be(McpToolActivationStatus.PendingReview);
+        tool.ActivatedByUserId.Should().BeNull();
+        tool.ActivatedAtUtc.Should().BeNull();
+        tool.EffectiveRiskLevel.Should().Be(AgentToolRiskLevel.Critical);
+        tool.RequiredPermissionsJson.Should().Be("[]");
+    }
+
+    /// <summary>A tool that reappears after being marked removed must become usable again.</summary>
+    [Fact]
+    public void RefreshFromSnapshot_ShouldRestoreAvailability()
+    {
+        var tool = DiscoverTool();
+        tool.MarkUnavailable();
+
+        tool.RefreshFromSnapshot(Guid.NewGuid(), "Search", "Searches things.", "{}", "{}", null, "1", definitionChanged: false, Actor);
+
+        tool.IsAvailable.Should().BeTrue();
     }
 
     [Fact]

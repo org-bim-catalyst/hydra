@@ -8,6 +8,7 @@ using AskLucy.Application.MapCaptures;
 using AskLucy.Application.Notifications.Abstractions;
 using AskLucy.Application.OperationalFailures.Abstractions;
 using AskLucy.Application.Options;
+using AskLucy.Application.SiteAnalysis.Providers;
 using AskLucy.Application.SiteBoundaries;
 using AskLucy.Domain.Notifications;
 using AskLucy.Infrastructure.Agents;
@@ -48,6 +49,7 @@ using AskLucy.Infrastructure.Retrieval.Chunking;
 using AskLucy.Infrastructure.Retrieval.Embeddings;
 using AskLucy.Infrastructure.Retrieval.VectorStores;
 using AskLucy.Infrastructure.SiteAnalysis;
+using AskLucy.Infrastructure.SiteAnalysis.Providers;
 using AskLucy.Infrastructure.Weather;
 using AskLucy.Infrastructure.Workflows;
 using Hangfire;
@@ -583,6 +585,14 @@ public static class DependencyInjection
         // its own hub because chat itself streams over SSE per turn, not SignalR. SiteAnalysisHub/
         // SiteAnalysisNotifier live here for the same reason PanelHub/PanelNotifier do.
         services.AddScoped<ISiteAnalysisNotifier, SiteAnalysisNotifier>();
+
+        // specs/088-environmental-context-specialist FR-017/FR-018 — the environmental data seams'
+        // first implementations. They carry no data: each reports *unavailable* with a reason, which
+        // is the honest statement that no source is configured. They are registered because a
+        // specialist now consumes them, and an unresolvable dependency in an IAgentTool breaks the
+        // whole AgentToolCatalog. A licensed source replaces these two lines; no calling code changes.
+        services.AddScoped<IFloodDataProvider, UnavailableFloodDataProvider>();
+        services.AddScoped<IClimateDataProvider, UnavailableClimateDataProvider>();
         services.AddScoped<IRemoteFileDownloader>(sp =>
             new RemoteFileDownloader(sp.GetRequiredService<IHttpClientFactory>(), "SiteAnalysisImageDownload"));
 

@@ -2,14 +2,6 @@ using AskLucy.Domain.Common;
 
 namespace AskLucy.Domain.Agents;
 
-public enum AgentToolRiskLevel
-{
-    Low,
-    Medium,
-    High,
-    Critical,
-}
-
 /// <summary>A specific tool invocation within a step (spec.md FR-020/FR-021, data-model.md, contracts/agent-tool-contract.md).</summary>
 public sealed class AgentToolCall : BaseEntity
 {

@@ -57,6 +57,28 @@ public sealed class McpResource : BaseEntity
         };
     }
 
+    /// <summary>
+    /// Re-points an already-discovered resource at the latest snapshot and refreshes the metadata
+    /// its server may have changed. A refresh mutates the existing row rather than inserting a new
+    /// one: <see cref="NamespacedName"/> is <c>mcp:{serverId}:{uri}</c>, identical on every
+    /// discovery, and <c>McpResources.NamespacedName</c> carries an unfiltered unique index — a
+    /// per-snapshot insert therefore collides with the row it is meant to replace.
+    /// </summary>
+    public void RefreshFromSnapshot(
+        Guid mcpCapabilitySnapshotId, string name, string? description, string? contentType)
+    {
+        McpCapabilitySnapshotId = mcpCapabilitySnapshotId;
+        Name = name;
+        Description = description;
+        ContentType = contentType;
+
+        // A resource that reappears after being marked removed is available again.
+        IsAvailable = true;
+
+        ModifiedAtUtc = DateTime.UtcNow;
+        ModifiedBy = "system";
+    }
+
     public void MarkUnavailable()
     {
         IsAvailable = false;

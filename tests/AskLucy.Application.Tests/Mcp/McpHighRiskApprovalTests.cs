@@ -10,6 +10,7 @@ using AskLucy.Application.Options;
 using AskLucy.Application.Tests.Mcp.Fixtures;
 using AskLucy.Domain.Agents;
 using AskLucy.Domain.Ai;
+using AskLucy.Domain.Common;
 using AskLucy.Domain.Mcp;
 using FluentAssertions;
 using NSubstitute;

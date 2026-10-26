@@ -23,7 +23,7 @@ public sealed class McpApprovalServerDisplayTests
     public void Description_ShouldIncludeTheSourceServersName()
     {
         var tool = McpTool.CreateFromDiscovery(
-            Guid.NewGuid(), Guid.NewGuid(), "deleteRecord", "Delete Record", "Deletes a record.", "{}", "{}", null, null, "[]", null, null);
+            Guid.NewGuid(), Guid.NewGuid(), "deleteRecord", "Delete Record", "Deletes a record.", "{}", "{}", null, null, "[]", null);
         var adapter = new McpToolAdapter(
             tool, "Acme Docs", Substitute.For<IMcpClientFactory>(), Substitute.For<IMcpRateLimiter>(), Substitute.For<IJsonSchemaValidator>(),
             new McpConnectionResiliencePolicy(Microsoft.Extensions.Options.Options.Create(new McpRuntimeOptions()), Substitute.For<ILogger<McpConnectionResiliencePolicy>>()),

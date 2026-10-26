@@ -128,6 +128,10 @@ public sealed class CaptureMapQueryHandler(
         CaptureMapLog.CaptureCompleted(
             logger, request.CallerName, locationName, stopwatch.ElapsedMilliseconds, result.IsSuccess);
 
-        return result.IsSuccess ? result with { ResolvedLocation = locationName } : result;
+        // The bound source is reported back so a caller that named none — and therefore cannot
+        // know which provider answered — can name it in provenance (specs/090 FR-017).
+        return result.IsSuccess
+            ? result with { ResolvedLocation = locationName, Source = source }
+            : result;
     }
 }

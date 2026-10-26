@@ -240,6 +240,12 @@ declaration. `PERSISTENCE_TESTS_CONNECTION_STRING` no longer affects this suite 
 
 ## Two test databases: which suite uses which
 
+> **Do not report these variables as "missing".** Both are **GitHub Actions secrets**
+> (`.github/workflows/ci.yml`), injected into CI jobs only — a local shell never inherits them, so
+> an empty `$PERSISTENCE_TESTS_CONNECTION_STRING` / `$PERSISTENCE_TESTS_2_CONNECTION_STRING` is
+> normal. Derive both from `src/AskLucy.Web/appsettings.Development.json` with the commands below
+> before running the suites, and never print either value.
+
 | Database | Used by | May be wiped? | Environment variable / CI secret | Local connection string |
 |---|---|---|---|---|
 | `db_a15752_asklucytest` (shared test DB) | `AskLucy.Web.Tests`, local dev server, every test except Persistence | **No** | `PERSISTENCE_TESTS_CONNECTION_STRING` | `ConnectionStrings:DefaultConnection` in `src/AskLucy.Web/appsettings.Development.json` |

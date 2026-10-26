@@ -4,6 +4,7 @@ using AskLucy.Application.Agents.Tools;
 using AskLucy.Application.Chats.Authorization;
 using AskLucy.Application.SiteBoundaries;
 using AskLucy.Domain.Agents;
+using AskLucy.Domain.Common;
 
 namespace AskLucy.Application.Conversations.Capabilities;
 

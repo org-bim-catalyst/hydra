@@ -329,9 +329,10 @@ public sealed class SubAgentDelegator(
         var narration = await narrator.NarrateAsync(sliceRequest, capability, result, nextStepLabel: null, cancellationToken);
         await writer.WriteAsync(new ChatStreamChunk(narration, null), cancellationToken);
 
-        if (result.Succeeded)
+        // Same rule as the flow and slice paths: a failed capability may still move the viewer.
+        if (result.ViewerPayloadJson is { } viewerJson)
         {
-            var structured = StructuredPayloadExtractor.TryExtract(capability.Name, result.ResultJson);
+            var structured = StructuredPayloadExtractor.TryExtract(capability.Name, viewerJson);
             if (structured is not null)
             {
                 await writer.WriteAsync(structured, cancellationToken);

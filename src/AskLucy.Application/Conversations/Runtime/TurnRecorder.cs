@@ -1,5 +1,6 @@
 using AskLucy.Application.Abstractions;
 using AskLucy.Domain.Agents;
+using AskLucy.Domain.Common;
 using Microsoft.Extensions.Logging;
 
 namespace AskLucy.Application.Conversations.Runtime;

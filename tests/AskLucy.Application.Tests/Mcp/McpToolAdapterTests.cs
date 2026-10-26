@@ -20,7 +20,7 @@ public sealed class McpToolAdapterTests
     private readonly IMcpClient _client = Substitute.For<IMcpClient>();
 
     private static McpTool CreateTool(string outputSchemaJson = "{}") => McpTool.CreateFromDiscovery(
-        Guid.NewGuid(), Guid.NewGuid(), "search", "Search", "Searches things.", "{}", outputSchemaJson, null, null, "[]", null, null);
+        Guid.NewGuid(), Guid.NewGuid(), "search", "Search", "Searches things.", "{}", outputSchemaJson, null, null, "[]", null);
 
     private McpToolAdapter CreateAdapter(McpTool tool, int maxCallDurationSeconds = 30) => new(
         tool, "Test Server", _clientFactory, _rateLimiter, _schemaValidator,

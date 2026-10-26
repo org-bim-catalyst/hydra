@@ -1532,9 +1532,11 @@ across every user. `SystemWorkflowProvisioner`/`SystemWorkflowProvisioningHosted
 that workflow at startup, mirroring `SystemAgentProvisioner` (§30) including its
 defer-on-pending-migrations behavior. Each specialist is a plain `IAgentTool` behind a `NativeTool`
 node (never `AiAgent` — that node type resolves agents by owner and cannot find a system-owned
-one, and discards the triggering chat id); adding a further specialist (Site Geometry, Urban
-Context, Connectivity & Access, Environmental Context, Character Analysis — all deferred) is one
-provisioner branch entry plus one tool class, no orchestration change.
+one, and discards the triggering chat id); adding a further specialist is one entry in the shared
+`SiteAnalysisSpecialists` declaration plus one tool class — no orchestration change. That
+declaration also supplies the analysis's expected-result count, so a new branch can never be
+dispatched without being counted: a hand-maintained count would close the analysis after the first
+finding and reject the rest as arriving at a finished analysis.
 
 **The relay, not the workflow engine, delivers findings.** `WorkflowExecutionOrchestrator`
 batches a Parallel node's branch-completion notifications until every branch settles — riding
@@ -1566,20 +1568,42 @@ type, data source, a rule-based `SiteAnalysisConfidenceLevel` (High/Medium/Low, 
 `SiteAnalysisConfidence.ResolveConfidence` from plain grounding facts), and generation time —
 composed into a trailing `keyValue` block by `SiteAnalysisContentComposer`. Confidence is never
 derived from `GeocodingCandidate.Importance`: Google and Nominatim populate that field on
-incompatible scales, a divergence that already caused a production defect once. Three stub
-provider interfaces (`IZoningDataProvider`/`IFloodDataProvider`/`IClimateDataProvider`) exist with
-no implementation — OpenStreetMap, the only geospatial source integrated today, has none of floor
-area ratio, flood modelling, or wind/climate data; a deferred specialist reports "unavailable" with
-a reason rather than presenting an estimate as measured.
+incompatible scales, a divergence that already caused a production defect once. The three provider
+interfaces (`IZoningDataProvider`/`IFloodDataProvider`/`IClimateDataProvider`) are the seam for
+figures OpenStreetMap, the only geospatial source integrated today, cannot supply. `IZoningDataProvider`
+still has no implementation; the other two now have one deliberately empty implementation each
+(`Infrastructure/SiteAnalysis/Providers`) that reports *unavailable* with a reason. They are
+registered because the environmental specialist consumes them — an unresolved dependency in an
+`IAgentTool` breaks the whole tool catalog — and they carry no data: a licensed source replaces
+those two registrations, and no specialist changes.
 
 **No new content vocabulary.** Findings compose entirely from the existing panel content-block
 vocabulary (heading/text/keyValue/image) — the same envelope `PresentPanelContentCapability`
-already produces. The one specialist in this release, `SiteSchematicImageGenerationTool`, generates
-through the platform-wide `IImageGenerationService` and persists the result through the existing
-`DocumentUploadFinalizer` — only a platform `Document` id ever reaches an `ImageBlock`.
+already produces. Two specialists ship. `SiteSchematicImageGenerationTool` no longer generates:
+since specs/090 it shows the platform's **real map capture** of the analysed site, obtained
+in-process through SPEC-083's `CaptureMapQuery` (never the HTTP endpoint, its service-key
+authentication or its rate-limit bucket) and centred on the coordinates frozen on the
+`SiteAnalysis` record — never the site name, which would geocode again and could resolve a
+different place. The specialist names only the mode (`satellite`); the administrator's configured
+source, crop, zoom and view size resolve inside the capture. The returned PNG is persisted through
+the existing `DocumentUploadFinalizer` — the capture itself persists nothing — and only a platform
+`Document` id ever reaches an `ImageBlock`. The finding reports **High** confidence because the
+frame is centred on the exact site point with no geocoding and the pixels are a real record of the
+place, while its body states plainly that the imagery is the provider's most recent available
+capture, not a live view, with no capture date. A failed capture is recorded through the relay with
+SPEC-083's own reason vocabulary and delivers nothing; there is deliberately no generated fallback,
+because a drawing that looks like the site is the one failure a user cannot detect.
+`SiteEnvironmentalContextTool` reports flood risk and climate/wind from the provider seams, with
+every figure carrying either a value or an explicit state (no data source / no candidate data /
+conflicting data / not reported by the source / unusable value). An unavailable figure lowers the
+finding's confidence rather than being omitted, and the finding also states the dimensions this
+release does not assess — "not assessed" is a different statement from "unavailable", which would
+imply a source that could one day answer. Sun path, sunrise/sunset, day length and shadows are
+referenced to the viewer's client-side Solar Analysis, never computed server-side; the finding
+contains no solar figure.
 
 **Image generation (platform-wide).** One service, `IImageGenerationService`, serves every caller —
-the chat's image command and the site-analysis map. Its provider **and model** come from the
+currently the chat's image command (the site-analysis map stopped generating with specs/090). Its provider **and model** come from the
 `ImageGeneration` AI capability: `AiCapabilityAssignment` gained an optional `ModelId` that pins one
 of the provider's models (null everywhere else keeps following the provider's default), and
 `ImageGeneration` requires a pinned `SupportsImageOutput` model with **no platform-default fallback**

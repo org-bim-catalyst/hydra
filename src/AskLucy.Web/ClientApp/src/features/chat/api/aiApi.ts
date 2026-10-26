@@ -281,6 +281,14 @@ export async function* streamChat(
   selectedAction?: SelectedActionRequest,
   retry?: RetryRequest,
 ): AsyncGenerator<ChatStreamEvent> {
+  // An assistant bubble with no text is the placeholder left behind when a stream was cut off —
+  // a deploy restart or a dropped connection. It carries no context, and the server rejects any
+  // history message with empty content ("Message content is required"), which used to poison
+  // every later turn in that conversation. Drop it here, at the boundary both send paths share.
+  const history = messages.filter(
+    (message) => message.role !== 'assistant' || message.content.trim().length > 0,
+  )
+
   const sendRequest = () => {
     const accessToken = useAuthStore.getState().accessToken
     return fetch(`${API_BASE_URL}/ai/chat`, {
@@ -290,7 +298,7 @@ export async function* streamChat(
         'Content-Type': 'application/json',
         ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
       },
-      body: JSON.stringify({ chatId, messages, providerId, modelId, generationParameters, selectedAction, retry }),
+      body: JSON.stringify({ chatId, messages: history, providerId, modelId, generationParameters, selectedAction, retry }),
     })
   }
 

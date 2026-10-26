@@ -6,6 +6,7 @@ using AskLucy.Application.Locations;
 using AskLucy.Application.SiteAnalysis;
 using AskLucy.Application.SiteBoundaries;
 using AskLucy.Domain.Agents;
+using AskLucy.Domain.Common;
 using SiteAnalysisAggregate = AskLucy.Domain.SiteAnalysis.SiteAnalysis;
 
 namespace AskLucy.Application.Conversations.Capabilities;
@@ -28,9 +29,6 @@ public sealed class RequestSiteAnalysisCapability(
     public const string CapabilityKey = "request_site_analysis";
     private const string Actor = "system:request-site-analysis";
 
-    /// <summary>data-model.md — how many specialists this release dispatches; grows as follow-up specs add more (FR-031), without any change to this capability.</summary>
-    private const int ExpectedResultCount = 1;
-
     public string Name => CapabilityKey;
 
     public string Description =>
@@ -42,7 +40,7 @@ public sealed class RequestSiteAnalysisCapability(
         "place in depth — \"analyze this site\", \"do a full site analysis\", \"what can you tell " +
         "me about this site\" — for the site currently shown in the viewer, a named site, or explicit coordinates.";
 
-    public string ArgumentHint => "optional site name, or omit to use the active site; or explicit latitude/longitude";
+    public string ArgumentHint => "site: the name the user asked for; omit only for 'this site'; or lat/long";
 
     public string UsageGuidance =>
         "This dispatches background work and returns immediately — tell the user the analysis has " +
@@ -108,7 +106,11 @@ public sealed class RequestSiteAnalysisCapability(
             return AgentToolResult.Success(JsonSerializer.SerializeToDocument(new { started = true, siteName }));
         }
 
-        var analysis = SiteAnalysisAggregate.Create(context.UserId, userChatId, siteName, latitude, longitude, boundaryGeoJson, ExpectedResultCount, Actor);
+        // specs/088 FR-003/FR-004 — the count comes from the same declaration the provisioner
+        // publishes branches from. A hand-maintained constant here silently closes the analysis
+        // after the first specialist reports, and later findings are rejected as arriving at a
+        // finished analysis.
+        var analysis = SiteAnalysisAggregate.Create(context.UserId, userChatId, siteName, latitude, longitude, boundaryGeoJson, SiteAnalysisSpecialists.Count, Actor);
         siteAnalysisRepository.Add(analysis);
         await unitOfWork.SaveChangesAsync(cancellationToken);
 

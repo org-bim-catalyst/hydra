@@ -47,7 +47,7 @@ public sealed class McpFailureCategorizationTests
     [InlineData(McpFailureCategory.ConnectionFailure)]
     public async Task ExecuteAsync_ShouldEmbedTheGranularCategory_InFailureReason_ForEveryDistinctFailureCause(McpFailureCategory expectedCategory)
     {
-        var tool = McpTool.CreateFromDiscovery(Guid.NewGuid(), Guid.NewGuid(), "search", "Search", "desc", "{}", "{}", null, null, "[]", null, null);
+        var tool = McpTool.CreateFromDiscovery(Guid.NewGuid(), Guid.NewGuid(), "search", "Search", "desc", "{}", "{}", null, null, "[]", null);
         var adapter = CreateAdapter(tool);
 
         switch (expectedCategory)

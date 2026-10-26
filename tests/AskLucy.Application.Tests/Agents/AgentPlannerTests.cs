@@ -4,6 +4,7 @@ using AskLucy.Application.Agents.Runtime;
 using AskLucy.Application.Agents.Tools;
 using AskLucy.Application.Ai;
 using AskLucy.Domain.Agents;
+using AskLucy.Domain.Common;
 using FluentAssertions;
 using NSubstitute;
 using Xunit;

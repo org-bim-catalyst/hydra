@@ -12,6 +12,7 @@ using AskLucy.Application.Options;
 using AskLucy.Application.Tests.SiteBoundaries;
 using AskLucy.Domain.Agents;
 using AskLucy.Domain.Chats;
+using AskLucy.Domain.Common;
 using FluentAssertions;
 using Hangfire;
 using Microsoft.Extensions.Logging.Abstractions;

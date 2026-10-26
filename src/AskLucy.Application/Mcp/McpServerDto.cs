@@ -1,3 +1,4 @@
+using AskLucy.Domain.Common;
 using AskLucy.Domain.Mcp;
 
 namespace AskLucy.Application.Mcp;
@@ -30,27 +31,17 @@ public sealed record McpServerHealthDto(Guid McpServerId, McpServerHealthStatus 
 
 public sealed record McpToolDto(
     Guid Id, Guid McpServerId, string NamespacedName, string ToolName, string DisplayName, string Description,
-    string InputSchemaJson, string OutputSchemaJson, AgentToolRiskLevelDto? ServerDeclaredRiskLevel,
-    AgentToolRiskLevelDto EffectiveRiskLevel, IReadOnlyList<string> RequiredPermissions,
+    string InputSchemaJson, string OutputSchemaJson, AgentToolRiskLevel? ServerDeclaredRiskLevel,
+    AgentToolRiskLevel EffectiveRiskLevel, IReadOnlyList<string> RequiredPermissions,
     McpToolActivationStatus ActivationStatus, string? ActivatedByUserId, DateTime? ActivatedAtUtc,
     string? Version, bool IsAvailable)
 {
     public static McpToolDto Create(McpTool tool) => new(
         tool.Id, tool.McpServerId, tool.NamespacedName, tool.ToolName, tool.DisplayName, tool.Description,
         tool.InputSchemaJson, tool.OutputSchemaJson,
-        tool.ServerDeclaredRiskLevel is { } declared ? (AgentToolRiskLevelDto)declared : null,
-        (AgentToolRiskLevelDto)tool.EffectiveRiskLevel,
+        tool.ServerDeclaredRiskLevel, tool.EffectiveRiskLevel,
         System.Text.Json.JsonSerializer.Deserialize<List<string>>(tool.RequiredPermissionsJson) ?? [],
         tool.ActivationStatus, tool.ActivatedByUserId, tool.ActivatedAtUtc, tool.Version, tool.IsAvailable);
-}
-
-/// <summary>Mirrors <c>Domain.Agents.AgentToolRiskLevel</c>'s values — a separate DTO-layer enum so <c>AskLucy.Application.Mcp</c> doesn't force every consumer to reference <c>AskLucy.Domain.Agents</c> just to read a risk level.</summary>
-public enum AgentToolRiskLevelDto
-{
-    Low,
-    Medium,
-    High,
-    Critical,
 }
 
 public sealed record McpAuditLogDto(Guid Id, Guid? McpServerId, string UserId, McpAuditAction Action, McpFailureCategory? FailureCategory, string DetailsJson, DateTime OccurredAtUtc)

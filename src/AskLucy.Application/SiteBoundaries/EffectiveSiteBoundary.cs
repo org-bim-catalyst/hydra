@@ -20,6 +20,6 @@ public sealed class EffectiveSiteBoundary(ISiteBoundaryCorrectionRepository corr
         }
 
         var correction = await corrections.GetByIdAsync(correctionId, chat.UserId, cancellationToken);
-        return correction is null ? found : found.WithCorrection(correction);
+        return correction is null ? found : found.ApplyCorrection(correction);
     }
 }

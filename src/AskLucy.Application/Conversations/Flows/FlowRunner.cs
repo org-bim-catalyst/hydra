@@ -176,9 +176,12 @@ public sealed class FlowRunner(
             var narration = await narrator.NarrateAsync(request, capability, result, nextStepLabel: null, cancellationToken);
             yield return new ChatStreamChunk(narration, null);
 
-            if (result.Succeeded)
+            // Not gated on success: a step that failed its own job can still have a viewer command
+            // to issue (a boundary that could not be drawn still knows where the site is), and
+            // ViewerPayloadJson is null for a failure that has none.
+            if (result.ViewerPayloadJson is { } viewerJson)
             {
-                var structured = StructuredPayloadExtractor.TryExtract(step.CapabilityKey, result.ResultJson);
+                var structured = StructuredPayloadExtractor.TryExtract(step.CapabilityKey, viewerJson);
                 if (structured is not null)
                 {
                     yield return structured;

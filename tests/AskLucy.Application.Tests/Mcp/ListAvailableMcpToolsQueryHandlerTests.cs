@@ -15,7 +15,7 @@ public sealed class ListAvailableMcpToolsQueryHandlerTests
     [Fact]
     public async Task Handle_ShouldReturnEveryActiveAvailableTool_WithItsSourceServerName()
     {
-        var tool = McpTool.CreateFromDiscovery(Guid.NewGuid(), Guid.NewGuid(), "search", "Search", "Searches things.", "{}", "{}", null, null, "[]", null, null);
+        var tool = McpTool.CreateFromDiscovery(Guid.NewGuid(), Guid.NewGuid(), "search", "Search", "Searches things.", "{}", "{}", null, null, "[]", null);
         tool.Activate("admin-1", null, null);
         _toolRepository.ListActiveAvailableAsync(Arg.Any<CancellationToken>())
             .Returns((IReadOnlyList<(McpTool Tool, string ServerName)>)[(tool, "Acme Docs")]);

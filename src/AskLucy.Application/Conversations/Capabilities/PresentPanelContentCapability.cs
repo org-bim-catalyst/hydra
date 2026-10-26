@@ -3,6 +3,7 @@ using AskLucy.Application.Abstractions;
 using AskLucy.Application.Agents.Tools;
 using AskLucy.Application.Panels;
 using AskLucy.Domain.Agents;
+using AskLucy.Domain.Common;
 
 namespace AskLucy.Application.Conversations.Capabilities;
 

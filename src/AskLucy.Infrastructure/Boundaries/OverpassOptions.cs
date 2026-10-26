@@ -22,16 +22,24 @@ public sealed class OverpassOptions
     /// attempt. Retrying the same saturated entry point is not a strategy.
     /// </para>
     /// <para>
-    /// These two are the cluster's own nodes, run by the same project against the same planet
+    /// The first two are the cluster's own nodes, run by the same project against the same planet
     /// data — measured at 1-5 s while the balanced hostname in front of them was refusing
-    /// requests outright. Third-party mirrors were tried first and rejected: kumi.systems and
-    /// private.coffee both timed out, osm.jp serves an invalid certificate, and a mirror that
-    /// hangs costs the whole 30 s client timeout before the next one is even attempted.
+    /// requests outright.
+    /// </para>
+    /// <para>
+    /// The French instance is last and is a genuinely independent host, added 2026-10-25 after a
+    /// network that blocks every overpass-api.de address (DNS resolves, TCP 443 never connects)
+    /// left boundary lookup with no reachable endpoint at all. It was measured at 1.1 s from that
+    /// network while the other four timed out, and it carries worldwide data — verified against a
+    /// Dubai query, not just a European one. Only full-planet instances belong here:
+    /// <c>overpass.osm.ch</c> answers quickly but holds Switzerland alone, so using it would turn
+    /// an honest "couldn't look it up" into a wrong "no boundary found" and an approximate circle.
     /// </para>
     /// </remarks>
     public IList<string> MirrorBaseUrls { get; set; } =
     [
         "https://z.overpass-api.de/api/",
         "https://lz4.overpass-api.de/api/",
+        "https://overpass.openstreetmap.fr/api/",
     ];
 }

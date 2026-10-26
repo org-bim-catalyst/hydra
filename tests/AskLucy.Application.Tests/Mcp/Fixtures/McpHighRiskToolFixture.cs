@@ -3,6 +3,7 @@ using AskLucy.Application.Mcp.Resilience;
 using AskLucy.Application.Mcp.Tools;
 using AskLucy.Application.Options;
 using AskLucy.Domain.Agents;
+using AskLucy.Domain.Common;
 using AskLucy.Domain.Mcp;
 using Microsoft.Extensions.Logging;
 using NSubstitute;
@@ -25,7 +26,7 @@ public static class McpHighRiskToolFixture
     {
         var tool = McpTool.CreateFromDiscovery(
             serverId ?? Guid.NewGuid(), Guid.NewGuid(), toolName, toolName, $"A simulated {riskLevel} MCP action (test/dev only). Performs no real effect.",
-            "{}", "{}", null, riskLevel, "[]", null, null);
+            "{}", "{}", null, riskLevel, "[]", null);
         tool.Activate(actor, null, null);
         return tool;
     }

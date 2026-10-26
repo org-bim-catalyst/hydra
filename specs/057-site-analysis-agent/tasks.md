@@ -298,3 +298,34 @@ demonstrable and shippable on its own.
 the next five specialists are cheap.
 
 **Do not start the five deferred specialists in this feature.** They are separate specs, unblocked by T060.
+
+---
+
+## Follow-up work (tracked outside this feature)
+
+The five deferred specialists are not tasks in this file. Each is its own specification, and its own tasks.md
+when planning is done there. The register of ownership lives in [plan.md](./plan.md#follow-ups).
+
+| Specialist | Spec | State |
+|---|---|---|
+| Site Geometry | [085-site-geometry-specialist](../085-site-geometry-specialist/spec.md) | Specified, not planned |
+| Environmental Context | [088-environmental-context-specialist](../088-environmental-context-specialist/spec.md) | Specified, not planned |
+| Urban Context | — | Not started |
+| Connectivity & Access | — | Not started |
+| Character Analysis | — | Not started |
+
+Two notes for whoever implements either specified follow-up:
+
+- **T060's "one provisioner entry plus one tool class" claim is not yet true.** `RequestSiteAnalysisCapability`
+  hard-codes `ExpectedResultCount = 1`; with a second branch provisioned the analysis closes after the first
+  finding and the second is rejected. The follow-up must derive the expected count from the branch declaration
+  (spec 088 FR-003/FR-004).
+- **The three provider interfaces are still unimplemented and unregistered.** The first specialist that consumes
+  one must supply an empty *unavailable* implementation, or the platform's tool catalog cannot be constructed.
+- **The map-capture endpoint ([specs/083](../083-viewer-map-capture/spec.md)) is designated as the imagery
+  source** for the schematic site-map specialist and for the imagery-based follow-ups (Urban Context,
+  Character Analysis). It is not a source of the Environmental Context figures, which are data, not pixels.
+  **Implemented for the schematic specialist in [specs/090-real-map-capture](../090-real-map-capture/spec.md)
+  (2026-10-25):** that finding now shows the platform's real capture instead of a generated image, reports
+  High confidence, and no longer calls `IImageGenerationService`. The versioned image prompt was removed from
+  the code; its contract is retained as a superseded historical record.

@@ -1,5 +1,6 @@
 using AskLucy.Application.Agents.Tools;
 using AskLucy.Domain.Agents;
+using AskLucy.Domain.Common;
 
 namespace AskLucy.Application.Agents.Queries.ListAgentTools;
 

@@ -15,7 +15,7 @@ public sealed class ListMcpServerToolsQueryHandlerTests
     public async Task Handle_ShouldReturnAllToolsRegardlessOfActivationStatus()
     {
         var serverId = Guid.NewGuid();
-        var pendingTool = McpTool.CreateFromDiscovery(serverId, Guid.NewGuid(), "search", "Search", "desc", "{}", "{}", null, null, "[]", null, null);
+        var pendingTool = McpTool.CreateFromDiscovery(serverId, Guid.NewGuid(), "search", "Search", "desc", "{}", "{}", null, null, "[]", null);
         _toolRepository.ListByServerIdAsync(serverId, Arg.Any<CancellationToken>()).Returns((IReadOnlyList<McpTool>)[pendingTool]);
         var handler = new ListMcpServerToolsQueryHandler(_toolRepository);
 

@@ -36,7 +36,7 @@ public sealed class SiteAnalysisResultRelayTests
         new(SiteAnalysisType.SchematicImage, "Al Barsha South", "openai:gpt-image-1", SiteAnalysisConfidenceLevel.Medium, DateTime.UtcNow, []);
 
     private static JsonDocument ValidContent() =>
-        JsonDocument.Parse("""{"version":1,"blocks":[{"kind":"heading","text":"Schematic Site Map"}]}""");
+        JsonDocument.Parse("""{"version":1,"blocks":[{"kind":"heading","text":"Site Map"}]}""");
 
     [Fact]
     public async Task ReportSuccessAsync_ShouldPersistCompletedResult_ThenPersistMessage_ThenNotify_ThenPushPanel()
@@ -51,6 +51,22 @@ public sealed class SiteAnalysisResultRelayTests
         _messageRepository.Received(1).Add(Arg.Is<Message>(m => m!.Role == MessageRole.Assistant && m.UserChatId == UserChatId));
         await _notifier.Received(1).ResultReceivedAsync(UserId, Arg.Any<SiteAnalysisResultReceivedDto>(), Arg.Any<CancellationToken>());
         await _panelNotifier.Received(1).PanelRequestedAsync(UserId, Arg.Any<PanelRequestDto>(), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task ReportSuccessAsync_ShouldNameTheSchematicFindingASiteMap()
+    {
+        var analysis = CreateAnalysis();
+        _repository.GetByIdAsync(analysis.Id, Arg.Any<CancellationToken>()).Returns(analysis);
+
+        var relay = BuildRelay();
+        await relay.ReportSuccessAsync(analysis.Id, SiteAnalysisType.SchematicImage, ValidMetadata(), ValidContent(), Guid.NewGuid(), TestContext.Current.CancellationToken);
+
+        _messageRepository.Received(1).Add(Arg.Is<Message>(m => m!.Content == "Receiving the site map…"));
+        await _panelNotifier.Received(1).PanelRequestedAsync(
+            UserId,
+            Arg.Is<PanelRequestDto>(panel => panel!.Title.StartsWith("site map —")),
+            Arg.Any<CancellationToken>());
     }
 
     [Fact]

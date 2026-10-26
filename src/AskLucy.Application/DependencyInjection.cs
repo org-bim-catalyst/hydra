@@ -287,6 +287,9 @@ public static class DependencyInjection
         // re-entrant hop on top. Neither is ever resolved by its concrete type, so the extra
         // registration bought nothing.
         services.AddScoped<IAgentTool, SiteSchematicImageGenerationTool>();
+        // specs/088-environmental-context-specialist — registered the same direct way, for the same
+        // reason (see the note above): never a `sp => sp.GetRequiredService<T>()` factory.
+        services.AddScoped<IAgentTool, SiteEnvironmentalContextTool>();
 
         services.AddOptions<AgentRuntimeOptions>()
             .Bind(configuration.GetSection(AgentRuntimeOptions.SectionName))

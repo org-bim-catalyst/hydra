@@ -43,11 +43,28 @@ public sealed class OverpassBoundaryCandidateProviderTests
         Func<HttpRequestMessage, HttpResponseMessage> responder, out StubHttpMessageHandler handler)
     {
         handler = new StubHttpMessageHandler(responder);
+        return CreateProvider(handler);
+    }
+
+    private static OverpassBoundaryCandidateProvider CreateProvider(HttpMessageHandler handler)
+    {
         var httpClient = new HttpClient(handler);
         var factory = Substitute.For<IHttpClientFactory>();
         factory.CreateClient("Overpass").Returns(httpClient);
         var options = Options.Create(new OverpassOptions());
         return new OverpassBoundaryCandidateProvider(factory, options, NullLogger<OverpassBoundaryCandidateProvider>.Instance);
+    }
+
+    /// <summary>Answers after a per-host delay, so a test can make one endpoint slower than another.</summary>
+    private sealed class DelayedHttpMessageHandler(
+        Func<HttpRequestMessage, TimeSpan> delayFor,
+        Func<HttpRequestMessage, HttpResponseMessage> respond) : HttpMessageHandler
+    {
+        protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+        {
+            await Task.Delay(delayFor(request), cancellationToken);
+            return respond(request);
+        }
     }
 
     /// <summary>
@@ -82,7 +99,7 @@ public sealed class OverpassBoundaryCandidateProviderTests
     [Fact]
     public async Task SearchAsync_ShouldGiveUp_OnlyAfterEveryEndpointHasBeenTried()
     {
-        var hosts = new List<string>();
+        var hosts = new System.Collections.Concurrent.ConcurrentBag<string>();
         var provider = CreateProvider(request =>
         {
             hosts.Add(request.RequestUri!.Host);
@@ -92,7 +109,46 @@ public sealed class OverpassBoundaryCandidateProviderTests
         var act = async () => await provider.SearchAsync(AlSafaCenter, 500, TestContext.Current.CancellationToken);
 
         await act.Should().ThrowAsync<BoundaryProviderUnavailableException>();
-        hosts.Distinct().Should().HaveCountGreaterThan(1, "giving up must not mean hammering one host three times");
+        hosts.Should().BeEquivalentTo(
+            ["overpass-api.de", "z.overpass-api.de", "lz4.overpass-api.de", "overpass.openstreetmap.fr"],
+            "every configured endpoint must be attempted — the previous attempt count of three silently made a fourth mirror unreachable");
+    }
+
+    /// <summary>
+    /// A host that never answers must not hold the lookup hostage. On a network that blocks
+    /// Overpass, the primary's TCP connect hangs until the 30 s client timeout — and the old
+    /// sequential retry spent that before the next endpoint was even started, so a mirror that
+    /// answers in 1 s was never reached inside the turn's budget.
+    /// </summary>
+    [Fact]
+    public async Task SearchAsync_ShouldAnswerFromAHealthyEndpoint_WithoutWaitingForASlowOne()
+    {
+        var provider = CreateProvider(new DelayedHttpMessageHandler(
+            request => request.RequestUri!.Host == "overpass-api.de" ? TimeSpan.FromSeconds(30) : TimeSpan.Zero,
+            _ => JsonResponse(ClosedParkWayJson)));
+
+        var stopwatch = System.Diagnostics.Stopwatch.StartNew();
+        var candidates = await provider.SearchAsync(AlSafaCenter, 500, TestContext.Current.CancellationToken);
+        stopwatch.Stop();
+
+        candidates.Should().NotBeEmpty();
+        stopwatch.Elapsed.Should().BeLessThan(TimeSpan.FromSeconds(5),
+            "the healthy mirror answers in well under the hung host's timeout");
+    }
+
+    /// <summary>One host's error must not win over another host's answer.</summary>
+    [Fact]
+    public async Task SearchAsync_ShouldPreferAnAnswerOverAFasterFailure()
+    {
+        var provider = CreateProvider(new DelayedHttpMessageHandler(
+            request => request.RequestUri!.Host == "overpass-api.de" ? TimeSpan.Zero : TimeSpan.FromMilliseconds(100),
+            request => request.RequestUri!.Host == "overpass-api.de"
+                ? new HttpResponseMessage(HttpStatusCode.GatewayTimeout)
+                : JsonResponse(ClosedParkWayJson)));
+
+        var candidates = await provider.SearchAsync(AlSafaCenter, 500, TestContext.Current.CancellationToken);
+
+        candidates.Should().ContainSingle("the 504 was a failure, not an answer");
     }
 
     private static HttpResponseMessage JsonResponse(string json) =>

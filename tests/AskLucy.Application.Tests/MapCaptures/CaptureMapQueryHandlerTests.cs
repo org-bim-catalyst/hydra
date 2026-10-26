@@ -225,4 +225,40 @@ public sealed class CaptureMapQueryHandlerTests
                 r.Zoom == 16),
             Arg.Any<CancellationToken>());
     }
+
+    [Fact]
+    public async Task Handle_ShouldReportTheSourceItUsed_WhenTheRequestNamesOne()
+    {
+        RendererSucceeds();
+
+        var result = await _handler.Handle(
+            Query(latitude: 25.2, longitude: 55.3, source: "google"),
+            TestContext.Current.CancellationToken);
+
+        result.Source.Should().Be(MapCaptureSource.Google);
+    }
+
+    [Fact]
+    public async Task Handle_ShouldReportTheConfiguredSource_WhenTheRequestNamesNone()
+    {
+        RendererSucceeds();
+
+        var result = await _handler.Handle(
+            Query(latitude: 25.2, longitude: 55.3), TestContext.Current.CancellationToken);
+
+        result.Source.Should().Be(MapCaptureDefaults.Default.Source);
+    }
+
+    [Fact]
+    public async Task Handle_ShouldReportNoSource_WhenTheCaptureFails()
+    {
+        _renderer.RenderAsync(Arg.Any<MapImageRequest>(), Arg.Any<CancellationToken>())
+            .Returns(MapImageResult.Failure(MapCaptureFailureReason.ProviderUnavailable, "down"));
+
+        var result = await _handler.Handle(
+            Query(latitude: 25.2, longitude: 55.3), TestContext.Current.CancellationToken);
+
+        result.IsSuccess.Should().BeFalse();
+        result.Source.Should().BeNull();
+    }
 }

@@ -32,6 +32,18 @@ public sealed class RequestSiteAnalysisCapabilityTests
         new(Guid.NewGuid(), Guid.NewGuid(), UserId, Guid.NewGuid(), Guid.NewGuid(), userChatId);
 
     [Fact]
+    public void ArgumentHint_ShouldTellTheModelToPassANamedSite_AndReserveOmissionForTheActiveSite()
+    {
+        // specs/090 follow-up — "Run a site analysis for Al Safa Park 2" started an analysis for
+        // the site already on screen, because the hint allowed omitting a place the user typed.
+        var capability = BuildCapability();
+
+        capability.ArgumentHint.Should().Contain("the name the user asked for");
+        capability.ArgumentHint.Should().Contain("'this site'");
+        capability.ArgumentHint.Length.Should().BeLessThanOrEqualTo(80);
+    }
+
+    [Fact]
     public async Task ExecuteAsync_ShouldReturn_WithoutAwaitingTheWorkflowItself_WhenExplicitCoordinatesAreGiven()
     {
         _siteAnalysisRepository.FindRunningForSiteAsync(UserId, UserChatId, "the specified location", Arg.Any<CancellationToken>())
@@ -113,5 +125,31 @@ public sealed class RequestSiteAnalysisCapabilityTests
         var justRan = new TurnOutcome([RequestSiteAnalysisCapability.CapabilityKey], false, [], false);
         capability.IsOfferable(located, justRan).Should().BeFalse(
             "an offer must never propose work the user just watched start");
+    }
+
+    [Fact]
+    public async Task ExecuteAsync_ShouldCreateTheAnalysisWithTheDeclaredSpecialistCount()
+    {
+        // specs/088 FR-003/FR-004 — the expected count is derived from the same declaration the
+        // provisioner publishes branches from. A hand-maintained constant here silently closes the
+        // analysis after the first specialist reports, and later findings are rejected.
+        _siteAnalysisRepository
+            .FindRunningForSiteAsync(UserId, UserChatId, "the specified location", Arg.Any<CancellationToken>())
+            .Returns((Domain.SiteAnalysis.SiteAnalysis?)null);
+        _dispatcher
+            .DispatchAsync(Arg.Any<Guid>(), UserId, Arg.Any<string>(), Arg.Any<string>(), 25.09, 55.20, Arg.Any<CancellationToken>())
+            .Returns(Guid.NewGuid());
+
+        Domain.SiteAnalysis.SiteAnalysis? created = null;
+        _siteAnalysisRepository
+            .When(repository => repository.Add(Arg.Any<Domain.SiteAnalysis.SiteAnalysis>()))
+            .Do(call => created = call.Arg<Domain.SiteAnalysis.SiteAnalysis>());
+
+        var capability = BuildCapability();
+        await capability.ExecuteAsync(
+            ContextFor(UserChatId), JsonDocument.Parse("""{"latitude":25.09,"longitude":55.20}"""), TestContext.Current.CancellationToken);
+
+        created.Should().NotBeNull();
+        created!.ExpectedResultCount.Should().Be(SiteAnalysisSpecialists.Count);
     }
 }
