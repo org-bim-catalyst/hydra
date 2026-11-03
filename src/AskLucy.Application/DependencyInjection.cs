@@ -270,6 +270,7 @@ public static class DependencyInjection
         // specs/057-site-analysis-agent — the one specialist in this release; a further one is a
         // provisioner entry + one more registration here, no other change (FR-031).
         services.AddScoped<SiteAnalysisContentComposer>();
+        services.AddScoped<SiteGeometryCalculator>();
         services.AddScoped<SiteAnalysisResultRelay>();
         // Registered as the concrete type as well: ScopeIsolatedSiteAnalysisResultRelay resolves
         // SiteAnalysisResultRelay fresh from its own DI scope on every call (research.md D2 —
@@ -287,9 +288,18 @@ public static class DependencyInjection
         // re-entrant hop on top. Neither is ever resolved by its concrete type, so the extra
         // registration bought nothing.
         services.AddScoped<IAgentTool, SiteSchematicImageGenerationTool>();
+        // specs/057-site-analysis-agent — Urban Context specialist (first follow-up);
+        // registered the same direct way, never a `sp => sp.GetRequiredService<T>()` factory
+        // (constitution §3, §2.VIII — the deadlock risk documented §30 ARCHITECTURE.md).
+        services.AddScoped<IAgentTool, UrbanContextTool>();
         // specs/088-environmental-context-specialist — registered the same direct way, for the same
         // reason (see the note above): never a `sp => sp.GetRequiredService<T>()` factory.
         services.AddScoped<IAgentTool, SiteEnvironmentalContextTool>();
+        // specs/089-site-geometry-specialist — same direct registration, same reason.
+        services.AddScoped<IAgentTool, SiteGeometryTool>();
+        // specs/057-site-analysis-agent — character analysis specialist; registered directly
+        // against IAgentTool per FR-031: one enum member + one IAgentTool + one provisioner entry.
+        services.AddScoped<IAgentTool, SiteCharacterAnalysisTool>();
 
         services.AddOptions<AgentRuntimeOptions>()
             .Bind(configuration.GetSection(AgentRuntimeOptions.SectionName))

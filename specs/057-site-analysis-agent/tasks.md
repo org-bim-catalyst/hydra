@@ -299,6 +299,10 @@ the next five specialists are cheap.
 
 **Do not start the five deferred specialists in this feature.** They are separate specs, unblocked by T060.
 
+**Follow-up status**: Site Geometry shipped as [specs/089](../089-site-geometry-specialist/tasks.md);
+Environmental Context shipped as [specs/088](../088-environmental-context-specialist/tasks.md). Urban Context,
+Connectivity & Access and Character Analysis remain deferred.
+
 ---
 
 ## Follow-up work (tracked outside this feature)
@@ -310,7 +314,7 @@ when planning is done there. The register of ownership lives in [plan.md](./plan
 |---|---|---|
 | Site Geometry | [085-site-geometry-specialist](../085-site-geometry-specialist/spec.md) | Specified, not planned |
 | Environmental Context | [088-environmental-context-specialist](../088-environmental-context-specialist/spec.md) | Specified, not planned |
-| Urban Context | — | Not started |
+| Urban Context | — | Implemented 2026-11-02 |
 | Connectivity & Access | — | Not started |
 | Character Analysis | — | Not started |
 

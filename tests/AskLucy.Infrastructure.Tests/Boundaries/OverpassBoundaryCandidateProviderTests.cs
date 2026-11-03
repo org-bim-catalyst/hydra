@@ -3,6 +3,7 @@ using System.Text;
 using AskLucy.Application.SiteBoundaries;
 using AskLucy.Domain.SiteBoundaries;
 using AskLucy.Infrastructure.Boundaries;
+using AskLucy.Infrastructure.Overpass;
 using AskLucy.Infrastructure.Tests.Ai;
 using FluentAssertions;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -52,7 +53,11 @@ public sealed class OverpassBoundaryCandidateProviderTests
         var factory = Substitute.For<IHttpClientFactory>();
         factory.CreateClient("Overpass").Returns(httpClient);
         var options = Options.Create(new OverpassOptions());
-        return new OverpassBoundaryCandidateProvider(factory, options, NullLogger<OverpassBoundaryCandidateProvider>.Instance);
+        // specs/089 — the transport now lives in the shared provider; this suite keeps testing the
+        // same boundary behaviour through it.
+        var featureProvider = new OverpassFeatureQueryProvider(
+            factory, options, NullLogger<OverpassFeatureQueryProvider>.Instance);
+        return new OverpassBoundaryCandidateProvider(featureProvider);
     }
 
     /// <summary>Answers after a per-host delay, so a test can make one endpoint slower than another.</summary>

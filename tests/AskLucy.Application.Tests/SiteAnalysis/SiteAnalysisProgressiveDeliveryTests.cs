@@ -154,4 +154,34 @@ public sealed class SiteAnalysisProgressiveDeliveryTests
         await _notifier.Received(1).AnalysisCompletedAsync(
             UserId, Arg.Any<SiteAnalysisCompletedDto>(), Arg.Any<CancellationToken>());
     }
+
+    [Fact]
+    public async Task Relay_ShouldDeliverTheGeometryFinding_AndSettleOnlyAfterAllThreeSpecialistsReport()
+    {
+        // specs/089 — the geometry specialist joins the fan-out with no change to the relay. Each
+        // report is delivered on its own; the third is what settles the analysis.
+        var analysis = Domain.SiteAnalysis.SiteAnalysis.Create(
+            UserId, UserChatId, "Test Site", 25.09, 55.20, null, expectedResultCount: 3, UserId);
+        _repository.GetByIdAsync(analysis.Id, Arg.Any<CancellationToken>()).Returns(analysis);
+
+        var deliveryOrder = new List<string>();
+        var relay = BuildRelay();
+
+        await RunFakeSpecialistAsync(
+            analysis.Id, TimeSpan.Zero, relay, "schematic", deliveryOrder, SiteAnalysisType.SchematicImage, Guid.NewGuid());
+        await RunFakeSpecialistAsync(
+            analysis.Id, TimeSpan.Zero, relay, "environmental", deliveryOrder, SiteAnalysisType.EnvironmentalContext, documentId: null);
+
+        analysis.Status.Should().Be(SiteAnalysisStatus.Running, "two of three specialists have reported");
+
+        await RunFakeSpecialistAsync(
+            analysis.Id, TimeSpan.Zero, relay, "geometry", deliveryOrder, SiteAnalysisType.SiteGeometry, documentId: null);
+
+        deliveryOrder.Should().Equal("schematic", "environmental", "geometry");
+        analysis.Results.Should().HaveCount(3);
+        analysis.Results.Should().OnlyContain(result => result.Status == SiteAnalysisResultStatus.Completed);
+        analysis.Status.Should().Be(SiteAnalysisStatus.Completed);
+        await _notifier.Received(1).AnalysisCompletedAsync(
+            UserId, Arg.Any<SiteAnalysisCompletedDto>(), Arg.Any<CancellationToken>());
+    }
 }

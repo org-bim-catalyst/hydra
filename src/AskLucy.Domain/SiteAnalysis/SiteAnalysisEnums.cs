@@ -35,10 +35,13 @@ public enum SiteAnalysisConfidenceLevel
 /// fan-out declaration, with no other structural change. <see cref="SchematicImage"/> ships in
 /// SPEC-057; <see cref="UrbanContext"/> is the first follow-up specialist (the surroundings of a
 /// site — adjacent land use, nearby building density and typology, and notable nearby places);
-/// <see cref="EnvironmentalContext"/> adds flood risk and climate/wind conditions.</summary>
+/// <see cref="EnvironmentalContext"/> adds flood risk and climate/wind conditions;
+/// <see cref="SiteGeometry"/> (SPEC-089) adds the site's own measured geometry.</summary>
 public enum SiteAnalysisType
 {
     SchematicImage,
     UrbanContext,
     EnvironmentalContext,
+    SiteGeometry,
+    CharacterAnalysis,
 }

@@ -8,6 +8,7 @@ using AskLucy.Application.MapCaptures;
 using AskLucy.Application.Notifications.Abstractions;
 using AskLucy.Application.OperationalFailures.Abstractions;
 using AskLucy.Application.Options;
+using AskLucy.Application.Overpass;
 using AskLucy.Application.SiteAnalysis.Providers;
 using AskLucy.Application.SiteBoundaries;
 using AskLucy.Domain.Notifications;
@@ -43,6 +44,7 @@ using AskLucy.Infrastructure.Notifications.Jobs;
 using AskLucy.Infrastructure.Notifications.Templates;
 using AskLucy.Infrastructure.Notifications.Workers;
 using AskLucy.Infrastructure.OperationalFailures;
+using AskLucy.Infrastructure.Overpass;
 using AskLucy.Infrastructure.Panels;
 using AskLucy.Infrastructure.Retrieval;
 using AskLucy.Infrastructure.Retrieval.Chunking;
@@ -422,7 +424,9 @@ public static class DependencyInjection
             services.AddScoped<IGeocodingProvider, GoogleMapsGeocodingProvider>();
         else
             services.AddScoped<IGeocodingProvider, NominatimGeocodingProvider>();
+        services.AddScoped<IOverpassFeatureQueryProvider, OverpassFeatureQueryProvider>();
         services.AddScoped<IBoundaryCandidateProvider, OverpassBoundaryCandidateProvider>();
+        services.AddScoped<ISiteGeometryDataProvider, OverpassSiteGeometryDataProvider>();
         services.AddScoped<IRelatedSiteBuildingProvider, OverpassRelatedSiteBuildingProvider>();
         services.AddSingleton<ISiteFootprintUnion, RasterSiteFootprintUnion>();
         services.AddSingleton<AskLucy.Application.SiteBoundaries.ISiteRingGeometry, NtsSiteRingGeometry>();

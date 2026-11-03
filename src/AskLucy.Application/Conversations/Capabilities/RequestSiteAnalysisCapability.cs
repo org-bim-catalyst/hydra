@@ -40,7 +40,7 @@ public sealed class RequestSiteAnalysisCapability(
         "place in depth — \"analyze this site\", \"do a full site analysis\", \"what can you tell " +
         "me about this site\" — for the site currently shown in the viewer, a named site, or explicit coordinates.";
 
-    public string ArgumentHint => "site: the name the user asked for; omit only for 'this site'; or lat/long";
+    public string ArgumentHint => "site: the name the user asked for; omit for 'this site'; or lat/long";
 
     public string UsageGuidance =>
         "This dispatches background work and returns immediately — tell the user the analysis has " +
@@ -138,12 +138,49 @@ public sealed class RequestSiteAnalysisCapability(
             return (siteName, siteName, latEl.GetDouble(), lonEl.GetDouble(), null);
         }
 
-        // A named site in this turn's own argument — resolved fresh, exactly as SiteBoundaryResolverTool does.
-        if (root.TryGetProperty("site", out var siteEl) && siteEl.GetString() is { Length: > 0 } siteQuery)
+        // A named site in this turn's own argument — resolved fresh, exactly as SiteBoundaryResolverTool
+        // does — UNLESS the argument is really a reference to the site already on screen. The deciding
+        // model passes the user's literal words ("this site") — or a JSON null — despite the hint
+        // telling it to omit them; geocoding those words found something adjacent and ran the whole
+        // boundary pipeline, which exhausted this capability's 90 s budget before dispatch. A JSON
+        // null also made GetString() throw, which surfaced as a bare "value provided was null" failure.
+        // Anything that is not a real name means the active site.
+        if (root.TryGetProperty("site", out var siteEl) &&
+            siteEl.ValueKind == JsonValueKind.String &&
+            siteEl.GetString() is { } siteQuery &&
+            !string.IsNullOrWhiteSpace(siteQuery) &&
+            !IsActiveSiteReference(siteQuery))
         {
-            return await ResolveByNameAsync(siteQuery, userChatId, cancellationToken);
+            return await ResolveByNameAsync(siteQuery.Trim(), userChatId, cancellationToken);
         }
 
+        return await ResolveActiveSiteAsync(userChatId, cancellationToken);
+    }
+
+    /// <summary>
+    /// "This site", "the current site", "this place", "here" — phrases that name the site already on
+    /// screen rather than a place to look up. Compared after trimming, lower-casing and collapsing
+    /// whitespace; the set is deliberately small, so a real place called "The Site" still resolves.
+    /// </summary>
+    private static readonly HashSet<string> ActiveSiteReferences = new(StringComparer.Ordinal)
+    {
+        "this site", "the site", "current site", "the current site", "active site",
+        "selected site", "the selected site", "this place", "the place",
+        "this location", "the location", "current location", "the current location", "here",
+    };
+
+    internal static bool IsActiveSiteReference(string value)
+    {
+        var normalized = string.Join(' ', value.Trim().ToLowerInvariant()
+            .Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries));
+        normalized = normalized.TrimEnd('.', '!', '?', ',');
+        return ActiveSiteReferences.Contains(normalized);
+    }
+
+    /// <summary>The conversation's own site: its stored boundary first, then its active location.</summary>
+    private async Task<(string SiteName, string SiteLocation, double Latitude, double Longitude, string? BoundaryGeoJson)?> ResolveActiveSiteAsync(
+        Guid userChatId, CancellationToken cancellationToken)
+    {
         // No argument — fall back to the conversation's already-active site, exactly as OpenSolarAnalysisCapability does.
         var chat = await userChatRepository.GetByIdAsync(userChatId, cancellationToken);
         if (await effectiveSiteBoundary.ResolveAsync(chat, cancellationToken) is { } boundary)
@@ -161,6 +198,20 @@ public sealed class RequestSiteAnalysisCapability(
 
     private async Task<(string, string, double, double, string?)?> ResolveByNameAsync(string siteQuery, Guid userChatId, CancellationToken cancellationToken)
     {
+        // SPEC-042's own rule: a reference to the site the conversation already has must not trigger
+        // a second resolution. The assistant commonly passes the active site's own name (e.g. the
+        // user says "Analyze this site" with "Al Safa Park 2" selected), and re-resolving it costs a
+        // geocode plus the whole boundary pipeline — Overpass, imagery and the vision cross-check —
+        // which on a slow day exceeds this capability's own 90 s budget and times the turn out
+        // before anything is dispatched. The stored boundary is also the one the analysis must use.
+        var chat = await userChatRepository.GetByIdAsync(userChatId, cancellationToken);
+        if (await effectiveSiteBoundary.ResolveAsync(chat, cancellationToken) is { } stored &&
+            string.Equals(stored.SiteName.Trim(), siteQuery.Trim(), StringComparison.OrdinalIgnoreCase))
+        {
+            return (stored.SiteName, stored.SiteName, stored.CentroidLatitude, stored.CentroidLongitude,
+                JsonSerializer.Serialize(stored.Polygon));
+        }
+
         IReadOnlyList<GeocodingCandidate> candidates;
         try
         {

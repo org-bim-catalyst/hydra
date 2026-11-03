@@ -32,7 +32,10 @@ public static class SiteAnalysisSpecialists
     public static readonly IReadOnlyList<SiteAnalysisSpecialist> All =
     [
         new("site_analysis_schematic_image", "schematic_image"),
+        new("site_analysis_urban_context", "urban_context"),
         new("site_analysis_environmental_context", "environmental_context"),
+        new("site_analysis_site_geometry", "site_geometry"),
+        new("site_analysis_character_analysis", "character_analysis"),
     ];
 
     /// <summary>The number of findings an analysis expects — the fan-out branch count.</summary>

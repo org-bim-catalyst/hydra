@@ -257,6 +257,7 @@ public sealed class SiteAnalysisResultRelay(
     {
         SiteAnalysisType.SchematicImage => "site map",
         SiteAnalysisType.EnvironmentalContext => "environmental context",
+        SiteAnalysisType.SiteGeometry => "site geometry",
         _ => analysisType.ToString(),
     };
 

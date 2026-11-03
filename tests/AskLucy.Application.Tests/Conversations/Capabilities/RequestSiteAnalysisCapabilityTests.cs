@@ -6,6 +6,7 @@ using AskLucy.Application.Locations;
 using AskLucy.Application.SiteAnalysis;
 using AskLucy.Application.SiteBoundaries;
 using AskLucy.Domain.Chats;
+using AskLucy.Domain.SiteBoundaries;
 using FluentAssertions;
 using NSubstitute;
 using Xunit;
@@ -61,6 +62,102 @@ public sealed class RequestSiteAnalysisCapabilityTests
         // FR-001 — coordinates skip geocoding entirely.
         await _geocodingProvider.DidNotReceiveWithAnyArgs().SearchAsync(default!, TestContext.Current.CancellationToken);
         await _dispatcher.Received(1).DispatchAsync(Arg.Any<Guid>(), UserId, Arg.Any<string>(), Arg.Any<string>(), 25.09, 55.20, Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task ExecuteAsync_ShouldReuseTheStoredBoundary_WhenTheNamedSiteIsAlreadyTheActiveOne()
+    {
+        // Observed locally: "Analyze this site" with Al Safa Park 2 selected reached the assistant as
+        // site="Al Safa Park 2", re-ran the whole resolution pipeline (geocode, Overpass, imagery,
+        // vision) and exhausted the capability's 90 s budget before dispatch. The active site's own
+        // boundary is both cheaper and the one the analysis must use (SPEC-042's same-site rule).
+        var chat = UserChat.Create("Chat", UserId, null, UserId);
+        chat.SetActiveBoundary(
+            "Al Safa Park 2", 25.156, 55.2218,
+            [new GeoPoint(25.1560, 55.2210), new GeoPoint(25.1560, 55.2220), new GeoPoint(25.1550, 55.2220)],
+            areaSquareMeters: 6_000, confidence: 0.9, BoundaryConfidenceLevel.High,
+            SiteBoundarySource.OsmBoundary, "OpenStreetMap", UserId);
+        _userChatRepository.GetByIdAsync(UserChatId, Arg.Any<CancellationToken>()).Returns(chat);
+
+        var capability = BuildCapability();
+        var input = JsonDocument.Parse("""{"site":"Al Safa Park 2"}""");
+        var result = await capability.ExecuteAsync(ContextFor(UserChatId), input, CancellationToken.None);
+
+        result.Succeeded.Should().BeTrue();
+        result.Output!.RootElement.GetProperty("started").GetBoolean().Should().BeTrue();
+
+        await _geocodingProvider.DidNotReceiveWithAnyArgs().SearchAsync(default!, TestContext.Current.CancellationToken);
+        await _boundaryResolutionService.DidNotReceiveWithAnyArgs().ResolveAsync(default!, default, TestContext.Current.CancellationToken);
+        await _dispatcher.Received(1).DispatchAsync(
+            Arg.Any<Guid>(), UserId, "Al Safa Park 2", "Al Safa Park 2", 25.156, 55.2218, Arg.Any<CancellationToken>());
+    }
+
+    [Theory]
+    [InlineData("this site")]
+    [InlineData("the current site")]
+    [InlineData("this place")]
+    [InlineData("here")]
+    public async Task ExecuteAsync_ShouldTreatAPhraseForTheActiveSite_AsTheActiveSite(string phrase)
+    {
+        // The deciding model passes the user's literal words instead of omitting the argument.
+        // Geocoding "this site" once ran the whole boundary pipeline and timed the turn out.
+        var chat = UserChat.Create("Chat", UserId, null, UserId);
+        chat.SetActiveBoundary(
+            "Al Safa Park 2", 25.156, 55.2218,
+            [new GeoPoint(25.1560, 55.2210), new GeoPoint(25.1560, 55.2220), new GeoPoint(25.1550, 55.2220)],
+            areaSquareMeters: 6_000, confidence: 0.9, BoundaryConfidenceLevel.High,
+            SiteBoundarySource.OsmBoundary, "OpenStreetMap", UserId);
+        _userChatRepository.GetByIdAsync(UserChatId, Arg.Any<CancellationToken>()).Returns(chat);
+
+        var capability = BuildCapability();
+        var input = JsonDocument.Parse($$"""{"site":"{{phrase}}"}""");
+        var result = await capability.ExecuteAsync(ContextFor(UserChatId), input, CancellationToken.None);
+
+        result.Succeeded.Should().BeTrue();
+        result.Output!.RootElement.GetProperty("started").GetBoolean().Should().BeTrue();
+        result.Output.RootElement.GetProperty("siteName").GetString().Should().Be("Al Safa Park 2");
+        await _geocodingProvider.DidNotReceiveWithAnyArgs().SearchAsync(default!, TestContext.Current.CancellationToken);
+    }
+
+    [Theory]
+    [InlineData("""{"site":null}""")]
+    [InlineData("""{"site":""}""")]
+    [InlineData("""{"site":"   "}""")]
+    public async Task ExecuteAsync_ShouldUseTheActiveSite_WhenTheSiteArgumentIsNotNullOrEmpty(string json)
+    {
+        // The deciding model sets the property to null (or an empty string) instead of omitting it.
+        // Calling GetString() on a JSON null threw and surfaced as a bare "value provided was null".
+        var chat = UserChat.Create("Chat", UserId, null, UserId);
+        chat.SetActiveBoundary(
+            "Al Safa Park 2", 25.156, 55.2218,
+            [new GeoPoint(25.1560, 55.2210), new GeoPoint(25.1560, 55.2220), new GeoPoint(25.1550, 55.2220)],
+            areaSquareMeters: 6_000, confidence: 0.9, BoundaryConfidenceLevel.High,
+            SiteBoundarySource.OsmBoundary, "OpenStreetMap", UserId);
+        _userChatRepository.GetByIdAsync(UserChatId, Arg.Any<CancellationToken>()).Returns(chat);
+
+        var capability = BuildCapability();
+        var result = await capability.ExecuteAsync(ContextFor(UserChatId), JsonDocument.Parse(json), CancellationToken.None);
+
+        result.Succeeded.Should().BeTrue();
+        result.Output!.RootElement.GetProperty("started").GetBoolean().Should().BeTrue();
+        result.Output.RootElement.GetProperty("siteName").GetString().Should().Be("Al Safa Park 2");
+        await _geocodingProvider.DidNotReceiveWithAnyArgs().SearchAsync(default!, TestContext.Current.CancellationToken);
+    }
+
+    [Fact]
+    public async Task ExecuteAsync_ShouldStillResolveGenuineSiteNames_ByGeocoding()
+    {
+        var chat = UserChat.Create("Chat", UserId, null, UserId);
+        _userChatRepository.GetByIdAsync(UserChatId, Arg.Any<CancellationToken>()).Returns(chat);
+
+        var capability = BuildCapability();
+        var input = JsonDocument.Parse("""{"site":"Burj Khalifa"}""");
+        var result = await capability.ExecuteAsync(ContextFor(UserChatId), input, CancellationToken.None);
+
+        // Nothing found, so the in-turn "site not identified" outcome — but the name was looked up,
+        // not silently treated as the (absent) active site.
+        result.Output!.RootElement.GetProperty("started").GetBoolean().Should().BeFalse();
+        await _geocodingProvider.Received(1).SearchAsync("Burj Khalifa", Arg.Any<CancellationToken>());
     }
 
     [Fact]

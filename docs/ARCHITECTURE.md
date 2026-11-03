@@ -1579,7 +1579,7 @@ those two registrations, and no specialist changes.
 
 **No new content vocabulary.** Findings compose entirely from the existing panel content-block
 vocabulary (heading/text/keyValue/image) — the same envelope `PresentPanelContentCapability`
-already produces. Two specialists ship. `SiteSchematicImageGenerationTool` no longer generates:
+already produces. Three specialists ship. `SiteSchematicImageGenerationTool` no longer generates:
 since specs/090 it shows the platform's **real map capture** of the analysed site, obtained
 in-process through SPEC-083's `CaptureMapQuery` (never the HTTP endpoint, its service-key
 authentication or its rate-limit bucket) and centred on the coordinates frozen on the
@@ -1615,6 +1615,26 @@ normalises every form to bytes and verifies the format from the content itself (
 before storage. Generated images are always stored as the user's `Document`; a chat `Image`
 message's content is that document id, resolved to a fresh signed URL at render time — a provider
 URL is never persisted or handed to the client.
+
+**A shared Overpass read path (specs/089).** `IOverpassFeatureQueryProvider`
+(`Application/Overpass`) with `OverpassFeatureQueryProvider` (`Infrastructure/Overpass`) is the
+platform's single OpenStreetMap read: one bounded tag-filter query, ways returned exactly as mapped
+(open or closed), relations as their largest assembled outer ring. It owns the transport SPEC-042
+established — the named `"Overpass"` client, the staggered hedge across every configured endpoint,
+the typed unavailability — and `OverpassBoundaryCandidateProvider` now delegates to it rather than
+carrying its own copy; `OverpassRelatedSiteBuildingProvider` and the footprint provider still hold
+theirs (different query shapes: named nodes joined onto footprints, and paged, cached retrieval) and
+are deliberate follow-ups. The boundary search keeps only what a *candidate* is: the tag filters, the
+closed-ring rule and the adjacent-parts merge.
+
+`SiteGeometryTool` measures the site's own geometry from the boundary frozen on the analysis record
+plus one query: area, principal-axis dimensions, orientation, per-street frontage, and the recorded
+parcel outline where OSM has one. It reports `High` when a recorded parcel grounds the figures,
+`Medium` when they describe the resolved site boundary, and `Low` when there is no shape at all;
+a fallback buffer is named as a buffer rather than presented as a surveyed parcel. A source outage
+is **not** a specialist failure — the boundary-derived figures are still delivered and only the
+source-dependent ones carry an unavailable reason. The finding carries no image and no document:
+imagery is the map specialist's output.
 
 **Rehydration.** `SiteAnalysis`/`SiteAnalysisResult` persist every outcome — including failed and
 rejected ones, for operator diagnosis — so `GET /api/v1/site-analyses/{id}` and the

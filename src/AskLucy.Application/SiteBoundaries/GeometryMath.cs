@@ -199,6 +199,35 @@ public static class GeometryMath
     public static double DistanceToRingMeters(GeoPoint point, IReadOnlyList<GeoPoint> ring) =>
         GapMeters([point, point], ring);
 
+    /// <summary>
+    /// specs/089 — meters from a point to an open path (a street centreline), including its final
+    /// segment. <see cref="GapMeters"/> walks <c>i &lt; count - 1</c>, which is correct for a closed
+    /// ring (its last point repeats the first) but would silently skip the last segment of an open
+    /// polyline — and the nearest street is often the one whose final segment faces the site.
+    /// </summary>
+    public static double DistanceToPathMeters(GeoPoint point, IReadOnlyList<GeoPoint> path)
+    {
+        if (path.Count == 0)
+        {
+            return double.PositiveInfinity;
+        }
+
+        if (path.Count == 1)
+        {
+            return DistanceMeters(point, path[0]);
+        }
+
+        var local = path.Select(vertex => ToLocalMeters(vertex, point)).ToList();
+        (double X, double Y) origin = (0, 0);
+        var distance = double.PositiveInfinity;
+        for (var i = 0; i < local.Count - 1; i++)
+        {
+            distance = Math.Min(distance, PointToSegment(origin, local[i], local[i + 1]));
+        }
+
+        return distance;
+    }
+
     private static double PointToSegment((double X, double Y) p, (double X, double Y) s, (double X, double Y) e)
     {
         var dx = e.X - s.X;

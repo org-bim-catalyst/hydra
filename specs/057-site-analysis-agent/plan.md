@@ -184,6 +184,18 @@ These are the traps that will bite an implementer who has not read research.md:
 expensive-to-reverse decision (§17) — the first follows an existing precedent in the codebase, and the second is
 three interface declarations.
 
+## Follow-up specialists
+
+The five specialists this plan deferred are separate specs. Status:
+
+- **Site Geometry** — shipped as [specs/089](../089-site-geometry-specialist/plan.md). It introduced the shared
+  `IOverpassFeatureQueryProvider` seam, added one `SiteAnalysisSpecialists.All` entry, one `IAgentTool` and one
+  enum member, and changed no coordination, validation, delivery, persistence or rehydration logic — the FR-031
+  evidence is recorded in its tasks.md.
+- **Environmental Context** — shipped as [specs/088](../088-environmental-context-specialist/plan.md).
+- **Urban Context** — implemented 2026-11-02 (this session: UrbanContext enum member, SiteAnalysisSpecialists.All entry, UrbanContextTool IAgentTool, DI registration, Overpass query via IOverpassFeatureQueryProvider, ContentComposer integration, UrbanContextToolTests). The remaining deferred specialists are Connectivity & Access and Character Analysis.
+- **Connectivity & Access**, **Character Analysis** — still deferred; each is its own spec.
+
 ## Follow-ups
 
 Five specialists were deferred by this feature, each to be delivered as its own specification. This section is
@@ -193,7 +205,7 @@ the register of them; a specialist's row is the only place its ownership is reco
 |---|---|---|
 | Site Geometry | Specified | [specs/085-site-geometry-specialist](../085-site-geometry-specialist/spec.md) |
 | Environmental Context | Specified | [specs/088-environmental-context-specialist](../088-environmental-context-specialist/spec.md) |
-| Urban Context | Not started | — |
+| Urban Context | Implemented 2026-11-02 | — |
 | Connectivity & Access | Not started | — |
 | Character Analysis | Not started | — |
 

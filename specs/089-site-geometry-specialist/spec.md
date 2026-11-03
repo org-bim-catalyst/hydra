@@ -1,6 +1,6 @@
 # Feature Specification: Site Geometry Specialist
 
-**Feature Branch**: `085-site-geometry-specialist`
+**Feature Branch**: `089-site-geometry-specialist`
 
 **Created**: 2026-10-23
 
@@ -10,15 +10,15 @@
 
 ## Context
 
-Ask Lucy can already run a **Site Analysis** ([specs/057](../057-site-analysis-agent/spec.md)): the user asks for an analysis of a site, and a coordinating agent fans the site out to independent specialists, each of which reports its finding the moment it finishes. One specialist ships today — the **schematic site map**, a generated top-down image of the site.
+Ask Lucy can already run a **Site Analysis** ([specs/057](../057-site-analysis-agent/spec.md)): the user asks for an analysis of a site, and a coordinating agent fans the site out to independent specialists, each of which reports its finding the moment it finishes. Two specialists ship today — the **schematic site map** (the platform's real map capture since [specs/090](../090-real-map-capture/spec.md)) and **environmental context** ([specs/088](../088-environmental-context-specialist/spec.md)).
 
-SPEC-057 planned five further specialists and deliberately deferred all of them. They are the first items of its follow-up list, and its own out-of-scope list names the first of them outright: **Site Geometry**. Until now, that list has had no owner; this feature is the first step down it.
+SPEC-057 planned five further specialists and deliberately deferred all of them. Its own out-of-scope list names the first of them outright: **Site Geometry**. This feature adds it.
 
 Site Geometry is the right one to build first, for three reasons:
 
 1. **It answers the question users actually ask first.** "How big is this site?", "which way does it face?", "how much of it fronts the street?" — these are the questions a site briefing opens with, and today Lucy answers them in prose with no measurements attached.
 2. **The platform already holds the answer.** The site boundary is resolved once, when the analysis is dispatched, and frozen onto the analysis record. The geometry of the site is then arithmetic on that shape. SPEC-057's boundary machinery (SPEC-042) and its OpenStreetMap-derived geospatial source are already integrated, already hardened, and already carry the retry and mirror behaviour this platform learned the hard way.
-3. **It makes the coordinator's promise real.** SPEC-057 shipped a two-specialist claim it could only demonstrate with a throwaway test specialist: findings arrive individually, as each finishes, never batched at the end. A second **real** specialist is what turns that from a test artifact into a production behaviour — and it is the first proof that adding a specialist genuinely needs no change to the shared machinery.
+3. **It keeps the coordinator's promise honest.** SPEC-057 designed for six specialists and proved the contract with a throwaway test one. Two real specialists now ship; each addition is the real test of whether a further one still costs only a declaration and a tool class. If this one needs a change to the coordination chain, the extension point is not what SPEC-057 claimed it was, and that is worth discovering here.
 
 What this feature must **not** become is a second site-resolution path. The site was already resolved and confirmed before the fan-out began; a geometry specialist that went off and re-found the site by name would produce figures for a *different* place than the one being analyzed, and would quietly reintroduce the ambiguity the resolution step exists to remove.
 
@@ -31,7 +31,7 @@ What this feature must **not** become is a second site-resolution path. The site
 - Q: What if the map data records no parcel/plot boundary for the site? → A: Say so, and fall back to the site's already-resolved site boundary, labelled as the site boundary rather than as a parcel boundary. A parcel-level shape is never inferred from a site-level shape.
 - Q: What if the site has no resolved boundary at all (a point-only site)? → A: The figures that depend on a shape are reported as unavailable with the reason. The analysis still succeeds; the other specialist still delivers.
 - Q: How is frontage defined when several streets bound the site? → A: Frontage is reported per identifiable street, with a total. If street adjacency cannot be established from the source, frontage is unavailable with the reason — never approximated from the longest edge.
-- Q: Does the finding include an image? → A: No. Content uses the existing block vocabulary only (heading, text, key-value, divider). The schematic-image specialist owns imagery, and a second image in the same analysis would duplicate it.
+- Q: Does the finding include an image? → A: No. Content uses the existing block vocabulary only (heading, text, key-value, divider). The platform's map-capture capability could render a map frame, but the schematic-image specialist owns imagery, and a second image in the same analysis would duplicate it. No capture request is made by this specialist.
 - Q: Is a shared query capability for the map source introduced here? → A: Only if one does not already exist, and then it is introduced as a shared capability rather than a private helper of this specialist, so the remaining four deferred specialists can reuse it.
 - Q: How is confidence assigned? → A: By the platform's existing rule-based confidence helper, from grounding facts only. A geocoder's importance score is never used, for the reason SPEC-057 recorded.
 - Q: Does the site's existing boundary snapshot get re-resolved? → A: No. The geometry specialist analyses the boundary frozen onto the analysis record at dispatch time, so the figures always describe the same site as the rest of the analysis.
@@ -76,34 +76,60 @@ A user who is about to act on a measurement — a site area, a frontage length, 
 
 ### User Story 3 - A geometry specialist that fails does not sink the analysis (Priority: P2)
 
-The map source is a free, shared, frequently-saturated service. When it is slow, rate-limited, or returns something unusable, the geometry finding simply does not arrive — while the schematic map still does, and the analysis still reaches a definite end state. An operator can afterwards determine exactly what went wrong, from the record or from the logs alone.
+The map source is a free, shared, frequently-saturated service. When it is slow, rate-limited, or returns something unusable, the figures that depend on it are reported unavailable with the reason — while the figures measured from the site's already-resolved boundary are still delivered, the other findings still arrive, and the analysis still reaches a definite end state. A genuine fault — the analysis record cannot be read, or something unexpected fails — is recorded in full and diagnosed from the record or the logs alone.
 
 **Why this priority**: Independent specialists mean independent failure modes, and this one has a genuinely flaky upstream. It is P2 only because it presupposes the delivery chain that SPEC-057 already ships.
 
-**Independent Test**: Make the map source fail during an analysis, and confirm the other finding is still delivered, the analysis still completes, no error interrupts the user, and the failure is recorded with a reason and diagnosable from the logs.
+**Independent Test**: Make the map source fail during an analysis, and confirm the geometry finding still arrives with its boundary-derived figures, its source-dependent figures marked unavailable, the other finding still delivered, the analysis still completed, and nothing interrupting the user.
 
 **Acceptance Scenarios**:
 
-1. **Given** the map source is unavailable, **When** the geometry specialist runs, **Then** no geometry finding is delivered, the other finding still is, and the analysis still reaches a completed state.
-2. **Given** the geometry specialist failed, **When** an operator inspects the analysis, **Then** the failure and its reason are recorded and attributable to the geometry specialist.
-3. **Given** the geometry specialist failed, **When** the user reads the conversation, **Then** no error notice or panel for that failure appears on its own — the user's reading of the successful findings is uninterrupted.
-4. **Given** the map source fails transiently, **When** the geometry specialist runs, **Then** it retries the same way the platform's other map queries do, rather than failing on the first transient error.
+1. **Given** the map source is unavailable, **When** the geometry specialist runs, **Then** the geometry finding is still delivered with the figures measured from the site's resolved boundary, and every figure that depends on the map source is reported unavailable with the reason.
+2. **Given** a genuine fault prevents the finding — the analysis record cannot be read, or an unexpected error occurs — **When** the specialist runs, **Then** no geometry finding is delivered, the other finding still is, the analysis still reaches a completed state, and the fault is recorded with its reason.
+3. **Given** the geometry specialist failed or reported unavailable figures, **When** an operator inspects the analysis, **Then** the outcome and its reason are recorded and attributable to the geometry specialist.
+4. **Given** the geometry specialist failed, **When** the user reads the conversation, **Then** no error notice or panel for that failure appears on its own — the user's reading of the successful findings is uninterrupted.
+5. **Given** the map source fails transiently, **When** the geometry specialist runs, **Then** it retries the same way the platform's other map queries do, rather than failing on the first transient error.
 
 ---
 
 ### User Story 4 - Adding this specialist changed no shared machinery (Priority: P3)
 
-A platform engineer adding the second of the five planned specialists can confirm that the coordinator, its validation gate, its delivery, its persistence, and the client's rehydration all worked unchanged. The second specialist's findings arrive independently of the first's, each on its own schedule.
+A platform engineer adding another of the planned specialists can confirm that the coordinator, its validation gate, its delivery, its persistence, and the client's rehydration all worked unchanged. The new specialist's findings arrive independently of the others', each on its own schedule.
 
-**Why this priority**: It is the whole point of the design SPEC-057 committed to, and it is P3 because it is verified by inspection and by this feature's own behaviour rather than by end-user-visible change. This feature is also what makes SPEC-057's progressive-arrival promise demonstrable in production rather than only in a test.
+**Why this priority**: It is the whole point of the design SPEC-057 committed to, and it is P3 because it is verified by inspection and by this feature's own behaviour rather than by end-user-visible change. This feature is also what proves SPEC-057's progressive-arrival promise in production rather than only in a test: the fan-out already has more than one real specialist, and this one must join it without touching the chain.
 
-**Independent Test**: Confirm the shared coordination, validation, delivery, persistence, and client files are unchanged by this feature, and observe two findings arriving at two different times from one analysis.
+**Independent Test**: Confirm the shared coordination, validation, delivery, persistence, and client files are unchanged by this feature, and observe the findings arriving at different times from one analysis.
 
 **Acceptance Scenarios**:
 
-1. **Given** the site analysis coordinator and its delivery chain exist, **When** the geometry specialist is added alongside the schematic-image specialist, **Then** no shared coordination, validation, delivery, persistence, or rehydration logic changes.
+1. **Given** the site analysis coordinator and its delivery chain exist, **When** the geometry specialist is added alongside the existing specialists, **Then** no shared coordination, validation, delivery, persistence, or rehydration logic changes.
 2. **Given** an analysis with both specialists running, **When** they finish at different times, **Then** each finding is delivered at its own time, and neither waits for the other.
 3. **Given** the geometry specialist is added, **When** an analysis completes, **Then** the analysis's closing outcome reflects that both specialists were counted, including when one of them failed.
+
+### Edge Cases
+
+- **The site is a point, not a shape.** No boundary was resolved when the analysis was dispatched. Every
+  shape-dependent figure is reported unavailable with that reason; the finding still arrives, and the
+  analysis still completes. A circle or buffer is never substituted for the missing shape.
+- **The map data has the site but no parcel outline.** The finding says so explicitly and presents the
+  site's resolved boundary, labelled as a site boundary. The two are never conflated.
+- **The map data has a parcel outline that disagrees with the resolved site boundary.** Both are reported
+  as they are, each identified by what it is; neither is silently preferred, and the disagreement is
+  visible to the reader.
+- **The site is bounded by a street only along part of its perimeter.** Frontage is the street-facing
+  length, not the perimeter. Where no street adjacency can be established, frontage is unavailable.
+- **The site touches several streets.** Frontage is reported per street with a total; the streets are
+  named.
+- **The site's shape is degenerate.** Fewer than three distinct vertices, or zero enclosed area, means the
+  shape-dependent figures are unavailable with the reason, not zero.
+- **The map source is slow, rate-limited, or saturated.** The specialist retries the way the platform's
+  other map queries do; if it still cannot get an answer, it fails quietly and records why.
+- **The map source returns a shape far larger than a site.** Large area is reported as measured; the
+  finding does not normalize or "correct" a shape the source supplied.
+- **The analysis is cancelled or the conversation is deleted mid-run.** Nothing is delivered, and the
+  specialist's failure path records it without erroring visibly.
+- **The user asks for one specific figure and not a full analysis.** This specialist is only reachable as
+  part of an analysis; a single-figure question stays a normal Chat answer.
 
 ## Requirements *(mandatory)*
 
@@ -153,15 +179,16 @@ A platform engineer adding the second of the five planned specialists can confir
 
 **Failure behaviour**
 
-- **FR-025**: A failure of the geometry specialist MUST be captured at the point it occurs, recorded with its reason and its originating error detail, and written to the platform's structured logs with enough context to diagnose it — never swallowed, discarded, or left unobserved.
-- **FR-026**: A failure of the geometry specialist MUST NOT prevent the other specialists' findings from being delivered, and MUST NOT prevent the analysis from reaching a definite end state.
-- **FR-027**: A failure of the geometry specialist MUST NOT produce a notice, a panel, or any other interruption for the user on its own.
-- **FR-028**: The system MUST NOT introduce a new kind of failure for this specialist; it MUST reuse the platform's existing failure vocabulary and classification.
+- **FR-025**: A genuine fault — the analysis cannot be read, or an unexpected error occurs — MUST be captured at the point it occurs, recorded with its reason and its originating error detail, and written to the platform's structured logs with enough context to diagnose it — never swallowed, discarded, or left unobserved.
+- **FR-026**: A map source that is slow, rate-limited, or unavailable MUST NOT, by itself, fail the specialist. The figures that depend on that source MUST be reported unavailable with the reason, and the figures that do not depend on it MUST still be delivered.
+- **FR-027**: A failure of the geometry specialist MUST NOT prevent the other specialists' findings from being delivered, and MUST NOT prevent the analysis from reaching a definite end state.
+- **FR-028**: A failure of the geometry specialist MUST NOT produce a notice, a panel, or any other interruption for the user on its own.
+- **FR-029**: The system MUST NOT introduce a new kind of failure for this specialist; it MUST reuse the platform's existing failure vocabulary and classification.
 
 **Limits**
 
-- **FR-029**: The geometry specialist's execution MUST remain bounded by the platform's existing agent and workflow execution limits, and MUST NOT introduce a new budget.
-- **FR-030**: The number of source queries the geometry specialist issues per run MUST be bounded, and the bound MUST be a documented value rather than an incidental one.
+- **FR-030**: The geometry specialist's execution MUST remain bounded by the platform's existing agent and workflow execution limits, and MUST NOT introduce a new budget.
+- **FR-031**: The number of source queries the geometry specialist issues per run MUST be bounded, and the bound MUST be a documented value rather than an incidental one.
 
 ### Key Entities
 
@@ -181,7 +208,7 @@ A platform engineer adding the second of the five planned specialists can confir
 - **SC-002**: 100% of delivered geometry findings display the analysis that produced them, the data source behind them, and a confidence level.
 - **SC-003**: 0 geometry figures are presented as measured values that were estimated, interpolated, or derived from a figure the source did not supply.
 - **SC-004**: 100% of sites whose map data records no parcel or plot boundary have findings that say so, and 0 findings present a site-level shape as a parcel-level one.
-- **SC-005**: When the map source fails during an analysis, 100% of the other findings are still delivered and the analysis still reaches a completed state.
+- **SC-005**: When the map source fails during an analysis, 100% of the geometry finding's boundary-derived figures are still delivered, 100% of its source-dependent figures are marked unavailable, 100% of the other findings are still delivered, and the analysis still reaches a completed state.
 - **SC-006**: 100% of geometry-specialist failures are recorded with a reason attributable to that specialist, and are diagnosable from the platform's operational logs alone — no failure path discards its error.
 - **SC-007**: 0 notices or panels are produced for a geometry-specialist failure on its own.
 - **SC-008**: Adding the geometry specialist requires 0 changes to the coordinator, the validation gate, the delivery path, the persistence layer, and the client's rehydration path — verified against the change itself.
@@ -203,7 +230,7 @@ A platform engineer adding the second of the five planned specialists can confir
 
 Deliberately excluded from this release:
 
-- The remaining four deferred specialists — Urban Context, Connectivity & Access, Environmental Context, and Character Analysis. This feature establishes the shared source-query capability they will reuse; it does not implement them.
+- The remaining three deferred specialists — Urban Context, Connectivity & Access, and Character Analysis. This feature establishes the shared source-query capability they will reuse; it does not implement them.
 - Cadastral, land-registry, or any other government-authoritative parcel data. It would be a new data source with its own licensing and credential, and a new decision rather than an extension.
 - Three-dimensional measurement — heights, massing, floor areas, and building volumes.
 - Any metric no integrated source can supply: floor-area ratio, setbacks, height limits, flood modelling, hydrology, wind, and climate.
