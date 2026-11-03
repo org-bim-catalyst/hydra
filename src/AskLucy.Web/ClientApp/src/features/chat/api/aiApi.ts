@@ -198,6 +198,20 @@ export type ChatStreamEvent =
       locationName: string
     }
   /**
+   * specs/090-poi-discovery — one category of places Lucy found, carried on the trailing
+   * `__POI_LAYERS__` event. `mode` says whether this layer joins the ones already on the map
+   * (`keep`) or replaces them (`replace`); the client owns the layer state and the legend.
+   */
+  | {
+      type: 'poiLayers'
+      category: string
+      displayName: string
+      color: string
+      markerShape: string
+      mode: 'keep' | 'replace'
+      markers: { id: string; name: string; latitude: number; longitude: number }[]
+    }
+  /**
    * The server finished one assistant message and started another. Deltas that follow belong to
    * the new one; the text so far is complete and already persisted server-side.
    *
@@ -241,6 +255,7 @@ const SOLAR_ANALYSIS_EVENT_PREFIX = '__SOLAR_ANALYSIS__'
 const SITE_BOUNDARY_EDIT_EVENT_PREFIX = '__SITE_BOUNDARY_EDIT__'
 const SNAPSHOT_EVENT_PREFIX = '__SNAPSHOT__'
 const SITE_BOUNDARY_EVENT_PREFIX = '__SITE_BOUNDARY__'
+const POI_LAYERS_EVENT_PREFIX = '__POI_LAYERS__'
 const ACTIONS_EVENT_PREFIX = '__ACTIONS__'
 const TURN_OUTCOME_EVENT_PREFIX = '__TURN_OUTCOME__'
 const MESSAGE_BREAK_EVENT = '__MESSAGE_BREAK__'
@@ -280,6 +295,7 @@ export async function* streamChat(
   signal?: AbortSignal,
   selectedAction?: SelectedActionRequest,
   retry?: RetryRequest,
+  activePoiCategories?: { key: string; displayName: string }[],
 ): AsyncGenerator<ChatStreamEvent> {
   // An assistant bubble with no text is the placeholder left behind when a stream was cut off —
   // a deploy restart or a dropped connection. It carries no context, and the server rejects any
@@ -298,7 +314,7 @@ export async function* streamChat(
         'Content-Type': 'application/json',
         ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
       },
-      body: JSON.stringify({ chatId, messages: history, providerId, modelId, generationParameters, selectedAction, retry }),
+      body: JSON.stringify({ chatId, messages: history, providerId, modelId, generationParameters, selectedAction, retry, activePoiCategories }),
     })
   }
 
@@ -455,6 +471,28 @@ export async function* streamChat(
           source: payload.source,
           sourceDetail: payload.sourceDetail,
           alternativeCandidateNames: payload.alternativeCandidateNames,
+        }
+        continue
+      }
+
+      // specs/090-poi-discovery: one category's markers — same distinguishable-prefix pattern.
+      if (data.startsWith(POI_LAYERS_EVENT_PREFIX)) {
+        const payload = JSON.parse(data.slice(POI_LAYERS_EVENT_PREFIX.length)) as {
+          category: string
+          displayName: string
+          color: string
+          markerShape: string
+          mode: 'keep' | 'replace'
+          markers: { id: string; name: string; latitude: number; longitude: number }[]
+        }
+        yield {
+          type: 'poiLayers',
+          category: payload.category,
+          displayName: payload.displayName,
+          color: payload.color,
+          markerShape: payload.markerShape,
+          mode: payload.mode === 'keep' ? 'keep' : 'replace',
+          markers: payload.markers ?? [],
         }
         continue
       }

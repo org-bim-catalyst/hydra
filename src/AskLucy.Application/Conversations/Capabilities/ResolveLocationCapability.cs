@@ -45,9 +45,9 @@ public sealed class ResolveLocationCapability(ILocationResolutionService locatio
         "Resolves a named real-world place to confirmed coordinates and a canonical place name.";
 
     public string WhenToUse =>
-        "Use when the user asks to see, find, locate or navigate to a named real-world place — " +
-        "\"show me X\", \"where is X\", \"take me to X\", \"centre on X\" — or names a site, park, " +
-        "building or address they want on the map.";
+        "Use when the user asks to see, find, locate or navigate to ONE named place, site, " +
+        "building or address. Do NOT use for a CATEGORY of places — \"schools in Muscat\", " +
+        "\"all hospitals\" — since that asks for many results; find_points_of_interest handles those.";
 
     public string ArgumentHint => "query: the place name, as the user wrote it";
 

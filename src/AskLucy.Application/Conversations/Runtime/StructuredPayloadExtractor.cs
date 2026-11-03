@@ -105,6 +105,25 @@ public static class StructuredPayloadExtractor
                             ? snapshotNameEl.GetString() ?? string.Empty
                             : string.Empty));
 
+                // specs/090-poi-discovery - a drawn layer. `awaitingChoice` results carry no
+                // markers by design: the question must be answered before anything is drawn, so
+                // they fall through to `default` and Lucy narrates the question only.
+                case FindPointsOfInterestCapability.CapabilityKey
+                    when root.TryGetProperty("markers", out var markersEl)
+                        && markersEl.ValueKind == JsonValueKind.Array
+                        && markersEl.GetArrayLength() > 0:
+                    return new ChatStreamChunk(null, null, PoiLayer: new PoiLayerCommand(
+                        root.GetProperty("category").GetString() ?? string.Empty,
+                        root.GetProperty("displayName").GetString() ?? string.Empty,
+                        root.GetProperty("color").GetString() ?? "#4285F4",
+                        root.GetProperty("markerShape").GetString() ?? "simple-dot",
+                        root.TryGetProperty("mode", out var poiModeEl) ? poiModeEl.GetString() ?? "replace" : "replace",
+                        [.. markersEl.EnumerateArray().Select(marker => new PoiMarkerData(
+                            marker.GetProperty("id").GetString() ?? string.Empty,
+                            marker.TryGetProperty("name", out var markerNameEl) ? markerNameEl.GetString() ?? string.Empty : string.Empty,
+                            marker.GetProperty("latitude").GetDouble(),
+                            marker.GetProperty("longitude").GetDouble()))]));
+
                 default:
                     return null;
             }

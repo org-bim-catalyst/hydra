@@ -14,6 +14,7 @@ import { requestSolarAnalysisMoment } from '../../solar/components/SolarAnalysis
 import { useSiteBoundaryEditStore } from '../../../viewer/siteBoundaryEdit/siteBoundaryEditStore'
 import { useActiveLocationStore } from '../../../store/activeLocationStore'
 import { useActiveSiteBoundaryStore, type SiteBoundarySource } from '../../../store/activeSiteBoundaryStore'
+import { usePoiLayersStore } from '../../../store/poiLayersStore'
 import { viewerEngine } from '../../../viewer/engine/viewerEngineInstance'
 import { viewerExtensionLoader } from '../../../viewer/extensions/loader'
 
@@ -264,7 +265,15 @@ export function useChatStream(
       let snapshotImage: { documentId: string; locationName: string } | undefined
       try {
         const activeChatId = await ensureChatId(content)
-        for await (const event of streamChat(activeChatId, history, providerId, modelId, undefined, controller.signal)) {
+        // specs/090 — the legend is the authority on what is drawn; send it so the server never
+        // asks about a layer the user already removed.
+        const activePoiLayers = usePoiLayersStore.getState().layers.map((layer) => ({
+          key: layer.category,
+          displayName: layer.displayName,
+        }))
+        for await (const event of streamChat(
+          activeChatId, history, providerId, modelId, undefined, controller.signal, undefined, undefined, activePoiLayers,
+        )) {
           if (event.type === 'content') {
             const last = assistantParts[assistantParts.length - 1]
             assistantParts = [...assistantParts.slice(0, -1), { ...last, content: last.content + event.delta }]
@@ -377,6 +386,17 @@ export function useChatStream(
               alternativeCandidateNames: event.alternativeCandidateNames,
               isHandEdited: event.source === 'UserCorrected',
             })
+          } else if (event.type === 'poiLayers') {
+            // specs/090-poi-discovery — a category of places to draw. The store owns merge
+            // semantics; the overlay and the legend both render from it, which is what keeps the
+            // legend and the markers in step when a category is added or removed.
+            usePoiLayersStore.getState().applyLayer(activeChatId, {
+              category: event.category,
+              displayName: event.displayName,
+              color: event.color,
+              markerShape: event.markerShape,
+              markers: event.markers,
+            }, event.mode)
           } else if (event.type === 'turnOutcome') {
             // specs/068 FR-004a — belongs to the reply itself, like citations and the
             // retrieval outcome: it describes the turn, not a later confirmation sentence.
@@ -550,8 +570,12 @@ export function useChatStream(
       let snapshotImage: { documentId: string; locationName: string } | undefined
       try {
         const activeChatId = await ensureChatId(seedTitle)
+        const activePoiLayers = usePoiLayersStore.getState().layers.map((layer) => ({
+          key: layer.category,
+          displayName: layer.displayName,
+        }))
         for await (const event of streamChat(
-          activeChatId, history, providerId, modelId, undefined, controller.signal, selectedAction, retry,
+          activeChatId, history, providerId, modelId, undefined, controller.signal, selectedAction, retry, activePoiLayers,
         )) {
           if (event.type === 'content') {
             const last = assistantParts[assistantParts.length - 1]
@@ -635,6 +659,17 @@ export function useChatStream(
               alternativeCandidateNames: event.alternativeCandidateNames,
               isHandEdited: event.source === 'UserCorrected',
             })
+          } else if (event.type === 'poiLayers') {
+            // specs/090-poi-discovery — a category of places to draw. The store owns merge
+            // semantics; the overlay and the legend both render from it, which is what keeps the
+            // legend and the markers in step when a category is added or removed.
+            usePoiLayersStore.getState().applyLayer(activeChatId, {
+              category: event.category,
+              displayName: event.displayName,
+              color: event.color,
+              markerShape: event.markerShape,
+              markers: event.markers,
+            }, event.mode)
           } else if (event.type === 'turnOutcome') {
             // specs/068 FR-004a — belongs to the reply itself, like citations and the
             // retrieval outcome: it describes the turn, not a later confirmation sentence.

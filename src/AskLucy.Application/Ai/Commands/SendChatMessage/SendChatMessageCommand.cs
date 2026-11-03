@@ -1,4 +1,5 @@
 using AskLucy.Application.Abstractions;
+using AskLucy.Application.PointsOfInterest;
 using AskLucy.Domain.Conversations;
 using MediatR;
 
@@ -61,4 +62,11 @@ public sealed record SendChatMessageCommand(
     /// specs/068 US2 — set only when this turn is retrying a previously failed action. Mutually
     /// exclusive with <see cref="SelectedAction"/>, which the controller enforces as a 400.
     /// </summary>
-    RetryInput? Retry = null) : IStreamRequest<ChatStreamChunk>;
+    RetryInput? Retry = null,
+
+    /// <summary>
+    /// specs/090-poi-discovery — what the client says is currently drawn on the map. Advisory
+    /// view state, never trusted for tag definitions (the server resolves those itself); it is
+    /// what keeps the keep/replace question in step with the user's legend.
+    /// </summary>
+    IReadOnlyList<ActivePoiCategoryInput>? ActivePoiCategories = null) : IStreamRequest<ChatStreamChunk>;

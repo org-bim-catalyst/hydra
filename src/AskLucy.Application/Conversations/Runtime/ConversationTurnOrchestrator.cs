@@ -74,12 +74,18 @@ public sealed class ConversationTurnOrchestrator(
     CapabilityNarrator narrator,
     TurnRecorder turnRecorder,
     EffectiveSiteBoundary effectiveSiteBoundary,
+    PointsOfInterest.PoiLayerStateStore poiLayerStateStore,
     ILogger<ConversationTurnOrchestrator> logger) : IConversationTurnOrchestrator
 {
     public async IAsyncEnumerable<ChatStreamChunk> RunAsync(
         ConversationTurnRequest request,
         [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken cancellationToken)
     {
+        // specs/090 FR-009 — reconcile the server's layer view with the legend the client is
+        // actually showing before anything is decided. A layer the user removed there is gone;
+        // otherwise the next POI request would ask about markers that are no longer on the map.
+        poiLayerStateStore.Sync(request.ChatId, request.ActivePoiCategories);
+
         // specs/068 FR-007/FR-009 - the persisted history, read for its recorded outcomes rather
         // than its prose. The client sends the transcript it is showing, which is exactly where the
         // reported defect lived: a failure notice arrives in it looking like any other reply.

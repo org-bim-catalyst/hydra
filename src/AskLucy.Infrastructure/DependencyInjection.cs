@@ -9,6 +9,7 @@ using AskLucy.Application.Notifications.Abstractions;
 using AskLucy.Application.OperationalFailures.Abstractions;
 using AskLucy.Application.Options;
 using AskLucy.Application.Overpass;
+using AskLucy.Application.PointsOfInterest;
 using AskLucy.Application.SiteAnalysis.Providers;
 using AskLucy.Application.SiteBoundaries;
 using AskLucy.Domain.Notifications;
@@ -432,6 +433,9 @@ public static class DependencyInjection
         else
             services.AddScoped<IGeocodingProvider, NominatimGeocodingProvider>();
         services.AddScoped<IOverpassFeatureQueryProvider, OverpassFeatureQueryProvider>();
+        // specs/090-poi-discovery — the same Overpass endpoints and "Overpass" client, reading
+        // points (nodes and centres) rather than shapes.
+        services.AddScoped<IPoiQueryProvider, OverpassPoiQueryProvider>();
         services.AddScoped<IBoundaryCandidateProvider, OverpassBoundaryCandidateProvider>();
         services.AddScoped<ISiteGeometryDataProvider, OverpassSiteGeometryDataProvider>();
         services.AddScoped<IRelatedSiteBuildingProvider, OverpassRelatedSiteBuildingProvider>();

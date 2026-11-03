@@ -34,6 +34,7 @@ using AskLucy.Application.Notifications.Abstractions;
 using AskLucy.Application.Notifications.Processing;
 using AskLucy.Application.OperationalFailures;
 using AskLucy.Application.Options;
+using AskLucy.Application.PointsOfInterest;
 using AskLucy.Application.Retrieval;
 using AskLucy.Application.Retrieval.Indexing;
 using AskLucy.Application.SiteAnalysis;
@@ -362,6 +363,15 @@ public static class DependencyInjection
 
         services.AddScoped<CapabilityIndexRetriever>();
         services.AddScoped<ConversationCapabilityCatalog>();
+
+        // specs/090-poi-discovery — the closed category catalog and the per-chat layer memory.
+        // The store is a singleton because a layer outlives one request: the next turn must know
+        // what is already drawn before it can ask whether to clear it.
+        services.AddSingleton<PoiCategoryCatalog>();
+        services.AddSingleton<PoiLayerStateStore>();
+        // Registered directly against IAgentTool, never a `sp => sp.GetRequiredService<T>()`
+        // factory — see the note on the site-analysis tools above (constitution §3/§2.VIII).
+        services.AddScoped<IAgentTool, FindPointsOfInterestCapability>();
 
         // specs/045 Phase 6 — flows. Registered the same way as capabilities: adding one is these
         // two lines, never a change to the orchestrator (IConversationFlow's own doc comment).

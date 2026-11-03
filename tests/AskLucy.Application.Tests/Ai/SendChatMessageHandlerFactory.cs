@@ -152,6 +152,8 @@ internal static class SendChatMessageHandlerFactory
             narrator,
             turnRecorder,
             TestEffectiveSiteBoundary.None(),
+            new AskLucy.Application.PointsOfInterest.PoiLayerStateStore(
+                TimeProvider.System, new AskLucy.Application.PointsOfInterest.PoiCategoryCatalog()),
             orchestratorLogger);
 
         return new SendChatMessageCommandHandler(resolver, providers, models, TestModelResolver.Passthrough(), orchestrator, validator);

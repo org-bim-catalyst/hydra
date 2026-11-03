@@ -41,7 +41,9 @@ public sealed record ChatRequest(
     Guid ModelId,
     GenerationParametersDto? GenerationParameters = null,
     SelectedActionRequest? SelectedAction = null,
-    RetryRequest? Retry = null);
+    RetryRequest? Retry = null,
+    // specs/090-poi-discovery — what the client's legend currently shows.
+    IReadOnlyList<AskLucy.Application.PointsOfInterest.ActivePoiCategoryInput>? ActivePoiCategories = null);
 
 public sealed record TranslateRequest(Guid ChatId, string Text, string TargetLanguage);
 

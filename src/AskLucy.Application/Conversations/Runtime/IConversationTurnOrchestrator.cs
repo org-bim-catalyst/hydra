@@ -64,4 +64,10 @@ public sealed record ConversationTurnRequest(
     /// concurrent task (see <see cref="SubAgentDelegator"/>). Null only where no second instance is
     /// ever needed.
     /// </summary>
-    string? ProviderKey = null);
+    string? ProviderKey = null,
+
+    /// <summary>
+    /// specs/090-poi-discovery — what the client reports is drawn on the map, reconciled before
+    /// the decide step so a removed layer is not treated as still active.
+    /// </summary>
+    IReadOnlyList<PointsOfInterest.ActivePoiCategoryInput>? ActivePoiCategories = null);

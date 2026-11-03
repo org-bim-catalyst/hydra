@@ -65,6 +65,11 @@ public sealed record ChatStreamChunk(
     /// <summary>specs/083-map-snapshot - the aerial picture Lucy captured for the user, carried the
     /// same way <see cref="SolarAnalysis"/> is. Carries the stored Document id, not the bytes.</summary>
     MapSnapshotCommand? MapSnapshot = null,
+
+    /// <summary>specs/090-poi-discovery - one category's markers Lucy asked the viewer to draw,
+    /// carried the same way <see cref="ViewerContent"/> is. Carries no rendering: the client owns
+    /// the layers, the legend and the colour/shape choices.</summary>
+    PoiLayerCommand? PoiLayer = null,
     bool StartsNewMessage = false,
 
     /// <summary>

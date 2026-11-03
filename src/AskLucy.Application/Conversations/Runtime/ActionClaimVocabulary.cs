@@ -32,6 +32,7 @@ internal static partial class ActionClaimVocabulary
         (AdjustViewerFocusCapability.CapabilityKey, "Zoom the viewer"),
         (MapSnapshotCapability.CapabilityKey, "Capture a snapshot"),
         (EditSiteBoundaryCapability.CapabilityKey, "Edit the outline"),
+        (FindPointsOfInterestCapability.CapabilityKey, "Map places by type"),
         (ResetSiteBoundaryCapability.CapabilityKey, "Reset the outline"),
         (LoadViewerContentCapability.CapabilityKey, "Load into the viewer"),
         (OpenLivePanelCapability.CapabilityKey, "Open panel"),
