@@ -58,10 +58,8 @@ public class EvaluationConfig
     }
 
     /// <summary>
-     /// Validates the source configuration model.
+    /// Validates the source configuration model.
     /// </summary>
-    /// <param name="model">The evaluation config model to validate.</param>
-    /// <returns>A validation result.</returns>
     public class EvaluationConfigValidator : AbstractValidator<EvaluationConfig>
     {
         public EvaluationConfigValidator()

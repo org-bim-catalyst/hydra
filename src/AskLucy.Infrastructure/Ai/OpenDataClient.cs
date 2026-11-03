@@ -1,11 +1,11 @@
-using AskLucy.Application.Abstractions;
-using Microsoft.Extensions.Logging;
 using System.Net;
 using System.Net.Http;
 using System.Net.Http.Json;
 using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
+using AskLucy.Application.Abstractions;
+using Microsoft.Extensions.Logging;
 
 namespace AskLucy.Infrastructure.Ai;
 

@@ -1,9 +1,9 @@
+using System.Threading;
+using System.Threading.Tasks;
 using AskLucy.Application.Abstractions;
 using AskLucy.Domain.DatasetSources;
 using MediatR;
 using Microsoft.Extensions.Logging;
-using System.Threading;
-using System.Threading.Tasks;
 
 namespace AskLucy.Application.DatasetSources;
 
