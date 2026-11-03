@@ -601,9 +601,11 @@ public static class DependencyInjection
         // first implementations. They carry no data: each reports *unavailable* with a reason, which
         // is the honest statement that no source is configured. They are registered because a
         // specialist now consumes them, and an unresolvable dependency in an IAgentTool breaks the
-        // whole AgentToolCatalog. A licensed source replaces these two lines; no calling code changes.
+        // whole AgentToolCatalog. A licensed source replaces these lines; no calling code changes.
+        // specs/057 (089) — ZoningData is the character specialist's seam and follows the same rule.
         services.AddScoped<IFloodDataProvider, UnavailableFloodDataProvider>();
         services.AddScoped<IClimateDataProvider, UnavailableClimateDataProvider>();
+        services.AddScoped<IZoningDataProvider, UnavailableZoningDataProvider>();
         services.AddScoped<IRemoteFileDownloader>(sp =>
             new RemoteFileDownloader(sp.GetRequiredService<IHttpClientFactory>(), "SiteAnalysisImageDownload"));
 
