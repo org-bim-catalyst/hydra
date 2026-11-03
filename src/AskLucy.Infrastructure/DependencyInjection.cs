@@ -361,7 +361,11 @@ public static class DependencyInjection
         // caller). 30s gives Overpass's own budget room to actually finish before the client gives up.
         services.AddHttpClient("Overpass", client =>
         {
-            client.Timeout = TimeSpan.FromSeconds(30);
+            // specs/090 — 65s, not 30s: a POI search over a country-sized bounding box is heavier
+            // than the district-sized boundary lookups this client was tuned for, and its own
+            // query budget is [timeout:50]. A shorter client ceiling would abort a query the
+            // server was still legitimately working on.
+            client.Timeout = TimeSpan.FromSeconds(65);
         });
 
         // specs/057-site-analysis-agent — downloading a generated image from the AI provider's

@@ -145,20 +145,25 @@ internal sealed class OverpassPoiQueryProvider(
     /// <summary>Builds the Overpass QL for one POI search. Internal for tests.</summary>
     internal static string BuildQuery(PoiQuery query)
     {
-        var around = FormattableString.Invariant(
-            $"(around:{query.RadiusMeters},{query.Center.Latitude},{query.Center.Longitude})");
+        var scope = query.Bounds is { } bounds
+            ? FormattableString.Invariant(
+                $"({bounds.SouthLatitude},{bounds.WestLongitude},{bounds.NorthLatitude},{bounds.EastLongitude})")
+            : FormattableString.Invariant(
+                $"(around:{query.RadiusMeters},{query.Center.Latitude},{query.Center.Longitude})");
 
         var statements = new List<string>();
         foreach (var group in query.Category.TagGroups)
         {
             var constraints = string.Concat(group.Constraints.Select(FormatConstraint));
 
-            statements.Add($"  node{constraints}{around};");
-            statements.Add($"  way{constraints}{around};");
-            statements.Add($"  relation{constraints}{around};");
+            statements.Add($"  node{constraints}{scope};");
+            statements.Add($"  way{constraints}{scope};");
+            statements.Add($"  relation{constraints}{scope};");
         }
 
-        return $"[out:json][timeout:25];({Environment.NewLine}{string.Join(Environment.NewLine, statements)}{Environment.NewLine});out center {query.MaxResults};";
+        // 50s, not 25: a country-sized bounding box is a genuinely heavier query than the
+        // district-sized boundary lookups this endpoint was tuned for.
+        return $"[out:json][timeout:50];({Environment.NewLine}{string.Join(Environment.NewLine, statements)}{Environment.NewLine});out center {query.MaxResults};";
     }
 
     private static string FormatConstraint(PoiTagConstraint constraint) =>

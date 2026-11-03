@@ -87,7 +87,7 @@ public sealed class FindPointsOfInterestCapability(
     public string OutputSchemaJson =>
         """{"type":"object","properties":{"awaitingChoice":{"type":"boolean"},"question":{"type":"string"},"category":{"type":"string"},"displayName":{"type":"string"},"color":{"type":"string"},"markerShape":{"type":"string"},"mode":{"type":"string"},"count":{"type":"integer"},"areaName":{"type":"string"},"markers":{"type":"array"}}}""";
 
-    public CapabilityDuration ExpectedDuration => CapabilityDuration.Noticeable;
+    public CapabilityDuration ExpectedDuration => CapabilityDuration.Extended;
 
     public SubAgentArea Area => SubAgentArea.Location;
 
@@ -185,12 +185,19 @@ public sealed class FindPointsOfInterestCapability(
         }
 
         var radius = RadiusFor(viewport, center);
+        var bounds = viewport is null
+            ? null
+            : new PoiBoundingBox(
+                Math.Min(viewport.SouthwestLat, viewport.NortheastLat),
+                Math.Min(viewport.SouthwestLng, viewport.NortheastLng),
+                Math.Max(viewport.SouthwestLat, viewport.NortheastLat),
+                Math.Max(viewport.SouthwestLng, viewport.NortheastLng));
 
         IReadOnlyList<PoiFeature> features;
         try
         {
             features = await poiQueryProvider.QueryAsync(
-                new PoiQuery(center, radius, category), cancellationToken);
+                new PoiQuery(center, radius, category, Bounds: bounds), cancellationToken);
         }
         catch (BoundaryProviderUnavailableException ex)
         {

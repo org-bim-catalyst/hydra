@@ -40,12 +40,25 @@ public sealed record PoiFeature(
     double Longitude,
     IReadOnlyDictionary<string, string> Tags);
 
-/// <summary>One bounded search for points of interest around a centre point.</summary>
+/// <summary>A rectangular search area, in Overpass's (south, west, north, east) order.</summary>
+public sealed record PoiBoundingBox(double SouthLatitude, double WestLongitude, double NorthLatitude, double EastLongitude);
+
+/// <summary>One bounded search for points of interest around a centre point or inside a box.</summary>
+/// <param name="Center">Used for the radius form, and for the response's own reporting.</param>
+/// <param name="RadiusMeters">Used only when <paramref name="Bounds"/> is null.</param>
+/// <param name="Category">Which places to look for.</param>
+/// <param name="MaxResults">Cap on the elements returned.</param>
+/// <param name="Bounds">
+/// The named area's own extent, when the geocoder supplied one. For a city this is the city's
+/// box; for a country it is the country's — searching a 25 km radius around a country's centre
+/// answers a completely different question, and in Oman's case finds almost nothing.
+/// </param>
 public sealed record PoiQuery(
     GeoPoint Center,
     int RadiusMeters,
     PoiCategoryDefinition Category,
-    int MaxResults = 200);
+    int MaxResults = 200,
+    PoiBoundingBox? Bounds = null);
 
 /// <summary>
 /// What the client reports as currently drawn on the map, sent with each chat turn so the

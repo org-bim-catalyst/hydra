@@ -37,6 +37,21 @@ public sealed class OverpassPoiQueryProviderTests
     }
 
     [Fact]
+    public void BuildQuery_ShouldSearchTheWholeBoundingBox_WhenTheAreaHasOne()
+    {
+        Catalog.TryResolve("hospitals", out var definition).Should().BeTrue();
+
+        // "all hospitals in Oman" — the country's own extent, not a 25 km circle around its centre.
+        var query = OverpassPoiQueryProvider.BuildQuery(new PoiQuery(
+            new GeoPoint(23.5, 58.3), 10_000, definition, 200,
+            new PoiBoundingBox(16.6, 52.0, 26.5, 59.9)));
+
+        query.Should().Contain("(16.6,52,26.5,59.9)");
+        query.Should().NotContain("around:");
+        query.Should().Contain("[timeout:50]");
+    }
+
+    [Fact]
     public void Interpret_ShouldReadNodeCoordinates()
     {
         var elements = new List<OverpassPoiQueryProvider.OverpassPoiElement>

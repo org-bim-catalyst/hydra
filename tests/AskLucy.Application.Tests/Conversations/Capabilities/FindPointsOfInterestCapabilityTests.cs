@@ -180,6 +180,19 @@ public sealed class FindPointsOfInterestCapabilityTests
     }
 
     [Fact]
+    public async Task ExecuteAsync_ShouldSearchTheResolvedAreaExtent_NotACircleAroundItsCentre()
+    {
+        GivenAreaResolvesTo("Oman", "Oman");
+        PoiQuery? captured = null;
+        _poiProvider.QueryAsync(Arg.Do<PoiQuery>(q => captured = q), Arg.Any<CancellationToken>()).Returns([]);
+
+        await Build().ExecuteAsync(Context(), Input("""{"category":"hospitals","area":"Oman"}"""), default);
+
+        captured.Should().NotBeNull();
+        captured!.Bounds.Should().Be(new PoiBoundingBox(23.52, 58.31, 23.65, 58.45));
+    }
+
+    [Fact]
     public void Sync_ShouldForgetACategoryTheClientRemoved()
     {
         _store.ApplyLayer(ChatId, _catalog.FindByKey("school")!, keepExisting: false);
