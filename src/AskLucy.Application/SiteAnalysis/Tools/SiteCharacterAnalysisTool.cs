@@ -3,6 +3,7 @@ using AskLucy.Application.Abstractions;
 using AskLucy.Application.Agents.Tools;
 using AskLucy.Application.SiteAnalysis.Providers;
 using AskLucy.Domain.Agents;
+using AskLucy.Domain.Common;
 using AskLucy.Domain.SiteAnalysis;
 using Microsoft.Extensions.DependencyInjection;
 using SiteAnalysisAggregate = AskLucy.Domain.SiteAnalysis.SiteAnalysis;
@@ -126,9 +127,9 @@ public sealed class SiteCharacterAnalysisTool(
         {
             // Build a concise data-source string from the zoning fields that are actually set.
             var parts = new List<string>();
-            if (zooning.FloorAreaRatio.HasValue) parts.Add($"FAR={zooning.FloorAreaRatio.Value:N2}");
-            if (zooning.SetbackMeters.HasValue) parts.Add($"setback={zooning.SetbackMeters.Value:N2} m");
-            if (zooning.HeightLimitMeters.HasValue) parts.Add($"heightLimit={zooning.HeightLimitMeters.Value:N2} m");
+            if (zoning.FloorAreaRatio.HasValue) parts.Add($"FAR={zoning.FloorAreaRatio.Value:N2}");
+            if (zoning.SetbackMeters.HasValue) parts.Add($"setback={zoning.SetbackMeters.Value:N2} m");
+            if (zoning.HeightLimitMeters.HasValue) parts.Add($"heightLimit={zoning.HeightLimitMeters.Value:N2} m");
             dataSource = parts.Count > 0 ? string.Join("; ", parts) : "unavailable";
         }
 
@@ -148,12 +149,12 @@ public sealed class SiteCharacterAnalysisTool(
 
         if (outcome.Type == DataResolutionOutcomeType.Confirmed && outcome.Value is { } zoning)
         {
-            if (zooning.FloorAreaRatio.HasValue)
-                items.Add(new SiteAnalysisContentItem(FARText, MetresOrRatio(zooning.FloorAreaRatio.Value)));
-            if (zooning.SetbackMeters.HasValue)
-                items.Add(new SiteAnalysisContentItem(SetbackText, $"({zooning.SetbackMeters.Value:N2} m)"));
-            if (zooning.HeightLimitMeters.HasValue)
-                items.Add(new SiteAnalysisContentItem(HeightLimitText, $"({zooning.HeightLimitMeters.Value:N2} m)"));
+            if (zoning.FloorAreaRatio.HasValue)
+                items.Add(new SiteAnalysisContentItem(FARText, MetresOrRatio(zoning.FloorAreaRatio.Value)));
+            if (zoning.SetbackMeters.HasValue)
+                items.Add(new SiteAnalysisContentItem(SetbackText, $"({zoning.SetbackMeters.Value:N2} m)"));
+            if (zoning.HeightLimitMeters.HasValue)
+                items.Add(new SiteAnalysisContentItem(HeightLimitText, $"({zoning.HeightLimitMeters.Value:N2} m)"));
         }
         else
         {

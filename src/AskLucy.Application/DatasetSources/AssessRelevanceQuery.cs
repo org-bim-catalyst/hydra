@@ -1,5 +1,7 @@
 using AskLucy.Application.Abstractions;
+using AskLucy.Domain.DatasetSources;
 using MediatR;
+using Microsoft.Extensions.Logging;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -40,7 +42,7 @@ public class AssessRelevanceResult
     /// <summary>
     /// The relevance category of the data source.
     /// </summary>
-    public RelevanceClassifier.DataSourceCategory Category { get; set; } = RelevanceClassifier.DataSourceCategory.Unknown;
+    public DataSourceCategory Category { get; set; } = DataSourceCategory.Unknown;
 
     /// <summary>
     /// Confidence score for the classification (0-1).
@@ -103,16 +105,16 @@ public class AssessRelevanceHandler : IRequestHandler<AssessRelevanceQuery, Asse
             // Build rationale based on the category
             switch (category)
             {
-                case RelevanceClassifier.DataSourceCategory.OmanSpecific:
+                case DataSourceCategory.OmanSpecific:
                     result.Rationale = "Source classified as Oman-specific based on domain analysis (ea.gov.om, opendata.gov.om, etc.) and/or metadata containing Oman-related keywords.";
                     break;
-                case RelevanceClassifier.DataSourceCategory.General:
+                case DataSourceCategory.General:
                     result.Rationale = "Source classified as General/International based on domain patterns (data.humdata.org, un.org, etc.) and/or metadata indicating global coverage.";
                     break;
-                case RelevanceClassifier.DataSourceCategory.Mixed:
+                case DataSourceCategory.Mixed:
                     result.Rationale = "Source classified as Mixed relevance, containing both Oman-specific and general content based on domain and metadata analysis.";
                     break;
-                case RelevanceClassifier.DataSourceCategory.Unknown:
+                case DataSourceCategory.Unknown:
                     result.Rationale = "Source could not be classified with confidence; further manual review recommended.";
                     break;
             }
@@ -123,7 +125,7 @@ public class AssessRelevanceHandler : IRequestHandler<AssessRelevanceQuery, Asse
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error assessing relevance for {Url}", request.Url);
-            result.Category = RelevanceClassifier.DataSourceCategory.Unknown;
+            result.Category = DataSourceCategory.Unknown;
             result.Confidence = 0.0;
             result.Rationale = $"Error during classification: {ex.Message}";
         }

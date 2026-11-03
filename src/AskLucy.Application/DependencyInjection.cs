@@ -15,6 +15,7 @@ using AskLucy.Application.Conversations.Flows;
 using AskLucy.Application.Conversations.Runtime;
 using AskLucy.Application.CustomModels;
 using AskLucy.Application.CustomModels.Jobs;
+using AskLucy.Application.DatasetSources;
 using AskLucy.Application.Documents.Commands;
 using AskLucy.Application.Documents.Notifications;
 using AskLucy.Application.Documents.Processing;
@@ -65,6 +66,9 @@ public static class DependencyInjection
         services.AddScoped<TokenIssuer>();
         services.AddScoped<DefaultProviderResolver>();
         services.AddScoped<AiCapabilityProviderResolver>();
+
+        // Dataset source evaluation: stateless classifier shared by the fetch/assess handlers.
+        services.AddSingleton<RelevanceClassifier>();
 
         // specs/077 — per-capability settings (the admin page's gear column).
         services.AddSingleton<CapabilitySettingCatalog>();

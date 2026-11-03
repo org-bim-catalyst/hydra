@@ -1,4 +1,5 @@
 using AskLucy.Application.Abstractions;
+using AskLucy.Domain.DatasetSources;
 
 namespace AskLucy.Application.DatasetSources;
 
@@ -8,32 +9,6 @@ namespace AskLucy.Application.DatasetSources;
 /// </summary>
 public class RelevanceClassifier
 {
-    /// <summary>
-    /// Categories of data source relevance.
-    /// </summary>
-    public enum DataSourceCategory
-    {
-        /// <summary>
-        /// Oman-specific source (focused on Oman geography, government, or demographics).
-        /// </summary>
-        OmanSpecific,
-
-        /// <summary>
-        /// General/International source (covers multiple countries/regions globally).
-        /// </summary>
-        General,
-
-        /// <summary>
-        /// Mixed relevance (contains both Oman-specific and general content).
-        /// </summary>
-        Mixed,
-
-        /// <summary>
-        /// Unknown category (could not determine).
-        /// </summary>
-        Unknown
-    }
-
     /// <summary>
     /// Default set of Oman-related domain keywords for classification.
     /// </summary>
@@ -74,7 +49,9 @@ public class RelevanceClassifier
         if (string.IsNullOrWhiteSpace(sourceUrl))
             return DataSourceCategory.Unknown;
 
-        var url = new Uri(sourceUrl);
+        if (!Uri.TryCreate(sourceUrl, UriKind.Absolute, out var url))
+            return DataSourceCategory.Unknown;
+
         var host = url.Host;
 
         // Check for explicit Oman domains
@@ -89,7 +66,7 @@ public class RelevanceClassifier
         if (!string.IsNullOrWhiteSpace(metadata))
         {
             var lowerMeta = metadata.ToLowerInvariant();
-            if (lowerMeta.Contains("oman") || lowerMeta.contains("sultan") || lowerMeta.Contains("gcc"))
+            if (lowerMeta.Contains("oman") || lowerMeta.Contains("sultan") || lowerMeta.Contains("gcc"))
                 return DataSourceCategory.OmanSpecific;
             if (lowerMeta.Contains("global") || lowerMeta.Contains("international") || lowerMeta.Contains("world"))
                 return DataSourceCategory.General;
@@ -129,7 +106,9 @@ public class RelevanceClassifier
             return 0.0;
 
         var score = 0.0;
-        var url = new Uri(sourceUrl);
+        if (!Uri.TryCreate(sourceUrl, UriKind.Absolute, out var url))
+            return 0.0;
+
         var host = url.Host;
         var lowerMeta = (metadata ?? "").ToLowerInvariant();
 

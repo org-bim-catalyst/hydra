@@ -14,7 +14,7 @@ namespace AskLucy.Infrastructure.Ai;
 /// Provides common functionality for HTTP requests, retry policy, rate limiting,
 /// and JSON deserialization of varying source response formats.
 /// </summary>
-public class OpenDataClient
+public class OpenDataClient : IOpenDataClient
 {
     private readonly HttpClient _httpClient;
     private readonly ILogger<OpenDataClient> _logger;

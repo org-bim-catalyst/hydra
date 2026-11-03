@@ -1,176 +1,183 @@
+using System.Text.Json;
+using AskLucy.Application.Abstractions;
 using AskLucy.Application.Agents.Tools;
+using AskLucy.Application.Overpass;
 using AskLucy.Application.SiteAnalysis;
 using AskLucy.Application.SiteAnalysis.Tools;
+using AskLucy.Domain.Common;
+using AskLucy.Domain.SiteAnalysis;
+using AskLucy.Domain.SiteBoundaries;
 using FluentAssertions;
 using Microsoft.Extensions.DependencyInjection;
 using NSubstitute;
 using Xunit;
+using SiteAnalysisAggregate = AskLucy.Domain.SiteAnalysis.SiteAnalysis;
 
 namespace AskLucy.Application.Tests.SiteAnalysis;
 
+/// <summary>
+/// The urban-context specialist's contract: name, description, risk, permissions, schemas, and the
+/// two delivery paths (site not found, and a successful OSM read). Mirrors
+/// <see cref="EnvironmentalContextToolTests"/>'s real-<see cref="ServiceCollection"/> substitution
+/// style so <c>GetRequiredService</c> resolves the tool's scoped dependencies.
+/// </summary>
 public sealed class UrbanContextToolTests
 {
     private const string UserId = "user-1";
+    private const string SiteName = "Al Barsha South";
+    private const double Latitude = 25.09;
+    private const double Longitude = 55.20;
+
+    private readonly Guid _analysisId = Guid.CreateVersion7();
+
+    private readonly ISiteAnalysisRepository _repository = Substitute.For<ISiteAnalysisRepository>();
+    private readonly IOverpassFeatureQueryProvider _overpass = Substitute.For<IOverpassFeatureQueryProvider>();
+    private readonly ISiteAnalysisResultRelay _relay = Substitute.For<ISiteAnalysisResultRelay>();
+
+    private JsonDocument? _reportedContent;
+
+    public UrbanContextToolTests()
+    {
+        var analysis = SiteAnalysisAggregate.Create(
+            UserId, Guid.NewGuid(), SiteName, Latitude, Longitude, null, 2, UserId);
+        _repository.GetByIdAsync(Arg.Any<Guid>(), Arg.Any<CancellationToken>()).Returns(analysis);
+
+        _overpass.QueryAsync(Arg.Any<OverpassFeatureQuery>(), Arg.Any<CancellationToken>())
+            .Returns([]);
+
+        _relay
+            .ReportSuccessAsync(
+                Arg.Any<Guid>(), Arg.Any<SiteAnalysisType>(), Arg.Any<SiteAnalysisResultMetadata>(),
+                Arg.Any<JsonDocument>(), Arg.Any<Guid?>(), Arg.Any<CancellationToken>())
+            .Returns(call =>
+            {
+                _reportedContent = JsonDocument.Parse(call.Arg<JsonDocument>().RootElement.GetRawText());
+                return Task.CompletedTask;
+            });
+    }
+
+    private UrbanContextTool BuildTool()
+    {
+        var services = new ServiceCollection();
+        services.AddSingleton(_repository);
+        services.AddSingleton(_overpass);
+        var scopeFactory = services.BuildServiceProvider().GetRequiredService<IServiceScopeFactory>();
+
+        return new UrbanContextTool(scopeFactory, new SiteAnalysisContentComposer(), _relay);
+    }
+
+    private JsonDocument Input() =>
+        JsonDocument.Parse(
+            $$"""{"siteAnalysisId":"{{_analysisId}}","siteName":"Ignored name","siteLocation":"Ignored location"}""");
+
+    private static AgentToolExecutionContext Context() =>
+        new(Guid.NewGuid(), Guid.NewGuid(), UserId, Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid());
 
     [Fact]
-    public void UrbanContextTool_ShouldHaveCorrectName()
+    public void ShouldHaveCorrectName()
     {
-        // Arrange
-        var scopeFactory = Substitute.For<IServiceScopeFactory>();
-        var composer = Substitute.For<SiteAnalysisContentComposer>();
-        var relay = Substitute.For<ISiteAnalysisResultRelay>();
-
-        // Act
-        var tool = new UrbanContextTool(scopeFactory, composer, relay);
-
-        // Assert
-        tool.Name.Should().Be("site_analysis_urban_context");
+        BuildTool().Name.Should().Be("site_analysis_urban_context");
     }
 
     [Fact]
-    public void UrbanContextTool_ShouldHaveCorrectDescription()
+    public void ShouldDescribeItsScope()
     {
-        // Arrange
-        var scopeFactory = Substitute.For<IServiceScopeFactory>();
-        var composer = Substitute.For<SiteAnalysisContentComposer>();
-        var relay = Substitute.For<ISiteAnalysisResultRelay>();
-
-        // Act
-        var tool = new UrbanContextTool(scopeFactory, composer, relay);
-
-        // Assert
-        tool.Description.Should()
+        BuildTool().Description.Should()
             .Contain("surrounding land use mix")
             .And.Contain("building density")
             .And.Contain("notable nearby places");
     }
 
     [Fact]
-    public void UrbanContextTool_ShouldHaveLowRiskLevel()
+    public void ShouldBeLowRisk()
     {
-        // Arrange
-        var scopeFactory = Substitute.For<IServiceScopeFactory>();
-        var composer = Substitute.For<SiteAnalysisContentComposer>();
-        var relay = Substitute.For<ISiteAnalysisResultRelay>();
-
-        // Act
-        var tool = new UrbanContextTool(scopeFactory, composer, relay);
-
-        // Assert
-        tool.RiskLevel.Should().Be(AgentToolRiskLevel.Low);
+        BuildTool().RiskLevel.Should().Be(AgentToolRiskLevel.Low);
     }
 
     [Fact]
-    public void UrbanContextTool_ShouldRequireExternalNetworkPermission()
+    public void ShouldRequireExternalNetworkOnly()
     {
-        // Arrange
-        var scopeFactory = Substitute.For<IServiceScopeFactory>();
-        var composer = Substitute.For<SiteAnalysisContentComposer>();
-        var relay = Substitute.For<ISiteAnalysisResultRelay>();
+        var tool = BuildTool();
 
-        // Act
-        var tool = new UrbanContextTool(scopeFactory, composer, relay);
-
-        // Assert
         tool.RequiredPermissions.Should().Contain(AgentToolPermission.ExternalNetwork);
         tool.RequiredPermissions.Should().NotContain(AgentToolPermission.WriteFile);
     }
 
     [Fact]
-    public void UrbanContextTool_InputSchema_ShouldRequireSiteAnalysisIdSiteNameAndSiteLocation()
+    public void InputSchemaShouldRequireSiteIdentity()
     {
-        // Arrange
-        var scopeFactory = Substitute.For<IServiceScopeFactory>();
-        var composer = Substitute.For<SiteAnalysisContentComposer>();
-        var relay = Substitute.For<ISiteAnalysisResultRelay>();
-
-        // Act
-        var tool = new UrbanContextTool(scopeFactory, composer, relay);
-
-        // Assert
-        tool.InputSchemaJson.Should().Contain("siteAnalysisId");
-        tool.InputSchemaJson.Should().Contain("siteName");
-        tool.InputSchemaJson.Should().Contain("siteLocation");
+        BuildTool().InputSchemaJson.Should()
+            .Contain("siteAnalysisId")
+            .And.Contain("siteName")
+            .And.Contain("siteLocation");
     }
 
     [Fact]
-    public void UrbanContextTool_OutputSchema_ShouldRequireReported()
+    public void OutputSchemaShouldRequireReported()
     {
-        // Arrange
-        var scopeFactory = Substitute.For<IServiceScopeFactory>();
-        var composer = Substitute.For<SiteAnalysisContentComposer>();
-        var relay = Substitute.For<ISiteAnalysisResultRelay>();
-
-        // Act
-        var tool = new UrbanContextTool(scopeFactory, composer, relay);
-
-        // Assert
-        tool.OutputSchemaJson.Should().Contain("reported");
+        BuildTool().OutputSchemaJson.Should().Contain("reported");
     }
 
     [Fact]
-    public async Task UrbanContextTool_ExecuteAsync_ShouldReportFailure_WhenSiteAnalysisNotFound()
+    public async Task ExecuteAsync_ShouldReportFailure_WhenSiteAnalysisNotFound()
     {
-        // Arrange
-        var mockScopeFactory = Substitute.For<IServiceScopeFactory>();
-        var mockComposer = Substitute.For<SiteAnalysisContentComposer>();
-        var mockRelay = Substitute.For<ISiteAnalysisResultRelay>();
+        _repository.GetByIdAsync(Arg.Any<Guid>(), Arg.Any<CancellationToken>())
+            .Returns((SiteAnalysisAggregate?)null);
 
-        using var scope = Substitute.For<IServiceScope>();
-        scope.ServiceProvider.GetRequiredService<ISiteAnalysisRepository>()
-            .Returns(Substitute.For<ISiteAnalysisRepository>());
-        mockScopeFactory.CreateScope().Returns(scope);
-        mockComposer.ComposeFinding(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<(Guid, string)?>(), Arg.Any<SiteAnalysisResultMetadata>())
-            .Returns(JsonDocument.Parse("{\"version\":1,\"blocks\":[]}"));
+        var result = await BuildTool().ExecuteAsync(Context(), Input(), TestContext.Current.CancellationToken);
 
-        var tool = new UrbanContextTool(mockScopeFactory, mockComposer, mockRelay);
+        result.Succeeded.Should().BeFalse();
+        await _relay.Received(1).ReportFailureAsync(
+            _analysisId,
+            SiteAnalysisType.UrbanContext,
+            Arg.Any<string>(),
+            null,
+            Arg.Any<CancellationToken>());
+    }
 
-        var input = JsonSerializer.SerializeToDocument(new { siteAnalysisId = Guid.NewGuid(), siteName = "Test Site", siteLocation = "25.09, 55.20" });
+    [Fact]
+    public async Task ExecuteAsync_ShouldReportSuccess_WhenSiteFound()
+    {
+        _overpass.QueryAsync(Arg.Any<OverpassFeatureQuery>(), Arg.Any<CancellationToken>())
+            .Returns([
+                new OverpassFeature(
+                    "1", "way",
+                    new Dictionary<string, string> { ["amenity"] = "cafe" },
+                    [new GeoPoint(Latitude, Longitude)]),
+                new OverpassFeature(
+                    "2", "way",
+                    new Dictionary<string, string> { ["building"] = "yes" },
+                    [new GeoPoint(Latitude, Longitude)]),
+            ]);
 
-        // Act
-        var result = await tool.ExecuteAsync(
-            new AgentToolExecutionContext { ExecutionId = "exec-1", StepId = "step-1", UserId = "user-1", AgentId = "agent-1", AgentVersionId = "1" },
-            input,
-            CancellationToken.None);
+        var result = await BuildTool().ExecuteAsync(Context(), Input(), TestContext.Current.CancellationToken);
 
-        // Assert
-        await mockRelay.Received(1).ReportFailureAsync(
+        result.Succeeded.Should().BeTrue();
+        result.Output!.RootElement.GetProperty("reported").GetBoolean().Should().BeTrue();
+
+        await _relay.Received(1).ReportSuccessAsync(
+            _analysisId,
+            SiteAnalysisType.UrbanContext,
+            Arg.Any<SiteAnalysisResultMetadata>(),
+            Arg.Any<JsonDocument>(),
+            Guid.Empty,
+            Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task ExecuteAsync_ShouldRejectInputWithoutSiteAnalysisId()
+    {
+        var input = JsonDocument.Parse("""{"siteName":"x","siteLocation":"y"}""");
+
+        var result = await BuildTool().ExecuteAsync(Context(), input, TestContext.Current.CancellationToken);
+
+        result.Succeeded.Should().BeFalse();
+        await _relay.DidNotReceive().ReportSuccessAsync(
             Arg.Any<Guid>(),
             Arg.Any<SiteAnalysisType>(),
-            Arg.Any<string>(),
-            Arg.Any<Exception>(),
+            Arg.Any<SiteAnalysisResultMetadata>(),
+            Arg.Any<JsonDocument>(),
+            Arg.Any<Guid?>(),
             Arg.Any<CancellationToken>());
-        result.Should().BeOfType<AgentToolResult.Failure>();
-    }
-
-    [Fact]
-    public async Task UrbanContextTool_ExecuteAsync_ShouldReportSuccess_WhenSiteFound()
-    {
-        // Arrange
-        var mockScopeFactory = Substitute.For<IServiceScopeFactory>();
-        var mockComposer = Substitute.For<SiteAnalysisContentComposer>();
-        var mockRelay = Substitute.For<ISiteAnalysisResultRelay>();
-
-        using var scope = Substitute.For<IServiceScope>();
-        var mockRepo = Substitute.For<ISiteAnalysisRepository>();
-        mockRepo.GetByIdAsync(Arg.Any<Guid>(), Arg.Any<CancellationToken>()).ReturnsNullForAnyArgs();
-        scope.ServiceProvider.GetRequiredService<ISiteAnalysisRepository>().Returns(mockRepo);
-        mockScopeFactory.CreateScope().Returns(scope);
-        mockComposer.ComposeFinding(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<(Guid, string)?>(), Arg.Any<SiteAnalysisResultMetadata>())
-            .Returns(JsonDocument.Parse("{\"version\":1,\"blocks\":[]}"));
-
-        var tool = new UrbanContextTool(mockScopeFactory, mockComposer, mockRelay);
-
-        var input = JsonSerializer.SerializeToDocument(new { siteAnalysisId = Guid.NewGuid(), siteName = "Test Site", siteLocation = "25.09, 55.20" });
-
-        // Act
-        var result = await tool.ExecuteAsync(
-            new AgentToolExecutionContext { ExecutionId = "exec-1", StepId = "step-1", UserId = "user-1", AgentId = "agent-1", AgentVersionId = "1" },
-            input,
-            CancellationToken.None);
-
-        // Assert
-        await mockRelay.DidNotReceiveWithAnyArgs().ReportFailureAsync(Arg.Any<Guid>(), Arg.Any<SiteAnalysisType>(), Arg.Any<string>(), Arg.Any<Exception>(), Arg.Any<CancellationToken>());
-        result.Should().BeOfType<AgentToolResult.Success>();
     }
 }

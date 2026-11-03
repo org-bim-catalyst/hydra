@@ -1,5 +1,6 @@
 using AskLucy.Application.Abstractions;
 using MediatR;
+using Microsoft.Extensions.Logging;
 using System.Net.Http;
 using System.Text.Json;
 using System.Threading;
@@ -80,15 +81,15 @@ public class FetchSourceDataResult
 /// </summary>
 public class FetchSourceDataHandler : IRequestHandler<FetchSourceDataCommand, FetchSourceDataResult>
 {
-    private readonly OpenDataClient _dataClient;
+    private readonly IOpenDataClient _dataClient;
     private readonly ILogger<FetchSourceDataHandler> _logger;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="FetchSourceDataHandler"/> class.
     /// </summary>
-    /// <param name="dataClient">The OpenDataClient for making HTTP requests.</param>
+    /// <param name="dataClient">The open data client for making HTTP requests.</param>
     /// <param name="logger">Logger for diagnostic messages.</param>
-    public FetchSourceDataHandler(OpenDataClient dataClient, ILogger<FetchSourceDataHandler> logger)
+    public FetchSourceDataHandler(IOpenDataClient dataClient, ILogger<FetchSourceDataHandler> logger)
     {
         _dataClient = dataClient;
         _logger = logger;
@@ -113,9 +114,11 @@ public class FetchSourceDataHandler : IRequestHandler<FetchSourceDataCommand, Fe
             // Build URI and fetch with timeout
             var uri = new Uri(request.Url);
             var timeout = request.TimeoutSeconds ?? 30;
-            _dataClient._httpClient.Timeout = TimeSpan.FromSeconds(timeout);
 
-            var response = await _dataClient.GetAsync(uri, cancellationToken);
+            using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+            timeoutCts.CancelAfter(TimeSpan.FromSeconds(timeout));
+
+            var response = await _dataClient.GetAsync(uri, timeoutCts.Token);
 
             if (response == null || !response.IsSuccessStatusCode)
             {
@@ -243,24 +246,20 @@ public class FetchSourceDataHandler : IRequestHandler<FetchSourceDataCommand, Fe
             result.Title = titleMatch.Groups[1].Value;
 
         // Try to find meta description
-        var descMatch = System.Text.RegularExpressions.Regex.Match(content, @"<meta[^>]*name=[\""]description[\""][^>]*content=[\"""]?([^""]*)[\""]?",
+        var descMatch = System.Text.RegularExpressions.Regex.Match(content, "<meta[^>]*name=[\"']description[\"'][^>]*content=[\"']?([^\"']*)[\"']?",
             System.Text.RegularExpressions.RegexOptions.IgnoreCase);
         if (descMatch.Success && !string.IsNullOrWhiteSpace(descMatch.Groups[1].Value))
             result.Description = descMatch.Groups[1].Value;
 
         // Try to find meta last-updated
-        var dateMatch = System.Text.RegularExpressions.Regex.Match(content, @"<meta[^>]*property=[\""]og:updated[\""][^>]*content=[\"""]?([^""]*)[\""]?",
+        var dateMatch = System.Text.RegularExpressions.Regex.Match(content, "<meta[^>]*property=[\"']og:updated[\"'][^>]*content=[\"']?([^\"']*)[\"']?",
             System.Text.RegularExpressions.RegexOptions.IgnoreCase);
         if (dateMatch.Success && DateTime.TryParse(dateMatch.Groups[1].Value, out var date))
             result.LastUpdated = date;
 
-        var lastModifiedMatch = System.Text.RegularExpressions.Regex.Match(content, @"<meta[^>]*name=[\""]date[\""][^>]*content=[\"""]?([^""]*)[\""]?",
+        var lastModifiedMatch = System.Text.RegularExpressions.Regex.Match(content, "<meta[^>]*name=[\"']last-modified[\"'][^>]*content=[\"']?([^\"']*)[\"']?",
             System.Text.RegularExpressions.RegexOptions.IgnoreCase);
-        if (lastModifiedSuccess = System.Text.RegularExpressions.Regex.Match(content, @"<meta[^>]*name=[\""]last-modified[\""][^>]*content=[\"""]?([^""]*)[\""]?",
-            System.Text.RegularExpressions.RegexOptions.IgnoreCase))
-        {
-            if (DateTime.TryParse(lastModifiedSuccess.Groups[1].Value, out var lmDate))
-                result.LastUpdated = lmDate;
-        }
+        if (lastModifiedMatch.Success && DateTime.TryParse(lastModifiedMatch.Groups[1].Value, out var lmDate))
+            result.LastUpdated = lmDate;
     }
 }

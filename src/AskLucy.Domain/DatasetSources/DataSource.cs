@@ -1,60 +1,43 @@
-using AskLucy.Domain.Abstractions;
+using AskLucy.Domain.Common;
 
 namespace AskLucy.Domain.DatasetSources;
 
 /// <summary>
-/// Represents a data source from an open data provider, with metadata for relevance classification.
+/// An open data source registered for dataset/source evaluation, with the metadata needed to
+/// classify its relevance. Aggregate root of the <c>DatasetSources</c> context.
 /// </summary>
-public class DataSource : AggregateRoot<Guid>
+public sealed class DataSource : BaseEntity
 {
-    /// <summary>
-    /// Unique identifier of the data source.
-    /// </summary>
-    public override Guid Id { get; protected set; }
-
     /// <summary>
     /// Name of the data source (e.g., "Oman Open Data Portal").
     /// </summary>
-    public string Name { get; protected set; } = string.Empty;
+    public string Name { get; private set; } = string.Empty;
 
     /// <summary>
     /// URL of the data source endpoint.
     /// </summary>
-    public string Url { get; protected set; } = string.Empty;
+    public string Url { get; private set; } = string.Empty;
 
     /// <summary>
-    /// Categorization of the source: Oman-specific, General, or Mixed.
+    /// Categorization of the source: Oman-specific, General, Mixed, or Unknown.
     /// </summary>
-    public DataSourceCategory Category { get; protected set; } = DataSourceCategory.Unknown;
+    public DataSourceCategory Category { get; private set; } = DataSourceCategory.Unknown;
 
     /// <summary>
-    /// Metadata about the source (last updated, description, etc.) stored as JSON.
+    /// Metadata about the source (description, last updated, etc.) stored as JSON.
     /// </summary>
-    public string MetadataJson { get; protected set; } = "{}";
+    public string MetadataJson { get; private set; } = "{}";
 
     /// <summary>
     /// Timestamp when the source data was last updated (UTC).
-    /// </null>
-    public DateTime LastUpdatedUtc { get; protected set; }
+    /// </summary>
+    public DateTime LastUpdatedUtc { get; private set; }
 
     /// <summary>
-    /// Date when the source entry was created (UTC).
+    /// Required by EF Core materialization.
     /// </summary>
-    public DateTime CreatedAtUtc { get; protected set; }
-
-    /// <summary>
-    /// Date when the source entry was last modified (UTC).
-    /// </summary>
-    public DateTime LastModifiedUtc { get; protected set; }
-
-    /// <summary>
-    /// Protected constructor for EF Core and pattern compliance.
-    /// </summary>
-    protected DataSource()
+    private DataSource()
     {
-        Id = Guid.NewGuid();
-        CreatedAtUtc = DateTime.UtcNow;
-        LastModifiedUtc = DateTime.UtcNow;
     }
 
     /// <summary>
@@ -65,7 +48,6 @@ public class DataSource : AggregateRoot<Guid>
     /// <param name="category">Initial categorization.</param>
     /// <param name="metadataJson">Optional metadata as JSON string.</param>
     public DataSource(string name, string url, DataSourceCategory category, string metadataJson = "{}")
-        : this()
     {
         Name = name;
         Url = url;
@@ -83,7 +65,7 @@ public class DataSource : AggregateRoot<Guid>
     {
         MetadataJson = metadataJson;
         LastUpdatedUtc = lastUpdatedUtc;
-        LastModifiedUtc = DateTime.UtcNow;
+        ModifiedAtUtc = DateTime.UtcNow;
     }
 
     /// <summary>
@@ -93,6 +75,6 @@ public class DataSource : AggregateRoot<Guid>
     public void UpdateCategory(DataSourceCategory category)
     {
         Category = category;
-        LastModifiedUtc = DateTime.UtcNow;
+        ModifiedAtUtc = DateTime.UtcNow;
     }
 }

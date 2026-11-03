@@ -6,6 +6,7 @@ using AskLucy.Application.SiteAnalysis;
 using AskLucy.Domain.Agents;
 using AskLucy.Domain.Common;
 using AskLucy.Domain.SiteAnalysis;
+using AskLucy.Domain.SiteBoundaries;
 using MediatR;
 using Microsoft.Extensions.DependencyInjection;
 using SiteAnalysisAggregate = AskLucy.Domain.SiteAnalysis.SiteAnalysis;
@@ -73,9 +74,9 @@ public sealed class UrbanContextTool(
 
             var overpass = scope.ServiceProvider.GetRequiredService<IOverpassFeatureQueryProvider>();
             var query = new OverpassFeatureQuery(
-                center: new GeoPoint(site.Latitude, site.Longitude),
-                radiusMeters: QueryRadiusMetres,
-                filters: new[]
+                Center: new GeoPoint(site.Latitude, site.Longitude),
+                RadiusMeters: QueryRadiusMetres,
+                Filters: new[]
                 {
                     new OverpassTagFilter("amenity", null),
                     new OverpassTagFilter("landuse", null),
@@ -101,14 +102,14 @@ public sealed class UrbanContextTool(
                 SiteAnalysisType.UrbanContext,
                 site.SiteName,
                 $"osm-query:radius-{QueryRadiusMetres}m",
-                SiteAnalysisConfidence.Medium,
+                SiteAnalysisConfidenceLevel.Medium,
                 DateTime.UtcNow,
                 []);
 
-            using var content = composer.ComposeFinding(
+            using var content = composer.ComposeSections(
                 Heading,
                 $"Urban context analysis of the area within {QueryRadiusMetres}m of {site.SiteName}.",
-                null,
+                [new SiteAnalysisContentSection("Surroundings", items)],
                 metadata);
 
             await relay.ReportSuccessAsync(siteAnalysisId, SiteAnalysisType.UrbanContext, metadata, content, Guid.Empty, cancellationToken);

@@ -414,6 +414,13 @@ public static class DependencyInjection
             client.Timeout = TimeSpan.FromSeconds(30);
         });
 
+        // specs/092-dataset-sources — open data source fetches. The client owns retry and rate
+        // limiting; the handler supplies a per-request cancellation budget.
+        services.AddHttpClient<IOpenDataClient, OpenDataClient>("OpenData", client =>
+        {
+            client.Timeout = TimeSpan.FromMinutes(2);
+        });
+
         services.AddSingleton<ITokenService, TokenService>();
         services.AddSingleton<ISignedUrlService, SignedUrlService>();
         services.AddSingleton<ICookiePolicyProvider, CookiePolicyProvider>();

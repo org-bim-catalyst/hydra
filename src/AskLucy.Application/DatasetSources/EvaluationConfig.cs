@@ -85,20 +85,13 @@ public class EvaluationConfig
                 .WithMessage("MaxUrlLength must be greater than 0.");
         }
 
-        private static bool BeAValidUrlFormat(string url)
+        private static bool BeAValidUrlFormat(string domain)
         {
-            if (string.IsNullOrWhiteSpace(url))
+            if (string.IsNullOrWhiteSpace(domain))
                 return false;
 
-            try
-            {
-                new Uri(url);
-                return true;
-            }
-            catch
-            {
-                return false;
-            }
+            // SupportedDomains holds bare host names ("ea.gov.om"), not absolute URLs.
+            return Uri.CheckHostName(domain.Trim()) != UriHostNameType.Unknown;
         }
     }
 }

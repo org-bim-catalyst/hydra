@@ -1,11 +1,12 @@
 using AskLucy.Application.Abstractions;
+using AskLucy.Domain.DatasetSources;
 
 namespace AskLucy.Application.DatasetSources;
 
 /// <summary>
-> Data Transfer Object for evaluation results, containing fetched source metadata and classification information.
-> </Summary>
-/// <Value>Used by the evaluation pipeline to present source assessment results to the user.</Value>
+/// Data Transfer Object for evaluation results, containing fetched source metadata and classification information.
+/// Used by the evaluation pipeline to present source assessment results to the user.
+/// </summary>
 public class EvaluationResult
 {
     /// <summary>
@@ -31,7 +32,7 @@ public class EvaluationResult
     /// <summary>
     /// The relevance category of the data source.
     /// </summary>
-    public RelevanceClassifier.DataSourceCategory Category { get; set; } = RelevanceClassifier.DataSourceCategory.Unknown;
+    public DataSourceCategory Category { get; set; } = DataSourceCategory.Unknown;
 
     /// <summary>
     /// Confidence score for the classification (0-1).
@@ -57,7 +58,7 @@ public class EvaluationResult
     /// Creates a new EvaluationResult from a FetchSourceDataResult.
     /// </summary>
     /// <param name="fetchResult">The fetch result to map from.</param>
-    /// <param name="&#34;assessResult&#34;">The relevance assessment result to map from.</param>
+    /// <param name="assessResult">The relevance assessment result to map from.</param>
     public EvaluationResult(FetchSourceDataResult fetchResult, AssessRelevanceResult? assessResult = null)
     {
         Url = fetchResult.Url;
