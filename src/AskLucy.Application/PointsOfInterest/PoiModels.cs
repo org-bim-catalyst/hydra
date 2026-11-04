@@ -49,16 +49,21 @@ public sealed record PoiBoundingBox(double SouthLatitude, double WestLongitude, 
 /// <param name="Category">Which places to look for.</param>
 /// <param name="MaxResults">Cap on the elements returned.</param>
 /// <param name="Bounds">
-/// The named area's own extent, when the geocoder supplied one. For a city this is the city's
-/// box; for a country it is the country's — searching a 25 km radius around a country's centre
-/// answers a completely different question, and in Oman's case finds almost nothing.
+/// The named area's own extent, when the geocoder supplied one. Used when
+/// <paramref name="AreaName"/> cannot be resolved to an OSM administrative area.
+/// </param>
+/// <param name="AreaName">
+/// The resolved area's name (e.g. <c>Oman</c>, <c>Muscat</c>). When present the provider searches
+/// inside that administrative boundary rather than its bounding box — a box around a country
+/// always includes its neighbours, which is how "hospitals in Oman" returned UAE hospitals.
 /// </param>
 public sealed record PoiQuery(
     GeoPoint Center,
     int RadiusMeters,
     PoiCategoryDefinition Category,
     int MaxResults = 200,
-    PoiBoundingBox? Bounds = null);
+    PoiBoundingBox? Bounds = null,
+    string? AreaName = null);
 
 /// <summary>
 /// What the client reports as currently drawn on the map, sent with each chat turn so the

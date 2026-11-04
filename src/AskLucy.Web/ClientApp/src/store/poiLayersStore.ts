@@ -41,6 +41,15 @@ export const usePoiLayersStore = create<PoiLayersState>((set) => ({
     set((state) => {
       // A different chat never inherits the previous one's markers.
       const base = state.chatId === chatId ? state.layers : []
+
+      // "replace" with no results means the user asked to clear the old category and the new
+      // search found nothing — the old markers must still go, or the map contradicts the reply.
+      if (layer.markers.length === 0) {
+        return mode === 'replace'
+          ? { chatId, layers: [] }
+          : { chatId: state.chatId, layers: base }
+      }
+
       const withoutCategory = base.filter((l) => l.category !== layer.category)
 
       return {

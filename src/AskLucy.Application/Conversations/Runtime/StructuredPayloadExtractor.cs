@@ -105,13 +105,14 @@ public static class StructuredPayloadExtractor
                             ? snapshotNameEl.GetString() ?? string.Empty
                             : string.Empty));
 
-                // specs/090-poi-discovery - a drawn layer. `awaitingChoice` results carry no
-                // markers by design: the question must be answered before anything is drawn, so
-                // they fall through to `default` and Lucy narrates the question only.
+                // specs/090-poi-discovery - a drawn layer, including an empty one when the user
+                // chose replace: the client must clear the old markers even though the new search
+                // found nothing. `awaitingChoice` results carry neither markers nor mode by
+                // design, so they fall through to `default` and Lucy narrates the question only.
                 case FindPointsOfInterestCapability.CapabilityKey
                     when root.TryGetProperty("markers", out var markersEl)
                         && markersEl.ValueKind == JsonValueKind.Array
-                        && markersEl.GetArrayLength() > 0:
+                        && root.TryGetProperty("mode", out _):
                     return new ChatStreamChunk(null, null, PoiLayer: new PoiLayerCommand(
                         root.GetProperty("category").GetString() ?? string.Empty,
                         root.GetProperty("displayName").GetString() ?? string.Empty,

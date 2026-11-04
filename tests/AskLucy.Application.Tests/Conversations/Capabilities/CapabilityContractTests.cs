@@ -54,6 +54,13 @@ public sealed class CapabilityContractTests
         new PresentPanelContentCapability(Substitute.For<IPanelNotifier>()),
         new OpenLivePanelCapability(Substitute.For<IPanelNotifier>()),
         new MapSnapshotCapability(Substitute.For<ISender>(), Substitute.For<IUserChatRepository>(), Substitute.For<IServiceScopeFactory>()),
+        new FindPointsOfInterestCapability(
+            Substitute.For<ILocationResolutionService>(),
+            Substitute.For<AskLucy.Application.PointsOfInterest.IPoiQueryProvider>(),
+            new AskLucy.Application.PointsOfInterest.PoiCategoryCatalog(),
+            new AskLucy.Application.PointsOfInterest.PoiLayerStateStore(
+                TimeProvider.System, new AskLucy.Application.PointsOfInterest.PoiCategoryCatalog()),
+            Substitute.For<IUserChatRepository>()),
     ];
 
     [Theory]

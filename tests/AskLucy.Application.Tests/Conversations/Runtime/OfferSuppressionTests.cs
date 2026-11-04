@@ -50,6 +50,18 @@ public sealed class OfferSuppressionTests
     }
 
     [Fact]
+    public void Evaluate_ShouldSuppress_WhenTheTurnSearchedForACategory()
+    {
+        // specs/090 — a category search already put the answer on the map; site-analysis offers
+        // are about a site, not about the places the user asked to see.
+        var outcome = new TurnOutcome([FindPointsOfInterestCapability.CapabilityKey], false, [], false);
+
+        var reason = OfferSuppressionRules.Evaluate(TurnIntent.Act, Context(), outcome, _catalog, suggestedActionsEnabled: true);
+
+        reason.Should().Be(OfferSuppressionReason.CategorySearchCompleted);
+    }
+
+    [Fact]
     public void Evaluate_ShouldNotSuppress_ForASuggestIntentEvenThoughItTookNoBeats()
     {
         // The distinction the offer step exists for (research.md D18): TurnIntent.Suggest takes

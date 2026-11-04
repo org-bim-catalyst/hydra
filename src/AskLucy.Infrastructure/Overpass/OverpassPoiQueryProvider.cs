@@ -145,12 +145,27 @@ internal sealed class OverpassPoiQueryProvider(
     /// <summary>Builds the Overpass QL for one POI search. Internal for tests.</summary>
     internal static string BuildQuery(PoiQuery query)
     {
+        // An administrative area beats a bounding box: a box around a country always includes its
+        // neighbours (Oman's includes the UAE, which is exactly what the first country-wide search
+        // returned). The bbox remains the fallback for areas OpenStreetMap has no boundary for.
+        if (!string.IsNullOrWhiteSpace(query.AreaName))
+        {
+            var name = query.AreaName.Replace("\"", "\\\"");
+            var area = $"""({Environment.NewLine}  area["boundary"="administrative"]["name:en"="{name}"];{Environment.NewLine}  area["boundary"="administrative"]["name"="{name}"];{Environment.NewLine})->.searchArea;""";
+            return $"[out:json][timeout:50];{Environment.NewLine}{area}{Environment.NewLine}({Environment.NewLine}{BuildStatements(query, "(area.searchArea)")}{Environment.NewLine});out center {query.MaxResults};";
+        }
+
         var scope = query.Bounds is { } bounds
             ? FormattableString.Invariant(
                 $"({bounds.SouthLatitude},{bounds.WestLongitude},{bounds.NorthLatitude},{bounds.EastLongitude})")
             : FormattableString.Invariant(
                 $"(around:{query.RadiusMeters},{query.Center.Latitude},{query.Center.Longitude})");
 
+        return $"[out:json][timeout:50];({Environment.NewLine}{BuildStatements(query, scope)}{Environment.NewLine});out center {query.MaxResults};";
+    }
+
+    private static string BuildStatements(PoiQuery query, string scope)
+    {
         var statements = new List<string>();
         foreach (var group in query.Category.TagGroups)
         {
@@ -161,9 +176,7 @@ internal sealed class OverpassPoiQueryProvider(
             statements.Add($"  relation{constraints}{scope};");
         }
 
-        // 50s, not 25: a country-sized bounding box is a genuinely heavier query than the
-        // district-sized boundary lookups this endpoint was tuned for.
-        return $"[out:json][timeout:50];({Environment.NewLine}{string.Join(Environment.NewLine, statements)}{Environment.NewLine});out center {query.MaxResults};";
+        return string.Join(Environment.NewLine, statements);
     }
 
     private static string FormatConstraint(PoiTagConstraint constraint) =>

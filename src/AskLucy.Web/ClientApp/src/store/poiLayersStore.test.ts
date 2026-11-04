@@ -38,10 +38,14 @@ describe('poiLayersStore', () => {
 
   it('replaces the same category in place instead of duplicating it', () => {
     usePoiLayersStore.getState().applyLayer('chat-1', schools, 'replace')
-    usePoiLayersStore.getState().applyLayer('chat-1', { ...schools, markers: [] }, 'keep')
+    usePoiLayersStore.getState().applyLayer(
+      'chat-1',
+      { ...schools, markers: [{ id: 'osm_node_9', name: 'School B', latitude: 23.7, longitude: 58.5 }] },
+      'keep',
+    )
 
     expect(usePoiLayersStore.getState().layers).toHaveLength(1)
-    expect(usePoiLayersStore.getState().layers[0].markers).toEqual([])
+    expect(usePoiLayersStore.getState().layers[0].markers.map((m) => m.id)).toEqual(['osm_node_9'])
   })
 
   it('never mixes layers from a different chat', () => {
@@ -49,6 +53,23 @@ describe('poiLayersStore', () => {
     usePoiLayersStore.getState().applyLayer('chat-2', hospitals, 'keep')
 
     expect(usePoiLayersStore.getState().layers.map((l) => l.category)).toEqual(['hospital'])
+  })
+
+  it('clears every layer when a replace search finds nothing', () => {
+    usePoiLayersStore.getState().applyLayer('chat-1', schools, 'replace')
+    usePoiLayersStore.getState().applyLayer('chat-1', hospitals, 'keep')
+
+    usePoiLayersStore.getState().applyLayer('chat-1', { ...schools, markers: [] }, 'replace')
+
+    expect(usePoiLayersStore.getState().layers).toEqual([])
+  })
+
+  it('keeps existing layers when a keep search finds nothing', () => {
+    usePoiLayersStore.getState().applyLayer('chat-1', schools, 'replace')
+
+    usePoiLayersStore.getState().applyLayer('chat-1', { ...hospitals, markers: [] }, 'keep')
+
+    expect(usePoiLayersStore.getState().layers.map((l) => l.category)).toEqual(['school'])
   })
 
   it('removeLayer drops only that category and clears the chat when empty', () => {

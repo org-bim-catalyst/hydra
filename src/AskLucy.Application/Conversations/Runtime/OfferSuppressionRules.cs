@@ -18,6 +18,14 @@ public enum OfferSuppressionReason
     /// <summary>FR-025a.3 — a decline is an answer, and re-asking is nagging.</summary>
     UserDeclinedLastOffer,
 
+    /// <summary>
+    /// specs/090-poi-discovery — the turn searched for a category of places. The map now shows the
+    /// answer, and the site-analysis offers this platform would otherwise suggest are about a
+    /// site's boundary, not about the result the user asked for; offering them after a category
+    /// search reads as a non-sequitur.
+    /// </summary>
+    CategorySearchCompleted,
+
     /// <summary>FR-025a.5/FR-032 — the user has suggested actions turned off.</summary>
     SuggestedActionsDisabled,
 }
@@ -59,6 +67,14 @@ public static class OfferSuppressionRules
         if (outcome.UserDeclinedLastOffer)
         {
             return OfferSuppressionReason.UserDeclinedLastOffer;
+        }
+
+        // specs/090 — a category search is a complete answer in itself, and the generic offer set
+        // (analyse this site, outline the boundary, capture a snapshot) is about a site, not the
+        // places the user just asked to see.
+        if (outcome.WasInvokedThisTurn(FindPointsOfInterestCapability.CapabilityKey))
+        {
+            return OfferSuppressionReason.CategorySearchCompleted;
         }
 
         // specs/045 Phase 6 — a flow variant is worth offering independently of whether any

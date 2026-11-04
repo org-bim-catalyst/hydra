@@ -52,6 +52,22 @@ public sealed class OverpassPoiQueryProviderTests
     }
 
     [Fact]
+    public void BuildQuery_ShouldSearchInsideTheAdministrativeArea_WhenTheNameIsKnown()
+    {
+        Catalog.TryResolve("hospitals", out var definition).Should().BeTrue();
+
+        // A bounding box around Oman includes the UAE; an area filter does not.
+        var query = OverpassPoiQueryProvider.BuildQuery(new PoiQuery(
+            new GeoPoint(23.5, 58.3), 10_000, definition, 200,
+            new PoiBoundingBox(16.6, 52.0, 26.5, 59.9), AreaName: "Oman"));
+
+        query.Should().Contain("area[\"boundary\"=\"administrative\"][\"name:en\"=\"Oman\"]");
+        query.Should().Contain("(area.searchArea)");
+        query.Should().NotContain("(16.6,52,26.5,59.9)");
+        query.Should().NotContain("around:");
+    }
+
+    [Fact]
     public void Interpret_ShouldReadNodeCoordinates()
     {
         var elements = new List<OverpassPoiQueryProvider.OverpassPoiElement>

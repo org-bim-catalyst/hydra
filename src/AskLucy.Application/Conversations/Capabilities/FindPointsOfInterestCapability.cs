@@ -49,17 +49,16 @@ public sealed class FindPointsOfInterestCapability(
 
     public string Description =>
         "Finds every place of one type — schools, hospitals, mosques, pharmacies, banks, parks — " +
-        "in a named area and shows them as map markers.";
+        "in a named area and shows them as map markers. Also continues an outstanding clear-or-keep " +
+        "question about layers already on the map.";
 
     public string WhenToUse =>
-        "Use when the user asks to see, find or show a CATEGORY of place in an area — \"show me " +
-        "schools in Muscat\", \"where are the hospitals in Salalah\", \"find all mosques near " +
-        "here\" — especially a plural or an \"all the ...\" request. Never for one named place, " +
-        "site, building or address; that is resolve_location.";
+        "Use when the user asks to see, find or show a CATEGORY of place in an area — \"schools " +
+        "in Muscat\", \"all hospitals in Oman\", \"mosques near here\" — especially a plural or " +
+        "\"all the ...\" request. Never for one named place; that is resolve_location.";
 
     public string ArgumentHint =>
-        "the category (e.g. schools, hospitals, mosques) and the area (e.g. Muscat); optional mode " +
-        "keep or replace when answering a clear-or-keep question";
+        "the place type and area, e.g. schools in Muscat";
 
     public string UsageGuidance =>
         "Pass the category and the area exactly as the user said them; omit the area only for " +
@@ -69,7 +68,8 @@ public sealed class FindPointsOfInterestCapability(
         "\"keep them\", call again with the same category and mode=keep; when they answer " +
         "\"clear\"/\"replace\", call again with the same category and mode=replace; the pending " +
         "request remembers the area. Report the marker count and the area the search used. If " +
-        "count is 0, say plainly that none were found in that area — never pretend markers exist.";
+        "count is 0, say plainly that none were found in that area — never pretend markers exist. " +
+        "If the search failed, say the lookup failed and never claim anything was drawn or cleared.";
 
     public string Label => "Map places by type";
 
@@ -197,7 +197,7 @@ public sealed class FindPointsOfInterestCapability(
         try
         {
             features = await poiQueryProvider.QueryAsync(
-                new PoiQuery(center, radius, category, Bounds: bounds), cancellationToken);
+                new PoiQuery(center, radius, category, Bounds: bounds, AreaName: areaName), cancellationToken);
         }
         catch (BoundaryProviderUnavailableException ex)
         {
