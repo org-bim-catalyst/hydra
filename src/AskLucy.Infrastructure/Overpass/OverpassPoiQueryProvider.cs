@@ -124,6 +124,7 @@ internal sealed class OverpassPoiQueryProvider(
             response.EnsureSuccessStatusCode();
 
             var result = await response.Content.ReadFromJsonAsync<OverpassPoiResponse>(cancellationToken);
+            ThrowIfUnavailable(result);
             return Interpret(result?.Elements ?? [], query.MaxResults);
         }
         catch (BoundaryProviderUnavailableException)
@@ -183,6 +184,21 @@ internal sealed class OverpassPoiQueryProvider(
         constraint.Values is null || constraint.Values.Count == 0
             ? $"[\"{constraint.Key}\"]"
             : string.Concat(constraint.Values.Select(v => $"[\"{constraint.Key}\"=\"{v}\"]"));
+
+    /// <summary>
+    /// Overpass signals a timeout or a memory error with HTTP 200, an empty <c>elements</c>
+    /// array and a <c>remark</c> — found live: a country-wide search "succeeded" with zero
+    /// results because the query had actually timed out on the server. Reading <c>remark</c>
+    /// turns that into an honest failure instead of "there are no schools in Oman". Internal
+    /// for tests.
+    /// </summary>
+    internal static void ThrowIfUnavailable(OverpassPoiResponse? response)
+    {
+        if (!string.IsNullOrWhiteSpace(response?.Remark))
+        {
+            throw new BoundaryProviderUnavailableException($"Overpass: {response.Remark}");
+        }
+    }
 
     /// <summary>Turns Overpass elements into POI features. Internal for tests.</summary>
     internal static IReadOnlyList<PoiFeature> Interpret(
@@ -244,7 +260,8 @@ internal sealed class OverpassPoiQueryProvider(
     }
 
     internal sealed record OverpassPoiResponse(
-        [property: JsonPropertyName("elements")] IReadOnlyList<OverpassPoiElement>? Elements);
+        [property: JsonPropertyName("elements")] IReadOnlyList<OverpassPoiElement>? Elements,
+        [property: JsonPropertyName("remark")] string? Remark);
 
     internal sealed record OverpassPoiElement(
         [property: JsonPropertyName("type")] string Type,

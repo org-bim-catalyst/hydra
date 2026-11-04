@@ -154,6 +154,15 @@ internal sealed class OverpassFeatureQueryProvider(
             response.EnsureSuccessStatusCode();
 
             var result = await response.Content.ReadFromJsonAsync<OverpassResponse>(cancellationToken);
+
+            // HTTP 200 with empty elements and a `remark` means the server timed out or ran out
+            // of memory — not that the area has no such feature. Reported as an unavailable
+            // provider so a caller never builds an "empty result" conclusion on it.
+            if (!string.IsNullOrWhiteSpace(result?.Remark))
+            {
+                throw new BoundaryProviderUnavailableException($"Overpass: {result.Remark}");
+            }
+
             return Interpret(result?.Elements ?? []);
         }
         catch (BoundaryProviderUnavailableException)
@@ -250,7 +259,8 @@ internal sealed class OverpassFeatureQueryProvider(
     }
 
     internal sealed record OverpassResponse(
-        [property: JsonPropertyName("elements")] IReadOnlyList<OverpassElement>? Elements);
+        [property: JsonPropertyName("elements")] IReadOnlyList<OverpassElement>? Elements,
+        [property: JsonPropertyName("remark")] string? Remark);
 
     internal sealed record OverpassElement(
         [property: JsonPropertyName("type")] string Type,

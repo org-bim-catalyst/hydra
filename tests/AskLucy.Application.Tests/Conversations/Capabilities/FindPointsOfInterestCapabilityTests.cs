@@ -98,6 +98,30 @@ public sealed class FindPointsOfInterestCapabilityTests
     }
 
     [Fact]
+    public async Task ExecuteAsync_ShouldAskForTheArea_WhenNoneWasNamed()
+    {
+        var result = await Build().ExecuteAsync(Context(), Input("""{"category":"schools"}"""), default);
+
+        result.Succeeded.Should().BeTrue();
+        result.Output!.RootElement.GetProperty("awaitingArea").GetBoolean().Should().BeTrue();
+        result.Output.RootElement.GetProperty("question").GetString()
+            .Should().Contain("Which area").And.Contain("schools");
+        await _poiProvider.DidNotReceiveWithAnyArgs().QueryAsync(default!, default);
+    }
+
+    [Fact]
+    public async Task ExecuteAsync_ShouldNotTreatTheArgumentExampleAsAnArea()
+    {
+        // The model copied the hint's example into `area`; geocoding "schools in Muscat" used to
+        // search the stale active pin.
+        var result = await Build().ExecuteAsync(
+            Context(), Input("""{"category":"schools","area":"schools in Muscat"}"""), default);
+
+        result.Output!.RootElement.GetProperty("awaitingArea").GetBoolean().Should().BeTrue();
+        await _poiProvider.DidNotReceiveWithAnyArgs().QueryAsync(default!, default);
+    }
+
+    [Fact]
     public async Task ExecuteAsync_ShouldRejectACategoryItCannotMap_AndNameTheSupportedOnes()
     {
         var result = await Build().ExecuteAsync(Context(), Input("""{"category":"spaceports","area":"Muscat"}"""), default);

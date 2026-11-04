@@ -1,4 +1,5 @@
 using AskLucy.Application.PointsOfInterest;
+using AskLucy.Application.SiteBoundaries;
 using AskLucy.Domain.SiteBoundaries;
 using AskLucy.Infrastructure.Overpass;
 using FluentAssertions;
@@ -65,6 +66,29 @@ public sealed class OverpassPoiQueryProviderTests
         query.Should().Contain("(area.searchArea)");
         query.Should().NotContain("(16.6,52,26.5,59.9)");
         query.Should().NotContain("around:");
+    }
+
+    [Fact]
+    public void ThrowIfUnavailable_ShouldFail_WhenOverpassReturnedATimeoutRemark()
+    {
+        // Live: HTTP 200, elements [], remark "runtime error: Query timed out ..." — read as
+        // "no schools in Oman" before this check existed.
+        var response = new OverpassPoiQueryProvider.OverpassPoiResponse(
+            [], "runtime error: Query timed out in \"query\" after 2 seconds.");
+
+        var act = () => OverpassPoiQueryProvider.ThrowIfUnavailable(response);
+
+        act.Should().Throw<BoundaryProviderUnavailableException>().WithMessage("*timed out*");
+    }
+
+    [Fact]
+    public void ThrowIfUnavailable_ShouldAcceptAnEmptyResultWithNoRemark()
+    {
+        var response = new OverpassPoiQueryProvider.OverpassPoiResponse([], null);
+
+        var act = () => OverpassPoiQueryProvider.ThrowIfUnavailable(response);
+
+        act.Should().NotThrow();
     }
 
     [Fact]

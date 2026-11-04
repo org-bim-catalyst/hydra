@@ -59,18 +59,16 @@ public sealed class FindPointsOfInterestCapability(
         "\"all the ...\" request. Never for one named place; that is resolve_location.";
 
     public string ArgumentHint =>
-        "the place type and area, e.g. schools in Muscat";
+        "place type (e.g. schools) and area (e.g. Oman)";
 
     public string UsageGuidance =>
-        "Pass the category and the area exactly as the user said them; omit the area only for " +
-        "\"here\"/\"this area\" requests, which use the place already on screen. " +
-        "If the result has awaitingChoice=true, ask the user the question it carries, verbatim in " +
-        "substance, and claim NOTHING was drawn — nothing was. When the user answers \"keep both\"/" +
-        "\"keep them\", call again with the same category and mode=keep; when they answer " +
-        "\"clear\"/\"replace\", call again with the same category and mode=replace; the pending " +
-        "request remembers the area. Report the marker count and the area the search used. If " +
-        "count is 0, say plainly that none were found in that area — never pretend markers exist. " +
-        "If the search failed, say the lookup failed and never claim anything was drawn or cleared.";
+        "Pass the category and area as the user said them; omit the area only for \"here\"/\"this " +
+        "area\", which use the place on screen. If the result has awaitingChoice=true, ask its " +
+        "question and claim NOTHING was drawn — nothing was. On \"keep both\" call again with the " +
+        "same category and mode=keep; on \"clear\"/\"replace\", mode=replace; the pending request " +
+        "remembers the area. If awaitingArea=true, ask which area to search and claim nothing was " +
+        "drawn. Report the count and area used. If count is 0, say plainly that none were found. " +
+        "If the search failed, say so and never claim anything was drawn or cleared.";
 
     public string Label => "Map places by type";
 
@@ -86,7 +84,7 @@ public sealed class FindPointsOfInterestCapability(
         """{"type":"object","properties":{"category":{"type":"string","minLength":1},"area":{"type":"string","minLength":1},"mode":{"type":"string","enum":["keep","replace"]}}}""";
 
     public string OutputSchemaJson =>
-        """{"type":"object","properties":{"awaitingChoice":{"type":"boolean"},"question":{"type":"string"},"category":{"type":"string"},"displayName":{"type":"string"},"color":{"type":"string"},"markerShape":{"type":"string"},"mode":{"type":"string"},"count":{"type":"integer"},"areaName":{"type":"string"},"markers":{"type":"array"}}}""";
+        """{"type":"object","properties":{"awaitingChoice":{"type":"boolean"},"awaitingArea":{"type":"boolean"},"question":{"type":"string"},"category":{"type":"string"},"displayName":{"type":"string"},"color":{"type":"string"},"markerShape":{"type":"string"},"mode":{"type":"string"},"count":{"type":"integer"},"areaName":{"type":"string"},"markers":{"type":"array"}}}""";
 
     public CapabilityDuration ExpectedDuration => CapabilityDuration.Extended;
 
@@ -118,13 +116,20 @@ public sealed class FindPointsOfInterestCapability(
             return messages.LastOrDefault(m => m.Role == Domain.Chats.MessageRole.User)?.Content;
         }
 
+        var pending = layerStateStore.GetPending(chatId);
+
         if (!categoryCatalog.TryResolve(categoryPhrase, out var category))
         {
+            // An answer to either question carries no category of its own ("yes", "Oman"): the
+            // pending request is what remembers it.
+            var fromPending = pending is not null &&
+                              categoryCatalog.TryResolve(pending.CategoryKey, out category);
+
             // Second chance from the message itself: the deciding model supplies only arguments,
             // and it has been observed to omit the one field this capability exists for. Reading
             // the user's own words is more reliable than failing a request whose category is
             // plainly right there in the sentence.
-            if (!categoryCatalog.TryResolveFromText(await LastUserMessageAsync(), out category))
+            if (!fromPending && !categoryCatalog.TryResolveFromText(await LastUserMessageAsync(), out category))
             {
                 return AgentToolResult.Failure(
                     $"I can't tell which place type to map — I know these: {categoryCatalog.DescribeSupported()}.");
@@ -134,6 +139,17 @@ public sealed class FindPointsOfInterestCapability(
         var mode = ReadString(root, "mode");
         var requestedArea = ReadString(root, "area", "location", "city", "region", "country");
 
+        // The example in the argument hint ("schools in Muscat") has been copied into `area` as if
+        // it were a place; it is not one, and geocoding it used to search the stale active pin.
+        if (requestedArea is not null && categoryCatalog.TryResolveFromText(requestedArea, out _))
+        {
+            requestedArea = null;
+        }
+
+        var answeringKeepOrReplace =
+            pending?.Question == PoiPendingQuestion.KeepOrReplace &&
+            string.Equals(pending.CategoryKey, category.Key, StringComparison.OrdinalIgnoreCase);
+
         // A mode-less request while a DIFFERENT category is on the map: ask before drawing. The
         // pending request remembers what was asked, so the answer's own invocation needs no area.
         // Re-searching the same category is not a conflict — it refreshes that one layer.
@@ -142,14 +158,10 @@ public sealed class FindPointsOfInterestCapability(
             .Where(l => !string.Equals(l.Key, category.Key, StringComparison.OrdinalIgnoreCase))
             .ToList();
 
-        var pending = layerStateStore.GetPending(chatId);
-        var answeringPendingQuestion =
-            pending is not null &&
-            string.Equals(pending.CategoryKey, category.Key, StringComparison.OrdinalIgnoreCase);
-
-        if (mode is null && otherLayers.Count > 0 && !answeringPendingQuestion)
+        if (mode is null && otherLayers.Count > 0 && !answeringKeepOrReplace)
         {
-            layerStateStore.SetPending(chatId, new PendingPoiRequest(category.Key, requestedArea, DateTime.UtcNow));
+            layerStateStore.SetPending(chatId, new PendingPoiRequest(
+                category.Key, requestedArea, PoiPendingQuestion.KeepOrReplace, DateTime.UtcNow));
 
             return AgentToolResult.Success(JsonSerializer.SerializeToDocument(new
             {
@@ -167,7 +179,7 @@ public sealed class FindPointsOfInterestCapability(
         // The user's answer, when the decided arguments did not carry it. Without this, a bare
         // "yes" re-asked the same question forever, because the decider never saw the Tier 2
         // guidance telling it to pass mode. "keep" is explicit; anything else means replace.
-        if (mode is null && answeringPendingQuestion)
+        if (mode is null && answeringKeepOrReplace)
         {
             var answer = await LastUserMessageAsync();
             mode = answer is not null && answer.Contains("keep", StringComparison.OrdinalIgnoreCase)
@@ -175,20 +187,44 @@ public sealed class FindPointsOfInterestCapability(
                 : "replace";
         }
 
-        // The answer's copy carries only the mode; category/area come from the pending request.
-        if (answeringPendingQuestion)
-        {
-            requestedArea ??= pending!.AreaName;
-        }
-
         var keepExisting = string.Equals(mode, "keep", StringComparison.OrdinalIgnoreCase);
 
-        // The area: the user's words, or the place already on screen for "here"/"this area".
-        var areaName = requestedArea;
+        // The area: the decided argument, the pending request's own copy, or the map itself for
+        // "here"/"near me". Never the stale active pin for an area the user did not name — that is
+        // how "schools in Oman" once searched a layer called "schools in muscat".
+        var areaName = requestedArea ?? (pending is not null &&
+            string.Equals(pending.CategoryKey, category.Key, StringComparison.OrdinalIgnoreCase)
+                ? pending.AreaName
+                : null);
+
         GeoPoint? center = null;
         ViewportBounds? viewport = null;
 
-        if (!string.IsNullOrWhiteSpace(areaName))
+        if (string.IsNullOrWhiteSpace(areaName) && MentionsHere(await LastUserMessageAsync()))
+        {
+            var chat = await userChatRepository.GetByIdAsync(chatId, cancellationToken);
+            if (chat?.ActiveLocation is { } active)
+            {
+                areaName = active.LocationName;
+                center = new GeoPoint(active.Latitude, active.Longitude);
+            }
+        }
+
+        if (string.IsNullOrWhiteSpace(areaName))
+        {
+            layerStateStore.SetPending(chatId, new PendingPoiRequest(
+                category.Key, null, PoiPendingQuestion.WhichArea, DateTime.UtcNow));
+
+            return AgentToolResult.Success(JsonSerializer.SerializeToDocument(new
+            {
+                awaitingArea = true,
+                question = $"Which area should I search for {category.DisplayName.ToLowerInvariant()}?",
+                category = category.Key,
+                displayName = category.DisplayName,
+            }));
+        }
+
+        if (center is null)
         {
             var outcome = await locationResolutionService.ResolveQueryAsync(chatId, areaName, cancellationToken);
             if (outcome.ConfirmedLocation is not { } resolved)
@@ -200,18 +236,6 @@ public sealed class FindPointsOfInterestCapability(
             areaName = resolved.LocationName;
             center = new GeoPoint(resolved.Latitude, resolved.Longitude);
             viewport = resolved.Viewport;
-        }
-        else
-        {
-            var chat = await userChatRepository.GetByIdAsync(chatId, cancellationToken);
-            if (chat?.ActiveLocation is not { } active)
-            {
-                return AgentToolResult.Failure(
-                    "Tell me which area to search — for example \"schools in Muscat\".");
-            }
-
-            areaName = active.LocationName;
-            center = new GeoPoint(active.Latitude, active.Longitude);
         }
 
         var radius = RadiusFor(viewport, center);
@@ -275,6 +299,14 @@ public sealed class FindPointsOfInterestCapability(
                 .Select(f => new { id = f.Id, name = f.Name, latitude = f.Latitude, longitude = f.Longitude }),
         }));
     }
+
+    private static bool MentionsHere(string? message) =>
+        message is not null &&
+        (message.Contains("here", StringComparison.OrdinalIgnoreCase) ||
+         message.Contains("this area", StringComparison.OrdinalIgnoreCase) ||
+         message.Contains("nearby", StringComparison.OrdinalIgnoreCase) ||
+         message.Contains("near me", StringComparison.OrdinalIgnoreCase) ||
+         message.Contains("around me", StringComparison.OrdinalIgnoreCase));
 
     private static string? ReadString(JsonElement root, params string[] names)
     {

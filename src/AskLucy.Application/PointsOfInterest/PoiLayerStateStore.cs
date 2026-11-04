@@ -9,12 +9,25 @@ public sealed record PoiChatLayerState(
     IReadOnlyList<PoiCategoryDefinition> Layers,
     PendingPoiRequest? Pending);
 
+/// <summary>Which question Lucy is waiting on an answer to.</summary>
+public enum PoiPendingQuestion
+{
+    /// <summary>"Clear the existing markers or keep them alongside?"</summary>
+    KeepOrReplace,
+
+    /// <summary>"Which area should I search?" — asked when no area was named.</summary>
+    WhichArea,
+}
+
 /// <summary>
-/// What the user was asked about, held while they answer "keep both" or "clear the old ones".
-/// Carries no results: the search runs once, after the answer, so asking does not pay for a second
-/// Overpass round trip either way.
+/// What the user was asked about, held while they answer. Carries no results: the search runs
+/// once, after the answer, so asking does not pay for a second Overpass round trip either way.
 /// </summary>
-public sealed record PendingPoiRequest(string CategoryKey, string? AreaName, DateTime CreatedAtUtc);
+public sealed record PendingPoiRequest(
+    string CategoryKey,
+    string? AreaName,
+    PoiPendingQuestion Question,
+    DateTime CreatedAtUtc);
 
 /// <summary>
 /// Process-wide, per-chat memory of which POI layers are on screen (specs/090 FR-008/FR-009).
