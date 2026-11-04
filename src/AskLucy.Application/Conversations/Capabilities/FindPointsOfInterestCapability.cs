@@ -37,7 +37,8 @@ public sealed class FindPointsOfInterestCapability(
     IPoiQueryProvider poiQueryProvider,
     PoiCategoryCatalog categoryCatalog,
     PoiLayerStateStore layerStateStore,
-    IUserChatRepository userChatRepository) : IConversationCapability
+    IUserChatRepository userChatRepository,
+    IMessageRepository messageRepository) : IConversationCapability
 {
     public const string CapabilityKey = "find_points_of_interest";
 
@@ -82,7 +83,7 @@ public sealed class FindPointsOfInterestCapability(
     public IReadOnlyList<AgentToolPermission> RequiredPermissions => [AgentToolPermission.ExternalNetwork];
 
     public string InputSchemaJson =>
-        """{"type":"object","required":["category"],"properties":{"category":{"type":"string","minLength":1},"area":{"type":"string","minLength":1},"mode":{"type":"string","enum":["keep","replace"]}}}""";
+        """{"type":"object","properties":{"category":{"type":"string","minLength":1},"area":{"type":"string","minLength":1},"mode":{"type":"string","enum":["keep","replace"]}}}""";
 
     public string OutputSchemaJson =>
         """{"type":"object","properties":{"awaitingChoice":{"type":"boolean"},"question":{"type":"string"},"category":{"type":"string"},"displayName":{"type":"string"},"color":{"type":"string"},"markerShape":{"type":"string"},"mode":{"type":"string"},"count":{"type":"integer"},"areaName":{"type":"string"},"markers":{"type":"array"}}}""";
@@ -105,17 +106,33 @@ public sealed class FindPointsOfInterestCapability(
         AgentToolExecutionContext context, JsonDocument input, CancellationToken cancellationToken = default)
     {
         var root = input.RootElement;
-        var categoryPhrase = root.TryGetProperty("category", out var categoryEl) ? categoryEl.GetString() : null;
+        var chatId = context.UserChatId ?? Guid.Empty;
+        var categoryPhrase = ReadString(root, "category", "type", "placeType", "place_type", "poi", "poiType", "kind", "place");
+
+        // Read once, and only if needed: the message is the fallback for a missing category and
+        // the source of a keep/replace answer the decided arguments did not carry.
+        IReadOnlyList<Domain.Chats.Message>? messages = null;
+        async Task<string?> LastUserMessageAsync()
+        {
+            messages ??= await messageRepository.ListByChatIdAsync(chatId, cancellationToken) ?? [];
+            return messages.LastOrDefault(m => m.Role == Domain.Chats.MessageRole.User)?.Content;
+        }
 
         if (!categoryCatalog.TryResolve(categoryPhrase, out var category))
         {
-            return AgentToolResult.Failure(
-                $"I can't map \"{categoryPhrase}\" — I know these place types: {categoryCatalog.DescribeSupported()}.");
+            // Second chance from the message itself: the deciding model supplies only arguments,
+            // and it has been observed to omit the one field this capability exists for. Reading
+            // the user's own words is more reliable than failing a request whose category is
+            // plainly right there in the sentence.
+            if (!categoryCatalog.TryResolveFromText(await LastUserMessageAsync(), out category))
+            {
+                return AgentToolResult.Failure(
+                    $"I can't tell which place type to map — I know these: {categoryCatalog.DescribeSupported()}.");
+            }
         }
 
-        var chatId = context.UserChatId ?? Guid.Empty;
-        var mode = root.TryGetProperty("mode", out var modeEl) ? modeEl.GetString() : null;
-        var requestedArea = root.TryGetProperty("area", out var areaEl) ? areaEl.GetString() : null;
+        var mode = ReadString(root, "mode");
+        var requestedArea = ReadString(root, "area", "location", "city", "region", "country");
 
         // A mode-less request while a DIFFERENT category is on the map: ask before drawing. The
         // pending request remembers what was asked, so the answer's own invocation needs no area.
@@ -125,7 +142,12 @@ public sealed class FindPointsOfInterestCapability(
             .Where(l => !string.Equals(l.Key, category.Key, StringComparison.OrdinalIgnoreCase))
             .ToList();
 
-        if (mode is null && otherLayers.Count > 0)
+        var pending = layerStateStore.GetPending(chatId);
+        var answeringPendingQuestion =
+            pending is not null &&
+            string.Equals(pending.CategoryKey, category.Key, StringComparison.OrdinalIgnoreCase);
+
+        if (mode is null && otherLayers.Count > 0 && !answeringPendingQuestion)
         {
             layerStateStore.SetPending(chatId, new PendingPoiRequest(category.Key, requestedArea, DateTime.UtcNow));
 
@@ -142,13 +164,21 @@ public sealed class FindPointsOfInterestCapability(
             }));
         }
 
-        // The answer's copy carries only the mode; category/area come from the pending request.
-        var pending = layerStateStore.GetPending(chatId);
-        if (pending is not null &&
-            (mode is not null || string.IsNullOrWhiteSpace(requestedArea)) &&
-            string.Equals(pending.CategoryKey, category.Key, StringComparison.OrdinalIgnoreCase))
+        // The user's answer, when the decided arguments did not carry it. Without this, a bare
+        // "yes" re-asked the same question forever, because the decider never saw the Tier 2
+        // guidance telling it to pass mode. "keep" is explicit; anything else means replace.
+        if (mode is null && answeringPendingQuestion)
         {
-            requestedArea ??= pending.AreaName;
+            var answer = await LastUserMessageAsync();
+            mode = answer is not null && answer.Contains("keep", StringComparison.OrdinalIgnoreCase)
+                ? "keep"
+                : "replace";
+        }
+
+        // The answer's copy carries only the mode; category/area come from the pending request.
+        if (answeringPendingQuestion)
+        {
+            requestedArea ??= pending!.AreaName;
         }
 
         var keepExisting = string.Equals(mode, "keep", StringComparison.OrdinalIgnoreCase);
@@ -244,6 +274,22 @@ public sealed class FindPointsOfInterestCapability(
                 .OrderBy(f => f.Name, StringComparer.OrdinalIgnoreCase)
                 .Select(f => new { id = f.Id, name = f.Name, latitude = f.Latitude, longitude = f.Longitude }),
         }));
+    }
+
+    private static string? ReadString(JsonElement root, params string[] names)
+    {
+        foreach (var name in names)
+        {
+            if (root.TryGetProperty(name, out var element) &&
+                element.ValueKind == JsonValueKind.String &&
+                element.GetString() is { Length: > 0 } value &&
+                !string.IsNullOrWhiteSpace(value))
+            {
+                return value;
+            }
+        }
+
+        return null;
     }
 
     /// <summary>

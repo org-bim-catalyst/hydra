@@ -60,7 +60,8 @@ public sealed class CapabilityContractTests
             new AskLucy.Application.PointsOfInterest.PoiCategoryCatalog(),
             new AskLucy.Application.PointsOfInterest.PoiLayerStateStore(
                 TimeProvider.System, new AskLucy.Application.PointsOfInterest.PoiCategoryCatalog()),
-            Substitute.For<IUserChatRepository>()),
+            Substitute.For<IUserChatRepository>(),
+            Substitute.For<IMessageRepository>()),
     ];
 
     [Theory]

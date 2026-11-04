@@ -181,6 +181,39 @@ public sealed class PoiCategoryCatalog
         return false;
     }
 
+    /// <summary>
+    /// Finds a category inside a sentence — the fallback when the deciding model omitted the
+    /// category argument entirely (observed live: "show me all schools in Oman" arrived as
+    /// <c>{"area":"Oman"}</c>). Longest alias first, so "petrol stations" wins over "stations".
+    /// </summary>
+    public bool TryResolveFromText(string? text, out PoiCategoryDefinition category)
+    {
+        category = null!;
+        if (string.IsNullOrWhiteSpace(text))
+        {
+            return false;
+        }
+
+        var aliasKey = Aliases
+            .Where(a => text.Contains(a.Key, StringComparison.OrdinalIgnoreCase))
+            .OrderByDescending(a => a.Key.Length)
+            .Select(a => (string?)a.Value)
+            .FirstOrDefault();
+
+        if (aliasKey is not null && ByKey.TryGetValue(aliasKey, out category!))
+        {
+            return true;
+        }
+
+        var key = Definitions
+            .Select(d => d.Key)
+            .Where(k => text.Contains(k, StringComparison.OrdinalIgnoreCase))
+            .OrderByDescending(k => k.Length)
+            .FirstOrDefault();
+
+        return key is not null && ByKey.TryGetValue(key, out category!);
+    }
+
     /// <summary>The supported keys/names, comma-separated, for the unsupported-category reply.</summary>
     public string DescribeSupported() =>
         string.Join(", ", Definitions.Select(d => d.Key.Replace('_', ' ')));

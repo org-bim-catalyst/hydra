@@ -25,11 +25,12 @@ public sealed class FindPointsOfInterestCapabilityTests
     private readonly ILocationResolutionService _locationService = Substitute.For<ILocationResolutionService>();
     private readonly IPoiQueryProvider _poiProvider = Substitute.For<IPoiQueryProvider>();
     private readonly IUserChatRepository _chats = Substitute.For<IUserChatRepository>();
+    private readonly IMessageRepository _messages = Substitute.For<IMessageRepository>();
     private readonly PoiCategoryCatalog _catalog = new();
     private readonly PoiLayerStateStore _store;
 
     private FindPointsOfInterestCapability Build() =>
-        new(_locationService, _poiProvider, _catalog, _store, _chats);
+        new(_locationService, _poiProvider, _catalog, _store, _chats, _messages);
 
     public FindPointsOfInterestCapabilityTests()
     {
@@ -55,6 +56,46 @@ public sealed class FindPointsOfInterestCapabilityTests
     }
 
     private static JsonDocument Input(string json) => JsonDocument.Parse(json);
+
+    [Fact]
+    public async Task ExecuteAsync_ShouldTreatABareYesAsReplace_InsteadOfAskingAgain()
+    {
+        GivenAreaResolvesTo("Muscat");
+        GivenPois("School A");
+        var capability = Build();
+        await capability.ExecuteAsync(Context(), Input("""{"category":"schools","area":"Muscat"}"""), default);
+        await capability.ExecuteAsync(Context(), Input("""{"category":"hospitals","area":"Muscat"}"""), default);
+
+        // The decider never saw the Tier 2 guidance that says to pass mode, so it sent only the
+        // category back; the user's own "yes" is the answer the question asked for.
+        _messages.ListByChatIdAsync(ChatId, Arg.Any<CancellationToken>())
+            .Returns([Domain.Chats.Message.Create(
+                ChatId, Domain.Chats.MessageRole.User, Domain.Chats.MessageKind.Text,
+                "yes", null, "user")]);
+
+        var result = await capability.ExecuteAsync(Context(), Input("""{"category":"hospitals"}"""), default);
+
+        result.Succeeded.Should().BeTrue();
+        result.Output!.RootElement.GetProperty("mode").GetString().Should().Be("replace");
+        _store.GetLayers(ChatId).Select(l => l.Key).Should().Equal("hospital");
+    }
+
+    [Fact]
+    public async Task ExecuteAsync_ShouldRecoverTheCategoryFromTheUserMessage_WhenTheModelOmittedIt()
+    {
+        // Observed live: "show me all schools in Oman" reached the capability as {"area":"Oman"}.
+        GivenAreaResolvesTo("Oman", "Oman");
+        GivenPois("School A");
+        _messages.ListByChatIdAsync(ChatId, Arg.Any<CancellationToken>())
+            .Returns([Domain.Chats.Message.Create(
+                ChatId, Domain.Chats.MessageRole.User, Domain.Chats.MessageKind.Text,
+                "show me all schools in Oman", null, "user")]);
+
+        var result = await Build().ExecuteAsync(Context(), Input("""{"area":"Oman"}"""), default);
+
+        result.Succeeded.Should().BeTrue();
+        result.Output!.RootElement.GetProperty("category").GetString().Should().Be("school");
+    }
 
     [Fact]
     public async Task ExecuteAsync_ShouldRejectACategoryItCannotMap_AndNameTheSupportedOnes()
