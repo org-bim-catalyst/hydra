@@ -48,9 +48,11 @@ therefore adds a **specialist**, not a capability or a viewer layer system.
 ## Phase 6: Polish
 
 - [X] T022 Update `quickstart.md` (implementation path, point-based beyond limitation, missing-area and provider-failure expectations) and the contract's implementation-alignment note.
-- [X] T023 Full Application suite (3006 passing), Web C# compile, frontend typecheck plus spatial store/legend/chat tests (39 passing).
-- [ ] T024 SC-003 check: a city-scale within/beyond request completes and renders within 10 s; record the measured case (requires a live environment).
+- [X] T023 Full Application suite (3007 passing), Infrastructure suite (992 passing, 4 skipped), Web C# compile, frontend typecheck plus spatial store/legend/chat tests (39 passing).
+- [ ] T024 SC-003 check in a live environment. A direct measurement attempt on 2026-11-06 hit the public Overpass endpoint at capacity (502 "all query workers busy"), so the figure remains unrecorded; record it once the endpoint is healthy and the feature is deployed.
 - [X] T025 Update `contracts/proximity-analysis-api.md` to state that proximity is a specialist of the 094 bundle (no separate REST route).
+- [X] T026 Harden area matching: when an exact administrative-area name returns nothing and the area's extent is city-scale (≤ 200 km diagonal), retry with the bounding box; country-scale extents keep area filtering so neighbours are never included.
+- [X] T027 Fix result count semantics: buffer layers are visualization, not results, so one within-match no longer narrates as "2 results".
 
 ## MVP
 

@@ -69,6 +69,23 @@ public sealed class OverpassPoiQueryProviderTests
     }
 
     [Fact]
+    public void IsLocalExtent_ShouldAllowTheBoundingBoxFallbackForACity()
+    {
+        // Muscat's own extent — a box this size cannot bleed into a neighbouring country.
+        OverpassPoiQueryProvider.IsLocalExtent(new PoiBoundingBox(23.52, 58.31, 23.65, 58.45))
+            .Should().BeTrue();
+    }
+
+    [Fact]
+    public void IsLocalExtent_ShouldKeepAreaFilteringForACountry()
+    {
+        // Oman's extent — its bounding box includes the UAE, which is why the fallback must not
+        // apply and the area filter must be used instead.
+        OverpassPoiQueryProvider.IsLocalExtent(new PoiBoundingBox(16.6, 52.0, 26.5, 59.9))
+            .Should().BeFalse();
+    }
+
+    [Fact]
     public void ThrowIfUnavailable_ShouldFail_WhenOverpassReturnedATimeoutRemark()
     {
         // Live: HTTP 200, elements [], remark "runtime error: Query timed out ..." — read as

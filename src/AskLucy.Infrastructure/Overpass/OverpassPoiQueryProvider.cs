@@ -3,6 +3,7 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using AskLucy.Application.PointsOfInterest;
 using AskLucy.Application.SiteBoundaries;
+using AskLucy.Domain.SiteBoundaries;
 using AskLucy.Infrastructure.Boundaries;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
@@ -35,6 +36,38 @@ internal sealed class OverpassPoiQueryProvider(
 
     public async Task<IReadOnlyList<PoiFeature>> QueryAsync(
         PoiQuery query, CancellationToken cancellationToken = default)
+    {
+        var features = await QueryHedgedAsync(query, cancellationToken).ConfigureAwait(false);
+
+        // Area-name matching is exact, and OSM naming is not: the city may be tagged
+        // "ولاية مسقط" with no "Muscat" tag at all, so a correct area query can legitimately
+        // return nothing. For a local extent the bounding box is the safe second attempt — it
+        // cannot bleed into a neighbouring country the way a country-sized box can (the reason
+        // area filtering exists in the first place).
+        if (features.Count == 0 &&
+            !string.IsNullOrWhiteSpace(query.AreaName) &&
+            query.Bounds is { } bounds &&
+            IsLocalExtent(bounds))
+        {
+            features = await QueryHedgedAsync(query with { AreaName = null }, cancellationToken)
+                .ConfigureAwait(false);
+        }
+
+        return features;
+    }
+
+    /// <summary>
+    /// True when the area's own extent is city-scale. 200 km diagonal is far above any city and
+    /// far below a country, which is the only distinction the bounding-box fallback needs.
+    /// Internal for tests.
+    /// </summary>
+    internal static bool IsLocalExtent(PoiBoundingBox bounds) =>
+        GeometryMath.DistanceMeters(
+            new GeoPoint(bounds.SouthLatitude, bounds.WestLongitude),
+            new GeoPoint(bounds.NorthLatitude, bounds.EastLongitude)) <= 200_000d;
+
+    private async Task<IReadOnlyList<PoiFeature>> QueryHedgedAsync(
+        PoiQuery query, CancellationToken cancellationToken)
     {
         var endpoints = Endpoints().ToList();
 

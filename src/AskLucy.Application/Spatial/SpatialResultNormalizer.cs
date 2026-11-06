@@ -108,7 +108,12 @@ public sealed class SpatialResultNormalizer
 
         var failedCount = operations.Count(o => o.Status == SpatialOperationStatus.Failed);
         var succeededCount = operations.Count(o => o.Status != SpatialOperationStatus.Failed);
-        var resultCount = layers.Sum(layer => layer.Markers?.Count ?? (layer.Ring is { Count: > 0 } ? 1 : 0));
+        // Buffers are the distance rule drawn, not results: counting one per buffer made
+        // "1 school within 1 km" narrate as "2 results" (specs/093). Areas still count as one
+        // feature each because they ARE the result of an area analysis.
+        var resultCount = layers.Sum(layer =>
+            layer.Markers?.Count ??
+            (layer.Kind == SpatialLayerKind.Buffer ? 0 : layer.Ring is { Count: > 0 } ? 1 : 0));
 
         var status = DetermineStatus(failedCount, succeededCount, layers.Count, resultCount, warnings);
         var mergedCoverage = MergeCoverage(coverage);
