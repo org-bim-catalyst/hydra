@@ -381,6 +381,9 @@ public static class DependencyInjection
         services.AddScoped<StudyAreaResolver>();
         services.AddScoped<SpatialAnalysisCoordinator>();
         services.AddScoped<ISpatialSpecialist, PoiDiscoverySpecialist>();
+        // specs/093-proximity-analysis — within/beyond/distance-band measurement between two
+        // place categories, inside the study area the coordinator already resolved.
+        services.AddScoped<ISpatialSpecialist, ProximityAnalysisSpecialist>();
         // Registered directly against IAgentTool, never a `sp => sp.GetRequiredService<T>()`
         // factory — see the note on the site-analysis tools above (constitution §3/§2.VIII).
         services.AddScoped<IAgentTool, SpatialAnalysisCapability>();

@@ -29,7 +29,7 @@ public static class SpatialOperationKinds
             ProximityAnalysis,
             "Measures and highlights features within or beyond a distance of a target.",
             "Use when the user asks what is within, beyond, or a given distance from a category, feature or area — \"schools within 1 km of hospitals\", \"areas more than 2 km from a clinic\".",
-            "source category, target category or place, distance and unit"),
+            "source and target category, distance(s) and unit"),
     ];
 
     public static bool IsKnown(string? operationKind) =>

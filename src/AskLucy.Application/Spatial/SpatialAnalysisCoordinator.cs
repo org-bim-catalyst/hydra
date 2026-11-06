@@ -32,7 +32,11 @@ public sealed record SpatialOperationInput(
     string? TargetCategory = null,
     double? Distance = null,
     string? Unit = null,
-    bool? Beyond = null);
+    bool? Beyond = null,
+    IReadOnlyList<SpatialBandInput>? Bands = null);
+
+/// <summary>One requested distance band, in the unit the request also carries.</summary>
+public sealed record SpatialBandInput(double Lower, double Upper);
 
 /// <summary>
 /// What one request produced: a normalized result, a clarification question, or a failure reason
@@ -234,14 +238,22 @@ public sealed class SpatialAnalysisCoordinator(
             }
 
             var unit = input.Unit ?? "km";
-            var parameters = input.Distance is { } distance && double.IsFinite(distance) && distance > 0
-                ? new SpatialOperationParameters(
-                    [new SpatialDistanceThreshold(
+            var thresholds = input.Bands is { Count: > 0 } bands
+                ? bands
+                    .Select(band => new SpatialDistanceThreshold(band.Lower, band.Upper))
+                    .ToList()
+                : input.Distance is { } distance && double.IsFinite(distance) && distance > 0
+                    ? [new SpatialDistanceThreshold(
                         0,
                         distance,
-                        input.Beyond == true ? $"more than {distance} {unit}" : $"within {distance} {unit}")],
+                        input.Beyond == true ? $"more than {distance} {unit}" : $"within {distance} {unit}")]
+                    : null;
+
+            var parameters = thresholds is { Count: > 0 }
+                ? new SpatialOperationParameters(
+                    thresholds,
                     unit,
-                    input.Beyond == true ? "beyond" : "within")
+                    input.Bands is { Count: > 1 } ? null : input.Beyond == true ? "beyond" : "within")
                 : null;
 
             return new SpatialOperation(operationId, SpatialOperationKinds.ProximityAnalysis, targets, parameters, studyArea);

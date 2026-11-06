@@ -156,6 +156,37 @@ public sealed class SpatialAnalysisCoordinatorTests
     }
 
     [Fact]
+    public async Task ExecuteAsync_ShouldMapRequestedBandsOntoOrderedThresholds()
+    {
+        // specs/093 US3 — the decider's band list is real input, not a shape the specialist alone
+        // knows how to invent: it must arrive as ordered thresholds with no within/beyond mode.
+        SpatialOperation? captured = null;
+        var specialist = new FixedSpecialist(SpatialOperationKinds.ProximityAnalysis, operation =>
+        {
+            captured = operation;
+            return SuccessOutcome(operation);
+        });
+
+        var outcome = await Build(specialist).ExecuteAsync(
+            Input(new SpatialOperationInput(
+                SpatialOperationKinds.ProximityAnalysis,
+                Category: "school",
+                TargetCategory: "hospital",
+                Unit: "km",
+                Bands: [new SpatialBandInput(0, 0.5), new SpatialBandInput(0.5, 1.5)])),
+            Context(),
+            lastUserMessage: null,
+            CancellationToken.None);
+
+        captured.Should().NotBeNull();
+        captured!.Parameters!.DistanceThresholds!
+            .Select(threshold => (threshold.LowerBound, threshold.UpperBound))
+            .Should().Equal((0d, (double?)0.5), (0.5d, (double?)1.5));
+        captured.Parameters.LayerMode.Should().BeNull();
+        outcome.Result!.Status.Should().Be(SpatialAnalysisStatus.Complete);
+    }
+
+    [Fact]
     public async Task ExecuteAsync_ShouldRejectAnInvalidMapContextBeforeDispatching()
     {
         var specialist = new FixedSpecialist(SpatialOperationKinds.PoiDiscovery, SuccessOutcome);

@@ -91,7 +91,11 @@ public sealed class SpatialAnalysisCapability(
             "targetCategory":{"type":"string"},
             "distance":{"type":"number","exclusiveMinimum":0},
             "unit":{"type":"string","enum":["m","km"]},
-            "beyond":{"type":"boolean"}
+            "beyond":{"type":"boolean"},
+            "bands":{"type":"array","items":{"type":"object","properties":{
+              "lower":{"type":"number","minimum":0},
+              "upper":{"type":"number","exclusiveMinimum":0}
+            },"required":["upper"]}}
           },"required":["kind"]}},
           "category":{"type":"string"},
           "area":{"type":"string"},
@@ -218,7 +222,8 @@ public sealed class SpatialAnalysisCapability(
                     TargetCategory: ReadString(operation, "targetCategory", "target"),
                     Distance: ReadDouble(operation, "distance", "radius"),
                     Unit: ReadString(operation, "unit"),
-                    Beyond: ReadBool(operation, "beyond")));
+                    Beyond: ReadBool(operation, "beyond"),
+                    Bands: ReadBands(operation)));
             }
         }
 
@@ -341,6 +346,32 @@ public sealed class SpatialAnalysisCapability(
         }
 
         return null;
+    }
+
+    private static IReadOnlyList<SpatialBandInput>? ReadBands(JsonElement root)
+    {
+        if (!root.TryGetProperty("bands", out var element) || element.ValueKind != JsonValueKind.Array)
+        {
+            return null;
+        }
+
+        var bands = new List<SpatialBandInput>();
+        foreach (var item in element.EnumerateArray())
+        {
+            if (item.ValueKind != JsonValueKind.Object)
+            {
+                continue;
+            }
+
+            var lower = ReadDouble(item, "lower", "from") ?? 0;
+            if (ReadDouble(item, "upper", "to", "distance") is { } upper &&
+                double.IsFinite(upper) && upper > lower)
+            {
+                bands.Add(new SpatialBandInput(lower, upper));
+            }
+        }
+
+        return bands.Count > 0 ? bands : null;
     }
 
     private static double? ReadDouble(JsonElement root, params string[] names)
