@@ -55,7 +55,6 @@ public sealed class StudyAreaResolver(
             switch (requested.Kind)
             {
                 case StudyAreaKind.NamedArea when !string.IsNullOrWhiteSpace(requested.NamedArea):
-                {
                     var outcome = await locationResolutionService.ResolveQueryAsync(
                         chatId, requested.NamedArea, cancellationToken);
 
@@ -77,13 +76,11 @@ public sealed class StudyAreaResolver(
                     }
 
                     return StudyAreaResolution.Resolved(FromLocation(resolved));
-                }
 
                 case StudyAreaKind.ExplicitGeometry when requested.Polygon is { Count: >= 3 } polygon:
                     return StudyAreaResolution.Resolved(FromPolygon("the selected area", polygon));
 
                 case StudyAreaKind.ActiveBoundary:
-                {
                     var chatForBoundary = await ChatAsync();
                     var boundary = chatForBoundary is null
                         ? null
@@ -92,7 +89,6 @@ public sealed class StudyAreaResolver(
                     return boundary is null
                         ? StudyAreaResolution.Ask("Which area should I use? I don't have a site outline on the map right now.")
                         : StudyAreaResolution.Resolved(FromBoundary(boundary));
-                }
 
                 case StudyAreaKind.MapViewport:
                     return mapContext is null

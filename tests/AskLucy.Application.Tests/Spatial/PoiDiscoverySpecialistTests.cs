@@ -1,8 +1,8 @@
 using AskLucy.Application.Locations;
 using AskLucy.Application.PointsOfInterest;
+using AskLucy.Application.SiteBoundaries;
 using AskLucy.Application.Spatial;
 using AskLucy.Application.Spatial.Specialists;
-using AskLucy.Application.SiteBoundaries;
 using AskLucy.Domain.SiteBoundaries;
 using FluentAssertions;
 using NSubstitute;
