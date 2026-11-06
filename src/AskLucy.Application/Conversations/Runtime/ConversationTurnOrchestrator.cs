@@ -74,17 +74,22 @@ public sealed class ConversationTurnOrchestrator(
     CapabilityNarrator narrator,
     TurnRecorder turnRecorder,
     EffectiveSiteBoundary effectiveSiteBoundary,
-    PointsOfInterest.PoiLayerStateStore poiLayerStateStore,
+    Spatial.SpatialLayerStateStore spatialLayerStateStore,
     ILogger<ConversationTurnOrchestrator> logger) : IConversationTurnOrchestrator
 {
     public async IAsyncEnumerable<ChatStreamChunk> RunAsync(
         ConversationTurnRequest request,
         [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken cancellationToken)
     {
-        // specs/090 FR-009 — reconcile the server's layer view with the legend the client is
-        // actually showing before anything is decided. A layer the user removed there is gone;
-        // otherwise the next POI request would ask about markers that are no longer on the map.
-        poiLayerStateStore.Sync(request.ChatId, request.ActivePoiCategories);
+        // specs/094 (from specs/090 FR-009) — reconcile the server's layer view with the legend the
+        // client is actually showing before anything is decided. A layer the user removed there is
+        // gone; otherwise the next spatial request would ask about layers no longer on the map.
+        spatialLayerStateStore.Sync(
+            request.ChatId,
+            request.ActivePoiCategories?
+                .Select(category => new Spatial.ActiveSpatialLayer(
+                    string.Empty, category.Key, category.DisplayName, "markers", category.DisplayName))
+                .ToList());
 
         // specs/068 FR-007/FR-009 - the persisted history, read for its recorded outcomes rather
         // than its prose. The client sends the transcript it is showing, which is exactly where the
@@ -113,7 +118,13 @@ public sealed class ConversationTurnOrchestrator(
 
         // specs/079 - the outline in force (a hand edit applies here), not the chat's stored found outline.
         var effectiveBoundary = await effectiveSiteBoundary.ResolveAsync(chat, cancellationToken);
-        var turnContext = TurnContextFactory.Build(userId, request.ChatId, chat?.ActiveLocation, effectiveBoundary, knowledgeBaseIds);
+        var turnContext = TurnContextFactory.Build(
+            userId,
+            request.ChatId,
+            chat?.ActiveLocation,
+            effectiveBoundary,
+            knowledgeBaseIds,
+            request.MapContext);
 
         // English typed on the Arabic keyboard layout arrives as Arabic letters that mean nothing. Acting
         // on a guess would be wrong (it opened the outline editor once), so the turn is answered in

@@ -20,7 +20,8 @@ public static class TurnContextFactory
         Guid userChatId,
         ActiveSiteLocation? activeLocation,
         ActiveSiteBoundary? activeBoundary,
-        IReadOnlyList<Guid> knowledgeBaseIds)
+        IReadOnlyList<Guid> knowledgeBaseIds,
+        Spatial.MapViewportContext? mapContext = null)
     {
         // specs/045 FR-011 rule 3 — entitlement is meant to be enforced centrally, against a real
         // per-user grant. No granular permission system surfaces to chat today (the pre-existing
@@ -52,6 +53,7 @@ public static class TurnContextFactory
             IsMemoryAvailable: userId is not null,
             OpenPanelCount: 0,
             granted,
-            SubscriptionTier: null);
+            SubscriptionTier: null,
+            MapContext: mapContext);
     }
 }

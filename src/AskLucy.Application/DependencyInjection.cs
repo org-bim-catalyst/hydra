@@ -28,6 +28,8 @@ using AskLucy.Application.Mcp.Resilience;
 using AskLucy.Application.Mcp.Tools;
 using AskLucy.Application.Mcp.Validation;
 using AskLucy.Application.Memory;
+using AskLucy.Application.Spatial;
+using AskLucy.Application.Spatial.Specialists;
 using AskLucy.Application.Memory.Notifications;
 using AskLucy.Application.Notifications;
 using AskLucy.Application.Notifications.Abstractions;
@@ -364,14 +366,24 @@ public static class DependencyInjection
         services.AddScoped<CapabilityIndexRetriever>();
         services.AddScoped<ConversationCapabilityCatalog>();
 
-        // specs/090-poi-discovery — the closed category catalog and the per-chat layer memory.
-        // The store is a singleton because a layer outlives one request: the next turn must know
-        // what is already drawn before it can ask whether to clear it.
+        // specs/090-poi-discovery — the closed category catalog. Still the source of truth for
+        // place categories, now read by the POI specialist.
         services.AddSingleton<PoiCategoryCatalog>();
-        services.AddSingleton<PoiLayerStateStore>();
+
+        // specs/094-spatial-analysis-orchestrator — the coordinator, specialist registry and
+        // per-chat layer memory. The layer store is a singleton because a layer outlives one
+        // request: the next turn must know what is already drawn before it can ask whether to
+        // clear it. Adding a specialist is one registration line and nothing else (FR-028).
+        services.AddSingleton<SpatialLayerStateStore>();
+        services.AddScoped<SpatialBundleValidator>();
+        services.AddScoped<SpatialSpecialistRegistry>();
+        services.AddScoped<SpatialResultNormalizer>();
+        services.AddScoped<StudyAreaResolver>();
+        services.AddScoped<SpatialAnalysisCoordinator>();
+        services.AddScoped<ISpatialSpecialist, PoiDiscoverySpecialist>();
         // Registered directly against IAgentTool, never a `sp => sp.GetRequiredService<T>()`
         // factory — see the note on the site-analysis tools above (constitution §3/§2.VIII).
-        services.AddScoped<IAgentTool, FindPointsOfInterestCapability>();
+        services.AddScoped<IAgentTool, SpatialAnalysisCapability>();
 
         // specs/045 Phase 6 — flows. Registered the same way as capabilities: adding one is these
         // two lines, never a change to the orchestrator (IConversationFlow's own doc comment).

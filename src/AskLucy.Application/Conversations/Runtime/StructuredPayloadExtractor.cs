@@ -105,25 +105,17 @@ public static class StructuredPayloadExtractor
                             ? snapshotNameEl.GetString() ?? string.Empty
                             : string.Empty));
 
-                // specs/090-poi-discovery - a drawn layer, including an empty one when the user
-                // chose replace: the client must clear the old markers even though the new search
-                // found nothing. `awaitingChoice` results carry neither markers nor mode by
-                // design, so they fall through to `default` and Lucy narrates the question only.
-                case FindPointsOfInterestCapability.CapabilityKey
-                    when root.TryGetProperty("markers", out var markersEl)
-                        && markersEl.ValueKind == JsonValueKind.Array
-                        && root.TryGetProperty("mode", out _):
-                    return new ChatStreamChunk(null, null, PoiLayer: new PoiLayerCommand(
-                        root.GetProperty("category").GetString() ?? string.Empty,
-                        root.GetProperty("displayName").GetString() ?? string.Empty,
-                        root.GetProperty("color").GetString() ?? "#4285F4",
-                        root.GetProperty("markerShape").GetString() ?? "simple-dot",
-                        root.TryGetProperty("mode", out var poiModeEl) ? poiModeEl.GetString() ?? "replace" : "replace",
-                        [.. markersEl.EnumerateArray().Select(marker => new PoiMarkerData(
-                            marker.GetProperty("id").GetString() ?? string.Empty,
-                            marker.TryGetProperty("name", out var markerNameEl) ? markerNameEl.GetString() ?? string.Empty : string.Empty,
-                            marker.GetProperty("latitude").GetDouble(),
-                            marker.GetProperty("longitude").GetDouble()))]));
+                // specs/094-spatial-analysis-orchestrator — the coordinator's normalized layers.
+                // A question result carries status "question" and no drawable layers, so it falls
+                // through to `default` and Lucy narrates the question only.
+                case SpatialAnalysisCapability.CapabilityKey
+                    when root.TryGetProperty("layers", out var spatialLayersEl)
+                        && spatialLayersEl.ValueKind == JsonValueKind.Array
+                        && (!root.TryGetProperty("status", out var spatialStatusEl)
+                            || spatialStatusEl.GetString() != "question"):
+                    return new ChatStreamChunk(null, null,
+                        SpatialLayers: JsonSerializer.Deserialize<SpatialLayerCommand>(
+                            resultJson, SpatialLayerCommand.JsonOptions));
 
                 default:
                     return null;

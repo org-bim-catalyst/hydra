@@ -259,6 +259,66 @@ describe('streamChat', () => {
     expect(events[1]).toEqual({ type: 'siteBoundary', ...boundaryPayload, additionalPolygons: [], voids: [] })
   })
 
+  // specs/094-spatial-analysis-orchestrator: __SPATIAL_LAYERS__ trailing SSE event
+  it('parses a __SPATIAL_LAYERS__ trailing event and yields the normalized layers', async () => {
+    const payload = {
+      analysisId: 'a1',
+      status: 'Complete',
+      mode: 'replace',
+      count: 1,
+      layers: [
+        {
+          layerId: 'op-1:school',
+          sourceOperation: 'op-1',
+          name: 'Schools in Muscat',
+          legendLabel: 'Schools',
+          kind: 'markers',
+          visible: true,
+          markers: [{ id: 'osm_1', name: 'A', latitude: 23.5, longitude: 58.3 }],
+          style: { color: '#4285F4', markerShape: 'simple-dot' },
+        },
+      ],
+      warnings: [],
+      coverage: [],
+    }
+
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue(
+        sseResponse([
+          'data: Found 1 school.\n\n',
+          `data: __SPATIAL_LAYERS__${JSON.stringify(payload)}\n\n`,
+          'data: [DONE]\n\n',
+        ]),
+      ),
+    )
+
+    const events: ChatStreamEvent[] = []
+    for await (const event of streamChat('chat-1', [{ role: 'user', content: 'test' }], 'p1', 'm1', undefined)) {
+      events.push(event)
+    }
+
+    const spatial = events.find((event) => event.type === 'spatialLayers')
+    expect(spatial).toBeDefined()
+    expect(spatial && spatial.type === 'spatialLayers' && spatial.layers[0].layerId).toBe('op-1:school')
+  })
+
+  it('ignores a malformed __SPATIAL_LAYERS__ payload instead of failing the turn', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue(
+        sseResponse(['data: __SPATIAL_LAYERS__{not json\n\n', 'data: [DONE]\n\n']),
+      ),
+    )
+
+    const events: ChatStreamEvent[] = []
+    for await (const event of streamChat('chat-1', [{ role: 'user', content: 'test' }], 'p1', 'm1', undefined)) {
+      events.push(event)
+    }
+
+    expect(events.some((event) => event.type === 'spatialLayers')).toBe(false)
+  })
+
   // specs/052-solar-analysis research D3: __SOLAR_ANALYSIS__ trailing SSE event
   it('parses a __SOLAR_ANALYSIS__ trailing event and yields a solarAnalysis event', async () => {
     const solarPayload = { date: '2026-09-13', timeOfDay: '14:00' }

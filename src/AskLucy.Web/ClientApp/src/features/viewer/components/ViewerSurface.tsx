@@ -9,7 +9,7 @@ import { viewerEngine } from '../../../viewer/engine/viewerEngineInstance'
 import { ContentLoadingIndicator } from '../../../viewer/content/components/ContentLoadingIndicator'
 import { useContentStore } from '../../../viewer/content/contentStore'
 import { ExtensionFailureNotice } from '../../../viewer/extensions/components/ExtensionFailureNotice'
-import { PoiLayerLegend } from './PoiLayerLegend'
+import { SpatialLayerLegend } from './SpatialLayerLegend'
 import { ExtensionOverlayHost } from '../../../viewer/extensions/components/ExtensionOverlayHost'
 import { ExtensionToolbar } from '../../../viewer/extensions/components/ExtensionToolbar'
 import { DECLARED_EXTENSIONS } from '../../../viewer/extensions/declared'
@@ -176,7 +176,7 @@ export function ViewerSurface() {
       )}
       <ExtensionOverlayHost />
       {/* specs/090-poi-discovery — floats over the map, above the map's own bottom-right controls. */}
-      <PoiLayerLegend />
+      <SpatialLayerLegend />
       {contentMode === 'map' && <MapTransitionOverlay />}
       {/* research D6/T036 — top-right: clear of the studio's top-left HUD row (specs/073: Home,
           title, weather, boundary confidence) and the panel-hub indicator (bottom-left). Renders nothing when no

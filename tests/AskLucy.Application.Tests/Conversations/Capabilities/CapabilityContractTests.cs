@@ -5,10 +5,12 @@ using AskLucy.Application.Conversations.Capabilities;
 using AskLucy.Application.Locations;
 using AskLucy.Application.Panels;
 using AskLucy.Application.SiteBoundaries;
+using AskLucy.Application.Spatial;
 using AskLucy.Application.Tests.SiteBoundaries;
 using FluentAssertions;
 using MediatR;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging.Abstractions;
 using NSubstitute;
 using Xunit;
 
@@ -54,15 +56,31 @@ public sealed class CapabilityContractTests
         new PresentPanelContentCapability(Substitute.For<IPanelNotifier>()),
         new OpenLivePanelCapability(Substitute.For<IPanelNotifier>()),
         new MapSnapshotCapability(Substitute.For<ISender>(), Substitute.For<IUserChatRepository>(), Substitute.For<IServiceScopeFactory>()),
-        new FindPointsOfInterestCapability(
-            Substitute.For<ILocationResolutionService>(),
-            Substitute.For<AskLucy.Application.PointsOfInterest.IPoiQueryProvider>(),
-            new AskLucy.Application.PointsOfInterest.PoiCategoryCatalog(),
-            new AskLucy.Application.PointsOfInterest.PoiLayerStateStore(
-                TimeProvider.System, new AskLucy.Application.PointsOfInterest.PoiCategoryCatalog()),
-            Substitute.For<IUserChatRepository>(),
-            Substitute.For<IMessageRepository>()),
+        BuildSpatialCapability(),
     ];
+
+    private static SpatialAnalysisCapability BuildSpatialCapability()
+    {
+        var catalog = new AskLucy.Application.PointsOfInterest.PoiCategoryCatalog();
+        var store = new SpatialLayerStateStore(TimeProvider.System);
+        var coordinator = new SpatialAnalysisCoordinator(
+            new SpatialSpecialistRegistry([]),
+            new SpatialBundleValidator(),
+            new SpatialResultNormalizer(),
+            new StudyAreaResolver(
+                Substitute.For<ILocationResolutionService>(),
+                Substitute.For<IUserChatRepository>(),
+                TestEffectiveSiteBoundary.None()),
+            store,
+            TimeProvider.System,
+            NullLogger<SpatialAnalysisCoordinator>.Instance);
+
+        return new SpatialAnalysisCapability(
+            coordinator,
+            store,
+            catalog,
+            Substitute.For<IMessageRepository>());
+    }
 
     [Theory]
     [MemberData(nameof(AllCapabilities))]

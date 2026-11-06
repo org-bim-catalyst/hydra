@@ -69,4 +69,11 @@ public sealed record SendChatMessageCommand(
     /// view state, never trusted for tag definitions (the server resolves those itself); it is
     /// what keeps the keep/replace question in step with the user's legend.
     /// </summary>
-    IReadOnlyList<ActivePoiCategoryInput>? ActivePoiCategories = null) : IStreamRequest<ChatStreamChunk>;
+    IReadOnlyList<ActivePoiCategoryInput>? ActivePoiCategories = null,
+
+    /// <summary>
+    /// specs/094-spatial-analysis-orchestrator — the client's current map view, captured at send
+    /// time. Untrusted: the spatial coordinator validates it before any operation may use it, and
+    /// an explicit place in the request always wins over it.
+    /// </summary>
+    Spatial.MapViewportContext? MapContext = null) : IStreamRequest<ChatStreamChunk>;

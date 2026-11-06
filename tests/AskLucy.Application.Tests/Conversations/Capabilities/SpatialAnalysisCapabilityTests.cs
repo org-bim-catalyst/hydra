@@ -6,19 +6,22 @@ using AskLucy.Application.Conversations.Capabilities;
 using AskLucy.Application.Locations;
 using AskLucy.Application.PointsOfInterest;
 using AskLucy.Application.SiteBoundaries;
-using AskLucy.Domain.SiteBoundaries;
+using AskLucy.Application.Spatial;
+using AskLucy.Application.Spatial.Specialists;
+using AskLucy.Application.Tests.SiteBoundaries;
 using FluentAssertions;
+using Microsoft.Extensions.Logging.Abstractions;
 using NSubstitute;
 using Xunit;
 
 namespace AskLucy.Application.Tests.Conversations.Capabilities;
 
 /// <summary>
-/// specs/090-poi-discovery — the category search must ask before replacing an existing layer,
-/// must honour keep/replace on the answer, and must never report an Overpass outage as
-/// "no places found".
+/// specs/094 — the single spatial front door must preserve the behaviour specs/090 established
+/// (ask before replacing, honour keep/replace, never report an outage as "none found") while
+/// routing everything through the coordinator and specialists.
 /// </summary>
-public sealed class FindPointsOfInterestCapabilityTests
+public sealed class SpatialAnalysisCapabilityTests
 {
     private static readonly Guid ChatId = Guid.NewGuid();
 
@@ -27,14 +30,21 @@ public sealed class FindPointsOfInterestCapabilityTests
     private readonly IUserChatRepository _chats = Substitute.For<IUserChatRepository>();
     private readonly IMessageRepository _messages = Substitute.For<IMessageRepository>();
     private readonly PoiCategoryCatalog _catalog = new();
-    private readonly PoiLayerStateStore _store;
+    private readonly SpatialLayerStateStore _store = new(TimeProvider.System);
 
-    private FindPointsOfInterestCapability Build() =>
-        new(_locationService, _poiProvider, _catalog, _store, _chats, _messages);
-
-    public FindPointsOfInterestCapabilityTests()
+    private SpatialAnalysisCapability Build()
     {
-        _store = new PoiLayerStateStore(TimeProvider.System, _catalog);
+        var registry = new SpatialSpecialistRegistry([new PoiDiscoverySpecialist(_poiProvider, _catalog)]);
+        var coordinator = new SpatialAnalysisCoordinator(
+            registry,
+            new SpatialBundleValidator(),
+            new SpatialResultNormalizer(),
+            new StudyAreaResolver(_locationService, _chats, TestEffectiveSiteBoundary.None()),
+            _store,
+            TimeProvider.System,
+            NullLogger<SpatialAnalysisCoordinator>.Instance);
+
+        return new SpatialAnalysisCapability(coordinator, _store, _catalog, _messages);
     }
 
     private static AgentToolExecutionContext Context() =>
@@ -45,7 +55,9 @@ public sealed class FindPointsOfInterestCapabilityTests
         _locationService.ResolveQueryAsync(ChatId, area, Arg.Any<CancellationToken>())
             .Returns(new LocationResolutionOutcome(
                 LocationResolutionOutcomeType.Confirmed,
-                new ConfirmedLocationData(23.588, 58.382, name, 0.9, Viewport: new ViewportBounds(23.65, 58.45, 23.52, 58.31)),
+                new ConfirmedLocationData(
+                    23.588, 58.382, name, 0.9,
+                    Viewport: new ViewportBounds(23.65, 58.45, 23.52, 58.31)),
                 null));
     }
 
@@ -67,17 +79,18 @@ public sealed class FindPointsOfInterestCapabilityTests
         await capability.ExecuteAsync(Context(), Input("""{"category":"hospitals","area":"Muscat"}"""), default);
 
         // The decider never saw the Tier 2 guidance that says to pass mode, so it sent only the
-        // category back; the user's own "yes" is the answer the question asked for.
+        // operation back; the user's own "yes" is the answer the question asked for.
         _messages.ListByChatIdAsync(ChatId, Arg.Any<CancellationToken>())
             .Returns([Domain.Chats.Message.Create(
                 ChatId, Domain.Chats.MessageRole.User, Domain.Chats.MessageKind.Text,
                 "yes", null, "user")]);
 
-        var result = await capability.ExecuteAsync(Context(), Input("""{"category":"hospitals"}"""), default);
+        var result = await capability.ExecuteAsync(
+            Context(), Input("""{"operations":[{"kind":"poi.discovery","category":"hospitals"}]}"""), default);
 
         result.Succeeded.Should().BeTrue();
         result.Output!.RootElement.GetProperty("mode").GetString().Should().Be("replace");
-        _store.GetLayers(ChatId).Select(l => l.Key).Should().Equal("hospital");
+        _store.GetLayers(ChatId).Select(layer => layer.LegendLabel).Should().Equal("Hospitals");
     }
 
     [Fact]
@@ -94,7 +107,9 @@ public sealed class FindPointsOfInterestCapabilityTests
         var result = await Build().ExecuteAsync(Context(), Input("""{"area":"Oman"}"""), default);
 
         result.Succeeded.Should().BeTrue();
-        result.Output!.RootElement.GetProperty("category").GetString().Should().Be("school");
+        result.Output!.RootElement.GetProperty("count").GetInt32().Should().Be(1);
+        result.Output.RootElement.GetProperty("layers")[0].GetProperty("name").GetString()
+            .Should().Contain("Schools");
     }
 
     [Fact]
@@ -104,8 +119,7 @@ public sealed class FindPointsOfInterestCapabilityTests
 
         result.Succeeded.Should().BeTrue();
         result.Output!.RootElement.GetProperty("awaitingArea").GetBoolean().Should().BeTrue();
-        result.Output.RootElement.GetProperty("question").GetString()
-            .Should().Contain("Which area").And.Contain("schools");
+        result.Output.RootElement.GetProperty("question").GetString().Should().Contain("Which area");
         await _poiProvider.DidNotReceiveWithAnyArgs().QueryAsync(default!, default);
     }
 
@@ -124,6 +138,8 @@ public sealed class FindPointsOfInterestCapabilityTests
     [Fact]
     public async Task ExecuteAsync_ShouldRejectACategoryItCannotMap_AndNameTheSupportedOnes()
     {
+        GivenAreaResolvesTo("Muscat");
+
         var result = await Build().ExecuteAsync(Context(), Input("""{"category":"spaceports","area":"Muscat"}"""), default);
 
         result.Succeeded.Should().BeFalse();
@@ -142,8 +158,8 @@ public sealed class FindPointsOfInterestCapabilityTests
         result.Succeeded.Should().BeTrue();
         result.Output!.RootElement.GetProperty("count").GetInt32().Should().Be(2);
         result.Output.RootElement.GetProperty("mode").GetString().Should().Be("replace");
-        result.Output.RootElement.GetProperty("markers").GetArrayLength().Should().Be(2);
-        _store.GetLayers(ChatId).Select(l => l.Key).Should().Equal("school");
+        result.Output.RootElement.GetProperty("layers")[0].GetProperty("markers").GetArrayLength().Should().Be(2);
+        _store.GetLayers(ChatId).Select(layer => layer.LegendLabel).Should().Equal("Schools");
     }
 
     [Fact]
@@ -163,9 +179,9 @@ public sealed class FindPointsOfInterestCapabilityTests
         result.Output!.RootElement.GetProperty("awaitingChoice").GetBoolean().Should().BeTrue();
         result.Output.RootElement.GetProperty("question").GetString()
             .Should().Contain("schools").And.Contain("hospitals");
-        result.Output.RootElement.TryGetProperty("markers", out _).Should().BeFalse();
+        result.Output.RootElement.GetProperty("layers").GetArrayLength().Should().Be(0);
         await _poiProvider.DidNotReceiveWithAnyArgs().QueryAsync(default!, default);
-        _store.GetLayers(ChatId).Select(l => l.Key).Should().Equal("school");
+        _store.GetLayers(ChatId).Select(layer => layer.LegendLabel).Should().Equal("Schools");
     }
 
     [Fact]
@@ -183,7 +199,7 @@ public sealed class FindPointsOfInterestCapabilityTests
 
         result.Succeeded.Should().BeTrue();
         result.Output!.RootElement.GetProperty("mode").GetString().Should().Be("keep");
-        _store.GetLayers(ChatId).Select(l => l.Key).Should().BeEquivalentTo(["school", "hospital"]);
+        _store.GetLayers(ChatId).Select(layer => layer.LegendLabel).Should().BeEquivalentTo(["Schools", "Hospitals"]);
     }
 
     [Fact]
@@ -200,7 +216,7 @@ public sealed class FindPointsOfInterestCapabilityTests
 
         result.Succeeded.Should().BeTrue();
         result.Output!.RootElement.GetProperty("mode").GetString().Should().Be("replace");
-        _store.GetLayers(ChatId).Select(l => l.Key).Should().Equal("hospital");
+        _store.GetLayers(ChatId).Select(layer => layer.LegendLabel).Should().Equal("Hospitals");
     }
 
     [Fact]
@@ -213,7 +229,8 @@ public sealed class FindPointsOfInterestCapabilityTests
 
         result.Succeeded.Should().BeTrue();
         result.Output!.RootElement.GetProperty("count").GetInt32().Should().Be(0);
-        result.Output.RootElement.GetProperty("markers").GetArrayLength().Should().Be(0);
+        result.Output.RootElement.GetProperty("layers").GetArrayLength().Should().Be(0);
+        result.Output.RootElement.GetProperty("status").GetString().Should().Be("Empty");
         _store.GetLayers(ChatId).Should().BeEmpty();
     }
 
@@ -240,7 +257,7 @@ public sealed class FindPointsOfInterestCapabilityTests
         var result = await Build().ExecuteAsync(Context(), Input("""{"category":"schools","area":"Atlantis"}"""), default);
 
         result.Succeeded.Should().BeFalse();
-        result.FailureReason.Should().Be("I couldn't find Atlantis.");
+        result.FailureReason.Should().Contain("Atlantis");
         await _poiProvider.DidNotReceiveWithAnyArgs().QueryAsync(default!, default);
     }
 
@@ -249,7 +266,7 @@ public sealed class FindPointsOfInterestCapabilityTests
     {
         GivenAreaResolvesTo("Oman", "Oman");
         PoiQuery? captured = null;
-        _poiProvider.QueryAsync(Arg.Do<PoiQuery>(q => captured = q), Arg.Any<CancellationToken>()).Returns([]);
+        _poiProvider.QueryAsync(Arg.Do<PoiQuery>(query => captured = query), Arg.Any<CancellationToken>()).Returns([]);
 
         await Build().ExecuteAsync(Context(), Input("""{"category":"hospitals","area":"Oman"}"""), default);
 
@@ -258,15 +275,21 @@ public sealed class FindPointsOfInterestCapabilityTests
     }
 
     [Fact]
-    public void Sync_ShouldForgetACategoryTheClientRemoved()
+    public void Sync_ShouldForgetALayerTheClientRemoved()
     {
-        _store.ApplyLayer(ChatId, _catalog.FindByKey("school")!, keepExisting: false);
-        _store.ApplyLayer(ChatId, _catalog.FindByKey("hospital")!, keepExisting: true);
+        _store.ApplyLayers(
+            ChatId,
+            "analysis-1",
+            [
+                new SpatialLayer("schools", "analysis-1", "op-1", "Schools", "Schools", SpatialLayerKind.Markers),
+                new SpatialLayer("hospitals", "analysis-1", "op-2", "Hospitals", "Hospitals", SpatialLayerKind.Markers),
+            ],
+            keepExisting: false);
 
         // The user closed the hospitals row in the legend; the next turn reports only schools.
-        _store.Sync(ChatId, [new ActivePoiCategoryInput("school", "Schools")]);
+        _store.Sync(ChatId, [new ActiveSpatialLayer("analysis-1", "schools", "Schools", "markers", "Schools")]);
 
-        _store.GetLayers(ChatId).Select(l => l.Key).Should().Equal("school");
+        _store.GetLayers(ChatId).Select(layer => layer.LayerId).Should().Equal("schools");
     }
 
     [Fact]

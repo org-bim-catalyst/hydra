@@ -55,6 +55,13 @@ public enum SubAgentArea
     /// but it still needs an <see cref="Area"/> value to satisfy <see cref="IConversationCapability"/>.
     /// </summary>
     SiteAnalysis,
+
+    /// <summary>
+    /// specs/094-spatial-analysis-orchestrator — the single front door for geographic, POI and
+    /// spatial-analysis requests. It replaces the former POI-specific capability; specialists are
+    /// reached only through it, never routed to individually by the decider.
+    /// </summary>
+    Spatial,
 }
 
 /// <summary>

@@ -1,5 +1,6 @@
 import { apiFetch, ApiError, attemptSilentRefresh, redirectToLogin } from '../../../api/httpClient'
 import { useAuthStore } from '../../../store/authStore'
+import type { SpatialLayerPayload } from '../../../store/spatialLayersStore'
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? '/api/v1'
 
@@ -198,18 +199,26 @@ export type ChatStreamEvent =
       locationName: string
     }
   /**
-   * specs/090-poi-discovery — one category of places Lucy found, carried on the trailing
-   * `__POI_LAYERS__` event. `mode` says whether this layer joins the ones already on the map
-   * (`keep`) or replaces them (`replace`); the client owns the layer state and the legend.
+   * specs/094-spatial-analysis-orchestrator — the coordinator's normalized layers, carried on the
+   * trailing `__SPATIAL_LAYERS__` event. `mode` says whether these layers join the ones already
+   * on the map (`keep`) or replace them (`replace`); the client owns layer state and the legend.
+   * Markers, buffers and area highlights are all layer `kind`s within this one event.
    */
   | {
-      type: 'poiLayers'
-      category: string
-      displayName: string
-      color: string
-      markerShape: string
+      type: 'spatialLayers'
+      analysisId: string
+      status: 'Complete' | 'Partial' | 'Empty'
       mode: 'keep' | 'replace'
-      markers: { id: string; name: string; latitude: number; longitude: number }[]
+      layers: SpatialLayerPayload[]
+      warnings: string[]
+      coverage: {
+        sourceId: string
+        displayName: string
+        coverageStatus: string
+        explanation?: string | null
+      }[]
+      count: number
+      areaName?: string | null
     }
   /**
    * The server finished one assistant message and started another. Deltas that follow belong to
@@ -255,7 +264,7 @@ const SOLAR_ANALYSIS_EVENT_PREFIX = '__SOLAR_ANALYSIS__'
 const SITE_BOUNDARY_EDIT_EVENT_PREFIX = '__SITE_BOUNDARY_EDIT__'
 const SNAPSHOT_EVENT_PREFIX = '__SNAPSHOT__'
 const SITE_BOUNDARY_EVENT_PREFIX = '__SITE_BOUNDARY__'
-const POI_LAYERS_EVENT_PREFIX = '__POI_LAYERS__'
+const SPATIAL_LAYERS_EVENT_PREFIX = '__SPATIAL_LAYERS__'
 const ACTIONS_EVENT_PREFIX = '__ACTIONS__'
 const TURN_OUTCOME_EVENT_PREFIX = '__TURN_OUTCOME__'
 const MESSAGE_BREAK_EVENT = '__MESSAGE_BREAK__'
@@ -286,6 +295,17 @@ export interface RetryRequest {
  * `ReadableStream` reader rather than the browser's native `EventSource`, since
  * `EventSource` cannot send a custom `Authorization` header.
  */
+/** specs/094 — the map view captured at send time; untrusted server-side. */
+export interface MapViewportContext {
+  centerLatitude: number
+  centerLongitude: number
+  zoom: number
+  southWestLatitude: number
+  southWestLongitude: number
+  northEastLatitude: number
+  northEastLongitude: number
+}
+
 export async function* streamChat(
   chatId: string,
   messages: ChatMessage[],
@@ -296,6 +316,7 @@ export async function* streamChat(
   selectedAction?: SelectedActionRequest,
   retry?: RetryRequest,
   activePoiCategories?: { key: string; displayName: string }[],
+  mapContext?: MapViewportContext,
 ): AsyncGenerator<ChatStreamEvent> {
   // An assistant bubble with no text is the placeholder left behind when a stream was cut off —
   // a deploy restart or a dropped connection. It carries no context, and the server rejects any
@@ -314,7 +335,7 @@ export async function* streamChat(
         'Content-Type': 'application/json',
         ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
       },
-      body: JSON.stringify({ chatId, messages: history, providerId, modelId, generationParameters, selectedAction, retry, activePoiCategories }),
+      body: JSON.stringify({ chatId, messages: history, providerId, modelId, generationParameters, selectedAction, retry, activePoiCategories, mapContext }),
     })
   }
 
@@ -475,24 +496,40 @@ export async function* streamChat(
         continue
       }
 
-      // specs/090-poi-discovery: one category's markers — same distinguishable-prefix pattern.
-      if (data.startsWith(POI_LAYERS_EVENT_PREFIX)) {
-        const payload = JSON.parse(data.slice(POI_LAYERS_EVENT_PREFIX.length)) as {
-          category: string
-          displayName: string
-          color: string
-          markerShape: string
-          mode: 'keep' | 'replace'
-          markers: { id: string; name: string; latitude: number; longitude: number }[]
+      // specs/094-spatial-analysis-orchestrator: the coordinator's normalized layers — same
+      // distinguishable-prefix pattern as __LOCATION__. Parsed defensively: a malformed payload
+      // must not become an unhandled rejection, and the turn's narration still reports the result.
+      if (data.startsWith(SPATIAL_LAYERS_EVENT_PREFIX)) {
+        let payload: {
+          analysisId?: string
+          status?: string
+          mode?: string
+          layers?: SpatialLayerPayload[]
+          warnings?: string[]
+          coverage?: { sourceId: string; displayName: string; coverageStatus: string; explanation?: string | null }[]
+          count?: number
+          areaName?: string | null
         }
+        try {
+          payload = JSON.parse(data.slice(SPATIAL_LAYERS_EVENT_PREFIX.length))
+        } catch {
+          // A malformed viewer payload is a degradation, not a turn failure: no layer is drawn,
+          // and the reply already says what happened.
+          console.warn('[aiApi] Ignored a malformed __SPATIAL_LAYERS__ payload.')
+          continue
+        }
+
         yield {
-          type: 'poiLayers',
-          category: payload.category,
-          displayName: payload.displayName,
-          color: payload.color,
-          markerShape: payload.markerShape,
+          type: 'spatialLayers',
+          analysisId: payload.analysisId ?? '',
+          status:
+            payload.status === 'Partial' || payload.status === 'Empty' ? payload.status : 'Complete',
           mode: payload.mode === 'keep' ? 'keep' : 'replace',
-          markers: payload.markers ?? [],
+          layers: Array.isArray(payload.layers) ? payload.layers : [],
+          warnings: Array.isArray(payload.warnings) ? payload.warnings : [],
+          coverage: Array.isArray(payload.coverage) ? payload.coverage : [],
+          count: typeof payload.count === 'number' ? payload.count : 0,
+          areaName: payload.areaName ?? null,
         }
         continue
       }

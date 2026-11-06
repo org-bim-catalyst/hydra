@@ -34,8 +34,15 @@ public enum AgentToolPermission
 }
 #pragma warning restore CA1711
 
-/// <summary>Per-call context passed to every <see cref="IAgentTool"/> (contracts/agent-tool-contract.md). <see cref="UserChatId"/> is the execution's linked conversation, if any (FR-051/FR-052) — surfaced here so <see cref="ConversationTool"/> doesn't need its own repository round-trip just to resolve it.</summary>
-public sealed record AgentToolExecutionContext(Guid ExecutionId, Guid StepId, string UserId, Guid AgentId, Guid AgentVersionId, Guid? UserChatId);
+/// <summary>Per-call context passed to every <see cref="IAgentTool"/> (contracts/agent-tool-contract.md). <see cref="UserChatId"/> is the execution's linked conversation, if any (FR-051/FR-052) — surfaced here so <see cref="ConversationTool"/> doesn't need its own repository round-trip just to resolve it. <see cref="MapContext"/> is the client's current map view (specs/094), supplied only by the conversational turn and validated by the spatial coordinator before use.</summary>
+public sealed record AgentToolExecutionContext(
+    Guid ExecutionId,
+    Guid StepId,
+    string UserId,
+    Guid AgentId,
+    Guid AgentVersionId,
+    Guid? UserChatId,
+    Spatial.MapViewportContext? MapContext = null);
 
 /// <summary>
 /// Result of one tool execution. A success always carries <see cref="Output"/> and no

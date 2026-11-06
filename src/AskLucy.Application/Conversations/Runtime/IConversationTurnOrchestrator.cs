@@ -70,4 +70,10 @@ public sealed record ConversationTurnRequest(
     /// specs/090-poi-discovery — what the client reports is drawn on the map, reconciled before
     /// the decide step so a removed layer is not treated as still active.
     /// </summary>
-    IReadOnlyList<PointsOfInterest.ActivePoiCategoryInput>? ActivePoiCategories = null);
+    IReadOnlyList<PointsOfInterest.ActivePoiCategoryInput>? ActivePoiCategories = null,
+
+    /// <summary>
+    /// specs/094-spatial-analysis-orchestrator — the client's current map view. Untrusted; the
+    /// spatial coordinator validates it before use.
+    /// </summary>
+    Spatial.MapViewportContext? MapContext = null);

@@ -167,7 +167,8 @@ public sealed class CapabilityExecutor(
                 UserId: turnContext.UserId ?? string.Empty,
                 AgentId: Guid.Empty,
                 AgentVersionId: Guid.Empty,
-                UserChatId: turnContext.UserChatId);
+                UserChatId: turnContext.UserChatId,
+                MapContext: turnContext.MapContext);
 
             var result = await capability.ExecuteAsync(executionContext, input, budget.Token);
             var elapsed = System.Diagnostics.Stopwatch.GetElapsedTime(startedAt);

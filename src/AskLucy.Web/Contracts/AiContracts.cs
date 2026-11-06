@@ -43,7 +43,9 @@ public sealed record ChatRequest(
     SelectedActionRequest? SelectedAction = null,
     RetryRequest? Retry = null,
     // specs/090-poi-discovery — what the client's legend currently shows.
-    IReadOnlyList<AskLucy.Application.PointsOfInterest.ActivePoiCategoryInput>? ActivePoiCategories = null);
+    IReadOnlyList<AskLucy.Application.PointsOfInterest.ActivePoiCategoryInput>? ActivePoiCategories = null,
+    // specs/094-spatial-analysis-orchestrator — the client's current map view. Untrusted input.
+    AskLucy.Application.Spatial.MapViewportContext? MapContext = null);
 
 public sealed record TranslateRequest(Guid ChatId, string Text, string TargetLanguage);
 

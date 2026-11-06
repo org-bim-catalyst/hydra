@@ -66,10 +66,11 @@ public sealed record ChatStreamChunk(
     /// same way <see cref="SolarAnalysis"/> is. Carries the stored Document id, not the bytes.</summary>
     MapSnapshotCommand? MapSnapshot = null,
 
-    /// <summary>specs/090-poi-discovery - one category's markers Lucy asked the viewer to draw,
-    /// carried the same way <see cref="ViewerContent"/> is. Carries no rendering: the client owns
-    /// the layers, the legend and the colour/shape choices.</summary>
-    PoiLayerCommand? PoiLayer = null,
+    /// <summary>specs/094-spatial-analysis-orchestrator - the coordinator's normalized layers,
+    /// carried the same way <see cref="ViewerContent"/> is. All spatial results use this one
+    /// event; markers, buffers and area highlights are layer kinds within it. Replaces
+    /// specs/090's <c>PoiLayer</c> so there is exactly one spatial delivery path.</summary>
+    SpatialLayerCommand? SpatialLayers = null,
     bool StartsNewMessage = false,
 
     /// <summary>

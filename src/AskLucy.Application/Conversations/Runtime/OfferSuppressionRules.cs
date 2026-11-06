@@ -69,10 +69,10 @@ public static class OfferSuppressionRules
             return OfferSuppressionReason.UserDeclinedLastOffer;
         }
 
-        // specs/090 — a category search is a complete answer in itself, and the generic offer set
-        // (analyse this site, outline the boundary, capture a snapshot) is about a site, not the
-        // places the user just asked to see.
-        if (outcome.WasInvokedThisTurn(FindPointsOfInterestCapability.CapabilityKey))
+        // specs/094 (from specs/090) — a spatial search is a complete answer in itself, and the
+        // generic offer set (analyse this site, outline the boundary, capture a snapshot) is about
+        // a site, not the places or distances the user just asked to see.
+        if (outcome.WasInvokedThisTurn(SpatialAnalysisCapability.CapabilityKey))
         {
             return OfferSuppressionReason.CategorySearchCompleted;
         }

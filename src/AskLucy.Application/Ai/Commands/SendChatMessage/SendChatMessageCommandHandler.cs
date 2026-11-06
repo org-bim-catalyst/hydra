@@ -69,7 +69,8 @@ public sealed class SendChatMessageCommandHandler(
             request.SelectedAction,
             request.Retry,
             provider.ProviderKey,
-            request.ActivePoiCategories);
+            request.ActivePoiCategories,
+            request.MapContext);
 
         await foreach (var chunk in turnOrchestrator.RunAsync(turn, cancellationToken))
         {

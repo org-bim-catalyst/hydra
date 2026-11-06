@@ -230,7 +230,7 @@ public sealed partial class AiController(
         {
             await foreach (var chunk in WithKeepAliveAsync(
                 mediator.CreateStream(
-                    new SendChatMessageCommand(request.ChatId, request.Messages, request.ProviderId, request.ModelId, request.GenerationParameters, selectedAction, retry, request.ActivePoiCategories),
+                    new SendChatMessageCommand(request.ChatId, request.Messages, request.ProviderId, request.ModelId, request.GenerationParameters, selectedAction, retry, request.ActivePoiCategories, request.MapContext),
                     cancellationToken),
                 TimeSpan.FromSeconds(conversationRuntimeOptions.Value.KeepAliveIntervalSeconds),
                 cancellationToken))
@@ -317,12 +317,14 @@ public sealed partial class AiController(
                     await WriteConfirmedBoundaryEventAsync(request.ChatId, chunk.ConfirmedBoundary, cancellationToken);
                 }
 
-                // specs/090 — written the moment it is yielded, for the same reason __LOCATION__
-                // and __SITE_BOUNDARY__ are: the markers belong with the sentence that announces
-                // them, not after the rest of the reply has streamed.
-                if (chunk.PoiLayer is not null)
+                // specs/094 — written the moment it is yielded, for the same reason __LOCATION__
+                // and __SITE_BOUNDARY__ are: the layers belong with the sentence that announces
+                // them, not after the rest of the reply has streamed. This one event replaces
+                // specs/090's __POI_LAYERS__: markers, buffers and area highlights are all layer
+                // kinds within it.
+                if (chunk.SpatialLayers is not null)
                 {
-                    await WritePoiLayerEventAsync(chunk.PoiLayer, cancellationToken);
+                    await WriteSpatialLayersEventAsync(chunk.SpatialLayers, cancellationToken);
                 }
 
                 if (chunk.SolarAnalysis is not null)
@@ -923,29 +925,15 @@ public sealed partial class AiController(
     }
 
     /// <summary>
-    /// specs/090-poi-discovery — one POI category's markers. No persistence: layers are view state
-    /// of the open chat, and the client owns add/replace/remove once it has them (the legend is
-    /// the user's control surface). Same distinguishable-prefix pattern as __LOCATION__.
+    /// specs/094-spatial-analysis-orchestrator — the coordinator's normalized layers. No
+    /// persistence: layers are view state of the open chat, and the client owns add/replace/remove
+    /// once it has them (the legend is the user's control surface). Same distinguishable-prefix
+    /// pattern as __LOCATION__.
     /// </summary>
-    private async Task WritePoiLayerEventAsync(PoiLayerCommand layer, CancellationToken cancellationToken)
+    private async Task WriteSpatialLayersEventAsync(SpatialLayerCommand command, CancellationToken cancellationToken)
     {
-        var payload = new
-        {
-            category = layer.CategoryKey,
-            displayName = layer.DisplayName,
-            color = layer.Color,
-            markerShape = layer.MarkerShape,
-            mode = layer.Mode,
-            markers = layer.Markers.Select(marker => new
-            {
-                id = marker.Id,
-                name = marker.Name,
-                latitude = marker.Latitude,
-                longitude = marker.Longitude,
-            }),
-        };
-
-        await Response.WriteAsync($"data: __POI_LAYERS__{JsonSerializer.Serialize(payload)}\n\n", cancellationToken);
+        var json = JsonSerializer.Serialize(command, SpatialLayerCommand.JsonOptions);
+        await Response.WriteAsync($"data: __SPATIAL_LAYERS__{json}\n\n", cancellationToken);
         await Response.Body.FlushAsync(cancellationToken);
     }
 

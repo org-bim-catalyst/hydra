@@ -47,7 +47,7 @@ public sealed class ResolveLocationCapability(ILocationResolutionService locatio
     public string WhenToUse =>
         "Use when the user asks to see, find, locate or navigate to ONE named place, site, " +
         "building or address. Do NOT use for a CATEGORY of places — \"schools in Muscat\", " +
-        "\"all hospitals\" — since that asks for many results; find_points_of_interest handles those.";
+        "\"all hospitals\" — since that asks for many results; spatial_analysis handles those.";
 
     public string ArgumentHint => "query: the place name, as the user wrote it";
 

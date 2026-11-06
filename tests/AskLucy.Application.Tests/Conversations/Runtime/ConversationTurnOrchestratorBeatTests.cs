@@ -90,7 +90,7 @@ public sealed class ConversationTurnOrchestratorBeatTests
         return new ConversationTurnOrchestrator(
             _knowledgeBases, Substitute.For<IMessageRepository>(), _ragService, _memoryService, _userChatRepository, _currentUser,
             _backgroundJobClient, capabilityCatalog, flowCatalog, _decider, _retryTargetResolver, capabilityExecutor, flowRunner, subAgentDelegator, _offerGenerator,
-            narrator, turnRecorder, TestEffectiveSiteBoundary.None(), new AskLucy.Application.PointsOfInterest.PoiLayerStateStore(TimeProvider.System, new AskLucy.Application.PointsOfInterest.PoiCategoryCatalog()), NullLogger<ConversationTurnOrchestrator>.Instance);
+            narrator, turnRecorder, TestEffectiveSiteBoundary.None(), new AskLucy.Application.Spatial.SpatialLayerStateStore(TimeProvider.System), NullLogger<ConversationTurnOrchestrator>.Instance);
     }
 
     private ConversationTurnRequest Request(string message) =>

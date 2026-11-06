@@ -38,7 +38,7 @@ public sealed class LocateAPlaceFlow : IConversationFlow
         "Use when the user asks to see, find, locate or navigate to ONE named place, site, park, " +
         "building or address they want shown on the map. Do NOT use when the user names a CATEGORY " +
         "of place to collect — \"schools in Muscat\", \"all hospitals\", \"mosques near here\" — " +
-        "because that asks for many places, which find_points_of_interest handles.";
+        "because that asks for many places, which spatial_analysis handles.";
 
     public string ArgumentHint => "query: the place name";
 

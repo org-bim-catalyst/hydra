@@ -1957,7 +1957,6 @@ catalogs, `useT`, scoped RTL for the notification screens and the admin area) is
 ADR 0019.
 
 # 37. Architecture Principles
-
 Before implementing any feature, ask:
 
 * Does it violate Clean Architecture?
@@ -1974,3 +1973,28 @@ Before implementing any feature, ask:
 If the answer to any of these questions is "No," redesign the solution before writing code.
 
 The architecture is considered a long-term asset and must take precedence over short-term implementation speed.
+
+# 38. Spatial requests have one front door
+
+Every geographic, POI and spatial-analysis request goes through
+`SpatialAnalysisCapability` (specs/094). It interprets the request into a versioned
+`SpatialRequestBundle`, dispatches each operation to a registered `ISpatialSpecialist`, and merges the
+specialists' outputs into one normalized `SpatialAnalysisResult`.
+
+There is no second spatial path. The former POI capability, its layer store and its
+`__POI_LAYERS__` event are gone; markers, buffers and area highlights are layer kinds within the one
+`__SPATIAL_LAYERS__` event. A specialist performs retrieval only — it never writes a message, pushes
+a panel or draws a layer, and it is reachable only through the coordinator.
+
+Adding a capability is two things: an `ISpatialSpecialist` implementation registered against
+`ISpatialSpecialist` in `src/AskLucy.Application/DependencyInjection.cs`, and an entry in
+`SpatialOperationKinds.Supported` so interpretation can build that kind. No coordinator, stream or
+viewer change is required for a result that maps onto `markers`, `buffer`, `area` or `band`.
+
+The dispatch is deliberately in-process (`Task.WhenAll` under a concurrency cap), not the workflow
+engine's `Parallel`/`Merge`: spatial results must stream back in the same conversational turn, and the
+workflow engine batches parallel node notifications until every branch settles. The coordinator also
+validates the whole bundle, resolves the study area (explicit place → active boundary → map view →
+ask), applies keep-or-replace policy, and logs every failure with the request, operation and
+specialist that caused it. Layer state is session-scoped in `SpatialLayerStateStore`; there is no
+new table or migration.

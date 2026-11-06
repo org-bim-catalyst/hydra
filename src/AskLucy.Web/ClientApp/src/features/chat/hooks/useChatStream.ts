@@ -6,6 +6,7 @@ import {
   streamChat,
   type ChatMessage,
   type GenerationParameters,
+  type MapViewportContext,
   type RetryRequest,
   type SelectedActionRequest,
   type SuggestedAction,
@@ -14,7 +15,8 @@ import { requestSolarAnalysisMoment } from '../../solar/components/SolarAnalysis
 import { useSiteBoundaryEditStore } from '../../../viewer/siteBoundaryEdit/siteBoundaryEditStore'
 import { useActiveLocationStore } from '../../../store/activeLocationStore'
 import { useActiveSiteBoundaryStore, type SiteBoundarySource } from '../../../store/activeSiteBoundaryStore'
-import { usePoiLayersStore } from '../../../store/poiLayersStore'
+import { useSpatialLayersStore } from '../../../store/spatialLayersStore'
+import { useGoogleMapsStore } from '../../../viewer/store/googleMapsStore'
 import { viewerEngine } from '../../../viewer/engine/viewerEngineInstance'
 import { viewerExtensionLoader } from '../../../viewer/extensions/loader'
 
@@ -24,6 +26,33 @@ import { viewerExtensionLoader } from '../../../viewer/extensions/loader'
  */
 function newMessageId(): string {
   return globalThis.crypto?.randomUUID?.() ?? `local-${Date.now()}-${Math.random().toString(36).slice(2)}`
+}
+
+/**
+ * specs/094 — the map view as it stands when the turn is sent. The server treats it as
+ * untrusted input; here it is only reading the live camera, never changing it.
+ */
+function currentMapContext(): MapViewportContext | undefined {
+  const map = useGoogleMapsStore.getState().map
+  if (!map) return undefined
+
+  const center = map.getCenter()
+  const bounds = map.getBounds()
+  const zoom = map.getZoom()
+  if (!center || !bounds || zoom === undefined) return undefined
+
+  const southWest = bounds.getSouthWest()
+  const northEast = bounds.getNorthEast()
+
+  return {
+    centerLatitude: center.lat(),
+    centerLongitude: center.lng(),
+    zoom,
+    southWestLatitude: southWest.lat(),
+    southWestLongitude: southWest.lng(),
+    northEastLatitude: northEast.lat(),
+    northEastLongitude: northEast.lng(),
+  }
 }
 
 const TITLE_MAX_LENGTH = 60
@@ -265,14 +294,14 @@ export function useChatStream(
       let snapshotImage: { documentId: string; locationName: string } | undefined
       try {
         const activeChatId = await ensureChatId(content)
-        // specs/090 — the legend is the authority on what is drawn; send it so the server never
-        // asks about a layer the user already removed.
-        const activePoiLayers = usePoiLayersStore.getState().layers.map((layer) => ({
-          key: layer.category,
-          displayName: layer.displayName,
+        // specs/094 (from specs/090) — the legend is the authority on what is drawn; send it so
+        // the server never asks about a layer the user already removed.
+        const activePoiLayers = useSpatialLayersStore.getState().layers.map((layer) => ({
+          key: layer.layerId,
+          displayName: layer.legendLabel,
         }))
         for await (const event of streamChat(
-          activeChatId, history, providerId, modelId, undefined, controller.signal, undefined, undefined, activePoiLayers,
+          activeChatId, history, providerId, modelId, undefined, controller.signal, undefined, undefined, activePoiLayers, currentMapContext(),
         )) {
           if (event.type === 'content') {
             const last = assistantParts[assistantParts.length - 1]
@@ -386,17 +415,16 @@ export function useChatStream(
               alternativeCandidateNames: event.alternativeCandidateNames,
               isHandEdited: event.source === 'UserCorrected',
             })
-          } else if (event.type === 'poiLayers') {
-            // specs/090-poi-discovery — a category of places to draw. The store owns merge
-            // semantics; the overlay and the legend both render from it, which is what keeps the
-            // legend and the markers in step when a category is added or removed.
-            usePoiLayersStore.getState().applyLayer(activeChatId, {
-              category: event.category,
-              displayName: event.displayName,
-              color: event.color,
-              markerShape: event.markerShape,
-              markers: event.markers,
-            }, event.mode)
+          } else if (event.type === 'spatialLayers') {
+            // specs/094 — the coordinator's normalized layers. The store owns merge semantics;
+            // the overlay and the legend both render from it, which is what keeps the legend and
+            // the map in step when a layer is added, hidden or removed.
+            useSpatialLayersStore.getState().applyLayers(
+              activeChatId,
+              event.analysisId,
+              event.layers,
+              event.mode,
+            )
           } else if (event.type === 'turnOutcome') {
             // specs/068 FR-004a — belongs to the reply itself, like citations and the
             // retrieval outcome: it describes the turn, not a later confirmation sentence.
@@ -570,12 +598,12 @@ export function useChatStream(
       let snapshotImage: { documentId: string; locationName: string } | undefined
       try {
         const activeChatId = await ensureChatId(seedTitle)
-        const activePoiLayers = usePoiLayersStore.getState().layers.map((layer) => ({
-          key: layer.category,
-          displayName: layer.displayName,
+        const activePoiLayers = useSpatialLayersStore.getState().layers.map((layer) => ({
+          key: layer.layerId,
+          displayName: layer.legendLabel,
         }))
         for await (const event of streamChat(
-          activeChatId, history, providerId, modelId, undefined, controller.signal, selectedAction, retry, activePoiLayers,
+          activeChatId, history, providerId, modelId, undefined, controller.signal, selectedAction, retry, activePoiLayers, currentMapContext(),
         )) {
           if (event.type === 'content') {
             const last = assistantParts[assistantParts.length - 1]
@@ -659,17 +687,16 @@ export function useChatStream(
               alternativeCandidateNames: event.alternativeCandidateNames,
               isHandEdited: event.source === 'UserCorrected',
             })
-          } else if (event.type === 'poiLayers') {
-            // specs/090-poi-discovery — a category of places to draw. The store owns merge
-            // semantics; the overlay and the legend both render from it, which is what keeps the
-            // legend and the markers in step when a category is added or removed.
-            usePoiLayersStore.getState().applyLayer(activeChatId, {
-              category: event.category,
-              displayName: event.displayName,
-              color: event.color,
-              markerShape: event.markerShape,
-              markers: event.markers,
-            }, event.mode)
+          } else if (event.type === 'spatialLayers') {
+            // specs/094 — the coordinator's normalized layers. The store owns merge semantics;
+            // the overlay and the legend both render from it, which is what keeps the legend and
+            // the map in step when a layer is added, hidden or removed.
+            useSpatialLayersStore.getState().applyLayers(
+              activeChatId,
+              event.analysisId,
+              event.layers,
+              event.mode,
+            )
           } else if (event.type === 'turnOutcome') {
             // specs/068 FR-004a — belongs to the reply itself, like citations and the
             // retrieval outcome: it describes the turn, not a later confirmation sentence.

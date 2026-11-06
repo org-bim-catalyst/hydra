@@ -47,7 +47,8 @@ public sealed record TurnContext(
     bool IsMemoryAvailable,
     int OpenPanelCount,
     IReadOnlySet<AgentToolPermission> GrantedPermissions,
-    string? SubscriptionTier)
+    string? SubscriptionTier,
+    Spatial.MapViewportContext? MapContext = null)
 {
     /// <summary>True when a place has been confirmed for this chat — the precondition most viewer work depends on.</summary>
     public bool HasActiveLocation => ActiveLocation is not null;

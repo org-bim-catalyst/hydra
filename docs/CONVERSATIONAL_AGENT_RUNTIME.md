@@ -692,6 +692,26 @@ In keeping with this repository's convention, the honest list — not the brochu
 
 ---
 
+## 15. Spatial requests: one coordinator, many specialists
+
+`spatial_analysis` is the one capability for geographic, POI and spatial-analysis asks (specs/094).
+It replaces the former `find_points_of_interest` capability, so the decider has a single spatial
+front door.
+
+Inside the turn, `SpatialAnalysisCoordinator` validates the interpreted bundle, resolves each
+operation's study area (explicit place → active boundary → map context → ask), dispatches independent
+operations concurrently to registered `ISpatialSpecialist` implementations, and merges their outputs
+into one normalized result. The capability turns that result into a single
+`ChatStreamChunk.SpatialLayers`, which the controller writes as `__SPATIAL_LAYERS__` mid-stream —
+the same trailing-event pattern as `__LOCATION__`. The client store owns layer visibility and
+removal; the legend and the map render from the same store.
+
+Specialists never address the user and never touch the viewer. A specialist failure is isolated: the
+other operations' results are still delivered, the failure is stated visibly, and if every operation
+fails the turn returns an explicit failure rather than an empty success.
+
+---
+
 ## 14. Further reading
 
 - [`specs/045-conversational-agent-runtime/spec.md`](../specs/045-conversational-agent-runtime/spec.md) — the requirements, in user-story form

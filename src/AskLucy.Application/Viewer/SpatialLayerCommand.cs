@@ -1,0 +1,71 @@
+using System.Text.Json;
+
+namespace AskLucy.Application.Viewer;
+
+/// <summary>A single marker the viewer should place for a spatial layer.</summary>
+public sealed record SpatialMarkerData(string Id, string Name, double Latitude, double Longitude);
+
+/// <summary>One vertex of a buffer/area/band outline, in WGS-84.</summary>
+public sealed record SpatialRingPoint(double Latitude, double Longitude);
+
+/// <summary>
+/// One renderable layer. <see cref="Kind"/> is one of <c>markers</c>, <c>buffer</c>, <c>area</c>,
+/// <c>band</c>; a marker layer carries <see cref="Markers"/>, every other kind carries
+/// <see cref="Ring"/>.
+/// </summary>
+public sealed record SpatialLayerPayload(
+    string LayerId,
+    string SourceOperation,
+    string Name,
+    string LegendLabel,
+    string Kind,
+    IReadOnlyList<SpatialMarkerData>? Markers = null,
+    IReadOnlyList<SpatialRingPoint>? Ring = null,
+    string? Color = null,
+    string? MarkerShape = null,
+    double? Opacity = null,
+    double? StrokeWidth = null,
+    bool Visible = true);
+
+/// <summary>What one data source contributed, for the legend's provenance line.</summary>
+public sealed record SpatialCoveragePayload(
+    string SourceId,
+    string DisplayName,
+    string CoverageStatus,
+    string? Explanation = null);
+
+/// <summary>
+/// specs/094 — the normalized spatial result carried on
+/// <see cref="Ai.Commands.SendChatMessage.ChatStreamChunk.SpatialLayers"/> exactly as
+/// <see cref="ViewerContentCommand"/> is. The frontend owns layer state and rendering; this record
+/// says which layers arrived, how each should look, and whether they join or replace the layers
+/// already on the map.
+/// <para>
+/// The same shape is the capability's own output (the narration reads <see cref="Count"/>,
+/// <see cref="AreaName"/> and <see cref="Question"/> from it), so there is one DTO rather than two
+/// that could drift.
+/// </para>
+/// </summary>
+/// <param name="AnalysisId">Owns the layers; used for clear-analysis.</param>
+/// <param name="Status">Complete, Partial or Empty. A failed analysis produces no command.</param>
+/// <param name="Mode"><c>replace</c> clears other analyses' layers; <c>keep</c> draws beside them.</param>
+/// <param name="Layers">The layers to draw. Empty with <c>replace</c> means clear the old ones.</param>
+/// <param name="Warnings">User-readable limitations.</param>
+/// <param name="Coverage">Which sources contributed, and how completely.</param>
+/// <param name="Count">Total features across layers, for the narration.</param>
+/// <param name="AreaName">The resolved area, for the narration.</param>
+/// <param name="Question">A clarification to ask instead of drawing anything.</param>
+public sealed record SpatialLayerCommand(
+    string AnalysisId,
+    string Status,
+    string Mode,
+    IReadOnlyList<SpatialLayerPayload> Layers,
+    IReadOnlyList<string> Warnings,
+    IReadOnlyList<SpatialCoveragePayload> Coverage,
+    int Count = 0,
+    string? AreaName = null,
+    string? Question = null)
+{
+    /// <summary>Serialization shared by the capability and the stream extractor.</summary>
+    public static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
+}
