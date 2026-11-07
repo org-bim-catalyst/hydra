@@ -1,5 +1,5 @@
-using AskLucy.Domain.SiteBoundaries;
 using System.Globalization;
+using AskLucy.Domain.SiteBoundaries;
 
 namespace AskLucy.Application.Spatial.Query;
 
