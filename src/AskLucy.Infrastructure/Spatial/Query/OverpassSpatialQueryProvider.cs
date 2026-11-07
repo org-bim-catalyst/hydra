@@ -20,29 +20,29 @@ public sealed class OverpassSpatialQueryProvider : ISpatialQueryProvider
         new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
         {
             // buildings
-            ["height"]     = "height",
-            ["floors"]     = "building:levels",
+            ["height"] = "height",
+            ["floors"] = "building:levels",
             ["year-built"] = "start_date",
-            ["use"]        = "building:use",
+            ["use"] = "building:use",
             // land-parcels
-            ["area"]       = "area",
-            ["land-use"]   = "landuse",
-            ["zone"]       = "zone",
+            ["area"] = "area",
+            ["land-use"] = "landuse",
+            ["zone"] = "zone",
             // roads
-            ["name"]           = "name",
+            ["name"] = "name",
             ["classification"] = "highway",
-            ["surface"]        = "surface",
+            ["surface"] = "surface",
             // development-areas
-            ["status"]     = "status",
+            ["status"] = "status",
         };
 
     // OSM element types queried per dataset.
     private static readonly IReadOnlyDictionary<string, string[]> OsmTypesPerDataset =
         new Dictionary<string, string[]>(StringComparer.OrdinalIgnoreCase)
         {
-            ["buildings"]         = ["way[building]", "relation[building]"],
-            ["land-parcels"]      = ["way[landuse]", "relation[landuse]"],
-            ["roads"]             = ["way[highway]"],
+            ["buildings"] = ["way[building]", "relation[building]"],
+            ["land-parcels"] = ["way[landuse]", "relation[landuse]"],
+            ["roads"] = ["way[highway]"],
             ["development-areas"] = ["way[landuse=residential]", "way[landuse=commercial]",
                                      "way[landuse=industrial]", "relation[landuse]"],
         };
@@ -186,16 +186,16 @@ public sealed class OverpassSpatialQueryProvider : ISpatialQueryProvider
 
         return predicate.Operator switch
         {
-            AttributeOperator.Eq       => CompareValues(rawValue, predicate.Value) == 0,
-            AttributeOperator.NotEq    => CompareValues(rawValue, predicate.Value) != 0,
-            AttributeOperator.Gt       => CompareNumeric(rawValue, predicate.Value, predicate.Unit) > 0,
-            AttributeOperator.Gte      => CompareNumeric(rawValue, predicate.Value, predicate.Unit) >= 0,
-            AttributeOperator.Lt       => CompareNumeric(rawValue, predicate.Value, predicate.Unit) < 0,
-            AttributeOperator.Lte      => CompareNumeric(rawValue, predicate.Value, predicate.Unit) <= 0,
-            AttributeOperator.Between  => IsBetween(rawValue, predicate.Value, predicate.ValueTo, predicate.Unit),
+            AttributeOperator.Eq => CompareValues(rawValue, predicate.Value) == 0,
+            AttributeOperator.NotEq => CompareValues(rawValue, predicate.Value) != 0,
+            AttributeOperator.Gt => CompareNumeric(rawValue, predicate.Value, predicate.Unit) > 0,
+            AttributeOperator.Gte => CompareNumeric(rawValue, predicate.Value, predicate.Unit) >= 0,
+            AttributeOperator.Lt => CompareNumeric(rawValue, predicate.Value, predicate.Unit) < 0,
+            AttributeOperator.Lte => CompareNumeric(rawValue, predicate.Value, predicate.Unit) <= 0,
+            AttributeOperator.Between => IsBetween(rawValue, predicate.Value, predicate.ValueTo, predicate.Unit),
             AttributeOperator.Contains => ContainsString(rawValue, predicate.Value),
             AttributeOperator.StartsWith => StartsWithString(rawValue, predicate.Value),
-            AttributeOperator.EndsWith   => EndsWithString(rawValue, predicate.Value),
+            AttributeOperator.EndsWith => EndsWithString(rawValue, predicate.Value),
             AttributeOperator.InYearRange => IsInYearRange(rawValue, predicate.Value, predicate.ValueTo),
             _ => false,
         };
@@ -212,13 +212,13 @@ public sealed class OverpassSpatialQueryProvider : ISpatialQueryProvider
     {
         double? raw = value switch
         {
-            double d  => d,
-            float f   => f,
-            int i     => i,
-            long l    => l,
-            string s  => double.TryParse(s.Split(' ')[0], NumberStyles.Any,
+            double d => d,
+            float f => f,
+            int i => i,
+            long l => l,
+            string s => double.TryParse(s.Split(' ')[0], NumberStyles.Any,
                              CultureInfo.InvariantCulture, out var parsed) ? parsed : null,
-            _         => null,
+            _ => null,
         };
 
         if (raw is null)
@@ -229,11 +229,11 @@ public sealed class OverpassSpatialQueryProvider : ISpatialQueryProvider
         // Convert common distance units to metres.
         return unit?.ToLowerInvariant() switch
         {
-            "km"      => raw * 1000,
-            "ft"      => raw * 0.3048,
-            "mi"      => raw * 1609.344,
+            "km" => raw * 1000,
+            "ft" => raw * 0.3048,
+            "mi" => raw * 1609.344,
             "m" or "" => raw,
-            _         => raw,
+            _ => raw,
         };
     }
 
@@ -286,7 +286,7 @@ public sealed class OverpassSpatialQueryProvider : ISpatialQueryProvider
         static int? ParseYear(object? v) =>
             v switch
             {
-                int i  => i,
+                int i => i,
                 long l => (int)l,
                 string s => int.TryParse(s.AsSpan(0, Math.Min(4, s.Length)),
                                 NumberStyles.None, CultureInfo.InvariantCulture,
@@ -369,10 +369,10 @@ public sealed class OverpassSpatialQueryProvider : ISpatialQueryProvider
             bool inside = IsPointInPolygon(feature.Geometry.Points[0], referenceRing);
             return predicate.Relationship switch
             {
-                SpatialRelationship.Within       => inside,
-                SpatialRelationship.Outside      => !inside,
+                SpatialRelationship.Within => inside,
+                SpatialRelationship.Outside => !inside,
                 SpatialRelationship.Intersecting => inside,
-                SpatialRelationship.Containing   => false, // point can't contain a polygon
+                SpatialRelationship.Containing => false, // point can't contain a polygon
                 _ => false,
             };
         }
@@ -382,10 +382,10 @@ public sealed class OverpassSpatialQueryProvider : ISpatialQueryProvider
         bool centroidInside = IsPointInPolygon(centroid, referenceRing);
         return predicate.Relationship switch
         {
-            SpatialRelationship.Within       => centroidInside,
-            SpatialRelationship.Outside      => !centroidInside,
+            SpatialRelationship.Within => centroidInside,
+            SpatialRelationship.Outside => !centroidInside,
             SpatialRelationship.Intersecting => centroidInside,
-            SpatialRelationship.Containing   => !centroidInside, // approximation
+            SpatialRelationship.Containing => !centroidInside, // approximation
             _ => false,
         };
     }
@@ -398,10 +398,10 @@ public sealed class OverpassSpatialQueryProvider : ISpatialQueryProvider
         return predicate.ReferenceKind switch
         {
             SpatialReferenceKind.ExplicitGeometry => predicate.ReferenceGeometry,
-            SpatialReferenceKind.StudyArea        => query.StudyArea?.Polygon,
-            SpatialReferenceKind.ActiveLayer      => ResolveActiveLayerGeometry(
+            SpatialReferenceKind.StudyArea => query.StudyArea?.Polygon,
+            SpatialReferenceKind.ActiveLayer => ResolveActiveLayerGeometry(
                                                          predicate.ReferenceLayerId, context),
-            SpatialReferenceKind.NamedFeature     => null, // resolved by specialist before call
+            SpatialReferenceKind.NamedFeature => null, // resolved by specialist before call
             _ => null,
         };
     }

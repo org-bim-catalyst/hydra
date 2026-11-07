@@ -16,7 +16,7 @@ public sealed record SpatialSpecialistExecution(
 /// </summary>
 public sealed class SpatialResultNormalizer
 {
-        private const int MaxNameLength = 80;
+    private const int MaxNameLength = 80;
     private const int MaxAttributeLength = 200;
 
     /// <summary>

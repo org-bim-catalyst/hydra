@@ -128,7 +128,7 @@ public sealed class SpatialBundleValidator : AbstractValidator<SpatialRequestBun
                         string.Equals(o.OperationKind, SpatialOperationKinds.SpatialQuery,
                             StringComparison.Ordinal) &&
                         o.QueryParameters?.AttributePredicates is { Count: > 0 } &&
-                        o.QueryParameters?.SpatialPredicates  is { Count: > 0 })
+                        o.QueryParameters?.SpatialPredicates is { Count: > 0 })
                     .WithMessage(
                         "I can combine attribute and spatial conditions with AND, but not OR across types. " +
                         "Would you like me to run two separate queries instead?");
@@ -248,7 +248,7 @@ public sealed class SpatialBundleValidator : AbstractValidator<SpatialRequestBun
         }
 
         return (qp.AttributePredicates is { Count: > 0 }) ||
-               (qp.SpatialPredicates   is { Count: > 0 });
+               (qp.SpatialPredicates is { Count: > 0 });
     }
 
     private static bool HaveValidAttributePredicates(
@@ -354,8 +354,8 @@ public sealed class SpatialBundleValidator : AbstractValidator<SpatialRequestBun
         // Within a single type group, OR is fine.
         bool attributeIsOr = qp.AttributeCombinator == PredicateCombinator.Or &&
                              qp.AttributePredicates is { Count: > 1 };
-        bool spatialIsOr   = qp.SpatialCombinator   == PredicateCombinator.Or &&
-                             qp.SpatialPredicates   is { Count: > 1 };
+        bool spatialIsOr = qp.SpatialCombinator == PredicateCombinator.Or &&
+                             qp.SpatialPredicates is { Count: > 1 };
 
         // If both groups use OR it creates cross-type OR ambiguity — reject.
         return !(attributeIsOr && spatialIsOr);

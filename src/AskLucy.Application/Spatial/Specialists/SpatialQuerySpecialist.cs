@@ -17,9 +17,9 @@ public sealed class SpatialQuerySpecialist(
     IEnumerable<ISpatialQueryProvider> providers,
     SpatialQueryAuditLogger auditLogger) : ISpatialSpecialist
 {
-    private const int TimeoutSeconds       = 30;
-    private const int LargeResultWarning   = 2_000;
-    private const int DuplicateWindowSecs  = 10;
+    private const int TimeoutSeconds = 30;
+    private const int LargeResultWarning = 2_000;
+    private const int DuplicateWindowSecs = 10;
 
     // specs/095 T048 — per-chat fingerprint map for duplicate detection (scoped lifetime).
     private readonly System.Collections.Concurrent.ConcurrentDictionary<Guid, (string Fingerprint, DateTime At)>
@@ -161,7 +161,7 @@ public sealed class SpatialQuerySpecialist(
 
         // ── Step 3: Validate predicates present ──────────────────────────────────────────────
         bool hasAttribute = parameters.AttributePredicates is { Count: > 0 };
-        bool hasSpatial   = parameters.SpatialPredicates   is { Count: > 0 };
+        bool hasSpatial = parameters.SpatialPredicates is { Count: > 0 };
 
         if (!hasAttribute && !hasSpatial)
         {
@@ -185,13 +185,13 @@ public sealed class SpatialQuerySpecialist(
             : null;
 
         var definition = new SpatialQueryDefinition(
-            QueryId:        operation.OperationId,
-            Dataset:        dataset,
+            QueryId: operation.OperationId,
+            Dataset: dataset,
             AttributeGroup: attributeGroup,
-            SpatialGroup:   spatialGroup,
-            StudyArea:      context.StudyArea,
-            BatchSize:      200,
-            TimeoutAt:      DateTime.UtcNow.AddSeconds(TimeoutSeconds));
+            SpatialGroup: spatialGroup,
+            StudyArea: context.StudyArea,
+            BatchSize: 200,
+            TimeoutAt: DateTime.UtcNow.AddSeconds(TimeoutSeconds));
 
         // ── Step 4b: Validate NamedFeature references can be resolved (T033) ─────────────────
         if (hasSpatial)
@@ -251,16 +251,16 @@ public sealed class SpatialQuerySpecialist(
 
         // ── Step 6: Execute with 30-second deadline ───────────────────────────────────────────
         using var deadline = new CancellationTokenSource(TimeSpan.FromSeconds(TimeoutSeconds));
-        using var linked   = CancellationTokenSource.CreateLinkedTokenSource(
+        using var linked = CancellationTokenSource.CreateLinkedTokenSource(
             cancellationToken, deadline.Token);
 
-        var allFeatures     = new List<QueryResultFeature>();
-        var warnings        = new List<string>(warnings48);
-        bool timedOut       = false;
-        int batchIndex      = 0;
-        var layerDrafts     = new List<SpatialLayerDraft>();
-        string layerId      = $"sq-{operation.OperationId}";
-        string layerName    = BuildLayerName(dataset, definition);
+        var allFeatures = new List<QueryResultFeature>();
+        var warnings = new List<string>(warnings48);
+        bool timedOut = false;
+        int batchIndex = 0;
+        var layerDrafts = new List<SpatialLayerDraft>();
+        string layerId = $"sq-{operation.OperationId}";
+        string layerName = BuildLayerName(dataset, definition);
 
         try
         {
@@ -339,8 +339,8 @@ public sealed class SpatialQuerySpecialist(
         layerDrafts.Add(finalDraft);
 
         // ── Step 8: Audit log ─────────────────────────────────────────────────────────────────
-        var duration   = DateTime.UtcNow - started;
-        var status     = timedOut ? "TimedOut" : allFeatures.Count == 0 ? "Empty" : "Succeeded";
+        var duration = DateTime.UtcNow - started;
+        var status = timedOut ? "TimedOut" : allFeatures.Count == 0 ? "Empty" : "Succeeded";
         var featureIds = allFeatures.Select(f => f.FeatureId).ToList();
 
         _auditLogger.Log(definition, status, duration, allFeatures.Count, featureIds, userId: context.UserChatId);
@@ -358,10 +358,10 @@ public sealed class SpatialQuerySpecialist(
             : DataSourceCoverage.Complete(dataset.Id, dataset.DisplayName);
 
         return new SpatialSpecialistOutcome(
-            Status:        SpatialOperationStatus.Succeeded,
-            Layers:        layerDrafts,
-            Coverage:      [coverage],
-            Warnings:      warnings.Count > 0 ? warnings : null);
+            Status: SpatialOperationStatus.Succeeded,
+            Layers: layerDrafts,
+            Coverage: [coverage],
+            Warnings: warnings.Count > 0 ? warnings : null);
     }
 
     // ── Helpers ───────────────────────────────────────────────────────────────────────────────
@@ -382,22 +382,22 @@ public sealed class SpatialQuerySpecialist(
             .Where(f => f.Geometry.Kind == FeatureGeometryKind.Point &&
                         f.Geometry.Points.Count > 0)
             .Select(f => new SpatialMarker(
-                Id:        f.FeatureId,
-                Name:      f.Name,
-                Latitude:  f.Geometry.Points[0].Latitude,
+                Id: f.FeatureId,
+                Name: f.Name,
+                Latitude: f.Geometry.Points[0].Latitude,
                 Longitude: f.Geometry.Points[0].Longitude,
                 Attributes: f.Attributes))
             .ToList();
 
         return new SpatialLayerDraft(
-            LayerId:           layerId,
+            LayerId: layerId,
             SourceOperationId: operationId,
-            Name:              name,
-            LegendLabel:       $"{dataset.DisplayName} ({totalCount:N0})",
-            Kind:              SpatialLayerKind.FeatureQuery,
-            Markers:           markers.Count > 0 ? markers : null,
-            Features:          features,
-            Style:             new SpatialLayerStyle(Color: "#7B1FA2", MarkerShape: "simple-dot"));
+            Name: name,
+            LegendLabel: $"{dataset.DisplayName} ({totalCount:N0})",
+            Kind: SpatialLayerKind.FeatureQuery,
+            Markers: markers.Count > 0 ? markers : null,
+            Features: features,
+            Style: new SpatialLayerStyle(Color: "#7B1FA2", MarkerShape: "simple-dot"));
     }
 
     private static string BuildLayerName(DatasetEntry dataset,
@@ -427,83 +427,83 @@ public sealed class SpatialQuerySpecialist(
 
     private static string DescribeOperator(AttributeOperator op) => op switch
     {
-        AttributeOperator.Gt      => ">",
-        AttributeOperator.Gte     => "≥",
-        AttributeOperator.Lt      => "<",
-        AttributeOperator.Lte     => "≤",
-        AttributeOperator.Eq      => "=",
-        AttributeOperator.NotEq   => "≠",
+        AttributeOperator.Gt => ">",
+        AttributeOperator.Gte => "≥",
+        AttributeOperator.Lt => "<",
+        AttributeOperator.Lte => "≤",
+        AttributeOperator.Eq => "=",
+        AttributeOperator.NotEq => "≠",
         AttributeOperator.Between => "between",
-        AttributeOperator.Contains   => "containing",
+        AttributeOperator.Contains => "containing",
         AttributeOperator.StartsWith => "starting with",
-        AttributeOperator.EndsWith   => "ending with",
+        AttributeOperator.EndsWith => "ending with",
         AttributeOperator.InYearRange => "in year range",
         _ => op.ToString(),
     };
 
     private static string DescribeRelationship(SpatialPredicate p) => p.Relationship switch
     {
-        SpatialRelationship.Within      => "within area",
-        SpatialRelationship.Outside     => "outside area",
+        SpatialRelationship.Within => "within area",
+        SpatialRelationship.Outside => "outside area",
         SpatialRelationship.Intersecting => "intersecting area",
-        SpatialRelationship.Containing  => "containing area",
-        SpatialRelationship.Near        =>
+        SpatialRelationship.Containing => "containing area",
+        SpatialRelationship.Near =>
             $"within {p.DistanceMeters?.ToString("F0") ?? "?"} m of " +
             (p.ReferenceName ?? "feature"),
         _ => p.Relationship.ToString(),
     };
 
     /// <summary>Infer a canonical unit string from an <see cref="AttributeFieldType"/>.</summary>
-private static string? InferUnitFromFieldType(AttributeFieldType fieldType, AttributeOperator op)
-{
-    return fieldType switch
+    private static string? InferUnitFromFieldType(AttributeFieldType fieldType, AttributeOperator op)
     {
-        AttributeFieldType.Numeric => op switch
+        return fieldType switch
         {
-            AttributeOperator.Gt or AttributeOperator.Gte or
-            AttributeOperator.Lt or AttributeOperator.Lte or
-            AttributeOperator.Eq or AttributeOperator.NotEq or
-            AttributeOperator.Between => "m",
+            AttributeFieldType.Numeric => op switch
+            {
+                AttributeOperator.Gt or AttributeOperator.Gte or
+                AttributeOperator.Lt or AttributeOperator.Lte or
+                AttributeOperator.Eq or AttributeOperator.NotEq or
+                AttributeOperator.Between => "m",
+                _ => null,
+            },
+            AttributeFieldType.Year => "year",
+            AttributeFieldType.Date => null, // date units are qualitative; let the user specify
+            AttributeFieldType.String => null,
             _ => null,
-        },
-        AttributeFieldType.Year => "year",
-        AttributeFieldType.Date => null, // date units are qualitative; let the user specify
-        AttributeFieldType.String => null,
-        _ => null,
-    };
-}
+        };
+    }
 
-/// <summary>
-/// Builds a renderable ring for a resolved reference location: the geocoder's viewport when
-/// present, otherwise a small square around the resolved point (roughly 1 km across).
-/// </summary>
-private static IReadOnlyList<GeoPoint>? BuildReferenceGeometry(ConfirmedLocationData location)
-{
-    if (location.Viewport is { } viewport)
+    /// <summary>
+    /// Builds a renderable ring for a resolved reference location: the geocoder's viewport when
+    /// present, otherwise a small square around the resolved point (roughly 1 km across).
+    /// </summary>
+    private static IReadOnlyList<GeoPoint>? BuildReferenceGeometry(ConfirmedLocationData location)
     {
+        if (location.Viewport is { } viewport)
+        {
+            return
+            [
+                new GeoPoint(viewport.SouthwestLat, viewport.SouthwestLng),
+                new GeoPoint(viewport.SouthwestLat, viewport.NortheastLng),
+                new GeoPoint(viewport.NortheastLat, viewport.NortheastLng),
+                new GeoPoint(viewport.NortheastLat, viewport.SouthwestLng),
+            ];
+        }
+
+        const double delta = 0.01;
         return
         [
-            new GeoPoint(viewport.SouthwestLat, viewport.SouthwestLng),
-            new GeoPoint(viewport.SouthwestLat, viewport.NortheastLng),
-            new GeoPoint(viewport.NortheastLat, viewport.NortheastLng),
-            new GeoPoint(viewport.NortheastLat, viewport.SouthwestLng),
+            new GeoPoint(location.Latitude - delta, location.Longitude - delta),
+            new GeoPoint(location.Latitude - delta, location.Longitude + delta),
+            new GeoPoint(location.Latitude + delta, location.Longitude + delta),
+            new GeoPoint(location.Latitude + delta, location.Longitude - delta),
         ];
     }
 
-    const double delta = 0.01;
-    return
-    [
-        new GeoPoint(location.Latitude - delta, location.Longitude - delta),
-        new GeoPoint(location.Latitude - delta, location.Longitude + delta),
-        new GeoPoint(location.Latitude + delta, location.Longitude + delta),
-        new GeoPoint(location.Latitude + delta, location.Longitude - delta),
-    ];
-}
-
-/// <summary>
-/// Computes a lightweight fingerprint: combine operationKind + QueryParameters content.
-/// </summary>
-private static string ComputeQueryFingerprint(SpatialOperation operation)
+    /// <summary>
+    /// Computes a lightweight fingerprint: combine operationKind + QueryParameters content.
+    /// </summary>
+    private static string ComputeQueryFingerprint(SpatialOperation operation)
     {
         // Lightweight fingerprint: combine operationKind + QueryParameters content.
         var qp = operation.QueryParameters;

@@ -37,7 +37,7 @@ public sealed class SpatialQueryAuditLogger(ILogger<SpatialQueryAuditLogger> log
         Guid? userId = null)
     {
         var attributeGroupSummary = SummariseAttributeGroup(query.AttributeGroup);
-        var spatialGroupSummary   = SummariseSpatialGroup(query.SpatialGroup);
+        var spatialGroupSummary = SummariseSpatialGroup(query.SpatialGroup);
 
         // Cap feature IDs at 500 entries to avoid log-line explosion (clarification Q5).
         var featureIdsSummary = featureIds is { Count: > 0 }
@@ -92,9 +92,9 @@ public sealed class SpatialQueryAuditLogger(ILogger<SpatialQueryAuditLogger> log
         {
             var refDesc = p.ReferenceKind switch
             {
-                SpatialReferenceKind.NamedFeature    => $"named:{p.ReferenceName}",
-                SpatialReferenceKind.ActiveLayer     => $"layer:{p.ReferenceLayerId}",
-                SpatialReferenceKind.StudyArea       => "study-area",
+                SpatialReferenceKind.NamedFeature => $"named:{p.ReferenceName}",
+                SpatialReferenceKind.ActiveLayer => $"layer:{p.ReferenceLayerId}",
+                SpatialReferenceKind.StudyArea => "study-area",
                 SpatialReferenceKind.ExplicitGeometry => $"geometry[{p.ReferenceGeometry?.Count ?? 0}pts]",
                 _ => "unknown",
             };
@@ -111,8 +111,8 @@ public sealed class SpatialQueryAuditLogger(ILogger<SpatialQueryAuditLogger> log
     private static string FormatValue(object? value) =>
         value switch
         {
-            null   => "null",
+            null => "null",
             string s => $"\"{s}\"",
-            _      => Convert.ToString(value, System.Globalization.CultureInfo.InvariantCulture) ?? "null",
+            _ => Convert.ToString(value, System.Globalization.CultureInfo.InvariantCulture) ?? "null",
         };
 }
