@@ -13,6 +13,9 @@ public static class SpatialOperationKinds
     public const string PoiDiscovery = "poi.discovery";
     public const string ProximityAnalysis = "proximity.analysis";
 
+    /// <summary>specs/095 — filters geographic features by attribute and/or spatial conditions.</summary>
+    public const string SpatialQuery = "spatial.query";
+
     /// <summary>
     /// Every operation the coordinator is allowed to build. A kind absent here is never produced by
     /// interpretation; a kind present here but unregistered at runtime is reported as not performed
@@ -30,6 +33,11 @@ public static class SpatialOperationKinds
             "Measures and highlights features within or beyond a distance of a target.",
             "Use when the user asks what is within, beyond, or a given distance from a category, feature or area — \"schools within 1 km of hospitals\", \"areas more than 2 km from a clinic\".",
             "source and target category, distance(s) and unit"),
+        new(
+            SpatialQuery,
+            "Finds geographic features that satisfy attribute or spatial conditions and displays them as a query result layer.",
+            "Use when the user asks to find, filter or show features matching a condition — \"parcels larger than 5000 m²\", \"buildings built before 1980\", \"roads that intersect the development zone\".",
+            "dataset (e.g. buildings), condition (e.g. height > 30 m), and optionally a spatial relationship"),
     ];
 
     public static bool IsKnown(string? operationKind) =>
@@ -80,13 +88,19 @@ public sealed record SpatialRequestBundle(
 /// <param name="Parameters">Operation-specific inputs. Unused fields are ignored (forward compatibility).</param>
 /// <param name="StudyArea">Where the operation runs; required for area-based kinds.</param>
 /// <param name="DependsOn">Earlier operation ids that must finish first.</param>
+/// <param name="QueryParameters">
+/// specs/095 — populated when <c>operationKind = "spatial.query"</c>; carries the dataset ID
+/// and predicate groups. Separate from <paramref name="Parameters"/> to avoid breaking existing
+/// proximity/poi operations that read <see cref="SpatialOperationParameters"/> directly.
+/// </param>
 public sealed record SpatialOperation(
     string OperationId,
     string OperationKind,
     IReadOnlyList<FeatureSelector> Targets,
     SpatialOperationParameters? Parameters = null,
     StudyAreaReference? StudyArea = null,
-    IReadOnlyList<string>? DependsOn = null);
+    IReadOnlyList<string>? DependsOn = null,
+    SpatialQueryParameters? QueryParameters = null);
 
 /// <summary>One thing an operation targets: a category, an explicit geometry, or both.</summary>
 /// <param name="Category">Normalized category key or the user's category phrase.</param>
@@ -169,3 +183,19 @@ public sealed record ResolvedStudyArea(
     double RadiusMeters,
     IReadOnlyList<GeoPoint>? Polygon = null,
     ViewportBounds? Viewport = null);
+
+/// <summary>
+/// specs/095 — parameters block for a <c>spatial.query</c> operation. Carried inside
+/// <see cref="SpatialOperation.Parameters"/> when <c>operationKind = "spatial.query"</c>.
+/// </summary>
+/// <param name="DatasetId">Required. Must resolve in <see cref="Query.IDatasetCatalog"/>.</param>
+/// <param name="AttributePredicates">Attribute filter conditions. At least one predicate group is required.</param>
+/// <param name="AttributeCombinator">How attribute predicates are combined. Defaults to And.</param>
+/// <param name="SpatialPredicates">Spatial relationship conditions.</param>
+/// <param name="SpatialCombinator">How spatial predicates are combined. Defaults to And.</param>
+public sealed record SpatialQueryParameters(
+    string DatasetId,
+    IReadOnlyList<Query.AttributePredicate>? AttributePredicates = null,
+    Query.PredicateCombinator AttributeCombinator = Query.PredicateCombinator.And,
+    IReadOnlyList<Query.SpatialPredicate>? SpatialPredicates = null,
+    Query.PredicateCombinator SpatialCombinator = Query.PredicateCombinator.And);

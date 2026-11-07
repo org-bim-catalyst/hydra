@@ -1,7 +1,8 @@
 import CloseIcon from '@mui/icons-material/Close'
 import VisibilityIcon from '@mui/icons-material/Visibility'
 import VisibilityOffIcon from '@mui/icons-material/VisibilityOff'
-import { Box, IconButton, Paper, Stack, Tooltip, Typography } from '@mui/material'
+import WarningAmberIcon from '@mui/icons-material/WarningAmber'
+import { Box, CircularProgress, IconButton, Paper, Stack, Tooltip, Typography } from '@mui/material'
 import { useSpatialLayersStore, type SpatialLayer } from '../../../store/spatialLayersStore'
 import { styleOf } from './SpatialLayersOverlay'
 
@@ -35,8 +36,17 @@ function LayerSwatch({ layer }: { layer: SpatialLayer }) {
   }
 }
 
-function featureCount(layer: SpatialLayer): number {
+function featureCount(layer: SpatialLayer): number | null {
+  if (layer.kind === 'feature-query') {
+    // During streaming, show running count. After streaming, show final count.
+    return layer.totalCount ?? (layer.features?.length ?? null)
+  }
   return layer.kind === 'markers' ? (layer.markers?.length ?? 0) : 1
+}
+
+/** specs/095 — true while a feature-query layer is still receiving batches. */
+function isStreaming(layer: SpatialLayer): boolean {
+  return layer.kind === 'feature-query' && layer.isFinal !== true
 }
 
 /**
@@ -109,12 +119,40 @@ export function SpatialLayerLegend() {
             sx={{ alignItems: 'center', py: 0.25, opacity: layer.visible ? 1 : 0.5 }}
           >
             <LayerSwatch layer={layer} />
-            <Typography variant="body2" sx={{ flex: 1, lineHeight: 1.2 }} noWrap>
-              {layer.legendLabel}
-            </Typography>
-            <Typography variant="caption" sx={{ opacity: 0.7 }}>
-              {featureCount(layer)}
-            </Typography>
+            <Stack sx={{ flex: 1, minWidth: 0 }}>
+              <Typography variant="body2" sx={{ lineHeight: 1.2 }} noWrap>
+                {layer.legendLabel}
+              </Typography>
+              {/* specs/095 — timeout / large-result warning */}
+              {layer.warning && (
+                <Stack direction="row" spacing={0.5} sx={{ alignItems: 'center', mt: 0.25 }}>
+                  <WarningAmberIcon sx={{ fontSize: 11, color: 'warning.main' }} />
+                  <Typography variant="caption" color="warning.main" noWrap>
+                    {layer.warning}
+                  </Typography>
+                </Stack>
+              )}
+            </Stack>
+            {/* specs/095 — count badge: spinner while streaming, number when final */}
+            {isStreaming(layer) ? (
+              <Tooltip title={`Loading… (${featureCount(layer) ?? 0} features)`}>
+                <Stack direction="row" spacing={0.5} sx={{ alignItems: 'center' }}>
+                  <Typography variant="caption" sx={{ opacity: 0.7 }}>
+                    {featureCount(layer) ?? '…'}
+                  </Typography>
+                  <CircularProgress
+                    size={10}
+                    thickness={5}
+                    aria-label="Loading features"
+                    sx={{ color: 'inherit', opacity: 0.7 }}
+                  />
+                </Stack>
+              </Tooltip>
+            ) : (
+              <Typography variant="caption" sx={{ opacity: 0.7 }}>
+                {featureCount(layer) ?? ''}
+              </Typography>
+            )}
             <Tooltip title={layer.visible ? `Hide ${layer.legendLabel}` : `Show ${layer.legendLabel}`}>
               <IconButton
                 size="small"

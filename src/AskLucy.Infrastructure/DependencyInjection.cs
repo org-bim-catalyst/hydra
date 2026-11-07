@@ -750,6 +750,10 @@ public static class DependencyInjection
         services.AddSingleton<IImageContentValidator, ImageContentValidator>();
         services.AddScoped<IExternalProfilePictureSyncJob, ExternalProfilePictureSyncJob>();
 
+        // specs/095-spatial-query-analysis — Overpass-backed spatial query provider.
+        services.AddScoped<AskLucy.Application.Spatial.Query.ISpatialQueryProvider,
+            AskLucy.Infrastructure.Spatial.Query.OverpassSpatialQueryProvider>();
+
         return services;
     }
 }

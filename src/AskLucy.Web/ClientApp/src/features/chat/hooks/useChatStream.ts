@@ -419,12 +419,29 @@ export function useChatStream(
             // specs/094 — the coordinator's normalized layers. The store owns merge semantics;
             // the overlay and the legend both render from it, which is what keeps the legend and
             // the map in step when a layer is added, hidden or removed.
-            useSpatialLayersStore.getState().applyLayers(
-              activeChatId,
-              event.analysisId,
-              event.layers,
-              event.mode,
+            //
+            // specs/095 — when `batchIndex` is present on a layer, route to `applyBatch` so
+            // feature-query layers stream incrementally rather than replacing on every event.
+            const store = useSpatialLayersStore.getState()
+            const batchLayers = (event.layers ?? []).filter(
+              (l: { batchIndex?: number | null }) => l.batchIndex != null,
             )
+            const normalLayers = (event.layers ?? []).filter(
+              (l: { batchIndex?: number | null }) => l.batchIndex == null,
+            )
+
+            if (normalLayers.length > 0) {
+              store.applyLayers(activeChatId, event.analysisId, normalLayers, event.mode)
+            }
+            for (const batchLayer of batchLayers) {
+              store.applyBatch(
+                activeChatId,
+                event.analysisId,
+                batchLayer.layerId,
+                batchLayer,
+                event.mode,
+              )
+            }
           } else if (event.type === 'turnOutcome') {
             // specs/068 FR-004a — belongs to the reply itself, like citations and the
             // retrieval outcome: it describes the turn, not a later confirmation sentence.
@@ -691,12 +708,28 @@ export function useChatStream(
             // specs/094 — the coordinator's normalized layers. The store owns merge semantics;
             // the overlay and the legend both render from it, which is what keeps the legend and
             // the map in step when a layer is added, hidden or removed.
-            useSpatialLayersStore.getState().applyLayers(
-              activeChatId,
-              event.analysisId,
-              event.layers,
-              event.mode,
+            //
+            // specs/095 — when `batchIndex` is present on a layer, route to `applyBatch`.
+            const store = useSpatialLayersStore.getState()
+            const batchLayers = (event.layers ?? []).filter(
+              (l: { batchIndex?: number | null }) => l.batchIndex != null,
             )
+            const normalLayers = (event.layers ?? []).filter(
+              (l: { batchIndex?: number | null }) => l.batchIndex == null,
+            )
+
+            if (normalLayers.length > 0) {
+              store.applyLayers(activeChatId, event.analysisId, normalLayers, event.mode)
+            }
+            for (const batchLayer of batchLayers) {
+              store.applyBatch(
+                activeChatId,
+                event.analysisId,
+                batchLayer.layerId,
+                batchLayer,
+                event.mode,
+              )
+            }
           } else if (event.type === 'turnOutcome') {
             // specs/068 FR-004a — belongs to the reply itself, like citations and the
             // retrieval outcome: it describes the turn, not a later confirmation sentence.

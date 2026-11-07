@@ -16,7 +16,7 @@ public sealed record SpatialSpecialistExecution(
 /// </summary>
 public sealed class SpatialResultNormalizer
 {
-    private const int MaxNameLength = 80;
+        private const int MaxNameLength = 80;
     private const int MaxAttributeLength = 200;
 
     /// <summary>
@@ -111,9 +111,12 @@ public sealed class SpatialResultNormalizer
         // Buffers are the distance rule drawn, not results: counting one per buffer made
         // "1 school within 1 km" narrate as "2 results" (specs/093). Areas still count as one
         // feature each because they ARE the result of an area analysis.
+        // specs/095 — feature-query layers count individual features, not layers.
         var resultCount = layers.Sum(layer =>
-            layer.Markers?.Count ??
-            (layer.Kind == SpatialLayerKind.Buffer ? 0 : layer.Ring is { Count: > 0 } ? 1 : 0));
+            layer.Kind == SpatialLayerKind.FeatureQuery
+                ? layer.Features?.Count ?? layer.Markers?.Count ?? 0
+                : layer.Markers?.Count ??
+                  (layer.Kind == SpatialLayerKind.Buffer ? 0 : layer.Ring is { Count: > 0 } ? 1 : 0));
 
         var status = DetermineStatus(failedCount, succeededCount, layers.Count, resultCount, warnings);
         var mergedCoverage = MergeCoverage(coverage);
@@ -204,7 +207,21 @@ public sealed class SpatialResultNormalizer
                 }
 
                 break;
+
+            case SpatialLayerKind.FeatureQuery:
+                // specs/095 — pass features through; validate each feature geometry.
+                // Empty feature list is acceptable (streaming in progress or no results).
+                markers = (draft.Markers ?? [])
+                    .Where(IsValidMarker)
+                    .Where(marker => seenMarkerIds.Add(marker.Id))
+                    .ToList();
+                break;
         }
+
+        // specs/095 — validated features for feature-query layers.
+        var validatedFeatures = draft.Kind == SpatialLayerKind.FeatureQuery
+            ? ValidateFeatures(draft.Features)
+            : null;
 
         return new SpatialLayer(
             draft.LayerId,
@@ -217,7 +234,8 @@ public sealed class SpatialResultNormalizer
             ring,
             draft.Style ?? DefaultStyle(draft.Kind),
             Visible: true,
-            CleanAttributes(draft.Attributes));
+            CleanAttributes(draft.Attributes),
+            Features: validatedFeatures);
     }
 
     private static bool IsValidMarker(SpatialMarker marker) =>
@@ -228,6 +246,24 @@ public sealed class SpatialResultNormalizer
     private static bool IsValidPoint(GeoPoint point) =>
         double.IsFinite(point.Latitude) && point.Latitude is >= -90 and <= 90 &&
         double.IsFinite(point.Longitude) && point.Longitude is >= -180 and <= 180;
+
+    /// <summary>specs/095 — validates feature geometries and passes only valid ones through.</summary>
+    private static IReadOnlyList<Query.QueryResultFeature>? ValidateFeatures(
+        IReadOnlyList<Query.QueryResultFeature>? features)
+    {
+        if (features is null || features.Count == 0)
+        {
+            return null;
+        }
+
+        return features
+            .Where(f =>
+                f is not null &&
+                !string.IsNullOrWhiteSpace(f.FeatureId) &&
+                f.Geometry?.Points is { Count: > 0 } &&
+                f.Geometry.Points.All(p => IsValidPoint(p)))
+            .ToList();
+    }
 
     private static Dictionary<string, string>? CleanAttributes(
         IReadOnlyDictionary<string, string>? attributes)
@@ -282,6 +318,7 @@ public sealed class SpatialResultNormalizer
     {
         SpatialOperationKinds.PoiDiscovery => "place search",
         SpatialOperationKinds.ProximityAnalysis => "proximity",
+        SpatialOperationKinds.SpatialQuery => "spatial query",
         _ => operationKind,
     };
 
@@ -290,6 +327,7 @@ public sealed class SpatialResultNormalizer
         SpatialLayerKind.Markers => "marker",
         SpatialLayerKind.Buffer => "buffer",
         SpatialLayerKind.Area => "area",
+        SpatialLayerKind.FeatureQuery => "feature query",
         _ => "band",
     };
 

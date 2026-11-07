@@ -1,5 +1,7 @@
+using AskLucy.Application.Ai.Commands.SendChatMessage;
 using AskLucy.Application.Locations;
 using AskLucy.Application.Spatial.Query;
+using AskLucy.Domain.SiteBoundaries;
 
 namespace AskLucy.Application.Spatial.Specialists;
 
@@ -81,85 +83,80 @@ public sealed class SpatialQuerySpecialist(
         // dataset's field type so the result displays a meaningful unit (e.g. "m" for
         // numeric height, "m²" for numeric area). Do this before building the definition
         // so the inference flows through to the SpatialQueryDefinition.
-        if (parameters.AttributePredicates is not null)
+        if (parameters.AttributePredicates is { Count: > 0 } attributePredicates)
         {
             var fieldsByName = dataset.AttributeFields
                 .ToDictionary(f => f.Name, StringComparer.OrdinalIgnoreCase);
 
-            for (int i = 0; i < parameters.AttributePredicates.Count; i++)
+            var inferred = new List<AttributePredicate>(attributePredicates.Count);
+            foreach (var pred in attributePredicates)
             {
-                var pred = parameters.AttributePredicates[i];
-                if (pred.Unit is not null) continue; // unit already specified
-
-                if (fieldsByName.TryGetValue(pred.Field, out var field))
+                var effective = pred;
+                if (pred.Unit is null && fieldsByName.TryGetValue(pred.Field, out var field))
                 {
-                    pred = new AttributePredicate(
-                        Field: pred.Field,
-                        Operator: pred.Operator,
-                        Value: pred.Value,
-                        ValueTo: pred.ValueTo,
-                        Unit: InferUnitFromFieldType(field.FieldType, pred.Operator));
-                    parameters.AttributePredicates = parameters.AttributePredicates
-                        .RemoveAt(i)
-                        .Insert(i, pred);
+                    effective = pred with
+                    {
+                        Unit = InferUnitFromFieldType(field.FieldType, pred.Operator),
+                    };
                 }
+
+                inferred.Add(effective);
             }
+
+            parameters = parameters with { AttributePredicates = inferred };
         }
 
         // ── Step 2b: Resolve SpatialPredicate reference kinds ─────────────────────────────────
-        if (parameters.SpatialPredicates is not null)
+        if (parameters.SpatialPredicates is { Count: > 0 } spatialPredicates)
         {
-            foreach (var pred in parameters.SpatialPredicates)
+            var resolvedPredicates = new List<SpatialPredicate>(spatialPredicates.Count);
+            foreach (var pred in spatialPredicates)
             {
-                // Resolve namedFeature reference via location resolution service
+                var resolvedPredicate = pred;
+
+                // Resolve namedFeature reference via the location resolution service.
                 if (pred.ReferenceKind == SpatialReferenceKind.NamedFeature &&
                     !string.IsNullOrWhiteSpace(pred.ReferenceName))
                 {
-                    var resolved = await _locationResolutionService
-                        .ResolveLocationAsync(pred.ReferenceName, context.CancellationToken)
+                    var resolution = await _locationResolutionService
+                        .ResolveQueryAsync(context.UserChatId, pred.ReferenceName, cancellationToken)
                         .ConfigureAwait(false);
-                    if (resolved.HasValue)
+
+                    // T033: namedFeature could not be resolved — surface a focused clarification.
+                    if (resolution.Type != LocationResolutionOutcomeType.Confirmed ||
+                        resolution.ConfirmedLocation is not { } location)
                     {
-                        pred.ReferenceGeometry = resolved.Value.Polygon;
-                    }
-                    else
-                    {
-                        // T033: namedFeature could not be resolved — surface focused error
-                        return Fail(definition, started,
+                        return Fail(null, started,
                             $"I couldn't locate the reference feature \"{pred.ReferenceName}\". " +
                             "Can you specify the area differently or select it on the map?",
                             _auditLogger);
                     }
+
+                    resolvedPredicate = pred with
+                    {
+                        ReferenceKind = SpatialReferenceKind.ExplicitGeometry,
+                        ReferenceGeometry = BuildReferenceGeometry(location),
+                    };
                 }
 
-                // Resolve activeLayer reference from execution context
+                // Active layers carry only identity in the execution context, so an
+                // activeLayer reference is validated against the layers the client reported.
                 if (pred.ReferenceKind == SpatialReferenceKind.ActiveLayer &&
-                    !string.IsNullOrWhiteSpace(pred.ReferenceLayerId))
+                    !string.IsNullOrWhiteSpace(pred.ReferenceLayerId) &&
+                    !context.ActiveLayers.Any(layer =>
+                        string.Equals(layer.LayerId, pred.ReferenceLayerId, StringComparison.Ordinal)))
                 {
-                    var activeLayerGeometry = ResolveActiveLayerGeometry(
-                        pred.ReferenceLayerId, context);
-                    if (activeLayerGeometry is not null)
-                    {
-                        pred.ReferenceGeometry = activeLayerGeometry;
-                    }
-                    else
-                    {
-                        // T033: activeLayer reference could not be resolved
-                        return Fail(definition, started,
-                            "I need a reference layer to apply a spatial filter. " +
-                            "Please select a layer first.",
-                            _auditLogger);
-                    }
+                    return Fail(null, started,
+                        "I need a reference layer to apply a spatial filter. " +
+                        "Please select a layer first.",
+                        _auditLogger);
                 }
 
-                // Use explicit geometry directly from bundle
-                if (pred.ReferenceKind == SpatialReferenceKind.ExplicitGeometry)
-                {
-                    // ReferenceGeometry is already set from the bundle
-                }
-
-                // StudyArea is resolved from the context separately
+                // ExplicitGeometry is already set from the bundle; StudyArea resolves from context.
+                resolvedPredicates.Add(resolvedPredicate);
             }
+
+            parameters = parameters with { SpatialPredicates = resolvedPredicates };
         }
 
         // ── Step 3: Validate predicates present ──────────────────────────────────────────────
@@ -477,19 +474,30 @@ private static string? InferUnitFromFieldType(AttributeFieldType fieldType, Attr
 }
 
 /// <summary>
-/// Resolves geometry from an active layer reference. Active layers carry only identity;
-/// full geometry is not in context — this is intentional, named feature resolution must
-/// happen before the provider call (per infra T031).
+/// Builds a renderable ring for a resolved reference location: the geocoder's viewport when
+/// present, otherwise a small square around the resolved point (roughly 1 km across).
 /// </summary>
-private static IReadOnlyList<GeoPoint>? ResolveActiveLayerGeometry(
-    string? layerId,
-    SpatialExecutionContext context)
+private static IReadOnlyList<GeoPoint>? BuildReferenceGeometry(ConfirmedLocationData location)
 {
-    // Active layers carry only identity; full geometry is not in context.
-    // This is intentional — NamedFeature resolution must happen before provider call.
-    _ = layerId;
-    _ = context;
-    return null;
+    if (location.Viewport is { } viewport)
+    {
+        return
+        [
+            new GeoPoint(viewport.SouthwestLat, viewport.SouthwestLng),
+            new GeoPoint(viewport.SouthwestLat, viewport.NortheastLng),
+            new GeoPoint(viewport.NortheastLat, viewport.NortheastLng),
+            new GeoPoint(viewport.NortheastLat, viewport.SouthwestLng),
+        ];
+    }
+
+    const double delta = 0.01;
+    return
+    [
+        new GeoPoint(location.Latitude - delta, location.Longitude - delta),
+        new GeoPoint(location.Latitude - delta, location.Longitude + delta),
+        new GeoPoint(location.Latitude + delta, location.Longitude + delta),
+        new GeoPoint(location.Latitude + delta, location.Longitude - delta),
+    ];
 }
 
 /// <summary>

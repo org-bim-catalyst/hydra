@@ -2,12 +2,6 @@ using Microsoft.Extensions.Logging;
 
 namespace AskLucy.Application.Spatial;
 
-/// <summary>Result of checking for a recent duplicate query.</summary>
-public record DuplicateQueryCheck(
-    bool IsDuplicate,
-    string? PreviousReason,
-    SpatialLayerDraft? PreviousDraft);
-
 internal static partial class SpatialAnalysisCoordinatorLog
 {
     [LoggerMessage(Level = LogLevel.Warning,
@@ -73,10 +67,6 @@ public sealed class SpatialAnalysisCoordinator(
     /// <summary>Cap on concurrent provider work; the free spatial providers saturate under load.</summary>
     public const int MaxParallelOperations = 4;
 
-    // specs/095 T048 — per-chat duplicate query detection (scoped lifetime).
-    private readonly System.Collections.Concurrent.ConcurrentDictionary<Guid, (string BundleFingerprint, DateTime At)>
-        _recentDuplicates = new();
-
     public async Task<SpatialCoordinatorOutcome> ExecuteAsync(
         SpatialRequestInput input,
         SpatialExecutionContext baseContext,
@@ -110,23 +100,7 @@ public sealed class SpatialAnalysisCoordinator(
             SpatialAnalysisCoordinatorLog.InvalidRequest(logger, bundle.BundleId, chatId, reason);
 
             return new SpatialCoordinatorOutcome(FailureReason: reason, Mode: mode.Mode);
-        }\        // specs/095 T048: Check for duplicate query (same bundle + same layer name within 10s).
-        var bundleFingerprint = "{bundleId}-{string.Join(",", bundle.Operations.Select(o => o.OperationKind))}";
-        if (_recentDuplicates.TryGetValue(chatId, out var prev) &&
-            prev.BundleFingerprint == bundleFingerprint &&
-            (DateTime.UtcNow - prev.At).TotalSeconds < DuplicateWindowSecs)
-        {
-            // Reuse previous result rather than re-executing.
-            return new SpatialCoordinatorOutcome(
-                Result: new SpatialAnalysisResult(
-                    Layers: prev.Value.Layers,
-                    Status: SpatialAnalysisStatus.Succeeded,
-                    AreaName: prev.Value.AreaName),
-                Mode: mode.Mode);
         }
-        _recentDuplicates[chatId] = (bundleFingerprint, DateTime.UtcNow);
-
-
 
         // Resolve where each operation runs before dispatching anything: a missing area is a
         // follow-up question, not a per-operation failure (FR-005).

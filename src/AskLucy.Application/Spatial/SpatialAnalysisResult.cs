@@ -1,3 +1,4 @@
+using AskLucy.Application.Spatial.Query;
 using AskLucy.Domain.SiteBoundaries;
 
 namespace AskLucy.Application.Spatial;
@@ -82,6 +83,8 @@ public enum SpatialLayerKind
     Buffer,
     Area,
     Band,
+    /// <summary>specs/095 — a filtered set of geographic features returned by a spatial query.</summary>
+    FeatureQuery,
 }
 
 /// <summary>
@@ -97,7 +100,8 @@ public sealed record SpatialLayerDraft(
     IReadOnlyList<SpatialMarker>? Markers = null,
     IReadOnlyList<GeoPoint>? Ring = null,
     SpatialLayerStyle? Style = null,
-    IReadOnlyDictionary<string, string>? Attributes = null);
+    IReadOnlyDictionary<string, string>? Attributes = null,
+    IReadOnlyList<Query.QueryResultFeature>? Features = null);
 
 /// <summary>
 /// A validated, renderable layer. Session-scoped: the client owns visibility and removal once it
@@ -114,10 +118,12 @@ public sealed record SpatialLayer(
     IReadOnlyList<GeoPoint>? Ring = null,
     SpatialLayerStyle? Style = null,
     bool Visible = true,
-    IReadOnlyDictionary<string, string>? Attributes = null);
+    IReadOnlyDictionary<string, string>? Attributes = null,
+    IReadOnlyList<Query.QueryResultFeature>? Features = null);
 
-/// <summary>One point the viewer draws for a marker layer.</summary>
-public sealed record SpatialMarker(string Id, string Name, double Latitude, double Longitude);
+/// <summary>specs/095 — display attributes for feature-query markers.</summary>
+public sealed record SpatialMarker(string Id, string Name, double Latitude, double Longitude,
+    IReadOnlyDictionary<string, object?>? Attributes = null);
 
 /// <summary>Server-assigned styling. Never derived from model text.</summary>
 public sealed record SpatialLayerStyle(

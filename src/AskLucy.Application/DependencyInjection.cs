@@ -41,6 +41,7 @@ using AskLucy.Application.SiteAnalysis;
 using AskLucy.Application.SiteAnalysis.Tools;
 using AskLucy.Application.SiteBoundaries;
 using AskLucy.Application.Spatial;
+using AskLucy.Application.Spatial.Query;
 using AskLucy.Application.Spatial.Specialists;
 using AskLucy.Application.Workflows.Expressions;
 using AskLucy.Application.Workflows.Notifications;
@@ -384,6 +385,15 @@ public static class DependencyInjection
         // specs/093-proximity-analysis — within/beyond/distance-band measurement between two
         // place categories, inside the study area the coordinator already resolved.
         services.AddScoped<ISpatialSpecialist, ProximityAnalysisSpecialist>();
+        // specs/095-spatial-query-analysis — dataset catalog (singleton; extensible by adding
+        // DatasetEntry registrations), and the spatial query specialist.
+        services.AddSingleton<DatasetEntry>(_ => DatasetCatalog.LandParcels);
+        services.AddSingleton<DatasetEntry>(_ => DatasetCatalog.Buildings);
+        services.AddSingleton<DatasetEntry>(_ => DatasetCatalog.Roads);
+        services.AddSingleton<DatasetEntry>(_ => DatasetCatalog.DevelopmentAreas);
+        services.AddSingleton<IDatasetCatalog, DatasetCatalog>();
+        services.AddScoped<SpatialQueryAuditLogger>();
+        services.AddScoped<ISpatialSpecialist, SpatialQuerySpecialist>();
         // Registered directly against IAgentTool, never a `sp => sp.GetRequiredService<T>()`
         // factory — see the note on the site-analysis tools above (constitution §3/§2.VIII).
         services.AddScoped<IAgentTool, SpatialAnalysisCapability>();

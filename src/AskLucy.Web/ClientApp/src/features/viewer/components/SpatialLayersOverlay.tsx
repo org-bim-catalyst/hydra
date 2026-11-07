@@ -1,6 +1,10 @@
 import { useEffect, useRef } from 'react'
 import { useGoogleMapsStore } from '../../../viewer/store/googleMapsStore'
-import { useSpatialLayersStore, type SpatialLayer } from '../../../store/spatialLayersStore'
+import {
+  useSpatialLayersStore,
+  type SpatialLayer,
+  type SpatialQueryFeature,
+} from '../../../store/spatialLayersStore'
 
 /** Injected once — idempotent via the element-id guard. Every shape reads its colour from the
  * `--spatial-color` custom property so one stylesheet serves every layer. */
@@ -95,18 +99,31 @@ function buildMarkerContent(name: string, shape: string, color: string): HTMLEle
 
 const DEFAULT_MARKER_COLOR = '#4285F4'
 const DEFAULT_AREA_COLOR = '#1976D2'
+const DEFAULT_FEATURE_QUERY_COLOR = '#7B1FA2'
+
+/** specs/095 — dispatched when the user clicks a feature-query marker or polygon. */
+export const FEATURE_SELECTED_EVENT = 'spatial:featureSelected'
+export interface FeatureSelectedDetail {
+  feature: SpatialQueryFeature
+  layerId: string
+}
 
 /**
  * specs/094-spatial-analysis-orchestrator — draws every visible spatial layer on the Google map:
  * marker layers as advanced markers, buffer/area/band layers as polygons. Follows
  * `POIMarkerOverlay`'s idiom exactly: no DOM output, purely imperative, and it replaces the whole
  * rendered set whenever the layer store changes (add, keep, toggle, remove or clear).
+ *
+ * specs/095 — also renders `feature-query` layers: point features as advanced markers (with
+ * click to open FeatureAttributePanel), polygon features as filled polygons, and linestring
+ * features as polylines.
  */
 export function SpatialLayersOverlay() {
   const map = useGoogleMapsStore((s) => s.map)
   const layers = useSpatialLayersStore((s) => s.layers)
   const markersRef = useRef<google.maps.marker.AdvancedMarkerElement[]>([])
   const polygonsRef = useRef<google.maps.Polygon[]>([])
+  const polylinesRef = useRef<google.maps.Polyline[]>([])
 
   useEffect(() => {
     if (!map) {
@@ -123,6 +140,7 @@ export function SpatialLayersOverlay() {
         )) as google.maps.MarkerLibrary
         if (cancelled) return
 
+        // Clear previous render.
         for (const marker of markersRef.current) {
           marker.map = null
         }
@@ -132,6 +150,11 @@ export function SpatialLayersOverlay() {
           polygon.setMap(null)
         }
         polygonsRef.current = []
+
+        for (const polyline of polylinesRef.current) {
+          polyline.setMap(null)
+        }
+        polylinesRef.current = []
 
         for (const layer of visible) {
           if (layer.kind === 'markers') {
@@ -145,6 +168,82 @@ export function SpatialLayersOverlay() {
                   position: { lat: feature.latitude, lng: feature.longitude },
                   content,
                   title: feature.name || layer.legendLabel,
+                }),
+              )
+            }
+            continue
+          }
+
+          // ── specs/095 feature-query layer rendering ─────────────────────────────────────────
+          if (layer.kind === 'feature-query') {
+            const color = layer.style?.color ?? DEFAULT_FEATURE_QUERY_COLOR
+            const shape = layer.style?.markerShape ?? 'simple-dot'
+
+            for (const feature of layer.features ?? []) {
+              const geo = feature.geometry
+
+              if (geo.kind === 'point' && geo.points.length > 0) {
+                const content = buildMarkerContent(feature.name, shape, color)
+                const marker = new AdvancedMarkerElement({
+                  map,
+                  position: { lat: geo.points[0].latitude, lng: geo.points[0].longitude },
+                  content,
+                  title: feature.name || layer.legendLabel,
+                })
+                // Dispatch custom event so spatialQueryExtension can open the attribute panel.
+                marker.addListener('click', () => {
+                  const detail: FeatureSelectedDetail = { feature, layerId: layer.layerId }
+                  document.dispatchEvent(
+                    new CustomEvent(FEATURE_SELECTED_EVENT, { detail }),
+                  )
+                })
+                markersRef.current.push(marker)
+              } else if (geo.kind === 'polygon' && geo.points.length >= 3) {
+                const paths = geo.points.map((p) => ({ lat: p.latitude, lng: p.longitude }))
+                const polygon = new google.maps.Polygon({
+                  map,
+                  paths,
+                  strokeColor: color,
+                  strokeOpacity: 0.9,
+                  strokeWeight: 2,
+                  fillColor: color,
+                  fillOpacity: layer.style?.opacity ?? 0.25,
+                })
+                polygon.addListener('click', () => {
+                  const detail: FeatureSelectedDetail = { feature, layerId: layer.layerId }
+                  document.dispatchEvent(
+                    new CustomEvent(FEATURE_SELECTED_EVENT, { detail }),
+                  )
+                })
+                polygonsRef.current.push(polygon)
+              } else if (geo.kind === 'linestring' && geo.points.length >= 2) {
+                const path = geo.points.map((p) => ({ lat: p.latitude, lng: p.longitude }))
+                const polyline = new google.maps.Polyline({
+                  map,
+                  path,
+                  strokeColor: color,
+                  strokeOpacity: 0.85,
+                  strokeWeight: layer.style?.strokeWidth ?? 3,
+                })
+                polyline.addListener('click', () => {
+                  const detail: FeatureSelectedDetail = { feature, layerId: layer.layerId }
+                  document.dispatchEvent(
+                    new CustomEvent(FEATURE_SELECTED_EVENT, { detail }),
+                  )
+                })
+                polylinesRef.current.push(polyline)
+              }
+            }
+
+            // Also render marker fallback if features array is empty but markers exist (batch 0).
+            for (const marker of layer.markers ?? []) {
+              const content = buildMarkerContent(marker.name, shape, color)
+              markersRef.current.push(
+                new AdvancedMarkerElement({
+                  map,
+                  position: { lat: marker.latitude, lng: marker.longitude },
+                  content,
+                  title: marker.name || layer.legendLabel,
                 }),
               )
             }
@@ -167,11 +266,13 @@ export function SpatialLayersOverlay() {
           }
         }
 
-        // Frame what was just drawn. Without this, a search run from anywhere else puts every
-        // feature off-screen and the reply says "shown" while the user sees nothing.
+        // Frame what was just drawn.
         const points = visible.flatMap((layer) => [
           ...(layer.markers ?? []).map((marker) => ({ lat: marker.latitude, lng: marker.longitude })),
           ...(layer.ring ?? []).map((point) => ({ lat: point.latitude, lng: point.longitude })),
+          ...(layer.features ?? []).flatMap((f) =>
+            f.geometry.points.map((p) => ({ lat: p.latitude, lng: p.longitude })),
+          ),
         ])
 
         if (points.length === 1) {
@@ -205,6 +306,10 @@ export function SpatialLayersOverlay() {
         polygon.setMap(null)
       }
       polygonsRef.current = []
+      for (const polyline of polylinesRef.current) {
+        polyline.setMap(null)
+      }
+      polylinesRef.current = []
     }
   }, [])
 
@@ -213,8 +318,15 @@ export function SpatialLayersOverlay() {
 
 /** Exported for the legend's swatch so the two never disagree about a layer's look. */
 export function styleOf(layer: SpatialLayer) {
+  const defaultColor =
+    layer.kind === 'markers'
+      ? DEFAULT_MARKER_COLOR
+      : layer.kind === 'feature-query'
+        ? DEFAULT_FEATURE_QUERY_COLOR
+        : DEFAULT_AREA_COLOR
+
   return {
-    color: layer.style?.color ?? (layer.kind === 'markers' ? DEFAULT_MARKER_COLOR : DEFAULT_AREA_COLOR),
+    color: layer.style?.color ?? defaultColor,
     markerShape: layer.style?.markerShape ?? 'simple-dot',
     opacity: layer.style?.opacity ?? 0.25,
   }

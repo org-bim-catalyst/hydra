@@ -1,17 +1,13 @@
 using AskLucy.Application.Spatial.Query;
-using Xunit;
 
 namespace AskLucy.Application.Tests.Spatial.Query;
 
-/// <summary>
-/// specs/095 — unit tests for <see cref="AttributePredicate"/> parsing and validation.
-/// </summary>
+/// <summary>specs/095 — unit tests for <see cref="AttributePredicate"/> construction.</summary>
 public class AttributePredicateTests
 {
     [Fact]
     public void Constructor_SetsAllFields()
     {
-        // Act
         var predicate = new AttributePredicate(
             Field: "height",
             Operator: AttributeOperator.Gt,
@@ -19,7 +15,6 @@ public class AttributePredicateTests
             ValueTo: null,
             Unit: "m");
 
-        // Assert
         Assert.Equal("height", predicate.Field);
         Assert.Equal(AttributeOperator.Gt, predicate.Operator);
         Assert.Equal(30, predicate.Value);
@@ -30,32 +25,26 @@ public class AttributePredicateTests
     [Fact]
     public void Constructor_WithValueTo_SetsValueTo()
     {
-        // Act
         var predicate = new AttributePredicate(
-            Field: "age",
+            Field: "year-built",
             Operator: AttributeOperator.Between,
-            Value: 18,
-            ValueTo: 65,
-            Unit: null);
+            Value: 1980,
+            ValueTo: 2000);
 
-        // Assert
-        Assert.Equal(18, predicate.Value);
-        Assert.Equal(65, predicate.ValueTo);
+        Assert.Equal(1980, predicate.Value);
+        Assert.Equal(2000, predicate.ValueTo);
         Assert.Null(predicate.Unit);
     }
 
     [Fact]
-    public void Constructor_WithUnit_InferFromFieldType()
+    public void WithUnit_ProducesInferredCopy()
     {
-        // Act - Unit specified explicitly
-        var predicate = new AttributePredicate(
-            Field: "area",
-            Operator: AttributeOperator.Gt,
-            Value: 100,
-            ValueTo: null,
-            Unit: "m²");
+        var predicate = new AttributePredicate("area", AttributeOperator.Gt, 5000);
 
-        // Assert
-        Assert.Equal("m²", predicate.Unit);
+        var inferred = predicate with { Unit = "m2" };
+
+        Assert.Null(predicate.Unit);
+        Assert.Equal("m2", inferred.Unit);
+        Assert.Equal(predicate.Field, inferred.Field);
     }
 }
