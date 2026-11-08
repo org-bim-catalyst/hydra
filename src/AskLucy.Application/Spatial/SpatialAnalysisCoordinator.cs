@@ -1,5 +1,5 @@
-using Microsoft.Extensions.Logging;
 using AskLucy.Application.Spatial.Density;
+using Microsoft.Extensions.Logging;
 
 namespace AskLucy.Application.Spatial;
 
