@@ -312,8 +312,9 @@ describe('streamChat', () => {
     )
 
     await expect(async () => {
-      for await (const _event of streamChat('chat-1', [{ role: 'user', content: 'test' }], 'p1', 'm1', undefined)) {
+      for await (const event of streamChat('chat-1', [{ role: 'user', content: 'test' }], 'p1', 'm1', undefined)) {
         // Consume the stream to surface its explicit visible failure.
+        void event
       }
     }).rejects.toThrow('Lucy could not display the map analysis. Please try again.')
   })
