@@ -1,4 +1,5 @@
 using AskLucy.Application.Spatial.Query;
+using AskLucy.Application.Spatial.Density;
 using AskLucy.Domain.SiteBoundaries;
 
 namespace AskLucy.Application.Spatial;
@@ -85,6 +86,8 @@ public enum SpatialLayerKind
     Band,
     /// <summary>specs/095 — a filtered set of geographic features returned by a spatial query.</summary>
     FeatureQuery,
+    /// <summary>specs/096 — classified density cells or a heatmap surface.</summary>
+    DensitySurface,
 }
 
 /// <summary>
@@ -101,7 +104,10 @@ public sealed record SpatialLayerDraft(
     IReadOnlyList<GeoPoint>? Ring = null,
     SpatialLayerStyle? Style = null,
     IReadOnlyDictionary<string, string>? Attributes = null,
-    IReadOnlyList<Query.QueryResultFeature>? Features = null);
+    IReadOnlyList<Query.QueryResultFeature>? Features = null,
+    IReadOnlyList<DensityCell>? DensityCells = null,
+    DensityClassificationResult? DensityClassification = null,
+    DensityAnalysisParameters? DensityParameters = null);
 
 /// <summary>
 /// A validated, renderable layer. Session-scoped: the client owns visibility and removal once it
@@ -119,7 +125,10 @@ public sealed record SpatialLayer(
     SpatialLayerStyle? Style = null,
     bool Visible = true,
     IReadOnlyDictionary<string, string>? Attributes = null,
-    IReadOnlyList<Query.QueryResultFeature>? Features = null);
+    IReadOnlyList<Query.QueryResultFeature>? Features = null,
+    IReadOnlyList<DensityCell>? DensityCells = null,
+    DensityClassificationResult? DensityClassification = null,
+    DensityAnalysisParameters? DensityParameters = null);
 
 /// <summary>specs/095 — display attributes for feature-query markers.</summary>
 public sealed record SpatialMarker(string Id, string Name, double Latitude, double Longitude,

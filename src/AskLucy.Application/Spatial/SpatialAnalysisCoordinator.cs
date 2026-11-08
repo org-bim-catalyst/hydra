@@ -1,4 +1,5 @@
 using Microsoft.Extensions.Logging;
+using AskLucy.Application.Spatial.Density;
 
 namespace AskLucy.Application.Spatial;
 
@@ -33,7 +34,12 @@ public sealed record SpatialOperationInput(
     double? Distance = null,
     string? Unit = null,
     bool? Beyond = null,
-    IReadOnlyList<SpatialBandInput>? Bands = null);
+    IReadOnlyList<SpatialBandInput>? Bands = null,
+    string? DatasetId = null,
+    string? DensityIntent = null,
+    string? DensityMethod = null,
+    double? CellSizeMeters = null,
+    string? DensityClassification = null);
 
 /// <summary>One requested distance band, in the unit the request also carries.</summary>
 public sealed record SpatialBandInput(double Lower, double Upper);
@@ -267,6 +273,20 @@ public sealed class SpatialAnalysisCoordinator(
                 [new FeatureSelector(Category: input.Category)],
                 null,
                 studyArea);
+        }
+
+        if (string.Equals(input.Kind, SpatialOperationKinds.DensityAnalysis, StringComparison.OrdinalIgnoreCase))
+        {
+            var method = Enum.TryParse<DensityMethod>(input.DensityMethod?.Replace("-", string.Empty), true, out var parsedMethod)
+                ? parsedMethod : DensityMethod.Auto;
+            var intent = Enum.TryParse<DensityIntent>(input.DensityIntent?.Replace("-", string.Empty), true, out var parsedIntent)
+                ? parsedIntent : DensityIntent.High;
+            var classification = Enum.TryParse<DensityClassificationMethod>(input.DensityClassification?.Replace("-", string.Empty), true, out var parsedClassification)
+                ? parsedClassification : DensityClassificationMethod.Continuous;
+            var density = new DensityAnalysisParameters(input.DatasetId ?? input.Category ?? string.Empty, intent, method,
+                input.Distance, input.CellSizeMeters, classification);
+            return new SpatialOperation(operationId, SpatialOperationKinds.DensityAnalysis,
+                [new FeatureSelector(Category: input.Category ?? input.DatasetId)], null, studyArea, DensityParameters: density);
         }
 
         // Any other kind is carried through unchanged: the registry decides whether it can run,

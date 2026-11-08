@@ -15,6 +15,7 @@ public static class SpatialOperationKinds
 
     /// <summary>specs/095 — filters geographic features by attribute and/or spatial conditions.</summary>
     public const string SpatialQuery = "spatial.query";
+    public const string DensityAnalysis = "density.analysis";
 
     /// <summary>
     /// Every operation the coordinator is allowed to build. A kind absent here is never produced by
@@ -38,6 +39,11 @@ public static class SpatialOperationKinds
             "Finds geographic features that satisfy attribute or spatial conditions and displays them as a query result layer.",
             "Use when the user asks to find, filter or show features matching a condition — \"parcels larger than 5000 m²\", \"buildings built before 1980\", \"roads that intersect the development zone\".",
             "dataset (e.g. buildings), condition (e.g. height > 30 m), and optionally a spatial relationship"),
+        new(
+            DensityAnalysis,
+            "Calculates and displays high and low concentrations of a geographic dataset.",
+            "Use when the user asks where a feature or population is dense, sparse, concentrated, or underserved in an area.",
+            "dataset, bounded area, and optionally method, radius, cell size or classification"),
     ];
 
     public static bool IsKnown(string? operationKind) =>
@@ -100,7 +106,8 @@ public sealed record SpatialOperation(
     SpatialOperationParameters? Parameters = null,
     StudyAreaReference? StudyArea = null,
     IReadOnlyList<string>? DependsOn = null,
-    SpatialQueryParameters? QueryParameters = null);
+    SpatialQueryParameters? QueryParameters = null,
+    DensityAnalysisParameters? DensityParameters = null);
 
 /// <summary>One thing an operation targets: a category, an explicit geometry, or both.</summary>
 /// <param name="Category">Normalized category key or the user's category phrase.</param>
@@ -199,3 +206,23 @@ public sealed record SpatialQueryParameters(
     Query.PredicateCombinator AttributeCombinator = Query.PredicateCombinator.And,
     IReadOnlyList<Query.SpatialPredicate>? SpatialPredicates = null,
     Query.PredicateCombinator SpatialCombinator = Query.PredicateCombinator.And);
+
+/// <summary>specs/096 — explicit, validated inputs for one density operation.</summary>
+public sealed record DensityAnalysisParameters(
+    string DatasetId,
+    DensityIntent Intent = DensityIntent.High,
+    DensityMethod Method = DensityMethod.Auto,
+    double? SearchRadiusMeters = null,
+    double? CellSizeMeters = null,
+    DensityClassificationMethod Classification = DensityClassificationMethod.Continuous,
+    DensityVisualizationPreferences? Visualization = null);
+
+public enum DensityIntent { High, Low, CoverageGap, Population }
+public enum DensityMethod { Auto, PointCount, PointKernel, Population }
+public enum DensityClassificationMethod { Continuous, EqualInterval, Quantile, NaturalBreaks }
+public sealed record DensityVisualizationPreferences(
+    double? Opacity = null,
+    string? Palette = null,
+    double? VisibleMinimum = null,
+    double? VisibleMaximum = null,
+    DensityClassificationMethod? DisplayClassification = null);

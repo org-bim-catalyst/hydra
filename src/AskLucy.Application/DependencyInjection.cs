@@ -35,6 +35,7 @@ using AskLucy.Application.Notifications.Processing;
 using AskLucy.Application.OperationalFailures;
 using AskLucy.Application.Options;
 using AskLucy.Application.PointsOfInterest;
+using AskLucy.Application.Spatial.Density;
 using AskLucy.Application.Retrieval;
 using AskLucy.Application.Retrieval.Indexing;
 using AskLucy.Application.SiteAnalysis;
@@ -394,6 +395,12 @@ public static class DependencyInjection
         services.AddSingleton<IDatasetCatalog, DatasetCatalog>();
         services.AddScoped<SpatialQueryAuditLogger>();
         services.AddScoped<ISpatialSpecialist, SpatialQuerySpecialist>();
+        services.AddSingleton<DensityDatasetEntry>(_ => new("buildings", "Buildings", [DensityMethod.PointCount, DensityMethod.PointKernel], "features/km²", "overpass", "building"));
+        services.AddSingleton<DensityDatasetEntry>(_ => new("schools", "Schools", [DensityMethod.PointCount, DensityMethod.PointKernel], "features/km²", "overpass", "school"));
+        services.AddSingleton<DensityDatasetEntry>(_ => new("hospitals", "Hospitals", [DensityMethod.PointCount, DensityMethod.PointKernel], "features/km²", "overpass", "hospital"));
+        services.AddSingleton<IDensityDatasetCatalog, DensityDatasetCatalog>();
+        services.AddScoped<DensityAnalysisAuditLogger>();
+        services.AddScoped<ISpatialSpecialist, DensityAnalysisSpecialist>();
         // Registered directly against IAgentTool, never a `sp => sp.GetRequiredService<T>()`
         // factory — see the note on the site-analysis tools above (constitution §3/§2.VIII).
         services.AddScoped<IAgentTool, SpatialAnalysisCapability>();

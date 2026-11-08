@@ -513,10 +513,9 @@ export async function* streamChat(
         try {
           payload = JSON.parse(data.slice(SPATIAL_LAYERS_EVENT_PREFIX.length))
         } catch {
-          // A malformed viewer payload is a degradation, not a turn failure: no layer is drawn,
-          // and the reply already says what happened.
-          console.warn('[aiApi] Ignored a malformed __SPATIAL_LAYERS__ payload.')
-          continue
+          // This is user-visible work: failing the stream lets the existing chat retry affordance
+          // explain that the map result could not be displayed instead of silently dropping it.
+          throw new Error('Lucy could not display the map analysis. Please try again.')
         }
 
         yield {
