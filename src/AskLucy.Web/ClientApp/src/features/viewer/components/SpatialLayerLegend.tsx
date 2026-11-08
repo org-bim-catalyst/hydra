@@ -41,6 +41,7 @@ function featureCount(layer: SpatialLayer): number | null {
     // During streaming, show running count. After streaming, show final count.
     return layer.totalCount ?? (layer.features?.length ?? null)
   }
+  if (layer.kind === 'density-surface') return layer.density?.cells.length ?? 0
   return layer.kind === 'markers' ? (layer.markers?.length ?? 0) : 1
 }
 
@@ -123,6 +124,13 @@ export function SpatialLayerLegend() {
               <Typography variant="body2" sx={{ lineHeight: 1.2 }} noWrap>
                 {layer.legendLabel}
               </Typography>
+              {layer.kind === 'density-surface' && layer.density && (
+                <Typography variant="caption" sx={{ opacity: 0.78 }}>
+                  {layer.density.method} · {layer.density.unit}
+                  {layer.density.searchRadiusMeters ? ` · ${layer.density.searchRadiusMeters} m radius` : ''}
+                  {layer.density.cellSizeMeters ? ` · ${layer.density.cellSizeMeters} m cells` : ''}
+                </Typography>
+              )}
               {/* specs/095 — timeout / large-result warning */}
               {layer.warning && (
                 <Stack direction="row" spacing={0.5} sx={{ alignItems: 'center', mt: 0.25 }}>

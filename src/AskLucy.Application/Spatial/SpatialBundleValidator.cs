@@ -1,4 +1,5 @@
 using AskLucy.Application.Spatial.Query;
+using AskLucy.Application.Spatial.Density;
 using FluentValidation;
 
 namespace AskLucy.Application.Spatial;
@@ -137,6 +138,19 @@ public sealed class SpatialBundleValidator : AbstractValidator<SpatialRequestBun
             .Must(BeValidMapContext)
             .When(bundle => bundle.MapContext is not null)
             .WithMessage("The supplied map view is not a valid, bounded area.");
+
+        RuleForEach(bundle => bundle.Operations).ChildRules(operation =>
+        {
+            operation.RuleFor(o => o.DensityParameters)
+                .Must(HaveValidDensityParameters)
+                .When(o => string.Equals(o.OperationKind, SpatialOperationKinds.DensityAnalysis, StringComparison.Ordinal))
+                .WithMessage("A density analysis needs a dataset and valid positive finite analysis parameters.");
+
+            operation.RuleFor(o => o.StudyArea)
+                .NotNull()
+                .When(o => string.Equals(o.OperationKind, SpatialOperationKinds.DensityAnalysis, StringComparison.Ordinal))
+                .WithMessage("Density analysis needs a bounded area.");
+        });
     }
 
     private static bool HaveUniqueOperationIds(IReadOnlyList<SpatialOperation> operations) =>
@@ -360,6 +374,19 @@ public sealed class SpatialBundleValidator : AbstractValidator<SpatialRequestBun
         // If both groups use OR it creates cross-type OR ambiguity — reject.
         return !(attributeIsOr && spatialIsOr);
     }
+
+    private static bool HaveValidDensityParameters(DensityAnalysisParameters? density)
+    {
+        if (density is null || string.IsNullOrWhiteSpace(density.DatasetId)) return false;
+        if (!IsPositiveOrUnset(density.SearchRadiusMeters) || !IsPositiveOrUnset(density.CellSizeMeters)) return false;
+        var visual = density.Visualization;
+        if (visual is null) return true;
+        if (visual.Opacity is { } opacity && (!double.IsFinite(opacity) || opacity is < 0 or > 1)) return false;
+        if (visual.VisibleMinimum is { } min && (!double.IsFinite(min) || visual.VisibleMaximum is not { } max || !double.IsFinite(max) || min >= max)) return false;
+        return visual.VisibleMaximum is not { } maximum || double.IsFinite(maximum);
+    }
+
+    private static bool IsPositiveOrUnset(double? value) => value is null || (double.IsFinite(value.Value) && value.Value > 0);
 
     private static bool IsOperatorValidForType(AttributeOperator op, AttributeFieldType type)
     {

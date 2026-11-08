@@ -95,7 +95,10 @@ public sealed class SpatialAnalysisCapability(
             "bands":{"type":"array","items":{"type":"object","properties":{
               "lower":{"type":"number","minimum":0},
               "upper":{"type":"number","exclusiveMinimum":0}
-            },"required":["upper"]}}
+            },"required":["upper"]},
+            "datasetId":{"type":"string"}, "densityIntent":{"type":"string"},
+            "densityMethod":{"type":"string"}, "cellSizeMeters":{"type":"number","exclusiveMinimum":0},
+            "densityClassification":{"type":"string"}
           },"required":["kind"]}},
           "category":{"type":"string"},
           "area":{"type":"string"},
@@ -223,7 +226,12 @@ public sealed class SpatialAnalysisCapability(
                     Distance: ReadDouble(operation, "distance", "radius"),
                     Unit: ReadString(operation, "unit"),
                     Beyond: ReadBool(operation, "beyond"),
-                    Bands: ReadBands(operation)));
+                    Bands: ReadBands(operation),
+                    DatasetId: ReadString(operation, "datasetId", "dataset"),
+                    DensityIntent: ReadString(operation, "densityIntent", "intent"),
+                    DensityMethod: ReadString(operation, "densityMethod", "method"),
+                    CellSizeMeters: ReadDouble(operation, "cellSizeMeters", "cellSize"),
+                    DensityClassification: ReadString(operation, "densityClassification", "classification")));
             }
         }
 
@@ -292,7 +300,18 @@ public sealed class SpatialAnalysisCapability(
                 MarkerShape: layer.Style?.MarkerShape,
                 Opacity: layer.Style?.Opacity,
                 StrokeWidth: layer.Style?.StrokeWidth,
-                Visible: layer.Visible))],
+                Visible: layer.Visible,
+                Density: layer.DensityCells is { Count: > 0 } cells && layer.DensityClassification is { } densityClassification
+                    ? new DensitySurfacePayload(
+                        layer.DensityParameters?.Method.ToString() ?? "Auto",
+                        cells[0].Unit,
+                        layer.DensityParameters?.SearchRadiusMeters,
+                        layer.DensityParameters?.CellSizeMeters,
+                        new DensityClassificationPayload(densityClassification.Method.ToString(), densityClassification.Breaks, densityClassification.Labels),
+                        [.. cells.Select(cell => new DensityCellPayload(cell.Id,
+                            [.. cell.Ring.Select(point => new SpatialRingPoint(point.Latitude, point.Longitude))], cell.Value,
+                            cell.Unit, cell.ClassificationIndex, cell.ClassificationLabel, cell.SourceCount))])
+                    : null))],
             [.. result.Warnings],
             [.. result.Coverage.Select(coverage => new SpatialCoveragePayload(
                 coverage.SourceId,
@@ -315,6 +334,7 @@ public sealed class SpatialAnalysisCapability(
         SpatialLayerKind.Markers => "markers",
         SpatialLayerKind.Buffer => "buffer",
         SpatialLayerKind.Area => "area",
+        SpatialLayerKind.DensitySurface => "density-surface",
         _ => "band",
     };
 

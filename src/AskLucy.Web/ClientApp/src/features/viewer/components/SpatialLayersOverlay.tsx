@@ -250,6 +250,31 @@ export function SpatialLayersOverlay() {
             continue
           }
 
+          if (layer.kind === 'density-surface') {
+            const cells = layer.density?.cells ?? []
+            const maximum = Math.max(...cells.map((cell) => cell.value), 1)
+            for (const cell of cells) {
+              const intensity = Math.max(0.12, Math.min(0.85, cell.value / maximum))
+              const color = densityColor(cell.classificationIndex ?? 0, intensity)
+              const polygon = new google.maps.Polygon({
+                map,
+                paths: cell.ring.map((point) => ({ lat: point.latitude, lng: point.longitude })),
+                strokeColor: color,
+                strokeOpacity: 0.8,
+                strokeWeight: 1,
+                fillColor: color,
+                fillOpacity: (layer.style?.opacity ?? 0.65) * intensity,
+              })
+              polygon.addListener('click', () => {
+                window.dispatchEvent(new CustomEvent('spatial:densityCellSelected', {
+                  detail: { layerId: layer.layerId, cell, density: layer.density },
+                }))
+              })
+              polygonsRef.current.push(polygon)
+            }
+            continue
+          }
+
           if ((layer.ring?.length ?? 0) >= 3) {
             const color = layer.style?.color ?? DEFAULT_AREA_COLOR
             polygonsRef.current.push(
@@ -272,6 +297,9 @@ export function SpatialLayersOverlay() {
           ...(layer.ring ?? []).map((point) => ({ lat: point.latitude, lng: point.longitude })),
           ...(layer.features ?? []).flatMap((f) =>
             f.geometry.points.map((p) => ({ lat: p.latitude, lng: p.longitude })),
+          ),
+          ...(layer.density?.cells ?? []).flatMap((cell) =>
+            cell.ring.map((point) => ({ lat: point.latitude, lng: point.longitude })),
           ),
         ])
 
@@ -314,6 +342,12 @@ export function SpatialLayersOverlay() {
   }, [])
 
   return null
+}
+
+function densityColor(classificationIndex: number, intensity: number): string {
+  const palette = ['#FFF3E0', '#FFCC80', '#FF8A65', '#E53935', '#8E0000']
+  return palette[Math.min(palette.length - 1, Math.max(0, classificationIndex))] ??
+    (intensity > 0.6 ? '#E53935' : '#FFB74D')
 }
 
 /** Exported for the legend's swatch so the two never disagree about a layer's look. */

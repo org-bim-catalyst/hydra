@@ -115,6 +115,8 @@ public sealed class SpatialResultNormalizer
         var resultCount = layers.Sum(layer =>
             layer.Kind == SpatialLayerKind.FeatureQuery
                 ? layer.Features?.Count ?? layer.Markers?.Count ?? 0
+                : layer.Kind == SpatialLayerKind.DensitySurface
+                    ? layer.DensityCells?.Count ?? 0
                 : layer.Markers?.Count ??
                   (layer.Kind == SpatialLayerKind.Buffer ? 0 : layer.Ring is { Count: > 0 } ? 1 : 0));
 
@@ -216,6 +218,22 @@ public sealed class SpatialResultNormalizer
                     .Where(marker => seenMarkerIds.Add(marker.Id))
                     .ToList();
                 break;
+
+            case SpatialLayerKind.DensitySurface:
+                var densityCells = draft.DensityCells?
+                    .Where(cell => !string.IsNullOrWhiteSpace(cell.Id) && double.IsFinite(cell.Value) && cell.Value >= 0 &&
+                        cell.Ring is { Count: >= 3 } && cell.Ring.All(IsValidPoint))
+                    .ToList();
+                if (densityCells is not { Count: > 0 } || draft.DensityClassification is null ||
+                    draft.DensityClassification.Breaks.Any(value => !double.IsFinite(value)))
+                {
+                    warnings.Add("A density surface was ignored because its calculated cells were not valid.");
+                    return null;
+                }
+                return new SpatialLayer(draft.LayerId, analysisId, draft.SourceOperationId, name, legendLabel,
+                    draft.Kind, null, null, draft.Style ?? DefaultStyle(draft.Kind), true,
+                    CleanAttributes(draft.Attributes), null, densityCells, draft.DensityClassification,
+                    draft.DensityParameters);
         }
 
         // specs/095 — validated features for feature-query layers.
@@ -301,6 +319,7 @@ public sealed class SpatialResultNormalizer
         SpatialLayerKind.Markers => new SpatialLayerStyle(Color: "#4285F4", MarkerShape: "simple-dot"),
         SpatialLayerKind.Buffer => new SpatialLayerStyle(Color: "#1976D2", Opacity: 0.25, StrokeWidth: 2),
         SpatialLayerKind.Area => new SpatialLayerStyle(Color: "#43A047", Opacity: 0.2, StrokeWidth: 2),
+        SpatialLayerKind.DensitySurface => new SpatialLayerStyle(Color: "#E53935", Opacity: 0.65, StrokeWidth: 1),
         _ => new SpatialLayerStyle(Color: "#FB8C00", Opacity: 0.2, StrokeWidth: 2),
     };
 
@@ -319,6 +338,7 @@ public sealed class SpatialResultNormalizer
         SpatialOperationKinds.PoiDiscovery => "place search",
         SpatialOperationKinds.ProximityAnalysis => "proximity",
         SpatialOperationKinds.SpatialQuery => "spatial query",
+        SpatialOperationKinds.DensityAnalysis => "density analysis",
         _ => operationKind,
     };
 
@@ -328,6 +348,7 @@ public sealed class SpatialResultNormalizer
         SpatialLayerKind.Buffer => "buffer",
         SpatialLayerKind.Area => "area",
         SpatialLayerKind.FeatureQuery => "feature query",
+        SpatialLayerKind.DensitySurface => "density surface",
         _ => "band",
     };
 

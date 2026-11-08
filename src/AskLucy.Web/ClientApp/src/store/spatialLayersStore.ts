@@ -1,7 +1,25 @@
 import { create } from 'zustand'
 
 /** specs/094 — the kinds the server can send. Unknown kinds are ignored by the client. */
-export type SpatialLayerKind = 'markers' | 'buffer' | 'area' | 'band' | 'feature-query'
+export type SpatialLayerKind = 'markers' | 'buffer' | 'area' | 'band' | 'feature-query' | 'density-surface'
+
+export interface DensityCell {
+  id: string
+  ring: SpatialRingPoint[]
+  value: number
+  unit: string
+  classificationIndex?: number | null
+  classificationLabel?: string | null
+  sourceCount?: number | null
+}
+export interface DensitySurface {
+  method: string
+  unit: string
+  searchRadiusMeters?: number | null
+  cellSizeMeters?: number | null
+  classification: { method: string; breaks: number[]; labels: string[] }
+  cells: DensityCell[]
+}
 
 /** specs/095 — attribute map keyed by field name. Values may be string, number, or null. */
 export type FeatureAttributes = Record<string, string | number | null>
@@ -67,6 +85,7 @@ export interface SpatialLayerPayload {
   isFinal?: boolean | null
   /** specs/095 — warning message set when query timed out or produced a large result. */
   warning?: string | null
+  density?: DensitySurface | null
 }
 
 /** One active layer; `analysisId` is stamped on arrival from the event's top-level id. */
@@ -120,6 +139,7 @@ const validKinds: readonly SpatialLayerKind[] = [
   'area',
   'band',
   'feature-query',
+  'density-surface',
 ]
 
 function isRenderable(layer: SpatialLayerPayload): boolean {
@@ -127,6 +147,10 @@ function isRenderable(layer: SpatialLayerPayload): boolean {
   if (layer.kind === 'feature-query') {
     // feature-query layers are renderable even when empty (streaming in progress)
     return true
+  }
+  if (layer.kind === 'density-surface') {
+    return (layer.density?.cells ?? []).every((cell) =>
+      Number.isFinite(cell.value) && cell.value >= 0 && cell.ring.length >= 3)
   }
   if (layer.kind === 'markers') return (layer.markers?.length ?? 0) > 0
   return (layer.ring?.length ?? 0) >= 3

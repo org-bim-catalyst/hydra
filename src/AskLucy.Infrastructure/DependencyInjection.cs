@@ -10,6 +10,7 @@ using AskLucy.Application.OperationalFailures.Abstractions;
 using AskLucy.Application.Options;
 using AskLucy.Application.Overpass;
 using AskLucy.Application.PointsOfInterest;
+using AskLucy.Application.Spatial.Density;
 using AskLucy.Application.SiteAnalysis.Providers;
 using AskLucy.Application.SiteBoundaries;
 using AskLucy.Domain.Notifications;
@@ -753,6 +754,8 @@ public static class DependencyInjection
         // specs/095-spatial-query-analysis — Overpass-backed spatial query provider.
         services.AddScoped<AskLucy.Application.Spatial.Query.ISpatialQueryProvider,
             AskLucy.Infrastructure.Spatial.Query.OverpassSpatialQueryProvider>();
+        services.AddScoped<AskLucy.Application.Spatial.Density.IDensityAnalysisProvider,
+            AskLucy.Infrastructure.Spatial.Density.OverpassDensityAnalysisProvider>();
 
         return services;
     }

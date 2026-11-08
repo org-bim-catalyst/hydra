@@ -7,6 +7,11 @@ public sealed record SpatialMarkerData(string Id, string Name, double Latitude, 
 
 /// <summary>One vertex of a buffer/area/band outline, in WGS-84.</summary>
 public sealed record SpatialRingPoint(double Latitude, double Longitude);
+public sealed record DensityCellPayload(string Id, IReadOnlyList<SpatialRingPoint> Ring, double Value,
+    string Unit, int? ClassificationIndex, string? ClassificationLabel, int SourceCount);
+public sealed record DensityClassificationPayload(string Method, IReadOnlyList<double> Breaks, IReadOnlyList<string> Labels);
+public sealed record DensitySurfacePayload(string Method, string Unit, double? SearchRadiusMeters,
+    double? CellSizeMeters, DensityClassificationPayload Classification, IReadOnlyList<DensityCellPayload> Cells);
 
 /// <summary>
 /// One renderable layer. <see cref="Kind"/> is one of <c>markers</c>, <c>buffer</c>, <c>area</c>,
@@ -25,7 +30,8 @@ public sealed record SpatialLayerPayload(
     string? MarkerShape = null,
     double? Opacity = null,
     double? StrokeWidth = null,
-    bool Visible = true);
+    bool Visible = true,
+    DensitySurfacePayload? Density = null);
 
 /// <summary>What one data source contributed, for the legend's provenance line.</summary>
 public sealed record SpatialCoveragePayload(
