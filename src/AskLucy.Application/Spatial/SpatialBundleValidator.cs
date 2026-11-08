@@ -1,5 +1,5 @@
-using AskLucy.Application.Spatial.Query;
 using AskLucy.Application.Spatial.Density;
+using AskLucy.Application.Spatial.Query;
 using FluentValidation;
 
 namespace AskLucy.Application.Spatial;
