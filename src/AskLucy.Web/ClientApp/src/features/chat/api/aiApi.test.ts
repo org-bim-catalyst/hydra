@@ -303,7 +303,7 @@ describe('streamChat', () => {
     expect(spatial && spatial.type === 'spatialLayers' && spatial.layers[0].layerId).toBe('op-1:school')
   })
 
-  it('ignores a malformed __SPATIAL_LAYERS__ payload instead of failing the turn', async () => {
+  it('surfaces a malformed __SPATIAL_LAYERS__ payload as a retryable turn failure', async () => {
     vi.stubGlobal(
       'fetch',
       vi.fn().mockResolvedValue(
@@ -311,12 +311,12 @@ describe('streamChat', () => {
       ),
     )
 
-    const events: ChatStreamEvent[] = []
-    for await (const event of streamChat('chat-1', [{ role: 'user', content: 'test' }], 'p1', 'm1', undefined)) {
-      events.push(event)
-    }
-
-    expect(events.some((event) => event.type === 'spatialLayers')).toBe(false)
+    await expect(async () => {
+      for await (const event of streamChat('chat-1', [{ role: 'user', content: 'test' }], 'p1', 'm1', undefined)) {
+        // Consume the stream to surface its explicit visible failure.
+        void event
+      }
+    }).rejects.toThrow('Lucy could not display the map analysis. Please try again.')
   })
 
   // specs/052-solar-analysis research D3: __SOLAR_ANALYSIS__ trailing SSE event
