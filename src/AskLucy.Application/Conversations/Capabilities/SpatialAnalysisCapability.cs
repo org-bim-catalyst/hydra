@@ -120,7 +120,7 @@ public sealed class SpatialAnalysisCapability(
                 "criterionId":{"type":"string"},"weight":{"type":"number","minimum":0}
               },"required":["criterionId","weight"]}}},"required":["weights"]}
             },"required":["candidateRef","inputs","steps","criteria"]}
-          },"required":["kind"]}},
+          },"required":["kind"]}}},
           "category":{"type":"string"},
           "area":{"type":"string"},
           "mode":{"type":"string","enum":["keep","replace"]}

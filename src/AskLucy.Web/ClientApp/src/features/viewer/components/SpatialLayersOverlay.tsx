@@ -359,6 +359,7 @@ export function SpatialLayersOverlay() {
   )
 }
 
+
 function densityColor(classificationIndex: number, intensity: number): string {
   const palette = ['#FFF3E0', '#FFCC80', '#FF8A65', '#E53935', '#8E0000']
   return palette[Math.min(palette.length - 1, Math.max(0, classificationIndex))] ??
