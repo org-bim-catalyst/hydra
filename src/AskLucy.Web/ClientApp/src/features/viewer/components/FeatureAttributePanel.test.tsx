@@ -46,6 +46,21 @@ describe('FeatureAttributePanel', () => {
     expect(screen.getByText('Commercial')).toBeInTheDocument()
   })
 
+  it('shows the overlay rank, score, and source provenance', () => {
+    const ranked: SpatialQueryFeature = {
+      ...feature,
+      overlay: { eligibility: { access: true, density: false }, criterionScores: { access: 0.8 }, score: 0.8, rank: 1, provenance: ['parcels', 'roads'] },
+    }
+    render(<FeatureAttributePanel feature={ranked} datasetFields={datasetFields} onClose={vi.fn()} />)
+
+    expect(screen.getByText('Rank: 1')).toBeInTheDocument()
+    expect(screen.getByText('Suitability score: 0.800')).toBeInTheDocument()
+    expect(screen.getByText('Sources: parcels, roads')).toBeInTheDocument()
+    expect(screen.getByText('access: meets criterion')).toBeInTheDocument()
+    expect(screen.getByText('density: does not meet criterion')).toBeInTheDocument()
+    expect(screen.getByText('access score: 0.800')).toBeInTheDocument()
+  })
+
   it('falls back to the raw key when the field is unknown', () => {
     const withUnknown: SpatialQueryFeature = {
       ...feature,

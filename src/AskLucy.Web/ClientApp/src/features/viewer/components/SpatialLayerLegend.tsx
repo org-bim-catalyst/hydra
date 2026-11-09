@@ -131,6 +131,23 @@ export function SpatialLayerLegend() {
                   {layer.density.cellSizeMeters ? ` · ${layer.density.cellSizeMeters} m cells` : ''}
                 </Typography>
               )}
+              {layer.overlay && (
+                <Typography variant="caption" sx={{ opacity: 0.78 }}>
+                  {layer.overlay.role} · {layer.overlay.operation} · {layer.overlay.criteria.join(', ')}
+                  {layer.overlay.sources.length ? ` · ${layer.overlay.sources.join(', ')}` : ''}
+                  {layer.overlay.scoreMeaning ? ` · ${layer.overlay.scoreMeaning}` : ''}
+                </Typography>
+              )}
+              {layer.overlay?.coverage?.map((entry) => (
+                <Typography key={entry} variant="caption" sx={{ opacity: 0.78 }}>
+                  {entry}
+                </Typography>
+              ))}
+              {layer.coverage?.map((source) => (
+                <Typography key={source.sourceId} variant="caption" sx={{ opacity: 0.78 }}>
+                  {source.displayName}: {source.coverageStatus}{source.explanation ? ` · ${source.explanation}` : ''}
+                </Typography>
+              ))}
               {/* specs/095 — timeout / large-result warning */}
               {layer.warning && (
                 <Stack direction="row" spacing={0.5} sx={{ alignItems: 'center', mt: 0.25 }}>

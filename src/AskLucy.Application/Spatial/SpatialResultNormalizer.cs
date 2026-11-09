@@ -112,7 +112,7 @@ public sealed class SpatialResultNormalizer
         // "1 school within 1 km" narrate as "2 results" (specs/093). Areas still count as one
         // feature each because they ARE the result of an area analysis.
         // specs/095 — feature-query layers count individual features, not layers.
-        var resultCount = layers.Sum(layer =>
+        var resultCount = layers.Where(layer => layer.Overlay?.Role != "input").Sum(layer =>
             layer.Kind == SpatialLayerKind.FeatureQuery
                 ? layer.Features?.Count ?? layer.Markers?.Count ?? 0
                 : layer.Kind == SpatialLayerKind.DensitySurface
@@ -253,7 +253,9 @@ public sealed class SpatialResultNormalizer
             draft.Style ?? DefaultStyle(draft.Kind),
             Visible: true,
             CleanAttributes(draft.Attributes),
-            Features: validatedFeatures);
+            Features: validatedFeatures,
+            Overlay: draft.Overlay,
+            Coverage: draft.Coverage);
     }
 
     private static bool IsValidMarker(SpatialMarker marker) =>
@@ -275,12 +277,44 @@ public sealed class SpatialResultNormalizer
         }
 
         return features
-            .Where(f =>
-                f is not null &&
-                !string.IsNullOrWhiteSpace(f.FeatureId) &&
-                f.Geometry?.Points is { Count: > 0 } &&
-                f.Geometry.Points.All(p => IsValidPoint(p)))
+            .Where(f => f is not null && IsValidFeature(f))
+            .Select(f => f with { Overlay = CleanOverlayMetadata(f.Overlay) })
             .ToList();
+    }
+
+    private static bool IsValidFeature(Query.QueryResultFeature feature)
+    {
+        if (string.IsNullOrWhiteSpace(feature.FeatureId) || feature.FeatureId.Length > 200 ||
+            feature.Geometry?.Points is not { Count: > 0 } points || points.Any(point => !IsValidPoint(point)))
+        {
+            return false;
+        }
+
+        return feature.Geometry.Kind switch
+        {
+            Query.FeatureGeometryKind.Point => points.Count == 1,
+            Query.FeatureGeometryKind.LineString => points.Count >= 2,
+            Query.FeatureGeometryKind.Polygon => points.Count >= 4 && points[0] == points[^1],
+            _ => false,
+        };
+    }
+
+    private static OverlayFeatureMetadata? CleanOverlayMetadata(OverlayFeatureMetadata? metadata)
+    {
+        if (metadata is null || metadata.Score is { } score && !double.IsFinite(score) || metadata.Rank is < 1)
+        {
+            return null;
+        }
+
+        var scores = metadata.CriterionScores
+            .Where(pair => !string.IsNullOrWhiteSpace(pair.Key) && double.IsFinite(pair.Value))
+            .ToDictionary(pair => pair.Key[..Math.Min(pair.Key.Length, 80)], pair => pair.Value, StringComparer.Ordinal);
+        var eligibility = metadata.Eligibility
+            .Where(pair => !string.IsNullOrWhiteSpace(pair.Key))
+            .ToDictionary(pair => pair.Key[..Math.Min(pair.Key.Length, 80)], pair => pair.Value, StringComparer.Ordinal);
+        var provenance = metadata.Provenance.Where(value => !string.IsNullOrWhiteSpace(value))
+            .Select(value => value[..Math.Min(value.Length, 120)]).Take(20).ToList();
+        return metadata with { CriterionScores = scores, Eligibility = eligibility, Provenance = provenance };
     }
 
     private static Dictionary<string, string>? CleanAttributes(

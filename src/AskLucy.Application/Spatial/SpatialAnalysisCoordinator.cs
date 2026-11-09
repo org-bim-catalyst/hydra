@@ -1,5 +1,5 @@
-using Microsoft.Extensions.Logging;
 using AskLucy.Application.Spatial.Density;
+using Microsoft.Extensions.Logging;
 
 namespace AskLucy.Application.Spatial;
 
@@ -39,7 +39,8 @@ public sealed record SpatialOperationInput(
     string? DensityIntent = null,
     string? DensityMethod = null,
     double? CellSizeMeters = null,
-    string? DensityClassification = null);
+    string? DensityClassification = null,
+    OverlayAnalysisParameters? OverlayParameters = null);
 
 /// <summary>One requested distance band, in the unit the request also carries.</summary>
 public sealed record SpatialBandInput(double Lower, double Upper);
@@ -89,6 +90,28 @@ public sealed class SpatialAnalysisCoordinator(
                 FailureReason: "I couldn't tell what to look for on the map.");
         }
 
+        var pendingRequest = layerStateStore.GetPending(chatId);
+        if (pendingRequest is { Question: not SpatialPendingQuestion.KeepOrReplace } &&
+            string.Equals(pendingRequest.OperationKind, SpatialOperationKinds.OverlayAnalysis, StringComparison.OrdinalIgnoreCase) &&
+            pendingRequest.Request is not null)
+        {
+            if (string.IsNullOrWhiteSpace(input.Operations.FirstOrDefault()?.Area))
+            {
+                input = pendingRequest.Request;
+            }
+            else
+            {
+                var requestedArea = input.Operations.First(operation => !string.IsNullOrWhiteSpace(operation.Area)).Area;
+                input = pendingRequest.Request with
+                {
+                    Operations = pendingRequest.Request.Operations.Select(operation => operation with
+                    {
+                        Area = string.IsNullOrWhiteSpace(operation.Area) ? requestedArea : operation.Area,
+                    }).ToList(),
+                };
+            }
+        }
+
         var mode = ResolveLayerMode(input, chatId, lastUserMessage);
         if (mode.ImmediateQuestion is { } keepOrReplace)
         {
@@ -123,7 +146,8 @@ public sealed class SpatialAnalysisCoordinator(
                     input.Operations.Count > 0 ? input.Operations[0].Category : null,
                     input.Operations.Count > 0 ? input.Operations[0].Area : null,
                     SpatialPendingQuestion.WhichArea,
-                    timeProvider.GetUtcNow().UtcDateTime));
+                    timeProvider.GetUtcNow().UtcDateTime,
+                    input));
 
                 return new SpatialCoordinatorOutcome(
                     Question: question,
@@ -199,7 +223,8 @@ public sealed class SpatialAnalysisCoordinator(
                 input.Operations.Count > 0 ? input.Operations[0].Category : null,
                 input.Operations.Count > 0 ? input.Operations[0].Area : null,
                 SpatialPendingQuestion.KeepOrReplace,
-                timeProvider.GetUtcNow().UtcDateTime));
+                timeProvider.GetUtcNow().UtcDateTime,
+                input));
 
             return new LayerModeResolution(SpatialLayerMode.Ask, question);
         }
@@ -287,6 +312,15 @@ public sealed class SpatialAnalysisCoordinator(
                 input.Distance, input.CellSizeMeters, classification);
             return new SpatialOperation(operationId, SpatialOperationKinds.DensityAnalysis,
                 [new FeatureSelector(Category: input.Category ?? input.DatasetId)], null, studyArea, DensityParameters: density);
+        }
+
+        if (string.Equals(input.Kind, SpatialOperationKinds.OverlayAnalysis, StringComparison.OrdinalIgnoreCase))
+        {
+            var candidateDataset = input.OverlayParameters?.Inputs
+                .FirstOrDefault(candidate => candidate.Role == OverlayInputRole.Candidate)?.DatasetId;
+            return new SpatialOperation(operationId, SpatialOperationKinds.OverlayAnalysis,
+                [new FeatureSelector(Category: candidateDataset)], null, studyArea,
+                OverlayParameters: input.OverlayParameters);
         }
 
         // Any other kind is carried through unchanged: the registry decides whether it can run,

@@ -148,6 +148,50 @@ public sealed class SpatialAnalysisCapabilityTests
     }
 
     [Fact]
+    public async Task ExecuteAsync_ShouldParseTypedOverlayInputsStepsAndCriteria()
+    {
+        GivenAreaResolvesTo("Muscat");
+        SpatialOperation? executedOperation = null;
+        var overlaySpecialist = Substitute.For<ISpatialSpecialist>();
+        overlaySpecialist.OperationKind.Returns(SpatialOperationKinds.OverlayAnalysis);
+        overlaySpecialist.ExecuteAsync(Arg.Any<SpatialOperation>(), Arg.Any<SpatialExecutionContext>(), Arg.Any<CancellationToken>())
+            .Returns(call =>
+            {
+                executedOperation = call.Arg<SpatialOperation>();
+                return SpatialSpecialistOutcome.Empty([DataSourceCoverage.Complete("land-parcels", "Land Parcels")]);
+            });
+        var registry = new SpatialSpecialistRegistry([
+            new PoiDiscoverySpecialist(_poiProvider, _catalog),
+            overlaySpecialist,
+        ]);
+        var coordinator = new SpatialAnalysisCoordinator(
+            registry,
+            new SpatialBundleValidator(),
+            new SpatialResultNormalizer(),
+            new StudyAreaResolver(_locationService, _chats, TestEffectiveSiteBoundary.None()),
+            _store,
+            TimeProvider.System,
+            NullLogger<SpatialAnalysisCoordinator>.Instance);
+        var capability = new SpatialAnalysisCapability(coordinator, _store, _catalog, _messages);
+        var input = Input("""
+            {"mode":"replace","operations":[{"kind":"overlay.analysis","area":"Muscat","overlay":{
+              "candidateRef":"parcels",
+              "inputs":[{"ref":"parcels","datasetId":"land-parcels","role":"candidate"},{"ref":"zones","datasetId":"development-areas","role":"constraint"}],
+              "steps":[{"stepId":"eligible","kind":"spatialIntersection","inputRefs":["parcels","zones"],"outputRef":"eligible","relationship":"intersects"}],
+              "criteria":[{"criterionId":"large","kind":"area","inputRef":"parcels","operator":"greaterThan","number":5000,"unit":"m2","required":true}]
+            }}]}
+            """);
+
+        var result = await capability.ExecuteAsync(Context(), input, default);
+
+        result.Succeeded.Should().BeTrue(result.FailureReason);
+        executedOperation.Should().NotBeNull();
+        executedOperation!.OverlayParameters!.Inputs.Should().HaveCount(2);
+        executedOperation.OverlayParameters.Steps[0].Relationship.Should().Be(OverlaySpatialRelation.Intersects);
+        executedOperation.OverlayParameters.Criteria[0].Number.Should().Be(5000);
+    }
+
+    [Fact]
     public async Task ExecuteAsync_ShouldDrawWithoutAsking_WhenNothingIsOnTheMapYet()
     {
         GivenAreaResolvesTo("Muscat");

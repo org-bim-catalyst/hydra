@@ -1,6 +1,7 @@
 import { apiFetch, ApiError, attemptSilentRefresh, redirectToLogin } from '../../../api/httpClient'
 import { useAuthStore } from '../../../store/authStore'
 import type { SpatialLayerPayload } from '../../../store/spatialLayersStore'
+import { isValidSpatialLayerPayload } from '../../../store/spatialLayersStore'
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? '/api/v1'
 
@@ -504,7 +505,7 @@ export async function* streamChat(
           analysisId?: string
           status?: string
           mode?: string
-          layers?: SpatialLayerPayload[]
+          layers?: unknown
           warnings?: string[]
           coverage?: { sourceId: string; displayName: string; coverageStatus: string; explanation?: string | null }[]
           count?: number
@@ -518,13 +519,17 @@ export async function* streamChat(
           throw new Error('Lucy could not display the map analysis. Please try again.')
         }
 
+        if (!Array.isArray(payload.layers) || !payload.layers.every(isValidSpatialLayerPayload)) {
+          throw new Error('Lucy returned map analysis that could not be displayed. Please try again.')
+        }
+
         yield {
           type: 'spatialLayers',
           analysisId: payload.analysisId ?? '',
           status:
             payload.status === 'Partial' || payload.status === 'Empty' ? payload.status : 'Complete',
           mode: payload.mode === 'keep' ? 'keep' : 'replace',
-          layers: Array.isArray(payload.layers) ? payload.layers : [],
+          layers: payload.layers,
           warnings: Array.isArray(payload.warnings) ? payload.warnings : [],
           coverage: Array.isArray(payload.coverage) ? payload.coverage : [],
           count: typeof payload.count === 'number' ? payload.count : 0,

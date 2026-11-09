@@ -222,6 +222,25 @@ public sealed class SpatialAnalysisCoordinatorTests
         specialist.Calls.Should().Be(0);
     }
 
+    [Fact]
+    public async Task ExecuteAsync_ShouldRetainOverlayRequestWhileAskingForAStudyArea()
+    {
+        var parameters = new OverlayAnalysisParameters("parcels",
+            [new OverlayInput("parcels", "land-parcels", OverlayInputRole.Candidate),
+             new OverlayInput("zones", "development-areas", OverlayInputRole.Constraint)],
+            [new OverlayStep("eligible", OverlayOperationKind.Intersection, ["parcels", "zones"], "eligible")],
+            [new OverlayCriterion("available", OverlayCriterionKind.Attribute, "parcels", "eq", "status", Text: "available")]);
+        var request = new SpatialOperationInput(SpatialOperationKinds.OverlayAnalysis, OverlayParameters: parameters);
+        var specialist = new FixedSpecialist(SpatialOperationKinds.OverlayAnalysis, SuccessOutcome);
+
+        var outcome = await Build(specialist).ExecuteAsync(Input(request),
+            Context() with { MapContext = null }, lastUserMessage: null, CancellationToken.None);
+
+        outcome.PendingQuestion.Should().Be(SpatialPendingQuestion.WhichArea);
+        _store.GetPending(ChatId)!.Request!.Operations[0].OverlayParameters.Should().BeEquivalentTo(parameters);
+        specialist.Calls.Should().Be(0);
+    }
+
     private static SpatialSpecialistOutcome SuccessOutcome(SpatialOperation operation) =>
         new(
             SpatialOperationStatus.Succeeded,

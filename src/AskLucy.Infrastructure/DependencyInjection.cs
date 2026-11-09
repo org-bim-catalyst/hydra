@@ -10,9 +10,9 @@ using AskLucy.Application.OperationalFailures.Abstractions;
 using AskLucy.Application.Options;
 using AskLucy.Application.Overpass;
 using AskLucy.Application.PointsOfInterest;
-using AskLucy.Application.Spatial.Density;
 using AskLucy.Application.SiteAnalysis.Providers;
 using AskLucy.Application.SiteBoundaries;
+using AskLucy.Application.Spatial.Density;
 using AskLucy.Domain.Notifications;
 using AskLucy.Infrastructure.Agents;
 using AskLucy.Infrastructure.Ai;
@@ -756,6 +756,8 @@ public static class DependencyInjection
             AskLucy.Infrastructure.Spatial.Query.OverpassSpatialQueryProvider>();
         services.AddScoped<AskLucy.Application.Spatial.Density.IDensityAnalysisProvider,
             AskLucy.Infrastructure.Spatial.Density.OverpassDensityAnalysisProvider>();
+        services.AddScoped<AskLucy.Application.Spatial.IOverlayAnalysisProvider,
+            AskLucy.Infrastructure.Spatial.Overlay.OverlayAnalysisProvider>();
 
         return services;
     }

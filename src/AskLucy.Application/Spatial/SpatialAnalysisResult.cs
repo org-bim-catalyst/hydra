@@ -1,5 +1,5 @@
-using AskLucy.Application.Spatial.Query;
 using AskLucy.Application.Spatial.Density;
+using AskLucy.Application.Spatial.Query;
 using AskLucy.Domain.SiteBoundaries;
 
 namespace AskLucy.Application.Spatial;
@@ -107,7 +107,9 @@ public sealed record SpatialLayerDraft(
     IReadOnlyList<Query.QueryResultFeature>? Features = null,
     IReadOnlyList<DensityCell>? DensityCells = null,
     DensityClassificationResult? DensityClassification = null,
-    DensityAnalysisParameters? DensityParameters = null);
+    DensityAnalysisParameters? DensityParameters = null,
+    OverlayLayerMetadata? Overlay = null,
+    IReadOnlyList<DataSourceCoverage>? Coverage = null);
 
 /// <summary>
 /// A validated, renderable layer. Session-scoped: the client owns visibility and removal once it
@@ -128,7 +130,9 @@ public sealed record SpatialLayer(
     IReadOnlyList<Query.QueryResultFeature>? Features = null,
     IReadOnlyList<DensityCell>? DensityCells = null,
     DensityClassificationResult? DensityClassification = null,
-    DensityAnalysisParameters? DensityParameters = null);
+    DensityAnalysisParameters? DensityParameters = null,
+    OverlayLayerMetadata? Overlay = null,
+    IReadOnlyList<DataSourceCoverage>? Coverage = null);
 
 /// <summary>specs/095 — display attributes for feature-query markers.</summary>
 public sealed record SpatialMarker(string Id, string Name, double Latitude, double Longitude,

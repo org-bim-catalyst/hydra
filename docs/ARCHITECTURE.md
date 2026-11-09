@@ -1998,3 +1998,15 @@ validates the whole bundle, resolves the study area (explicit place → active b
 ask), applies keep-or-replace policy, and logs every failure with the request, operation and
 specialist that caused it. Layer state is session-scoped in `SpatialLayerStateStore`; there is no
 new table or migration.
+
+`overlay.analysis` is an additive specialist on this same path (specs/097). Its typed bundle names
+catalog inputs, a candidate layer, ordered intersection/union/difference/spatial-selection steps,
+hard criteria and optional ranking weights. The Application layer validates references and bounds,
+then `IOverlayAnalysisProvider` retrieves data through existing spatial query providers and executes
+geometry work in Infrastructure with the existing NetTopologySuite dependency. Results use the
+normalized `feature-query` layer contract, with per-layer source/operation metadata and per-feature
+eligibility, provenance, score and rank. The existing stream event, map layer store, feature
+inspector and legend carry those results; each layer can be toggled or removed independently. No
+new HTTP endpoint, database table or migration is introduced. Missing catalog data, excluded
+candidates, invalid geometries and provider errors are surfaced as explicit empty/failure outcomes
+or warnings rather than being silently treated as suitable locations.

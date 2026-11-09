@@ -303,7 +303,7 @@ describe('streamChat', () => {
     expect(spatial && spatial.type === 'spatialLayers' && spatial.layers[0].layerId).toBe('op-1:school')
   })
 
-  it('ignores a malformed __SPATIAL_LAYERS__ payload instead of failing the turn', async () => {
+  it('surfaces a malformed __SPATIAL_LAYERS__ payload as a retryable turn failure', async () => {
     vi.stubGlobal(
       'fetch',
       vi.fn().mockResolvedValue(
@@ -311,12 +311,30 @@ describe('streamChat', () => {
       ),
     )
 
-    const events: ChatStreamEvent[] = []
-    for await (const event of streamChat('chat-1', [{ role: 'user', content: 'test' }], 'p1', 'm1', undefined)) {
-      events.push(event)
-    }
+    await expect(async () => {
+      for await (const event of streamChat('chat-1', [{ role: 'user', content: 'test' }], 'p1', 'm1', undefined)) {
+        // Consume the stream to surface its explicit visible failure.
+        void event
+      }
+    }).rejects.toThrow('Lucy could not display the map analysis. Please try again.')
+  })
 
-    expect(events.some((event) => event.type === 'spatialLayers')).toBe(false)
+  it('surfaces malformed overlay feature geometry instead of dropping the result layer', async () => {
+    const payload = { analysisId: 'a1', status: 'Complete', mode: 'replace', layers: [{
+      layerId: 'overlay-result', sourceOperation: 'op-1', name: 'Candidates', legendLabel: 'Candidates',
+      kind: 'feature-query', visible: true, features: [{ featureId: 'f1', name: 'Parcel',
+        geometry: { kind: 'polygon', points: [{ latitude: 95, longitude: 0 }] }, attributes: {},
+      }],
+    }] }
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(sseResponse([
+      `data: __SPATIAL_LAYERS__${JSON.stringify(payload)}\n\n`, 'data: [DONE]\n\n',
+    ])))
+
+    await expect(async () => {
+      for await (const event of streamChat('chat-1', [{ role: 'user', content: 'test' }], 'p1', 'm1', undefined)) {
+        void event
+      }
+    }).rejects.toThrow('Lucy returned map analysis that could not be displayed. Please try again.')
   })
 
   // specs/052-solar-analysis research D3: __SOLAR_ANALYSIS__ trailing SSE event

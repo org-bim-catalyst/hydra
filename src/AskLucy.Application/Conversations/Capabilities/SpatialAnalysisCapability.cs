@@ -95,10 +95,31 @@ public sealed class SpatialAnalysisCapability(
             "bands":{"type":"array","items":{"type":"object","properties":{
               "lower":{"type":"number","minimum":0},
               "upper":{"type":"number","exclusiveMinimum":0}
-            },"required":["upper"]},
+            },"required":["upper"]}},
             "datasetId":{"type":"string"}, "densityIntent":{"type":"string"},
             "densityMethod":{"type":"string"}, "cellSizeMeters":{"type":"number","exclusiveMinimum":0},
-            "densityClassification":{"type":"string"}
+            "densityClassification":{"type":"string"},
+            "overlay":{"type":"object","properties":{
+              "candidateRef":{"type":"string"},
+              "inputs":{"type":"array","items":{"type":"object","properties":{
+                "ref":{"type":"string"},"datasetId":{"type":"string"},
+                "role":{"type":"string","enum":["candidate","criterion","constraint","reference"]}
+              },"required":["ref","datasetId","role"]}},
+              "steps":{"type":"array","items":{"type":"object","properties":{
+                "stepId":{"type":"string"},"kind":{"type":"string","enum":["intersection","union","difference","spatialIntersection"]},
+                "inputRefs":{"type":"array","items":{"type":"string"}},"outputRef":{"type":"string"},
+                "relationship":{"type":"string","enum":["intersects","within","contains"]}
+              },"required":["stepId","kind","inputRefs","outputRef"]}},
+              "criteria":{"type":"array","items":{"type":"object","properties":{
+                "criterionId":{"type":"string"},"kind":{"type":"string","enum":["attribute","area","distance","spatialRelationship"]},
+                "inputRef":{"type":"string"},"operator":{"type":"string"},"field":{"type":"string"},
+                "number":{"type":"number"},"text":{"type":"string"},"unit":{"type":"string","enum":["m","km","m2","km2"]},
+                "required":{"type":"boolean"},"direction":{"type":"string","enum":["higherIsBetter","lowerIsBetter"]}
+              },"required":["criterionId","kind","inputRef","operator","required"]}},
+              "scoring":{"type":"object","properties":{"weights":{"type":"array","items":{"type":"object","properties":{
+                "criterionId":{"type":"string"},"weight":{"type":"number","minimum":0}
+              },"required":["criterionId","weight"]}}},"required":["weights"]}
+            },"required":["candidateRef","inputs","steps","criteria"]}
           },"required":["kind"]}},
           "category":{"type":"string"},
           "area":{"type":"string"},
@@ -231,8 +252,27 @@ public sealed class SpatialAnalysisCapability(
                     DensityIntent: ReadString(operation, "densityIntent", "intent"),
                     DensityMethod: ReadString(operation, "densityMethod", "method"),
                     CellSizeMeters: ReadDouble(operation, "cellSizeMeters", "cellSize"),
-                    DensityClassification: ReadString(operation, "densityClassification", "classification")));
+                    DensityClassification: ReadString(operation, "densityClassification", "classification"),
+                    OverlayParameters: ReadOverlayParameters(operation)));
             }
+        }
+
+        // A study-area question must retain the interpreted operation inputs. In particular,
+        // overlay candidates, criteria and ordered steps cannot be reconstructed from a bare
+        // place-name reply, so resume that in-memory request and fill only the missing area.
+        if (pending?.Question == SpatialPendingQuestion.WhichArea && pending.Request is { } pendingRequest &&
+            pendingRequest.Operations.Any(operation => operation.Kind == SpatialOperationKinds.OverlayAnalysis))
+        {
+            var answerArea = operations.Select(operation => operation.Area)
+                .FirstOrDefault(areaName => !string.IsNullOrWhiteSpace(areaName)) ??
+                lastUserMessage?.Trim() ?? pending.AreaName;
+            return pendingRequest with
+            {
+                Operations = pendingRequest.Operations.Select(operation => operation with
+                {
+                    Area = string.IsNullOrWhiteSpace(operation.Area) ? answerArea : operation.Area,
+                }).ToList(),
+            };
         }
 
         // A decider that has learned the old single-category shape, or a bare "yes"/"Oman" answer
@@ -301,6 +341,22 @@ public sealed class SpatialAnalysisCapability(
                 Opacity: layer.Style?.Opacity,
                 StrokeWidth: layer.Style?.StrokeWidth,
                 Visible: layer.Visible,
+                Features: layer.Features?.Select(feature => new SpatialFeaturePayload(
+                    feature.FeatureId,
+                    feature.Name,
+                    new SpatialFeatureGeometryPayload(feature.Geometry.Kind.ToString().ToLowerInvariant(),
+                        feature.Geometry.Points.Select(point => new SpatialRingPoint(point.Latitude, point.Longitude)).ToList()),
+                    feature.Attributes,
+                    feature.Overlay is { } metadata
+                        ? new OverlayFeatureMetadataPayload(metadata.Eligibility, metadata.CriterionScores,
+                            metadata.Score, metadata.Rank, metadata.Provenance)
+                        : null)).ToList(),
+                Overlay: layer.Overlay is { } overlay
+                    ? new OverlayLayerMetadataPayload(overlay.Role, overlay.Operation, overlay.Criteria,
+                        overlay.Sources, overlay.ScoreMeaning, overlay.Coverage)
+                    : null,
+                Coverage: layer.Coverage?.Select(source => new SpatialCoveragePayload(source.SourceId,
+                    source.DisplayName, source.CoverageStatus, source.Explanation)).ToList(),
                 Density: layer.DensityCells is { Count: > 0 } cells && layer.DensityClassification is { } densityClassification
                     ? new DensitySurfacePayload(
                         layer.DensityParameters?.Method.ToString() ?? "Auto",
@@ -334,6 +390,7 @@ public sealed class SpatialAnalysisCapability(
         SpatialLayerKind.Markers => "markers",
         SpatialLayerKind.Buffer => "buffer",
         SpatialLayerKind.Area => "area",
+        SpatialLayerKind.FeatureQuery => "feature-query",
         SpatialLayerKind.DensitySurface => "density-surface",
         _ => "band",
     };
@@ -393,6 +450,101 @@ public sealed class SpatialAnalysisCapability(
 
         return bands.Count > 0 ? bands : null;
     }
+
+    private static OverlayAnalysisParameters? ReadOverlayParameters(JsonElement operation)
+    {
+        var root = operation.TryGetProperty("overlay", out var overlayElement) &&
+                   overlayElement.ValueKind == JsonValueKind.Object
+            ? overlayElement
+            : operation;
+
+        if (!root.TryGetProperty("inputs", out var inputsElement) || inputsElement.ValueKind != JsonValueKind.Array ||
+            !root.TryGetProperty("steps", out var stepsElement) || stepsElement.ValueKind != JsonValueKind.Array ||
+            !root.TryGetProperty("criteria", out var criteriaElement) || criteriaElement.ValueKind != JsonValueKind.Array)
+        {
+            return null;
+        }
+
+        var inputs = inputsElement.EnumerateArray()
+            .Where(item => item.ValueKind == JsonValueKind.Object)
+            .Select(item => new OverlayInput(
+                ReadString(item, "ref") ?? string.Empty,
+                ReadString(item, "datasetId", "dataset") ?? string.Empty,
+                ParseEnum(ReadString(item, "role"), OverlayInputRole.Reference)))
+            .ToList();
+
+        var steps = stepsElement.EnumerateArray()
+            .Where(item => item.ValueKind == JsonValueKind.Object)
+            .Select(item => new OverlayStep(
+                ReadString(item, "stepId") ?? string.Empty,
+                ParseEnum(ReadString(item, "kind"), OverlayOperationKind.Intersection),
+                ReadStringArray(item, "inputRefs", "inputs"),
+                ReadString(item, "outputRef") ?? string.Empty,
+                ParseNullableEnum<OverlaySpatialRelation>(ReadString(item, "relationship"))))
+            .ToList();
+
+        var criteria = criteriaElement.EnumerateArray()
+            .Where(item => item.ValueKind == JsonValueKind.Object)
+            .Select(item => new OverlayCriterion(
+                ReadString(item, "criterionId") ?? string.Empty,
+                ParseEnum(ReadString(item, "kind"), OverlayCriterionKind.Attribute),
+                ReadString(item, "inputRef") ?? string.Empty,
+                ReadString(item, "operator") ?? string.Empty,
+                ReadString(item, "field"),
+                ReadDouble(item, "number", "value"),
+                ReadString(item, "text"),
+                ReadString(item, "unit"),
+                ReadBool(item, "required") ?? true,
+                ParseNullableEnum<OverlayCriterionDirection>(ReadString(item, "direction"))))
+            .ToList();
+
+        OverlayScoringProfile? scoring = null;
+        if (root.TryGetProperty("scoring", out var scoringElement) &&
+            scoringElement.ValueKind == JsonValueKind.Object &&
+            scoringElement.TryGetProperty("weights", out var weightsElement) &&
+            weightsElement.ValueKind == JsonValueKind.Array)
+        {
+            scoring = new OverlayScoringProfile(weightsElement.EnumerateArray()
+                .Where(item => item.ValueKind == JsonValueKind.Object)
+                .Select(item => new OverlayScoreWeight(
+                    ReadString(item, "criterionId") ?? string.Empty,
+                    ReadDouble(item, "weight") ?? double.NaN))
+                .ToList());
+        }
+
+        return new OverlayAnalysisParameters(
+            ReadString(root, "candidateRef") ?? string.Empty,
+            inputs,
+            steps,
+            criteria,
+            scoring);
+    }
+
+    private static IReadOnlyList<string> ReadStringArray(JsonElement root, params string[] names)
+    {
+        foreach (var name in names)
+        {
+            if (root.TryGetProperty(name, out var values) && values.ValueKind == JsonValueKind.Array)
+            {
+                return values.EnumerateArray()
+                    .Where(value => value.ValueKind == JsonValueKind.String)
+                    .Select(value => value.GetString()!)
+                    .ToList();
+            }
+        }
+
+        return [];
+    }
+
+    private static T ParseEnum<T>(string? value, T fallback) where T : struct, Enum =>
+        Enum.TryParse<T>(value?.Replace("-", string.Empty, StringComparison.Ordinal), true, out var parsed)
+            ? parsed
+            : fallback;
+
+    private static T? ParseNullableEnum<T>(string? value) where T : struct, Enum =>
+        Enum.TryParse<T>(value?.Replace("-", string.Empty, StringComparison.Ordinal), true, out var parsed)
+            ? parsed
+            : null;
 
     private static double? ReadDouble(JsonElement root, params string[] names)
     {

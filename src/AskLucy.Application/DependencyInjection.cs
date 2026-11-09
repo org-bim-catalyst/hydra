@@ -35,13 +35,13 @@ using AskLucy.Application.Notifications.Processing;
 using AskLucy.Application.OperationalFailures;
 using AskLucy.Application.Options;
 using AskLucy.Application.PointsOfInterest;
-using AskLucy.Application.Spatial.Density;
 using AskLucy.Application.Retrieval;
 using AskLucy.Application.Retrieval.Indexing;
 using AskLucy.Application.SiteAnalysis;
 using AskLucy.Application.SiteAnalysis.Tools;
 using AskLucy.Application.SiteBoundaries;
 using AskLucy.Application.Spatial;
+using AskLucy.Application.Spatial.Density;
 using AskLucy.Application.Spatial.Query;
 using AskLucy.Application.Spatial.Specialists;
 using AskLucy.Application.Workflows.Expressions;
@@ -401,6 +401,8 @@ public static class DependencyInjection
         services.AddSingleton<IDensityDatasetCatalog, DensityDatasetCatalog>();
         services.AddScoped<DensityAnalysisAuditLogger>();
         services.AddScoped<ISpatialSpecialist, DensityAnalysisSpecialist>();
+        services.AddScoped<OverlayAnalysisAuditLogger>();
+        services.AddScoped<ISpatialSpecialist, OverlayAnalysisSpecialist>();
         // Registered directly against IAgentTool, never a `sp => sp.GetRequiredService<T>()`
         // factory — see the note on the site-analysis tools above (constitution §3/§2.VIII).
         services.AddScoped<IAgentTool, SpatialAnalysisCapability>();

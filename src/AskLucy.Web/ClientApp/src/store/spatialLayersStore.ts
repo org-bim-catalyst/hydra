@@ -22,7 +22,7 @@ export interface DensitySurface {
 }
 
 /** specs/095 — attribute map keyed by field name. Values may be string, number, or null. */
-export type FeatureAttributes = Record<string, string | number | null>
+export type FeatureAttributes = Record<string, string | number | boolean | null>
 
 /** specs/095 — geometry kind for a query result feature. */
 export type FeatureGeometryKind = 'point' | 'polygon' | 'linestring'
@@ -39,6 +39,31 @@ export interface SpatialQueryFeature {
   name: string
   geometry: FeatureGeometry
   attributes: FeatureAttributes
+  overlay?: OverlayFeatureMetadata | null
+}
+
+export interface OverlayFeatureMetadata {
+  eligibility: Record<string, boolean>
+  criterionScores: Record<string, number>
+  score?: number | null
+  rank?: number | null
+  provenance: string[]
+}
+
+export interface OverlayLayerMetadata {
+  role: string
+  operation: string
+  criteria: string[]
+  sources: string[]
+  scoreMeaning?: string | null
+  coverage?: string[] | null
+}
+
+export interface SpatialCoverage {
+  sourceId: string
+  displayName: string
+  coverageStatus: string
+  explanation?: string | null
 }
 
 export interface SpatialMarkerPoint {
@@ -86,6 +111,8 @@ export interface SpatialLayerPayload {
   /** specs/095 — warning message set when query timed out or produced a large result. */
   warning?: string | null
   density?: DensitySurface | null
+  overlay?: OverlayLayerMetadata | null
+  coverage?: SpatialCoverage[] | null
 }
 
 /** One active layer; `analysisId` is stamped on arrival from the event's top-level id. */
@@ -142,8 +169,51 @@ const validKinds: readonly SpatialLayerKind[] = [
   'density-surface',
 ]
 
+/** Validate untrusted streamed layer JSON before it reaches the viewer. */
+export function isValidSpatialLayerPayload(value: unknown): value is SpatialLayerPayload {
+  if (!value || typeof value !== 'object') return false
+  const layer = value as Partial<SpatialLayerPayload>
+  if (typeof layer.layerId !== 'string' || !layer.layerId || typeof layer.sourceOperation !== 'string' ||
+      typeof layer.name !== 'string' || typeof layer.legendLabel !== 'string' || typeof layer.visible !== 'boolean' ||
+      !validKinds.includes(layer.kind as SpatialLayerKind)) return false
+  if (layer.kind !== 'feature-query') return true
+  if (!Array.isArray(layer.features)) return false
+  return layer.features.every((feature) => {
+    if (!feature || typeof feature.featureId !== 'string' || typeof feature.name !== 'string') return false
+    const geometry = feature.geometry
+    if (!geometry || !['point', 'polygon', 'linestring'].includes(geometry.kind) || !Array.isArray(geometry.points)) return false
+    if (geometry.points.some((point) => !point || !Number.isFinite(point.latitude) || !Number.isFinite(point.longitude) || Math.abs(point.latitude) > 90 || Math.abs(point.longitude) > 180)) return false
+    const minimum = geometry.kind === 'point' ? 1 : geometry.kind === 'linestring' ? 2 : 4
+    if (geometry.points.length < minimum || !feature.attributes || typeof feature.attributes !== 'object') return false
+    if (geometry.kind === 'point' && geometry.points.length !== 1) return false
+    if (geometry.kind === 'polygon') {
+      const first = geometry.points[0]
+      const last = geometry.points[geometry.points.length - 1]
+      if (first.latitude !== last.latitude || first.longitude !== last.longitude) return false
+    }
+    if (Object.values(feature.attributes).some((attribute) =>
+      attribute !== null && typeof attribute !== 'string' && typeof attribute !== 'boolean' &&
+      !(typeof attribute === 'number' && Number.isFinite(attribute)))) return false
+    if (feature.overlay != null && (
+      !feature.overlay.eligibility || Object.values(feature.overlay.eligibility).some((eligible) => typeof eligible !== 'boolean') ||
+      !feature.overlay.criterionScores || !Array.isArray(feature.overlay.provenance) || feature.overlay.provenance.some((source) => typeof source !== 'string') ||
+      Object.values(feature.overlay.criterionScores).some((score) => !Number.isFinite(score)) ||
+      (feature.overlay.score != null && !Number.isFinite(feature.overlay.score)) ||
+      (feature.overlay.rank != null && (!Number.isInteger(feature.overlay.rank) || feature.overlay.rank < 1))
+    )) return false
+    return true
+  }) && (layer.overlay == null || (
+    typeof layer.overlay.role === 'string' && typeof layer.overlay.operation === 'string' &&
+    Array.isArray(layer.overlay.criteria) && layer.overlay.criteria.every((criterion) => typeof criterion === 'string') &&
+    Array.isArray(layer.overlay.sources) && layer.overlay.sources.every((source) => typeof source === 'string')
+    && (layer.overlay.coverage == null || (Array.isArray(layer.overlay.coverage) && layer.overlay.coverage.every((entry) => typeof entry === 'string')))
+  )) && (layer.coverage == null || (Array.isArray(layer.coverage) && layer.coverage.every((source) =>
+    source && typeof source.sourceId === 'string' && typeof source.displayName === 'string' && typeof source.coverageStatus === 'string' &&
+    (source.explanation == null || typeof source.explanation === 'string'))))
+}
+
 function isRenderable(layer: SpatialLayerPayload): boolean {
-  if (!layer?.layerId || !validKinds.includes(layer.kind)) return false
+  if (!isValidSpatialLayerPayload(layer)) return false
   if (layer.kind === 'feature-query') {
     // feature-query layers are renderable even when empty (streaming in progress)
     return true
