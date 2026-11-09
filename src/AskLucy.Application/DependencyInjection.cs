@@ -401,6 +401,8 @@ public static class DependencyInjection
         services.AddSingleton<IDensityDatasetCatalog, DensityDatasetCatalog>();
         services.AddScoped<DensityAnalysisAuditLogger>();
         services.AddScoped<ISpatialSpecialist, DensityAnalysisSpecialist>();
+        services.AddScoped<OverlayAnalysisAuditLogger>();
+        services.AddScoped<ISpatialSpecialist, OverlayAnalysisSpecialist>();
         // Registered directly against IAgentTool, never a `sp => sp.GetRequiredService<T>()`
         // factory — see the note on the site-analysis tools above (constitution §3/§2.VIII).
         services.AddScoped<IAgentTool, SpatialAnalysisCapability>();

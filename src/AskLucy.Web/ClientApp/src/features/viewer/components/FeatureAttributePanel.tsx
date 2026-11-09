@@ -51,7 +51,7 @@ export function FeatureAttributePanel({
   const resolveUnit = (key: string): string | null =>
     fieldMap.get(key)?.unit ?? null
 
-  const formatValue = (value: string | number | null, unit: string | null): string => {
+  const formatValue = (value: string | number | boolean | null, unit: string | null): string => {
     if (value === null || value === undefined) return '—'
     return unit ? `${value} ${unit}` : String(value)
   }
@@ -111,6 +111,31 @@ export function FeatureAttributePanel({
           <Typography variant="caption" color="text.secondary" sx={{ textTransform: 'capitalize' }}>
             {feature.geometry.kind} · ID: {feature.featureId}
           </Typography>
+          {feature.overlay && (
+            <Stack spacing={0.25} sx={{ mt: 0.75 }}>
+              {feature.overlay.rank != null && (
+                <Typography variant="body2">Rank: {feature.overlay.rank}</Typography>
+              )}
+              {feature.overlay.score != null && (
+                <Typography variant="body2">Suitability score: {feature.overlay.score.toFixed(3)}</Typography>
+              )}
+              {Object.entries(feature.overlay.eligibility).map(([criterion, eligible]) => (
+                <Typography key={`eligible-${criterion}`} variant="caption" color={eligible ? 'success.main' : 'error.main'}>
+                  {criterion}: {eligible ? 'meets criterion' : 'does not meet criterion'}
+                </Typography>
+              ))}
+              {Object.entries(feature.overlay.criterionScores).map(([criterion, score]) => (
+                <Typography key={`score-${criterion}`} variant="caption" color="text.secondary">
+                  {criterion} score: {score.toFixed(3)}
+                </Typography>
+              ))}
+              {feature.overlay.provenance.length > 0 && (
+                <Typography variant="caption" color="text.secondary">
+                  Sources: {feature.overlay.provenance.join(', ')}
+                </Typography>
+              )}
+            </Stack>
+          )}
         </Box>
       )}
 

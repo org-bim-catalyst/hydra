@@ -319,6 +319,24 @@ describe('streamChat', () => {
     }).rejects.toThrow('Lucy could not display the map analysis. Please try again.')
   })
 
+  it('surfaces malformed overlay feature geometry instead of dropping the result layer', async () => {
+    const payload = { analysisId: 'a1', status: 'Complete', mode: 'replace', layers: [{
+      layerId: 'overlay-result', sourceOperation: 'op-1', name: 'Candidates', legendLabel: 'Candidates',
+      kind: 'feature-query', visible: true, features: [{ featureId: 'f1', name: 'Parcel',
+        geometry: { kind: 'polygon', points: [{ latitude: 95, longitude: 0 }] }, attributes: {},
+      }],
+    }] }
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(sseResponse([
+      `data: __SPATIAL_LAYERS__${JSON.stringify(payload)}\n\n`, 'data: [DONE]\n\n',
+    ])))
+
+    await expect(async () => {
+      for await (const event of streamChat('chat-1', [{ role: 'user', content: 'test' }], 'p1', 'm1', undefined)) {
+        void event
+      }
+    }).rejects.toThrow('Lucy returned map analysis that could not be displayed. Please try again.')
+  })
+
   // specs/052-solar-analysis research D3: __SOLAR_ANALYSIS__ trailing SSE event
   it('parses a __SOLAR_ANALYSIS__ trailing event and yields a solarAnalysis event', async () => {
     const solarPayload = { date: '2026-09-13', timeOfDay: '14:00' }

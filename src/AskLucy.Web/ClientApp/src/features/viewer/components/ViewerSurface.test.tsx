@@ -3,6 +3,7 @@ import { act, fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { useActiveLocationStore } from '../../../store/activeLocationStore'
 import { useAuthStore } from '../../../store/authStore'
+import { useSpatialLayersStore } from '../../../store/spatialLayersStore'
 import { DECLARED_EXTENSIONS } from '../../../viewer/extensions/declared'
 import { useViewerExtensionStore } from '../../../viewer/extensions/store/viewerExtensionStore'
 import { resetViewerSession } from '../../../viewer/session/resetViewerSession'
@@ -82,6 +83,7 @@ describe('ViewerSurface', () => {
     // specs/036-startup-geolocation T009/T016: ViewerSurface now reads from activeLocationStore
     // instead of props. Reset both stores between tests for isolation.
     useViewerEngineStore.setState(initialViewerState, true)
+    useSpatialLayersStore.getState().clearLayers()
     useActiveLocationStore.getState().clear()
     useWebGLSupportMock.mockReset().mockReturnValue(true)
     // specs/050: each test's render() starts the declared extensions afresh — reset so an
@@ -108,6 +110,24 @@ describe('ViewerSurface', () => {
     // Store is empty — no location yet; mirrors the 'resolving' geolocation state.
     renderViewerSurface()
     expect(screen.getByTestId('viewer-placeholder')).toBeInTheDocument()
+  })
+
+  it('retains independent overlay layer visibility across viewer map mode changes', () => {
+    useSpatialLayersStore.getState().applyLayers('chat-1', 'analysis-1', [{
+      layerId: 'overlay-result', sourceOperation: 'op-1', name: 'Suitable areas',
+      legendLabel: 'Suitable areas', kind: 'feature-query', visible: true,
+      features: [{ featureId: 'parcel-1', name: 'Parcel 1',
+        geometry: { kind: 'polygon', points: [
+          { latitude: 23, longitude: 58 }, { latitude: 23, longitude: 58.01 },
+          { latitude: 23.01, longitude: 58.01 }, { latitude: 23, longitude: 58 },
+        ] }, attributes: {},
+      }],
+    }], 'replace')
+
+    renderViewerSurface()
+    useSpatialLayersStore.getState().toggleLayer('overlay-result')
+    expect(useSpatialLayersStore.getState().layers[0].visible).toBe(false)
+    expect(useSpatialLayersStore.getState().layers[0].features).toHaveLength(1)
   })
 
   it('transitions to the map content mode once geolocation resolves (FR-007, US2-AC1)', () => {

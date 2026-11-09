@@ -150,7 +150,89 @@ public sealed class SpatialBundleValidator : AbstractValidator<SpatialRequestBun
                 .NotNull()
                 .When(o => string.Equals(o.OperationKind, SpatialOperationKinds.DensityAnalysis, StringComparison.Ordinal))
                 .WithMessage("Density analysis needs a bounded area.");
+
+            operation.RuleFor(o => o.OverlayParameters)
+                .Must(HaveValidOverlayParameters)
+                .When(o => string.Equals(o.OperationKind, SpatialOperationKinds.OverlayAnalysis, StringComparison.Ordinal))
+                .WithMessage("The overlay request needs a candidate, compatible inputs, valid operations and criteria, and valid scoring weights.");
+
         });
+    }
+
+    private static bool HaveValidOverlayParameters(OverlayAnalysisParameters? overlay)
+    {
+        if (overlay is null || string.IsNullOrWhiteSpace(overlay.CandidateRef) ||
+            overlay.Inputs is not { Count: >= 2 } || overlay.Steps is not { Count: > 0 } ||
+            overlay.Criteria is not { Count: > 0 })
+        {
+            return false;
+        }
+
+        var refs = overlay.Inputs.Select(input => input.Ref).ToHashSet(StringComparer.OrdinalIgnoreCase);
+        if (refs.Count != overlay.Inputs.Count || !refs.Contains(overlay.CandidateRef) ||
+            overlay.Inputs.Count(input => input.Role == OverlayInputRole.Candidate) != 1 ||
+            overlay.Inputs.Any(input => string.IsNullOrWhiteSpace(input.Ref) || string.IsNullOrWhiteSpace(input.DatasetId)))
+        {
+            return false;
+        }
+
+        var outputs = new HashSet<string>(refs, StringComparer.OrdinalIgnoreCase);
+        var stepIds = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var step in overlay.Steps)
+        {
+            if (string.IsNullOrWhiteSpace(step.StepId) || !stepIds.Add(step.StepId) ||
+                string.IsNullOrWhiteSpace(step.OutputRef) || outputs.Contains(step.OutputRef) ||
+                step.InputRefs.Count < 2 || step.InputRefs.Distinct(StringComparer.OrdinalIgnoreCase).Count() != step.InputRefs.Count ||
+                step.InputRefs.Any(reference => !outputs.Contains(reference)))
+            {
+                return false;
+            }
+
+            if (step.Kind == OverlayOperationKind.Difference && step.InputRefs.Count != 2)
+            {
+                return false;
+            }
+
+            if (step.Kind == OverlayOperationKind.SpatialIntersection && step.Relationship is null)
+            {
+                return false;
+            }
+
+            outputs.Add(step.OutputRef);
+        }
+
+        if (overlay.Criteria.Any(criterion =>
+                string.IsNullOrWhiteSpace(criterion.CriterionId) || !outputs.Contains(criterion.InputRef) ||
+                string.IsNullOrWhiteSpace(criterion.Operator) ||
+                criterion.Number is { } number && !double.IsFinite(number) ||
+                criterion.Kind == OverlayCriterionKind.Attribute && string.IsNullOrWhiteSpace(criterion.Field) ||
+                criterion.Kind is OverlayCriterionKind.Distance or OverlayCriterionKind.Area && criterion.Number is null ||
+                criterion.Kind == OverlayCriterionKind.Distance && criterion.Unit is not ("m" or "km")))
+        {
+            return false;
+        }
+
+        if (overlay.Criteria.Select(criterion => criterion.CriterionId)
+            .Distinct(StringComparer.OrdinalIgnoreCase).Count() != overlay.Criteria.Count)
+        {
+            return false;
+        }
+
+        if (overlay.Scoring is null)
+        {
+            return true;
+        }
+
+        var criterionIds = overlay.Criteria.Select(criterion => criterion.CriterionId)
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+        return overlay.Scoring.Weights is { Count: > 0 } weights &&
+               weights.All(weight => criterionIds.Contains(weight.CriterionId) &&
+                                     double.IsFinite(weight.Weight) && weight.Weight >= 0) &&
+               weights.Select(weight => weight.CriterionId).Distinct(StringComparer.OrdinalIgnoreCase).Count() == weights.Count &&
+               weights.Sum(weight => weight.Weight) > 0 &&
+               weights.All(weight => overlay.Criteria.Any(criterion =>
+                   string.Equals(criterion.CriterionId, weight.CriterionId, StringComparison.OrdinalIgnoreCase) &&
+                   !criterion.Required && criterion.Direction is not null));
     }
 
     private static bool HaveUniqueOperationIds(IReadOnlyList<SpatialOperation> operations) =>

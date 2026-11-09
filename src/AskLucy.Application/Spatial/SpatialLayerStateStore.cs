@@ -29,7 +29,8 @@ public sealed record PendingSpatialRequest(
     string? CategoryKey,
     string? AreaName,
     SpatialPendingQuestion Question,
-    DateTime CreatedAtUtc);
+    DateTime CreatedAtUtc,
+    SpatialRequestInput? Request = null);
 
 /// <summary>What one chat currently has drawn, and what a follow-up choice is answering.</summary>
 public sealed record SpatialChatLayerState(

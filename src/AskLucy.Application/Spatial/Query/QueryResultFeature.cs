@@ -25,4 +25,5 @@ public sealed record QueryResultFeature(
     string FeatureId,
     string Name,
     FeatureGeometry Geometry,
-    IReadOnlyDictionary<string, object?> Attributes);
+    IReadOnlyDictionary<string, object?> Attributes,
+    OverlayFeatureMetadata? Overlay = null);

@@ -1,10 +1,13 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
+import { Alert, Snackbar } from '@mui/material'
 import { useGoogleMapsStore } from '../../../viewer/store/googleMapsStore'
 import {
   useSpatialLayersStore,
   type SpatialLayer,
   type SpatialQueryFeature,
 } from '../../../store/spatialLayersStore'
+import { disposeSpatialLayerOverlays } from './spatialLayerOverlayLifecycle'
+import { toSpatialMapFeatureGeometry } from './spatialLayerFeatureGeometry'
 
 /** Injected once — idempotent via the element-id guard. Every shape reads its colour from the
  * `--spatial-color` custom property so one stylesheet serves every layer. */
@@ -119,6 +122,7 @@ export interface FeatureSelectedDetail {
  * features as polylines.
  */
 export function SpatialLayersOverlay() {
+  const [renderError, setRenderError] = useState<string | null>(null)
   const map = useGoogleMapsStore((s) => s.map)
   const layers = useSpatialLayersStore((s) => s.layers)
   const markersRef = useRef<google.maps.marker.AdvancedMarkerElement[]>([])
@@ -141,19 +145,13 @@ export function SpatialLayersOverlay() {
         if (cancelled) return
 
         // Clear previous render.
-        for (const marker of markersRef.current) {
-          marker.map = null
-        }
+        disposeSpatialLayerOverlays(markersRef.current, [], [])
         markersRef.current = []
 
-        for (const polygon of polygonsRef.current) {
-          polygon.setMap(null)
-        }
+        disposeSpatialLayerOverlays([], polygonsRef.current, [])
         polygonsRef.current = []
 
-        for (const polyline of polylinesRef.current) {
-          polyline.setMap(null)
-        }
+        disposeSpatialLayerOverlays([], [], polylinesRef.current)
         polylinesRef.current = []
 
         for (const layer of visible) {
@@ -180,13 +178,14 @@ export function SpatialLayersOverlay() {
             const shape = layer.style?.markerShape ?? 'simple-dot'
 
             for (const feature of layer.features ?? []) {
-              const geo = feature.geometry
+              const geo = toSpatialMapFeatureGeometry(feature)
+              if (!geo) continue
 
-              if (geo.kind === 'point' && geo.points.length > 0) {
+              if (geo.kind === 'point') {
                 const content = buildMarkerContent(feature.name, shape, color)
                 const marker = new AdvancedMarkerElement({
                   map,
-                  position: { lat: geo.points[0].latitude, lng: geo.points[0].longitude },
+                  position: geo.points[0],
                   content,
                   title: feature.name || layer.legendLabel,
                 })
@@ -198,8 +197,8 @@ export function SpatialLayersOverlay() {
                   )
                 })
                 markersRef.current.push(marker)
-              } else if (geo.kind === 'polygon' && geo.points.length >= 3) {
-                const paths = geo.points.map((p) => ({ lat: p.latitude, lng: p.longitude }))
+              } else if (geo.kind === 'polygon') {
+                const paths = geo.points
                 const polygon = new google.maps.Polygon({
                   map,
                   paths,
@@ -216,8 +215,8 @@ export function SpatialLayersOverlay() {
                   )
                 })
                 polygonsRef.current.push(polygon)
-              } else if (geo.kind === 'linestring' && geo.points.length >= 2) {
-                const path = geo.points.map((p) => ({ lat: p.latitude, lng: p.longitude }))
+              } else if (geo.kind === 'linestring') {
+                const path = geo.points
                 const polyline = new google.maps.Polyline({
                   map,
                   path,
@@ -314,12 +313,22 @@ export function SpatialLayersOverlay() {
           map.fitBounds(bounds, 48)
         }
       } catch (err) {
-        console.error('[SpatialLayersOverlay] Failed to draw spatial layers.', err)
+        disposeSpatialLayerOverlays(markersRef.current, polygonsRef.current, polylinesRef.current)
+        markersRef.current = []
+        polygonsRef.current = []
+        polylinesRef.current = []
+        if (!cancelled) {
+          setRenderError(err instanceof Error ? err.message : 'The map layers could not be displayed.')
+        }
       }
     })()
 
     return () => {
       cancelled = true
+      disposeSpatialLayerOverlays(markersRef.current, polygonsRef.current, polylinesRef.current)
+      markersRef.current = []
+      polygonsRef.current = []
+      polylinesRef.current = []
     }
   }, [map, layers])
 
@@ -341,7 +350,13 @@ export function SpatialLayersOverlay() {
     }
   }, [])
 
-  return null
+  return (
+    <Snackbar open={renderError !== null} autoHideDuration={8000} onClose={() => setRenderError(null)}>
+      <Alert severity="error" onClose={() => setRenderError(null)}>
+        {renderError ?? 'The map layers could not be displayed.'}
+      </Alert>
+    </Snackbar>
+  )
 }
 
 function densityColor(classificationIndex: number, intensity: number): string {

@@ -756,6 +756,8 @@ public static class DependencyInjection
             AskLucy.Infrastructure.Spatial.Query.OverpassSpatialQueryProvider>();
         services.AddScoped<AskLucy.Application.Spatial.Density.IDensityAnalysisProvider,
             AskLucy.Infrastructure.Spatial.Density.OverpassDensityAnalysisProvider>();
+        services.AddScoped<AskLucy.Application.Spatial.IOverlayAnalysisProvider,
+            AskLucy.Infrastructure.Spatial.Overlay.OverlayAnalysisProvider>();
 
         return services;
     }

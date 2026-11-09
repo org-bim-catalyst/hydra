@@ -16,6 +16,7 @@ public static class SpatialOperationKinds
     /// <summary>specs/095 — filters geographic features by attribute and/or spatial conditions.</summary>
     public const string SpatialQuery = "spatial.query";
     public const string DensityAnalysis = "density.analysis";
+    public const string OverlayAnalysis = "overlay.analysis";
 
     /// <summary>
     /// Every operation the coordinator is allowed to build. A kind absent here is never produced by
@@ -44,6 +45,11 @@ public static class SpatialOperationKinds
             "Calculates and displays high and low concentrations of a geographic dataset.",
             "Use when the user asks where a feature or population is dense, sparse, concentrated, or underserved in an area.",
             "dataset, bounded area, and optionally method, radius, cell size or classification"),
+        new(
+            OverlayAnalysis,
+            "Combines compatible spatial datasets and filters or ranks candidate locations against multiple criteria.",
+            "Use when the user asks which areas or sites satisfy several spatial conditions, or asks to intersect, union, subtract, or compare geographic layers.",
+            "bounded area, candidate dataset, input datasets, operations, and required criteria; optional weights for ranking"),
     ];
 
     public static bool IsKnown(string? operationKind) =>
@@ -107,7 +113,8 @@ public sealed record SpatialOperation(
     StudyAreaReference? StudyArea = null,
     IReadOnlyList<string>? DependsOn = null,
     SpatialQueryParameters? QueryParameters = null,
-    DensityAnalysisParameters? DensityParameters = null);
+    DensityAnalysisParameters? DensityParameters = null,
+    OverlayAnalysisParameters? OverlayParameters = null);
 
 /// <summary>One thing an operation targets: a category, an explicit geometry, or both.</summary>
 /// <param name="Category">Normalized category key or the user's category phrase.</param>

@@ -12,6 +12,13 @@ public sealed record DensityCellPayload(string Id, IReadOnlyList<SpatialRingPoin
 public sealed record DensityClassificationPayload(string Method, IReadOnlyList<double> Breaks, IReadOnlyList<string> Labels);
 public sealed record DensitySurfacePayload(string Method, string Unit, double? SearchRadiusMeters,
     double? CellSizeMeters, DensityClassificationPayload Classification, IReadOnlyList<DensityCellPayload> Cells);
+public sealed record SpatialFeatureGeometryPayload(string Kind, IReadOnlyList<SpatialRingPoint> Points);
+public sealed record OverlayFeatureMetadataPayload(IReadOnlyDictionary<string, bool> Eligibility,
+    IReadOnlyDictionary<string, double> CriterionScores, double? Score, int? Rank, IReadOnlyList<string> Provenance);
+public sealed record SpatialFeaturePayload(string FeatureId, string Name, SpatialFeatureGeometryPayload Geometry,
+    IReadOnlyDictionary<string, object?> Attributes, OverlayFeatureMetadataPayload? Overlay = null);
+public sealed record OverlayLayerMetadataPayload(string Role, string Operation, IReadOnlyList<string> Criteria,
+    IReadOnlyList<string> Sources, string? ScoreMeaning = null, IReadOnlyList<string>? Coverage = null);
 
 /// <summary>
 /// One renderable layer. <see cref="Kind"/> is one of <c>markers</c>, <c>buffer</c>, <c>area</c>,
@@ -31,7 +38,10 @@ public sealed record SpatialLayerPayload(
     double? Opacity = null,
     double? StrokeWidth = null,
     bool Visible = true,
-    DensitySurfacePayload? Density = null);
+    DensitySurfacePayload? Density = null,
+    IReadOnlyList<SpatialFeaturePayload>? Features = null,
+    OverlayLayerMetadataPayload? Overlay = null,
+    IReadOnlyList<SpatialCoveragePayload>? Coverage = null);
 
 /// <summary>What one data source contributed, for the legend's provenance line.</summary>
 public sealed record SpatialCoveragePayload(

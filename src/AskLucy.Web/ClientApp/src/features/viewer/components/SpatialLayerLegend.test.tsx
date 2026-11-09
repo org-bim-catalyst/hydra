@@ -47,6 +47,20 @@ describe('SpatialLayerLegend', () => {
     expect(screen.getByText('3')).toBeInTheDocument()
   })
 
+  it('explains overlay operation and criteria in the layer legend', () => {
+    const layer: SpatialLayerPayload = {
+      ...markerLayer('suitable', 'Suitable locations'), kind: 'feature-query', markers: [], features: [],
+      overlay: { role: 'result', operation: 'intersection', criteria: ['population', 'road access'], sources: ['parcels', 'roads'], scoreMeaning: '0–1 suitability', coverage: ['Parcels: Complete'] },
+      coverage: [{ sourceId: 'land-parcels', displayName: 'Land Parcels', coverageStatus: 'Partial', explanation: '2 invalid features excluded' }],
+    }
+    seedLayers(layer)
+    render(<SpatialLayerLegend />)
+
+    expect(screen.getByText('result · intersection · population, road access · parcels, roads · 0–1 suitability')).toBeInTheDocument()
+    expect(screen.getByText('Parcels: Complete')).toBeInTheDocument()
+    expect(screen.getByText('Land Parcels: Partial · 2 invalid features excluded')).toBeInTheDocument()
+  })
+
   it('hides a layer without removing it from the legend', async () => {
     seedLayers(markerLayer('schools', 'Schools'))
     render(<SpatialLayerLegend />)

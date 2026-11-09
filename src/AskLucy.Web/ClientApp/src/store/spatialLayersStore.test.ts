@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it } from 'vitest'
-import { useSpatialLayersStore, type SpatialLayerPayload } from './spatialLayersStore'
+import { isValidSpatialLayerPayload, useSpatialLayersStore, type SpatialLayerPayload } from './spatialLayersStore'
 
 function markerLayer(layerId: string, name = 'Schools'): SpatialLayerPayload {
   return {
@@ -34,6 +34,25 @@ function areaLayer(layerId: string): SpatialLayerPayload {
 describe('spatialLayersStore', () => {
   beforeEach(() => {
     useSpatialLayersStore.getState().clearLayers()
+  })
+
+  it('accepts complete overlay feature metadata and rejects invalid coordinates or scores', () => {
+    const overlayLayer: SpatialLayerPayload = {
+      layerId: 'overlay-result', sourceOperation: 'op-overlay', name: 'Suitable parcels',
+      legendLabel: 'Suitable parcels', kind: 'feature-query', visible: true,
+      features: [{
+        featureId: 'parcel-1', name: 'Parcel 1', geometry: { kind: 'polygon', points: [
+          { latitude: 1, longitude: 1 }, { latitude: 1, longitude: 2 },
+          { latitude: 2, longitude: 2 }, { latitude: 1, longitude: 1 },
+        ] }, attributes: { available: true }, overlay: {
+          eligibility: { density: true }, criterionScores: { access: 0.8 },
+          score: 0.8, rank: 1, provenance: ['parcels', 'roads'],
+        },
+      }],
+      overlay: { role: 'result', operation: 'intersection', criteria: ['density', 'access'], sources: ['parcels', 'roads'] },
+    }
+    expect(isValidSpatialLayerPayload(overlayLayer)).toBe(true)
+    expect(isValidSpatialLayerPayload({ ...overlayLayer, features: [{ ...overlayLayer.features![0], overlay: { ...overlayLayer.features![0].overlay!, score: Number.NaN } }] })).toBe(false)
   })
 
   it('replaces every layer when replace arrives', () => {
