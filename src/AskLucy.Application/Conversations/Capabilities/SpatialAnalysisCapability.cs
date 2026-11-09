@@ -99,7 +99,7 @@ public sealed class SpatialAnalysisCapability(
             "datasetId":{"type":"string"}, "densityIntent":{"type":"string"},
             "densityMethod":{"type":"string"}, "cellSizeMeters":{"type":"number","exclusiveMinimum":0},
             "densityClassification":{"type":"string"}
-          },"required":["kind"]}},
+          },"required":["kind"]}}},
           "category":{"type":"string"},
           "area":{"type":"string"},
           "mode":{"type":"string","enum":["keep","replace"]}
